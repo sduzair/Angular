@@ -58,7 +58,7 @@ export class AfterViewComponent implements AfterViewChecked, AfterViewInit {
     const child = this.viewChild;
     const message = `${method}: ${child ? child.hero : 'no'} child view`;
     this.logger.log(message);
-    console.log(message);
+    // console.log(message);
   }
   // ...
 }

@@ -18,6 +18,6 @@ export class PeekABooDirective implements OnInit {
 
   logIt(msg: string) {
     this.logger.log(`#${++nextId} ${msg}`);
-    console.log(`#${nextId} ${msg}`);
+    // console.log(`#${nextId} ${msg}`);
   }
 }
