@@ -7,6 +7,7 @@
 <a href="#child-to-parent">Parent listens for child event ("Colonize Universe")</a><br />
 <a href="#parent-to-child-local-var">Parent to child via <em>local variable</em>("Countdown to Liftoff")</a><br />
 <a href="#parent-to-view-child">Parent calls <em>ViewChild</em>("Countdown to Liftoff")</a><br />
+<a href="#parent-to-content-child">Parent calls <em>ContentChild</em>("Countdown to Liftoff")</a><br />
 <a href="#bidirectional-service">Parent and children communicate via a service ("Mission Control")</a><br />
 
 <div id="parent-to-child">
@@ -41,6 +42,14 @@
 <hr>
 <div id="parent-to-view-child">
   <app-countdown-parent-vc></app-countdown-parent-vc>
+</div>
+<a href="#top" class="to-top">Back to Top</a>
+
+<hr>
+<div id="parent-to-content-child">
+  <app-countdown-parent-cc>
+    <app-countdown-timer></app-countdown-timer>
+  </app-countdown-parent-cc>
 </div>
 <a href="#top" class="to-top">Back to Top</a>
 

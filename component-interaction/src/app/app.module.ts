@@ -3,7 +3,7 @@ import { BrowserModule } from '@angular/platform-browser';
 
 import { AppComponent } from './app.component';
 import { AstronautComponent } from './astronaut.component';
-import { CountdownLocalVarParentComponent, CountdownViewChildParentComponent } from './countdown-parent.component';
+import { CountdownContentChildParentComponent, CountdownLocalVarParentComponent, CountdownViewChildParentComponent } from './countdown-parent.component';
 import { CountdownTimerComponent } from './countdown-timer.component';
 import { HeroChildComponent } from './hero-child.component';
 import { HeroParentComponent } from './hero-parent.component';
@@ -28,6 +28,7 @@ import { FormsModule } from '@angular/forms';
     CountdownLocalVarParentComponent,
     CountdownTimerComponent,
     CountdownViewChildParentComponent,
+    CountdownContentChildParentComponent,
     HeroChildComponent,
     HeroParentComponent,
     MissionControlComponent,
