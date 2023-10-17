@@ -18,3 +18,7 @@
   - [ ] Parent interacts with child componet with Local Varaiable
   - [ ] Parent interacts with child componet with @ViewChild and limitation
   - [ ] Parent interacts with child componet with @ChangeChild
+- [ ] Special CSS Selectors
+  - [ ] :host
+  - [ ] :ng-deep
+  - [ ] :host-context()
