@@ -1,0 +1,11 @@
+:host {
+  border: 4px solid #192655;
+  padding: 10px;
+  display: none;
+  margin: 10px;
+  color: #192655;
+}
+
+:host-context(.show-child) {
+  display: block;
+}
