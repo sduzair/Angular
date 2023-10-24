@@ -4,5 +4,15 @@
     "**/.pnp.*": true
   },
   "typescript.tsdk": ".yarn/sdks/typescript/lib",
-  "typescript.enablePromptUseWorkspaceTsdk": true
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "workbench.colorCustomizations": {
+    "activityBar.activeBackground": "#3bc5bf",
+    "activityBar.background": "#3bc5bf",
+    "activityBar.foreground": "#15202b",
+    "activityBar.inactiveForeground": "#15202b99",
+    "activityBarBadge.background": "#bf3ac5",
+    "activityBarBadge.foreground": "#e7e7e7",
+    "sash.hoverBorder": "#3bc5bf"
+  },
+  "peacock.color": "#2f9e99"
 }

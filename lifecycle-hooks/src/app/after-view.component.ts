@@ -2,19 +2,22 @@ import { AfterViewChecked, AfterViewInit, Component, ViewChild } from '@angular/
 
 import { ChildViewComponent } from './child-view.component';
 import { LoggerService } from './logger.service';
+import { NgIf } from '@angular/common';
 
 @Component({
-  selector: 'after-view',
-  template: `
+    selector: 'after-view',
+    template: `
     <div>child view begins</div>
       <app-child-view></app-child-view>
     <div>child view ends</div>
   `
-    + `
+        + `
     <p *ngIf="comment" class="comment">
       {{comment}}
     </p>
-  `
+  `,
+    standalone: true,
+    imports: [ChildViewComponent, NgIf]
 })
 export class AfterViewComponent implements AfterViewChecked, AfterViewInit {
   comment = '';

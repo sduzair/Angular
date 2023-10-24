@@ -2,10 +2,13 @@ import { Component, ViewChild } from '@angular/core';
 
 import { DoCheckComponent } from './do-check.component';
 import { Hero } from './hero';
+import { FormsModule } from '@angular/forms';
 
 @Component({
-  selector: 'do-check-parent',
-  templateUrl: './do-check-parent.component.html'
+    selector: 'do-check-parent',
+    templateUrl: './do-check-parent.component.html',
+    standalone: true,
+    imports: [FormsModule, DoCheckComponent]
 })
 export class DoCheckParentComponent {
   hero!: Hero;
@@ -15,7 +18,7 @@ export class DoCheckParentComponent {
 
   constructor() {
     this.reset();
-    console.log('DoCheckParentComponent');
+    // console.log('DoCheckParentComponent');
   }
 
   reset() {
