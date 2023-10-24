@@ -2,19 +2,22 @@ import { AfterContentChecked, AfterContentInit, Component, ContentChild } from '
 
 import { ChildComponent } from './child.component';
 import { LoggerService } from './logger.service';
+import { NgIf } from '@angular/common';
 
 @Component({
-  selector: 'after-content',
-  template: `
+    selector: 'after-content',
+    template: `
     <div>projected content begins</div>
       <ng-content></ng-content>
     <div>projected content ends</div>
   `
-    + `
+        + `
     <p *ngIf="comment" class="comment">
       {{comment}}
     </p>
-  `
+  `,
+    standalone: true,
+    imports: [NgIf]
 })
 export class AfterContentComponent implements AfterContentChecked, AfterContentInit {
   private prevHero = '';

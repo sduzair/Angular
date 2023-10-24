@@ -3,11 +3,12 @@ import { Component, Input, OnChanges } from '@angular/core';
 import { Hero } from './hero';
 
 @Component({
-  selector: 'app-hero-child',
-  template: `
+    selector: 'app-hero-child',
+    template: `
     <h3>{{hero.name}} says:</h3>
     <p>I, {{hero.name}}, am at your service, {{masterName}}.</p>
-  `
+  `,
+    standalone: true
 })
 export class HeroChildComponent {
   @Input() hero!: Hero;

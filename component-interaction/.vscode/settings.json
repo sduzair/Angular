@@ -5,5 +5,15 @@
   },
   "typescript.tsdk": ".yarn/sdks/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
-  "git.autofetch": false
+  "git.autofetch": false,
+  "workbench.colorCustomizations": {
+    "activityBar.activeBackground": "#06d5f8",
+    "activityBar.background": "#06d5f8",
+    "activityBar.foreground": "#15202b",
+    "activityBar.inactiveForeground": "#15202b99",
+    "activityBarBadge.background": "#da05bb",
+    "activityBarBadge.foreground": "#e7e7e7",
+    "sash.hoverBorder": "#06d5f8"
+  },
+  "peacock.color": "#05aac6"
 }

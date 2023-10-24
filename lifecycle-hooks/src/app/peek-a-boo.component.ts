@@ -14,14 +14,17 @@ import {
 
 import { LoggerService } from './logger.service';
 import { PeekABooDirective } from './peek-a-boo.directive';
+import { NgFor } from '@angular/common';
 
 @Component({
-  selector: 'peek-a-boo',
-  template: `
+    selector: 'peek-a-boo',
+    template: `
     <h3>Lifecycle Hook Log - From Peek-a-boo</h3>
     <p>Now you see my hero, {{name}}</p>
     <div *ngFor="let msg of this.childLogs" class="log">{{msg}}</div>
-  `
+  `,
+    standalone: true,
+    imports: [NgFor]
 })
 // Don't HAVE to mention the Lifecycle Hook interfaces
 // unless we want typing and tool support.

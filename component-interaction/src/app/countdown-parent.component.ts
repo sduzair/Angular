@@ -5,29 +5,33 @@ import { CountdownTimerComponent } from './countdown-timer.component';
 
 //// Local variable, #timer, version
 @Component({
-  selector: 'app-countdown-parent-lv',
-  template: `
+    selector: 'app-countdown-parent-lv',
+    template: `
     <h3>Countdown to Liftoff (via local variable)</h3>
     <button type="button" (click)="timer.start()">Start</button>
     <button type="button" (click)="timer.stop()">Stop</button>
     <div class="seconds">{{timer.seconds}}</div>
     <app-countdown-timer #timer></app-countdown-timer>
   `,
-  styleUrls: ['../assets/demo.css']
+    styleUrls: ['../assets/demo.css'],
+    standalone: true,
+    imports: [CountdownTimerComponent]
 })
 export class CountdownLocalVarParentComponent { }
 
 //// View Child version
 @Component({
-  selector: 'app-countdown-parent-vc',
-  template: `
+    selector: 'app-countdown-parent-vc',
+    template: `
     <h3>Countdown to Liftoff (via ViewChild)</h3>
     <button type="button" (click)="start()">Start</button>
     <button type="button" (click)="stop()">Stop</button>
     <div class="seconds">{{ seconds() }}</div>
     <app-countdown-timer></app-countdown-timer>
   `,
-  styleUrls: ['../assets/demo.css']
+    styleUrls: ['../assets/demo.css'],
+    standalone: true,
+    imports: [CountdownTimerComponent]
 })
 export class CountdownViewChildParentComponent implements AfterViewInit {
   @ViewChild(CountdownTimerComponent)
@@ -49,15 +53,16 @@ export class CountdownViewChildParentComponent implements AfterViewInit {
 
 //// Content Child version
 @Component({
-  selector: 'app-countdown-parent-cc',
-  template: `
+    selector: 'app-countdown-parent-cc',
+    template: `
     <h3>Countdown to Liftoff (via ContentChild)</h3>
     <button type="button" (click)="start()">Start</button>
     <button type="button" (click)="stop()">Stop</button>
     <div class="seconds">{{ seconds() }}</div>
     <ng-content></ng-content>
   `,
-  styleUrls: ['../assets/demo.css']
+    styleUrls: ['../assets/demo.css'],
+    standalone: true
 })
 export class CountdownContentChildParentComponent implements AfterContentInit {
   @ContentChild(CountdownTimerComponent)

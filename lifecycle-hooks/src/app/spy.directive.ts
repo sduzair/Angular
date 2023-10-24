@@ -4,7 +4,10 @@ import { LoggerService } from './logger.service';
 
 // Spy on any element to which it is applied.
 // Usage: <div appSpy>...</div>
-@Directive({ selector: '[appSpy]' })
+@Directive({
+    selector: '[appSpy]',
+    standalone: true
+})
 export class SpyDirective implements OnInit, OnDestroy {
   private static nextId = 1;
   private id = SpyDirective.nextId++;
