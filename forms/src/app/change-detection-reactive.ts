@@ -28,22 +28,18 @@ import { FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, 
     imports: [ReactiveFormsModule]
 })
 export class ChangeDetectionReactiveComponent {
-  form: FormGroup;
+  form = this.fb.nonNullable.group({
+    name: ['', Validators.required],
+    password: ['', [Validators.required, Validators.minLength(4)]]
+  });
 
-  constructor(private fb: FormBuilder) {
-    this.form = this.fb.nonNullable.group({
-      name: ['', Validators.required],
-      password: ['', [Validators.required, Validators.minLength(4)]]
-    });
-  }
+  constructor(private fb: FormBuilder) { }
 
   get name() {
-    return this.form.value.ddasdfe;
+    return this.form.value.name;
   }
 
   onSubmit() {
-    // The form value is immutable. This line creates a new object.
-    const updatedFormValue = { ...this.form.value };
-    this.form.setValue(updatedFormValue);
+    console.log(this.form.value);
   }
 }
