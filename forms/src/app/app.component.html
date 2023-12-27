@@ -1,36 +1,10 @@
 <h1>{{ title }}</h1>
 
-<h2>NgModel Directive - Binds the input to name property of component class and tracks it - Two Way Binding</h2>
-<label for="name">Name:
-  <input id="name" type="text" [(ngModel)]="name">
-</label>
-<p>Hello {{ name }}!</p>
+<h2>Template-driven form - Change detection</h2>
+<change-detection-template-driven></change-detection-template-driven>
 
-<h2>Basic Form - Template Driven</h2>
-<form (ngSubmit)="showLastName()">
-  <input type="text" [(ngModel)]="lastName" name="lastName" />
-  <input type="submit" value="Submit" />
-</form>
+<h2>Reactive form - Change detection</h2>
+<change-detection-reactive></change-detection-reactive>
 
-<h2>Form - Template Driven - With Validation and CSS</h2>
-<form (ngSubmit)="showLicence()" #myForm="ngForm">
-  <input type="text" [(ngModel)]="licence" name="licence" required />
-  <input type="submit" value="Submit" [disabled]="!myForm.form.valid" />
-</form>
-
-<h2>Basic Form - Reactive</h2>
-<form (submit)="showSchool()">
-  <input type="text" [formControl]="school" name="school" />
-  <p>School: {{ school.value }}</p>
-  <input type="submit" name="Submit" />
-</form>
-
-<h2>Login From - Reactive - Grouping Controls</h2>
-<form [formGroup]="loginForm" (ngSubmit)="login()">
-  <p><input type="text" formControlName="username" name="username" /></p>
-  <p><input type="text" formControlName="password" name="password" /></p>
-  <p>Username: {{ loginForm.value.username }}</p>
-  <p>Password: {{ loginForm.value.password }}</p>
-  <p><input type="submit" name="Submit" [disabled]="!loginForm.valid" /></p>
-  <p><input type="reset" value="Reset" (click)="loginForm.reset()" /></p>
-</form>
+<h2>OnPush Change Detection Strategy</h2>
+<on-push-change-detection></on-push-change-detection>

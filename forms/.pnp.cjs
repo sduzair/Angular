@@ -41,8 +41,8 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["@angular/router", "virtual:74defbc8a68f0cf4e3c9ed3430b039443cf478286b3dffaa583e2615f6597675ef8f6bcc54542f70fab046572bdcbe83c0226a4dd7b17690b9cda080770d594a#npm:16.2.10"],\
             ["rxjs", "npm:7.8.1"],\
             ["tslib", "npm:2.6.2"],\
-            ["typescript", "patch:typescript@npm%3A5.1.6#~builtin<compat/typescript>::version=5.1.6&hash=5da071"],\
-            ["zone.js", "npm:0.13.3"]\
+            ["typescript", "patch:typescript@npm%3A5.3.3#~builtin<compat/typescript>::version=5.3.3&hash=29ae49"],\
+            ["zone.js", "npm:0.14.2"]\
           ],\
           "linkType": "SOFT"\
         }]\
@@ -161,7 +161,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["text-table", "npm:0.2.0"],\
             ["tree-kill", "npm:1.2.2"],\
             ["tslib", "npm:2.6.1"],\
-            ["typescript", "patch:typescript@npm%3A5.1.6#~builtin<compat/typescript>::version=5.1.6&hash=5da071"],\
+            ["typescript", "patch:typescript@npm%3A5.3.3#~builtin<compat/typescript>::version=5.3.3&hash=29ae49"],\
             ["vite", "virtual:c7f1218cfdeccbcc64ee9aca58da6426b7f7b540b98800cb12557be27ca288c2c99f89e2b75fddfeb566fe82a33ec2ad97dab86beb936af150bb64a8197f4af0#npm:4.4.7"],\
             ["webpack", "virtual:c7f1218cfdeccbcc64ee9aca58da6426b7f7b540b98800cb12557be27ca288c2c99f89e2b75fddfeb566fe82a33ec2ad97dab86beb936af150bb64a8197f4af0#npm:5.88.2"],\
             ["webpack-dev-middleware", "virtual:c7f1218cfdeccbcc64ee9aca58da6426b7f7b540b98800cb12557be27ca288c2c99f89e2b75fddfeb566fe82a33ec2ad97dab86beb936af150bb64a8197f4af0#npm:6.1.1"],\
@@ -407,7 +407,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["reflect-metadata", "npm:0.1.13"],\
             ["semver", "npm:7.5.4"],\
             ["tslib", "npm:2.6.2"],\
-            ["typescript", "patch:typescript@npm%3A5.1.6#~builtin<compat/typescript>::version=5.1.6&hash=5da071"],\
+            ["typescript", "patch:typescript@npm%3A5.3.3#~builtin<compat/typescript>::version=5.3.3&hash=29ae49"],\
             ["yargs", "npm:17.7.2"]\
           ],\
           "packagePeers": [\
@@ -435,7 +435,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["@types/zone.js", null],\
             ["rxjs", "npm:7.8.1"],\
             ["tslib", "npm:2.6.2"],\
-            ["zone.js", "npm:0.13.3"]\
+            ["zone.js", "npm:0.14.2"]\
           ],\
           "packagePeers": [\
             "@types/rxjs",\
@@ -3487,7 +3487,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["@types/angular__compiler-cli", null],\
             ["@types/typescript", null],\
             ["@types/webpack", null],\
-            ["typescript", "patch:typescript@npm%3A5.1.6#~builtin<compat/typescript>::version=5.1.6&hash=5da071"],\
+            ["typescript", "patch:typescript@npm%3A5.3.3#~builtin<compat/typescript>::version=5.3.3&hash=29ae49"],\
             ["webpack", "virtual:c7f1218cfdeccbcc64ee9aca58da6426b7f7b540b98800cb12557be27ca288c2c99f89e2b75fddfeb566fe82a33ec2ad97dab86beb936af150bb64a8197f4af0#npm:5.88.2"]\
           ],\
           "packagePeers": [\
@@ -4145,7 +4145,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["jsdom", "virtual:19ec2249b077d189bc8e704711eca007f7c222ece483e513da48fa20e472f6fe76c87810fc3b9742afe87d37fcd4ed4229034f55793aa357a8f2d8160dbea5ba#npm:16.7.0"],\
             ["object-path", "npm:0.11.8"],\
             ["tslib", "npm:2.6.2"],\
-            ["typescript", "patch:typescript@npm%3A5.1.6#~builtin<compat/typescript>::version=5.1.6&hash=5da071"]\
+            ["typescript", "patch:typescript@npm%3A5.3.3#~builtin<compat/typescript>::version=5.3.3&hash=29ae49"]\
           ],\
           "packagePeers": [\
             "@types/typescript",\
@@ -6320,8 +6320,8 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["@angular/router", "virtual:74defbc8a68f0cf4e3c9ed3430b039443cf478286b3dffaa583e2615f6597675ef8f6bcc54542f70fab046572bdcbe83c0226a4dd7b17690b9cda080770d594a#npm:16.2.10"],\
             ["rxjs", "npm:7.8.1"],\
             ["tslib", "npm:2.6.2"],\
-            ["typescript", "patch:typescript@npm%3A5.1.6#~builtin<compat/typescript>::version=5.1.6&hash=5da071"],\
-            ["zone.js", "npm:0.13.3"]\
+            ["typescript", "patch:typescript@npm%3A5.3.3#~builtin<compat/typescript>::version=5.3.3&hash=29ae49"],\
+            ["zone.js", "npm:0.14.2"]\
           ],\
           "linkType": "SOFT"\
         }]\
@@ -6584,7 +6584,7 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
             ["guess-parser", "virtual:c7f1218cfdeccbcc64ee9aca58da6426b7f7b540b98800cb12557be27ca288c2c99f89e2b75fddfeb566fe82a33ec2ad97dab86beb936af150bb64a8197f4af0#npm:0.4.22"],\
             ["@types/typescript", null],\
             ["@wessberg/ts-evaluator", "virtual:9680faced51058604e40078e249b39a7edcdd27c075e2bae97b20d08b52b44fc080c71c033691ed49a7ff7f286b0940ed6d31f5be852c936f971c46cec8114dc#npm:0.0.27"],\
-            ["typescript", "patch:typescript@npm%3A5.1.6#~builtin<compat/typescript>::version=5.1.6&hash=5da071"]\
+            ["typescript", "patch:typescript@npm%3A5.3.3#~builtin<compat/typescript>::version=5.3.3&hash=29ae49"]\
           ],\
           "packagePeers": [\
             "@types/typescript",\
@@ -10306,10 +10306,10 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         }]\
       ]],\
       ["typescript", [\
-        ["patch:typescript@npm%3A5.1.6#~builtin<compat/typescript>::version=5.1.6&hash=5da071", {\
-          "packageLocation": "../../../AppData/Local/Yarn/Berry/cache/typescript-patch-bd21d74a9d-8.zip/node_modules/typescript/",\
+        ["patch:typescript@npm%3A5.3.3#~builtin<compat/typescript>::version=5.3.3&hash=29ae49", {\
+          "packageLocation": "../../../AppData/Local/Yarn/Berry/cache/typescript-patch-3254a9d382-8.zip/node_modules/typescript/",\
           "packageDependencies": [\
-            ["typescript", "patch:typescript@npm%3A5.1.6#~builtin<compat/typescript>::version=5.1.6&hash=5da071"]\
+            ["typescript", "patch:typescript@npm%3A5.3.3#~builtin<compat/typescript>::version=5.3.3&hash=29ae49"]\
           ],\
           "linkType": "HARD"\
         }]\
@@ -11065,10 +11065,10 @@ function $$SETUP_STATE(hydrateRuntimeState, basePath) {
         }]\
       ]],\
       ["zone.js", [\
-        ["npm:0.13.3", {\
-          "packageLocation": "../../../AppData/Local/Yarn/Berry/cache/zone.js-npm-0.13.3-0a6320caca-8.zip/node_modules/zone.js/",\
+        ["npm:0.14.2", {\
+          "packageLocation": "../../../AppData/Local/Yarn/Berry/cache/zone.js-npm-0.14.2-684409678b-8.zip/node_modules/zone.js/",\
           "packageDependencies": [\
-            ["zone.js", "npm:0.13.3"],\
+            ["zone.js", "npm:0.14.2"],\
             ["tslib", "npm:2.6.2"]\
           ],\
           "linkType": "HARD"\
