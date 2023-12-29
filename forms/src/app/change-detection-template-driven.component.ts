@@ -4,19 +4,22 @@ import { FormsModule } from "@angular/forms";
 
 // component that detects changes in a template driven form, has inline template, takes user name and password as input, and submits the form
 @Component({
-  standalone: true,
+    standalone: true,
     selector: "change-detection-template-driven",
     template: `
-        <form #form="ngForm" (ngSubmit)="onSubmit(form.value)">
+        <form #form="ngForm" (ngSubmit)="onSubmit(form)">
             <div>
                 <label for="name">Name:</label>
-                <input type="text" id="name" name="name" ngModel #name="ngModel" required minlength="4">
+                <input type="text" id="name" name="name" ngModel #name="ngModel" required minlength="4" appForbibbenName appSubstringValidator="adam"/>
                 <div *ngIf="name.invalid && name.dirty">
                     <div *ngIf="name.errors?.['required']">
                         Name is required
                     </div>
                     <div *ngIf="name.errors?.['minlength']">
                         Name must be at least 4 characters long.
+                    </div>
+                    <div *ngFor="let error of name.errors | keyvalue">
+                        {{ error.key }}: {{ error.value }}
                     </div>
                 </div>
             </div>
@@ -36,7 +39,7 @@ import { FormsModule } from "@angular/forms";
 })
 export class ChangeDetectionTemplateDrivenComponent {
     // method that takes a form value as input and logs it to the console
-    onSubmit(formValue: any) {
-        console.log(formValue);
+    onSubmit(form: any) {
+        console.log(form);
     }
 }
