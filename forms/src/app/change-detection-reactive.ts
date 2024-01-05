@@ -1,8 +1,9 @@
 import { CommonModule } from "@angular/common";
 import { Component, Input, OnInit } from "@angular/core";
+import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators, ɵElement } from "@angular/forms";
 import { UserService } from "./user.service";
 import { Observable, catchError, map, of } from "rxjs";
-import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators, ɵElement } from "@angular/forms";
+import { ChangeDetectionReactiveRoleComponent } from "./change-detection-reactive-role";
 
 // component that detects changes in a reactive form, has inline template, takes user name and password as input, and submits the form
 @Component({
@@ -13,16 +14,16 @@ import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, FormsM
         <div>
           <label for="name">Name:</label>
           <span class="pending-input-container">
-            <input type="text" id="name" formControlName="username" required/>
+            <input type="text" id="name" formControlName="username" required (input)="setControlAsPending(form.controls.username)" />
           </span >
-          <div *ngIf="name.invalid && name.dirty && name.errors?.['required']">
+          <div *ngIf="username.invalid && username.dirty && username.errors?.['required']">
               Name is required.
           </div>
-          <div *ngIf="name.invalid && name.dirty && name.errors?.['nameValidator']">
-              {{ name.errors?.['nameValidator']?.['value'] }} is invalid.
+          <div *ngIf="username.invalid && username.dirty && username.errors?.['nameValidator']">
+              {{ username.value }} is invalid.
           </div>
-          <div *ngIf="name.invalid && name.dirty && name.errors?.['nameTaken']">
-              {{ name.value }} is taken.
+          <div *ngIf="username.invalid && username.dirty && username.errors?.['nameTaken']">
+              {{ username.value }} is taken.
           </div>
         </div>
         <div>
@@ -77,7 +78,16 @@ import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, FormsM
             </div>
           </div>
         </div>
-        <button type="submit" [disabled]="form.status === 'INVALID'">Submit</button>
+        <fieldset class="roles" formGroupName="roles">
+          <legend>Roles</legend>
+          <div *ngFor="let role of rolesGroupControl.controls | keyvalue">
+            <change-detection-reactive-role [roleControl]="role.value" [key]="role.key" />
+          </div>
+          <div *ngIf="rolesGroupControl.invalid && rolesGroupControl.dirty && rolesGroupControl.errors?.['atLeastOneRoleValidator']">
+            At least one role is required.
+          </div>
+        </fieldset>
+        <button submit [disabled]="isFormDisabled">Submit</button>
       </form>
     `,
     styles: [`
@@ -87,7 +97,7 @@ import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, FormsM
       }
       .pending-input-container {
         position: relative;
-        &:has(.ng-pending)::after {
+        &:has(input:not(:focus).ng-pending)::after {
           position: absolute;
           top: -3.5px;
           content: "...";
@@ -96,11 +106,23 @@ import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, FormsM
           width: 6em;
         }
       }
-    `
+      .roles {
+        &.ng-valid > legend {
+          color: green;
+          border-left: 5px solid green;
+        }
+        &.ng-invalid > legend {
+          color: inherit;
+          border-left: none;
+        }
+      }
+      `
     ],
-    imports: [ReactiveFormsModule, CommonModule]
+    imports: [ReactiveFormsModule, CommonModule, ChangeDetectionReactiveRoleComponent]
 })
 export class ChangeDetectionReactiveComponent implements OnInit {
+  @Input({ required: true }) roles!: Roles | null;
+
   form!: FormGroupType<RegistrationForm>
 
   constructor(private fb: FormBuilder, private _userNameService: UserService) { }
@@ -116,12 +138,24 @@ export class ChangeDetectionReactiveComponent implements OnInit {
         state: ['', Validators.required],
         zip: ['', Validators.required]
       }),
+      roles: this.fb.nonNullable.group(this.roles!, {validators: this.atLeastOneRoleValidator})
     }, { validators: this.matchPasswordValidator });
   }
 
+  get isFormDisabled() {
+    return this.form.pending || this.form.invalid;
+  }
 
-  get name() {
+  get rolesGroupControl() {
+    return this.form.controls.roles;
+  }
+
+  get username() {
     return this.form.controls.username;
+  }
+
+  setControlAsPending(arg0: FormControl<string>) {
+    arg0.markAsPending();
   }
 
   get password() {
@@ -149,7 +183,13 @@ export class ChangeDetectionReactiveComponent implements OnInit {
   }
   
   onSubmit() {
-    // console.log(this.form.value);
+    console.log(this.form.value);
+  }
+
+  atLeastOneRoleValidator<T extends FormGroupType<RegistrationForm>['controls']['roles']>(control: AbstractControl): ValidationErrors | null {
+    const rolesControl = control as T;
+    const valid = Object.keys(rolesControl.controls).some(key => rolesControl.controls[key]!.value);
+    return valid ? null : { atLeastOneRoleValidator: true };
   }
 
   getNameValidator<T extends FormGroupType<RegistrationForm>['controls']['username']>(nameRegex: RegExp): ValidatorFn {
@@ -186,13 +226,11 @@ export interface RegistrationForm {
     state: string;
     zip: string;
   };
+  roles: Roles;
 }
 
-function nameValidator(nameRegex: RegExp): ValidatorFn {
-  return (control: AbstractControl): ValidationErrors | null => {
-    const valid = nameRegex.test(control.value);
-    return valid ? { nameValidator: { value: control.value } } : null;
-  }
+export interface Roles {
+  [key: string]: boolean;
 }
 
 export type FormGroupType<T> = FormGroup<{
