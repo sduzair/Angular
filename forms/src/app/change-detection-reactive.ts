@@ -1,9 +1,10 @@
 import { CommonModule } from "@angular/common";
 import { Component, Input, OnInit } from "@angular/core";
-import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators, ɵElement } from "@angular/forms";
+import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, FormRecord, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators, ɵElement } from "@angular/forms";
 import { UserService } from "./user.service";
 import { Observable, catchError, map, of } from "rxjs";
 import { ChangeDetectionReactiveRoleComponent } from "./change-detection-reactive-role";
+import { FormControlAsyncValidationOnBlur } from "./form-control-async-validation-on-blur.directive";
 
 // component that detects changes in a reactive form, has inline template, takes user name and password as input, and submits the form
 @Component({
@@ -14,7 +15,7 @@ import { ChangeDetectionReactiveRoleComponent } from "./change-detection-reactiv
         <div>
           <label for="name">Name:</label>
           <span class="pending-input-container">
-            <input type="text" id="name" formControlName="username" required (input)="setControlAsPending(form.controls.username)" />
+            <input type="text" id="name" formControlName="username" [appFormControlWithAsyncValidationOnBlur]="username"/>
           </span >
           <div *ngIf="username.invalid && username.dirty && username.errors?.['required']">
               Name is required.
@@ -118,28 +119,29 @@ import { ChangeDetectionReactiveRoleComponent } from "./change-detection-reactiv
       }
       `
     ],
-    imports: [ReactiveFormsModule, CommonModule, ChangeDetectionReactiveRoleComponent]
+    imports: [ReactiveFormsModule, CommonModule, ChangeDetectionReactiveRoleComponent, FormControlAsyncValidationOnBlur]
 })
 export class ChangeDetectionReactiveComponent implements OnInit {
-  @Input({ required: true }) roles!: Roles | null;
+  @Input({ required: true }) roles!: Roles;
 
-  form!: FormGroupType<RegistrationForm>
+  form = new FormGroup({
+    username: new FormControl<string>('', { nonNullable: true, validators: [Validators.required, this.getNameValidator(/bob/i)], asyncValidators: [this.isUserNameTakenAsyncValidator.bind(this)], updateOn: 'blur' }),
+    password: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(4)] }),
+    confirmPassword: new FormControl('', { nonNullable: true, validators: Validators.required }),
+    address: new FormGroup({
+      street: new FormControl('', { nonNullable: true, validators: Validators.required }),
+      city: new FormControl('', { nonNullable: true, validators: Validators.required }),
+      state: new FormControl('', { nonNullable: true, validators: Validators.required }),
+      zip: new FormControl('', { nonNullable: true, validators: Validators.required })
+    }),
+    roles: new FormRecord<FormControl<boolean>>({}, { validators: [this.atLeastOneRoleValidator.bind(this)] })
+  }, { validators: this.matchPasswordValidator });
 
-  constructor(private fb: FormBuilder, private _userNameService: UserService) { }
+
+  constructor(private _userNameService: UserService) { }
 
   ngOnInit(): void {
-    this.form = this.fb.nonNullable.group({
-      username: this.fb.nonNullable.control('', { validators: [Validators.required, this.getNameValidator(/bob/i)], asyncValidators: [this.isUserNameTakenAsyncValidator.bind(this)], updateOn: 'blur' }),
-      password: ['', [Validators.required, Validators.minLength(4)]],
-      confirmPassword: ['', Validators.required],
-      address: this.fb.nonNullable.group({
-        street: ['', Validators.required],
-        city: ['', Validators.required],
-        state: ['', Validators.required],
-        zip: ['', Validators.required]
-      }),
-      roles: this.fb.nonNullable.group(this.roles!, {validators: this.atLeastOneRoleValidator})
-    }, { validators: this.matchPasswordValidator });
+    Object.keys(this.roles).forEach(role => this.form.controls.roles.addControl(role, new FormControl(this.roles[role]!, { nonNullable: true })));
   }
 
   get isFormDisabled() {
@@ -152,10 +154,6 @@ export class ChangeDetectionReactiveComponent implements OnInit {
 
   get username() {
     return this.form.controls.username;
-  }
-
-  setControlAsPending(arg0: FormControl<string>) {
-    arg0.markAsPending();
   }
 
   get password() {
@@ -196,7 +194,7 @@ export class ChangeDetectionReactiveComponent implements OnInit {
     return (control: AbstractControl): ValidationErrors | null => {
       const nameControl = control as T;
       const valid = nameRegex.test(nameControl.value);
-      return valid ? { nameValidator: { value: nameControl.value } } : null;
+      return valid ? { nameValidator: true } : null;
     }
   }
   
