@@ -1,0 +1,50 @@
+name: Merge branches on push into main # ensure dev branches have all new files in uniquely named folders
+
+on:
+  push:
+    branches-ignore:
+      - main
+  workflow_dispatch: # Allow manual triggering
+
+permissions:
+  contents: write # Allow write access to repository contents
+
+jobs:
+  merge-branches:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for all branches
+
+      - name: Configure Git
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+
+      - name: Fetch all remote branches
+        run: |
+          git fetch --all
+        shell: pwsh
+
+      - name: Merge branches into main
+        run: |
+          $currentBranch = git rev-parse --abbrev-ref HEAD
+          Write-Host "Current branch: $currentBranch"
+          Write-Host "Checkout into main..."
+          Write-Host "Current branch: main"
+          git checkout main
+          Write-Host "Debug: Available remote branches:"
+          git branch -r
+          Write-Host "Debug: Will run git merge on main merging other remote branches"
+          git branch -r | Where-Object { $_ -notmatch 'origin/HEAD' -and $_ -notmatch "origin/main" } | ForEach-Object {
+            $remoteBranch = $_.Trim()
+            Write-Host "Merging remote branch: $remoteBranch"
+            git merge --allow-unrelated-histories --no-edit -X theirs $remoteBranch
+          }
+        shell: pwsh
+
+      - name: Push changes
+        run: git push
