@@ -1,9 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { ChangeDetectionTemplateDrivenComponent } from "./change-detection-template-driven.component";
-import { ChangeDetectionReactiveComponent, Roles } from "./change-detection-reactive";
+import { ChangeDetectionReactiveComponent, type Roles } from "./change-detection-reactive";
 import { OnPushChangeDetectionComponent } from './on-push-change-detection.component';
 import { UserService } from './user.service';
-import { Observable } from 'rxjs';
+import type { Observable } from 'rxjs';
 import { AsyncPipe, CommonModule } from '@angular/common';
 
 @Component({
@@ -37,9 +37,6 @@ import { AsyncPipe, CommonModule } from '@angular/common';
 })
 export class AppComponent {
   title = 'Forms';
-  roles$: Observable<Roles>;
-
-  constructor(private _userNameService: UserService) {
-    this.roles$ = this._userNameService.getRoles();
-  }
+  private _userNameService = inject(UserService);
+  roles$: Observable<Roles> = this._userNameService.getRoles();
 }
