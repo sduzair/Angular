@@ -1,5 +1,5 @@
 {
-  "name": "local-service-basic-herobios",
+  "name": "basic-root-service-herobios",
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",

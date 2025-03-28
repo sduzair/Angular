@@ -1,5 +1,4 @@
 import { Component } from "@angular/core";
-import { RouterOutlet } from "@angular/router";
 import { HeroBiosComponent } from "./hero-bios/hero-bios.component";
 
 @Component({
@@ -12,5 +11,5 @@ import { HeroBiosComponent } from "./hero-bios/hero-bios.component";
   imports: [HeroBiosComponent],
 })
 export class AppComponent {
-  title = "local-service-basic-herobios";
+  title = "basic-root-service-bios";
 }
