@@ -1,0 +1,22 @@
+/* hero-list.component.css */
+.hero-list {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+h2 {
+  color: #2c3e50;
+  margin-bottom: 1.5rem;
+}
+
+.hero-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.hero-card {
+  flex: 1 1 300px; /* Grow, shrink, base width */
+  min-width: 0; /* Prevent flex item overflow */
+}
