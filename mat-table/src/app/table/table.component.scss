@@ -1,0 +1,107 @@
+@use "@angular/material" as mat;
+
+.table-system {
+  display: flex;
+  flex-direction: column;
+  max-height: 100dvh;
+  overflow: hidden; /* Prevents double scrollbars */
+}
+
+/* Container for horizontal scrolling */
+.table-container {
+  flex: 1 1 auto;
+  overflow-y: auto; /* Table scrolls internally */
+  min-height: 0;
+}
+
+/* Table styling */
+.mat-table {
+  width: 100%;
+}
+
+/* Cell content styling */
+.mat-mdc-header-cell,
+.mat-mdc-cell {
+  white-space: nowrap;
+  overflow-x: scroll;
+  scrollbar-width: none;
+  text-overflow: unset;
+  max-width: 300px; /* Maximum column width before ellipsis */
+}
+
+/* Sticky first column */
+// .mat-mdc-header-cell:first-child,
+// .mat-mdc-cell:first-child {
+.cdk-column-id {
+  position: sticky; /* inexpensive selector */
+  left: 0;
+  z-index: 1;
+}
+
+.mat-mdc-header-row {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.mat-mdc-row {
+  transform: translateZ(0); /* Triggers GPU layer creation */
+  will-change: transform; /* Hint for future changes */
+  transition: background-color 0.3s;
+}
+
+.mat-mdc-row:hover {
+  background-color: var(--mat-sys-primary-fixed);
+}
+
+.mat-mdc-paginator {
+  flex: 0 0 auto; /* Fixed height */
+}
+
+th.mat-sort-header-sorted {
+  color: black;
+}
+
+/* Filter header container - Grid Version */
+.filter-header {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.25rem;
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+/* Individual filter items */
+.filter-header > div {
+  min-width: 200px; /* Minimum width for grid items */
+}
+
+/* Material form field adjustments */
+.filter-header mat-form-field {
+  width: 100%;
+}
+
+/* Hint text styling */
+mat-hint {
+  font-size: 0.75rem;
+  color: var(--mat-sys-on-surface-variant, #666);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .filter-header {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+
+  .filter-header > div {
+    min-width: 100%;
+  }
+}
+
+/* Optional: Add elevation to header */
+.filter-header {
+  @include mat.button-density(-5);
+  @include mat.form-field-density(-5);
+}
