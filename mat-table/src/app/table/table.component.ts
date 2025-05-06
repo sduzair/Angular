@@ -10,7 +10,6 @@ import { FormControl, FormGroup, ReactiveFormsModule } from "@angular/forms";
 import {
   MatDatepicker,
   MatDatepickerInput,
-  MatDatepickerInputEvent,
   MatDatepickerToggle,
 } from "@angular/material/datepicker";
 import { MatFormFieldModule } from "@angular/material/form-field";
@@ -75,21 +74,38 @@ import { CamelCaseToSpacesPipe } from "../pipes/camelcase-to-spaces.pipe";
     </form>
     <div class="mat-elevation-z8 table-container">
       <table mat-table [dataSource]="dataSource" matSort>
+        <!-- Action Column -->
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef>
+            <div [class.sticky-cell]="true">Actions</div>
+          </th>
+          <td mat-cell *matCellDef="let row">
+            <div [class.sticky-cell]="true">
+              <button mat-icon-button (click)="openEditTab(row)">
+                <mat-icon>edit</mat-icon>
+              </button>
+            </div>
+          </td>
+        </ng-container>
         <!-- Column Definitions  -->
         <ng-container
-          *ngFor="let column of displayedColumns"
+          *ngFor="let column of dataColumns"
           [matColumnDef]="column"
         >
           <th mat-header-cell *matHeaderCellDef [mat-sort-header]="column">
-            {{ column | appCamelCaseToSpaces }}
+            <div [class.sticky-cell]="isStickyColumn(column)">
+              {{ column | appCamelCaseToSpaces }}
+            </div>
           </th>
           <td mat-cell *matCellDef="let row">
-            <ng-container *ngIf="isDateColumn(column)">
-              {{ row[column] | date : "MM/dd/yyyy" }}
-            </ng-container>
-            <ng-container *ngIf="!isDateColumn(column)">
-              {{ row[column] }}
-            </ng-container>
+            <div [class.sticky-cell]="isStickyColumn(column)">
+              <ng-container *ngIf="isDateColumn(column)">
+                {{ row[column] | date : "MM/dd/yyyy" }}
+              </ng-container>
+              <ng-container *ngIf="!isDateColumn(column)">
+                {{ row[column] }}
+              </ng-container>
+            </div>
           </td>
         </ng-container>
 
@@ -107,7 +123,7 @@ import { CamelCaseToSpacesPipe } from "../pipes/camelcase-to-spaces.pipe";
   styleUrls: ["./table.component.scss"],
 })
 export class TableComponent implements OnInit, AfterViewInit {
-  displayedColumns: Array<keyof User> = [
+  dataColumns: Array<keyof User> = [
     "id",
     "firstName",
     "lastName",
@@ -131,7 +147,12 @@ export class TableComponent implements OnInit, AfterViewInit {
     "userAgent",
     "role",
   ];
-  filterKeys = this.displayedColumns.reduce((acc, item) => {
+  displayedColumns: DisplayedColumnType[] = [
+    "actions" as const,
+    ...this.dataColumns,
+  ];
+  stickyColumns: DisplayedColumnType[] = ["actions", "id"];
+  filterKeys = this.dataColumns.reduce((acc, item) => {
     if (item.toLowerCase().includes("date")) {
       return [...acc, `${item}Start`, `${item}End`] as FilterKeysType[];
     }
@@ -217,6 +238,9 @@ export class TableComponent implements OnInit, AfterViewInit {
   isDateColumn(col: string) {
     return ["birthDate"].includes(col);
   }
+  isStickyColumn(col: string) {
+    return this.stickyColumns.includes(col as DisplayedColumnType);
+  }
 
   private parseLocalDate(dateStr: string) {
     const [year, month, day] = dateStr.split("-").map(Number);
@@ -261,6 +285,10 @@ export class TableComponent implements OnInit, AfterViewInit {
       "🚀 ~ TableComponent ~ isDateBetween: assert all cases handled",
     );
     return false;
+  }
+  openEditTab(record: User) {
+    const editUrl = `record/${record.id}`;
+    window.open(editUrl, "editTab");
   }
 }
 
@@ -346,3 +374,5 @@ type WithDateRange<T> = T & {
 };
 
 type FilterKeysType = keyof WithDateRange<User>;
+
+type DisplayedColumnType = keyof User | "actions";
