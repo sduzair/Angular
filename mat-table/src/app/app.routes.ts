@@ -5,7 +5,7 @@ import { TableComponent } from "./table/table.component";
 
 export const routes: Routes = [
   { path: "table", component: TableComponent },
-  { path: "record", component: RecordComponent },
+  { path: "record/:userId", component: RecordComponent },
   { path: "", redirectTo: "/table", pathMatch: "full" },
   { path: "**", component: PageNotFoundComponent },
 ];

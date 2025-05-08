@@ -286,9 +286,11 @@ export class TableComponent implements OnInit, AfterViewInit {
     );
     return false;
   }
+
+  editTab: WindowProxy | null = null;
   openEditTab(record: User) {
     const editUrl = `record/${record.id}`;
-    window.open(editUrl, "editTab");
+    this.editTab = window.open(editUrl, "editTab");
   }
 }
 
