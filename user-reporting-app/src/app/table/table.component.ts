@@ -173,11 +173,9 @@ export class TableComponent implements OnInit, AfterViewInit {
 
   constructor(private httpClient: HttpClient) {}
   ngOnInit(): void {
-    this.httpClient
-      .get<{ users: User[] }>("https://dummyjson.com/users?limit=0")
-      .subscribe((data) => {
-        this.dataSource.data = data.users;
-      });
+    this.httpClient.get<User[]>("/api/users").subscribe((data) => {
+      this.dataSource.data = data;
+    });
 
     this.dataSource.filterPredicate = this.createFilter();
 

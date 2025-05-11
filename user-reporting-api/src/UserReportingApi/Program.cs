@@ -32,14 +32,28 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
     }
 });
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+    });
+});
+
 
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("AllowAll");
+}
 
 // Users endpoint
 app.MapGet("/api/users", async (IMongoDatabase db) =>
 {
     var collection = db.GetCollection<BsonDocument>("users");
-    var documents = await collection.Find(FilterDefinition<BsonDocument>.Empty).ToListAsync();
+    var sortDefinition = Builders<BsonDocument>.Sort.Ascending("id");
+    var documents = await collection.Find(FilterDefinition<BsonDocument>.Empty).Sort(sortDefinition).ToListAsync();
     var converted = documents.Select(d =>
     {
         var dict = new Dictionary<string, object?>
