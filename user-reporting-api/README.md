@@ -45,6 +45,16 @@ The API expects the following collections in MongoDB:
 - `users` - Stores user information
 - `sessions` - Stores session data with version tracking
 
+## Tests
+
+For test coverage open the html report file in browser after run the following commands:
+
+```bash
+dotnet test --collect:"XPlat Code Coverage"
+dotnet tool install -g dotnet-reportgenerator-globaltool
+reportgenerator -reports:.\TestResults\<guid>\coverage.cobertura.xml -targetdir:"coveragereport" -reporttypes:Html
+```
+
 ## Troubleshooting
 
 If you encounter connection issues:
