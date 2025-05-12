@@ -18,13 +18,26 @@ res.users.forEach(user => {
 })
 ```
 
+### Additional Data Generation Details
+
+- Work Experience Data: Work experience data for each user was generated using [Mockaroo](https://mockaroo.com/)
+- Changelog ID Assignment: Random _id values are assigned to each item in all array type properties
+
+```javascript
+function generateId() {
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substr(2, 9);
+  return `${timestamp}-${random}`;
+}
+```
+
 ## Database Schema and Intitialization
 
-| Entity               | Suggested Name  |
-|----------------------|----------------|
-| **Database**         | `userAppDB`    |
-| **Users Collection** | `users`        |
-| **Sessions Collection** | `sessions`   |
+| Entity                  | Suggested Name |
+| ----------------------- | -------------- |
+| **Database**            | `userAppDB`    |
+| **Users Collection**    | `users`        |
+| **Sessions Collection** | `sessions`     |
 
 - **Docker Image**
   - Copies [`usersData.json`](./usersData.json) and [`init.sh`](./init.sh) during image build

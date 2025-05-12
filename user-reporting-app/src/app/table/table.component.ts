@@ -293,6 +293,7 @@ export class TableComponent implements OnInit, AfterViewInit {
 }
 
 interface User {
+  _id: string;
   id: number;
   firstName: string;
   lastName: string;
@@ -311,25 +312,28 @@ interface User {
   eyeColor: string;
   hair: Hair;
   ip: string;
-  address: Address;
+  address: Address[];
   macAddress: string;
   university: string;
-  bank: Bank;
-  company: Company;
+  bank: Bank[];
+  company: Company[];
   ein: string;
   ssn: string;
   userAgent: string;
-  crypto: Crypto;
+  crypto: Crypto[];
   role: string;
+  workExperience: WorkExperience[];
 }
 
 interface Crypto {
+  _id: string;
   coin: string;
   wallet: string;
   network: string;
 }
 
 interface Company {
+  _id: string;
   department: string;
   name: string;
   title: string;
@@ -337,6 +341,7 @@ interface Company {
 }
 
 interface Bank {
+  _id: string;
   cardExpire: string;
   cardNumber: string;
   cardType: string;
@@ -345,6 +350,7 @@ interface Bank {
 }
 
 interface Address {
+  _id: string;
   address: string;
   city: string;
   state: string;
@@ -355,14 +361,43 @@ interface Address {
 }
 
 interface Coordinates {
+  _id: string;
   lat: number;
   lng: number;
 }
 
 interface Hair {
+  _id: string;
   color: string;
   type: string;
 }
+
+interface WorkExperience {
+  _id: string;
+  jobTitle: string;
+  employer: string;
+  projects: Project[];
+}
+
+interface Project {
+  _id: string;
+  name: string;
+  description: string;
+  technologies: Technology[];
+  teamMembers: TeamMember[];
+}
+
+interface TeamMember {
+  _id: string;
+  name: string;
+  role: string;
+}
+
+interface Technology {
+  _id: string;
+  technology: string;
+}
+
 type DateKeys<T> = {
   [K in keyof T]: K extends `${string}Date${string}` ? K : never;
 }[keyof T];
