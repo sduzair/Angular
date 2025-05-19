@@ -292,7 +292,7 @@ export class TableComponent implements OnInit, AfterViewInit {
   }
 }
 
-interface User {
+export interface User {
   _id: string;
   id: number;
   firstName: string;
@@ -325,22 +325,22 @@ interface User {
   workExperience: WorkExperience[];
 }
 
-interface Crypto {
+export interface Crypto {
   _id: string;
   coin: string;
   wallet: string;
   network: string;
 }
 
-interface Company {
+export interface Company {
   _id: string;
   department: string;
   name: string;
   title: string;
-  address: Address;
+  address: CompanyAddress;
 }
 
-interface Bank {
+export interface Bank {
   _id: string;
   cardExpire: string;
   cardNumber: string;
@@ -349,7 +349,7 @@ interface Bank {
   iban: string;
 }
 
-interface Address {
+export interface Address {
   _id: string;
   address: string;
   city: string;
@@ -360,26 +360,34 @@ interface Address {
   country: string;
 }
 
-interface Coordinates {
-  _id: string;
+export interface CompanyAddress {
+  address: string;
+  city: string;
+  state: string;
+  stateCode: string;
+  postalCode: string;
+  coordinates: Coordinates;
+  country: string;
+}
+
+export interface Coordinates {
   lat: number;
   lng: number;
 }
 
-interface Hair {
-  _id: string;
+export interface Hair {
   color: string;
   type: string;
 }
 
-interface WorkExperience {
+export interface WorkExperience {
   _id: string;
   jobTitle: string;
   employer: string;
   projects: Project[];
 }
 
-interface Project {
+export interface Project {
   _id: string;
   name: string;
   description: string;
@@ -387,13 +395,13 @@ interface Project {
   teamMembers: TeamMember[];
 }
 
-interface TeamMember {
+export interface TeamMember {
   _id: string;
   name: string;
   role: string;
 }
 
-interface Technology {
+export interface Technology {
   _id: string;
   technology: string;
 }

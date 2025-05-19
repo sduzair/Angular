@@ -27,4 +27,7 @@
   "[markdown]": {
     "editor.defaultFormatter": "yzhang.markdown-all-in-one"
   },
+  "[scss]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
 }

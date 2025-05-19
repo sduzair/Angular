@@ -11,6 +11,7 @@
     "biomejs.biome",
     "pucelle.vscode-css-navigation",
     "ecmel.vscode-html-css",
-    "mariusalchimavicius.json-to-ts"
+    "mariusalchimavicius.json-to-ts",
+    "esbenp.prettier-vscode"
   ]
 }
