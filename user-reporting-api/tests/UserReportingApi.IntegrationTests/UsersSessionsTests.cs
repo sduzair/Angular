@@ -2,46 +2,39 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
+
 
 namespace UserReportingApi.IntegrationTests;
 
 public class UsersSessionsTests
-    : IClassFixture<WebApplicationFactory<Program>>, IDisposable
+    : IClassFixture<CustomWebApplicationFactory>, IDisposable
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly CustomWebApplicationFactory _factory;
     private readonly IMongoDatabase _testDb;
+    private readonly string _testDbName;
 
-    public UsersSessionsTests(WebApplicationFactory<Program> factory)
+    public UsersSessionsTests(CustomWebApplicationFactory factory)
     {
-        var connectionString = Environment.GetEnvironmentVariable("MongoDB__ConnectionString");
-        var dbName = Environment.GetEnvironmentVariable("MongoDB__DatabaseName") + "_test";
-        _factory = factory.WithWebHostBuilder(builder =>
-        {
-            // Override configuration for testing
-            builder.ConfigureAppConfiguration((context, config) =>
-            {
-                _ = config.AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    ["MongoDB:ConnectionString"] = connectionString,
-                    ["MongoDB:DatabaseName"] = dbName,
-                });
-            });
-        });
+        _factory = factory;
 
-        // Initialize test database
+        var config = factory.Services.GetRequiredService<IConfiguration>();
+        var connectionString = config["MongoDB:ConnectionString"] ?? throw new InvalidOperationException("MongoDB connection string missing");
+        _testDbName = config["MongoDB:DatabaseName"] ?? throw new InvalidOperationException("MongoDB database name missing");
+
         var client = new MongoClient(connectionString);
-        _testDb = client.GetDatabase(dbName);
+        _testDb = client.GetDatabase(_testDbName);
     }
 
     public void Dispose()
     {
-        // Cleanup test database after each test
-        _testDb.DropCollection("users");
-        _testDb.DropCollection("sessions");
+        _testDb.Client.DropDatabase(_testDbName);
     }
 
     [Fact]
@@ -61,12 +54,72 @@ public class UsersSessionsTests
     }
 
     [Fact]
+    public async Task GetSession_ByUserId_ReturnsMatchingSession()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        var userId = "testUser123";
+        var testSessions = new List<Session>
+        {
+            new Session
+            {
+                UserId = userId,
+                Version = 1,
+                CreatedAt = DateTime.UtcNow.AddHours(-1),
+                Data = new BsonDocument { ["key1"] = "value1" }
+            },
+            new Session
+            {
+                UserId = "otherUser",
+                Version = 1,
+                CreatedAt = DateTime.UtcNow,
+                Data = new BsonDocument { ["key2"] = "value2" }
+            },
+        };
+
+        await _testDb.GetCollection<Session>("sessions").InsertManyAsync(testSessions);
+
+        // Act
+        var response = await client.GetAsync($"/api/sessions/{userId}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var session = await response.Content.ReadFromJsonAsync<GetSessionResponse>();
+        session.Should().NotBeNull();
+        session!.UserId.Should().Be(userId);
+        session.Version.Should().Be(1);
+        session.Data.Should().NotBeNull();
+        ((JsonElement)session.Data).GetProperty("key1").GetString().Should().Be("value1");
+    }
+
+    [Fact]
+    public async Task GetSession_NonExistentUserId_Returns404()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        var invalidUserId = "nonExistentUser123";
+
+        // Act
+        var response = await client.GetAsync($"/api/sessions/{invalidUserId}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+        var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        problemDetails.Should().NotBeNull();
+        problemDetails!.Title.Should().Contain("not found");
+    }
+
+    [Fact]
     public async Task CreateSession_ReturnsCreatedSessionIdWithInitialVersion()
     {
         // Arrange
         var client = _factory.CreateClient();
-        var requestData = JsonDocument.Parse("{\"key\":\"value\"}").RootElement;
-        var request = new CreateSessionRequest("user123", requestData);
+
+        var userId = "user123";
+        var json = "{\"foo\": \"bar\"}";
+        var request = new CreateSessionRequest(userId, JsonDocument.Parse(json).RootElement);
 
         // Act
         var response = await client.PostAsJsonAsync("/api/sessions", request);
@@ -77,23 +130,24 @@ public class UsersSessionsTests
         // Validate response body
         var responseBody = await response.Content.ReadFromJsonAsync<CreateSessionResponse>();
         responseBody.Should().NotBeNull();
-        responseBody!.SessionId.Should().NotBeNullOrEmpty();
+        responseBody!.UserId.Should().NotBeNullOrEmpty();
         responseBody.Version.Should().Be(1);
         responseBody.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TestConstants.DateTimeTolerance);
 
         // Validate location header
         response.Headers.Location.Should().NotBeNull();
-        response.Headers.Location!.ToString().Should().Be($"/api/sessions/{responseBody.SessionId}");
+        response.Headers.Location!.ToString().Should().Be($"/api/sessions/{userId}");
 
         // Validate database state
-        var sessionId = ObjectId.Parse(responseBody.SessionId);
-        var dbSession = await _testDb.GetCollection<Session>("sessions").Find(s => s.Id == sessionId).FirstOrDefaultAsync();
+        var dbSession = await _testDb.GetCollection<Session>("sessions").Find(s => s.UserId == userId).FirstOrDefaultAsync();
 
         dbSession.Should().NotBeNull();
         dbSession!.UserId.Should().Be(request.UserId);
-        dbSession.Data.Should().BeEquivalentTo(requestData.ToBsonDocument());
         dbSession.Version.Should().Be(1);
         dbSession.CreatedAt.Should().BeCloseTo(responseBody.CreatedAt, TestConstants.DateTimeTolerance);
+
+        var expectedBson = BsonSerializer.Deserialize<BsonDocument>(json);
+        dbSession.Data.Should().BeEquivalentTo(expectedBson);
     }
 
     [Fact]
@@ -103,7 +157,6 @@ public class UsersSessionsTests
         var client = _factory.CreateClient();
         var session = new Session
         {
-            Id = ObjectId.GenerateNewId(),
             Version = 1,
             UserId = "test-user",
             Data = new BsonDocument { ["initial"] = "data" },
@@ -111,20 +164,22 @@ public class UsersSessionsTests
         };
         await _testDb.GetCollection<Session>("sessions").InsertOneAsync(session);
 
-        var updateRequest = new UpdateSessionRequest(CurrentVersion: 1, Data: JsonDocument.Parse("{ \"new\": \"data\" }").RootElement);
+        var json = "{\"new\": \"data\"}";
+        var updateRequest = new UpdateSessionRequest(CurrentVersion: 1, Data: JsonDocument.Parse(json).RootElement);
 
         // Act
-        var response = await client.PutAsJsonAsync($"/api/sessions/{session.Id}", updateRequest);
+        var response = await client.PutAsJsonAsync($"/api/sessions/{session.UserId}", updateRequest);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var content = await response.Content.ReadFromJsonAsync<UpdateSessionResponse>();
-        content.Should().NotBeNull();
-        content!.NewVersion.Should().Be(2);
-        content.UpdatedAt.Should().BeCloseTo(DateTime.UtcNow, TestConstants.DateTimeTolerance);
+        var responseBody = await response.Content.ReadFromJsonAsync<UpdateSessionResponse>();
+        responseBody.Should().NotBeNull();
+        responseBody!.UserId.Should().Be("test-user");
+        responseBody.NewVersion.Should().Be(2);
+        responseBody.UpdatedAt.Should().BeCloseTo(DateTime.UtcNow, TestConstants.DateTimeTolerance);
 
-        var dbSession = await _testDb.GetCollection<Session>("sessions").Find(s => s.Id == session.Id).FirstOrDefaultAsync();
+        var dbSession = await _testDb.GetCollection<Session>("sessions").Find(s => s.UserId == "test-user").FirstOrDefaultAsync();
         dbSession.Version.Should().Be(2);
     }
 
@@ -135,16 +190,17 @@ public class UsersSessionsTests
         var client = _factory.CreateClient();
         var session = new Session
         {
-            Id = ObjectId.GenerateNewId(),
             Version = 1,
             CreatedAt = DateTime.UtcNow,
             UserId = "user123",
-            Data = new BsonDocument("key", "value")
+            Data = new BsonDocument("key", "old")
         };
         await _testDb.GetCollection<Session>("sessions").InsertOneAsync(session);
 
         // Act
-        var response = await client.PutAsJsonAsync($"/api/sessions/{session.Id}", new UpdateSessionRequest(2, JsonDocument.Parse("{}").RootElement));
+        var json = "{\"key\": \"new\"}";
+        var request = new UpdateSessionRequest(2, JsonDocument.Parse(json).RootElement);
+        var response = await client.PutAsJsonAsync($"/api/sessions/{session.UserId}", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);

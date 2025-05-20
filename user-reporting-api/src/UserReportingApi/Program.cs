@@ -1,10 +1,8 @@
-using System.Text.Json;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure MongoDB with proper logging
 builder.Services.AddSingleton<IMongoDatabase>(sp =>
 {
     var config = sp.GetRequiredService<IConfiguration>();
@@ -48,37 +46,39 @@ if (app.Environment.IsDevelopment())
     app.UseCors("AllowAll");
 }
 
-// Users endpoint
 app.MapGet("/api/users", async (IMongoDatabase db) =>
 {
     var collection = db.GetCollection<BsonDocument>("users");
     var sortDefinition = Builders<BsonDocument>.Sort.Ascending("id");
     var documents = await collection.Find(FilterDefinition<BsonDocument>.Empty).Sort(sortDefinition).ToListAsync();
-    var converted = documents.Select(d =>
-    {
-        var dict = new Dictionary<string, object?>
-        {
-            ["_id"] = d["_id"].AsObjectId.ToString()  // Only explicit conversion
-        };
 
-        // Add other fields with automatic type conversion
-        foreach (var element in d.Elements.Where(e => e.Name != "_id"))
-        {
-            dict[element.Name] = BsonTypeMapper.MapToDotNetValue(element.Value);
-        }
-
-        return dict;
-    });
-
-    return Results.Ok(converted);
+    return Results.Ok(documents.Select(document => document.ToDictionary()).ToList());
 });
 
-// Sessions endpoints with optimistic concurrency
-app.MapGet("/api/sessions", async (IMongoDatabase db) =>
+app.MapGet("/api/sessions/{userId}", static async (IMongoDatabase db, string userId) =>
 {
     var collection = db.GetCollection<Session>("sessions");
-    var documents = await collection.Find(FilterDefinition<Session>.Empty).ToListAsync();
-    return Results.Ok(documents);
+    var filter = Builders<Session>.Filter.Eq(x => x.UserId, userId);
+    Session? document = await collection.Find(filter).FirstOrDefaultAsync();
+
+    if (document is null)
+    {
+        return Results.NotFound(new
+        {
+            Title = "Session not found",
+            UserId = userId
+        });
+    }
+
+    return Results.Ok(new GetSessionResponse
+    {
+        Id = document.Id.ToString(),
+        Version = document.Version,
+        CreatedAt = document.CreatedAt,
+        UpdatedAt = document.UpdatedAt,
+        UserId = document.UserId,
+        Data = BsonTypeMapper.MapToDotNetValue(document.Data)
+    });
 });
 
 app.MapPost("/api/sessions", async (IMongoDatabase db, CreateSessionRequest request) =>
@@ -88,79 +88,47 @@ app.MapPost("/api/sessions", async (IMongoDatabase db, CreateSessionRequest requ
     // Add system-managed fields
     var session = new Session
     {
-        Id = ObjectId.GenerateNewId(),
         Version = 1,
         CreatedAt = DateTime.UtcNow,
         UserId = request.UserId,
-        Data = request.Data.ToBsonDocument() // Extension method
+        Data = request.Data.ToBsonDocument()
     };
 
     await collection.InsertOneAsync(session);
-    return Results.Created($"/api/sessions/{session.Id}", new CreateSessionResponse(session.Id.ToString(), session.Version, session.CreatedAt));
+    return Results.Created($"/api/sessions/{session.UserId}", new CreateSessionResponse(session.UserId, session.Version, session.CreatedAt));
 });
 
-// Update endpoint with version check
-app.MapPut("/api/sessions/{id}", async (IMongoDatabase db, string id, UpdateSessionRequest request) =>
+app.MapPut("/api/sessions/{userId}", async (IMongoDatabase db, string userId, UpdateSessionRequest request) =>
 {
     var collection = db.GetCollection<Session>("sessions");
 
     var filter = Builders<Session>.Filter.And(
-        Builders<Session>.Filter.Eq(x => x.Id, new ObjectId(id)),
+        Builders<Session>.Filter.Eq(x => x.UserId, userId),
         Builders<Session>.Filter.Eq(x => x.Version, request.CurrentVersion)
     );
 
+    var newVersion = request.CurrentVersion + 1;
+    var updatedTime = DateTime.UtcNow;
     var update = Builders<Session>.Update
         .Set(x => x.Data, request.Data.ToBsonDocument())
-        .Set(x => x.Version, request.CurrentVersion + 1)
-        .Set(x => x.UpdatedAt, DateTime.UtcNow);
+        .Set(x => x.Version, newVersion)
+        .Set(x => x.UpdatedAt, updatedTime);
 
-    var options = new FindOneAndUpdateOptions<Session>
-    {
-        ReturnDocument = ReturnDocument.After
-    };
+    var result = await collection.UpdateOneAsync(filter, update);
 
-    try
+    if (result.MatchedCount == 0)
     {
-        var updatedSession = await collection.FindOneAndUpdateAsync(filter, update, options);
-        return updatedSession != null
-            ? Results.Ok(new UpdateSessionResponse(updatedSession.Version, updatedSession.UpdatedAt))
-            : Results.Conflict("Version mismatch or document not found");
+        return Results.Conflict("Version mismatch or document not found");
     }
-    catch (MongoCommandException ex) when (ex.Code == 11000)
-    {
-        return Results.Conflict("Update conflict detected");
-    }
+
+    // Return minimal success response
+    return Results.Ok(new UpdateSessionResponse(
+        userId,
+        newVersion,
+        updatedTime
+    ));
 });
 
 app.Run();
 
 public partial class Program { }
-
-// DTOs
-public record CreateSessionRequest(string UserId, JsonElement Data);
-public record CreateSessionResponse(string SessionId, int Version, DateTime CreatedAt);
-public record UpdateSessionRequest(int CurrentVersion, JsonElement Data);
-public record UpdateSessionResponse(int NewVersion, DateTime? UpdatedAt);
-
-// Models
-public class Session
-{
-    public ObjectId Id { get; set; }
-    public int Version { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime? UpdatedAt { get; set; }
-    public string UserId { get; set; }
-    public BsonDocument Data { get; set; }
-}
-
-public static class JsonExtensions
-{
-    public static BsonDocument ToBsonDocument(this JsonElement element)
-    {
-        if (element.ValueKind == JsonValueKind.Undefined || element.ValueKind == JsonValueKind.Null)
-        {
-            return new BsonDocument();
-        }
-        return BsonDocument.Parse(element.GetRawText());
-    }
-}
