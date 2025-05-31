@@ -1,8 +1,8 @@
 import { CommonModule, DatePipe } from "@angular/common";
-import { HttpClient } from "@angular/common/http";
 import {
   type AfterViewInit,
   Component,
+  OnDestroy,
   type OnInit,
   ViewChild,
 } from "@angular/core";
@@ -12,13 +12,23 @@ import {
   MatDatepickerInput,
   MatDatepickerToggle,
 } from "@angular/material/datepicker";
-import { MatFormFieldModule } from "@angular/material/form-field";
+import {
+  MAT_FORM_FIELD_DEFAULT_OPTIONS,
+  MatFormFieldDefaultOptions,
+  MatFormFieldModule,
+} from "@angular/material/form-field";
 import { MatIcon } from "@angular/material/icon";
 import { MatInputModule } from "@angular/material/input";
 import { MatPaginator, MatPaginatorModule } from "@angular/material/paginator";
 import { MatSort, MatSortModule } from "@angular/material/sort";
 import { MatTableDataSource, MatTableModule } from "@angular/material/table";
 import { CamelCaseToSpacesPipe } from "../pipes/camelcase-to-spaces.pipe";
+import { ChangeLogService, UserWithVersion } from "../change-log.service";
+import { CrossTabEditService } from "../cross-tab-edit.service";
+import { combineLatest, map, Subject, switchMap, takeUntil } from "rxjs";
+import { type SessionData, SessionDataService } from "../session-data.service";
+import { FingerprintingService } from "../fingerprinting.service";
+import { RecordService } from "../record.service";
 
 @Component({
   selector: "app-table",
@@ -121,8 +131,17 @@ import { CamelCaseToSpacesPipe } from "../pipes/camelcase-to-spaces.pipe";
     </mat-paginator>
   </div>`,
   styleUrls: ["./table.component.scss"],
+  providers: [
+    {
+      provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
+      useValue: {
+        appearance: "outline",
+        floatLabel: "auto",
+      } as MatFormFieldDefaultOptions,
+    },
+  ],
 })
-export class TableComponent implements OnInit, AfterViewInit {
+export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
   dataColumns: Array<keyof User> = [
     "id",
     "firstName",
@@ -152,72 +171,12 @@ export class TableComponent implements OnInit, AfterViewInit {
     ...this.dataColumns,
   ];
   stickyColumns: DisplayedColumnType[] = ["actions", "id"];
-  filterKeys = this.dataColumns.reduce((acc, item) => {
-    if (item.toLowerCase().includes("date")) {
-      return [...acc, `${item}Start`, `${item}End`] as FilterKeysType[];
+  filterKeys = this.dataColumns.flatMap((column) => {
+    if (column.toLowerCase().includes("date")) {
+      return [`${column}Start`, `${column}End`];
     }
-    return [...acc, item];
-  }, [] as FilterKeysType[]);
-  filterForm = new FormGroup(
-    this.filterKeys.reduce(
-      (acc, item) => ({ ...acc, [item]: new FormControl("") }),
-      {} as {
-        [key in FilterKeysType]: FormControl;
-      },
-    ),
-  );
-  dataSource = new MatTableDataSource<User>();
-
-  @ViewChild(MatPaginator) paginator: MatPaginator | undefined;
-  @ViewChild(MatSort) sort: MatSort | undefined;
-
-  constructor(private httpClient: HttpClient) {}
-  ngOnInit(): void {
-    this.httpClient.get<User[]>("/api/users").subscribe((data) => {
-      this.dataSource.data = data;
-    });
-
-    this.dataSource.filterPredicate = this.createFilter();
-
-    this.filterForm.valueChanges.subscribe((val) => {
-      if (this.filterForm.invalid) return;
-      this.dataSource.filter = JSON.stringify(val);
-    });
-  }
-  ngAfterViewInit() {
-    this.dataSource.paginator = this.paginator!;
-    this.dataSource.sort = this.sort!;
-  }
-  private createFilter(): (data: User, filter: string) => boolean {
-    return (data, filter) => {
-      const searchTerms: { [key: string]: string } = JSON.parse(filter);
-      return Object.keys(data).every((key) => {
-        const dataKey = key as keyof User;
-        if (!searchTerms[dataKey] && !this.isDateColumn(dataKey)) return true;
-        if (this.isDateColumn(dataKey)) {
-          if (!searchTerms[`${dataKey}Start`] && !searchTerms[`${dataKey}End`])
-            return true;
-          return this.isDateBetween(
-            data[dataKey] as string,
-            searchTerms[`${dataKey}Start`].split("T")[0],
-            searchTerms[`${dataKey}End`].split("T")[0],
-          );
-        }
-        if (!this.isDateColumn(dataKey))
-          return (data[dataKey] as string).includes(
-            searchTerms[dataKey].trim(),
-          );
-        console.assert(
-          false,
-          "🚀 ~ TableComponent ~ createFilter ~ data: assert all data keys handled",
-        );
-        return true;
-      });
-    };
-  }
-  clearFilter(key: string): void {
-    this.filterForm.get(key)?.reset();
-  }
+    return column;
+  });
   isDateFilterKey(key: string) {
     if (
       !key.toLowerCase().includes("date") ||
@@ -232,29 +191,117 @@ export class TableComponent implements OnInit, AfterViewInit {
     if (key.toLowerCase().includes("date")) return false;
     return true;
   }
-
-  isDateColumn(col: string) {
-    return ["birthDate"].includes(col);
-  }
   isStickyColumn(col: string) {
     return this.stickyColumns.includes(col as DisplayedColumnType);
   }
-
-  private parseLocalDate(dateStr: string) {
-    const [year, month, day] = dateStr.split("-").map(Number);
-    return new Date(year, month - 1, day); // month is zero-based
+  isDateColumn(col: string) {
+    return ["birthDate"].includes(col);
   }
-  dateRegex = /^\d{4}-(\d{1,2})-(\d{1,2})$/;
+  filterForm = new FormGroup(
+    this.filterKeys.reduce(
+      (acc, item) => ({ ...acc, [item]: new FormControl("") }),
+      {} as {
+        [key in FilterKeysType]: FormControl;
+      },
+    ),
+  );
 
-  private isExpectedDateFormat(str: string) {
-    return this.dateRegex.test(str);
+  dataSource = new MatTableDataSource<User>();
+
+  @ViewChild(MatPaginator) paginator: MatPaginator | undefined;
+  @ViewChild(MatSort) sort: MatSort | undefined;
+
+  constructor(
+    private changeLogService: ChangeLogService,
+    private crossTabEditService: CrossTabEditService,
+    private fingerprintingService: FingerprintingService,
+    private sessionDataService: SessionDataService,
+    private recordService: RecordService,
+  ) {}
+
+  private destroy$ = new Subject<void>();
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+  ngOnInit() {
+    this.dataSource.filterPredicate = this.createFilterPredicate();
+
+    this.filterForm.valueChanges.subscribe((val) => {
+      if (this.filterForm.invalid) return;
+      this.dataSource.filter = JSON.stringify(val);
+    });
+
+    this.setupTableDataSource();
+  }
+  ngAfterViewInit() {
+    this.dataSource.paginator = this.paginator!;
+    this.dataSource.sort = this.sort!;
   }
 
+  setupTableDataSource() {
+    this.fingerprintingService
+      .generate()
+      .pipe(
+        switchMap((fprint) => this.sessionDataService.intialize(fprint)),
+        switchMap(() =>
+          combineLatest([
+            this.recordService.getUsers(),
+            this.sessionDataService.sessionData$,
+          ]),
+        ),
+        map(([users, sessionData]) => {
+          return users.map((user) => {
+            const userChanges = sessionData.editedUsers.find(
+              (editedUser) => editedUser.userId === user._id,
+            );
+            return this.changeLogService.applyChanges(
+              user,
+              userChanges?.changeLogs || [],
+            );
+          });
+        }),
+        takeUntil(this.destroy$),
+      )
+      .subscribe((users) => {
+        this.dataSource.data = users;
+      });
+  }
+
+  private createFilterPredicate(): (record: User, filter: string) => boolean {
+    return (record, filter) => {
+      const searchTerms: { [key: string]: string } = JSON.parse(filter);
+      return Object.keys(record).every((key) => {
+        const prop = key as keyof User;
+        if (!searchTerms[prop] && !this.isDateColumn(prop)) return true;
+        if (this.isDateColumn(prop)) {
+          if (!searchTerms[`${prop}Start`] && !searchTerms[`${prop}End`])
+            return true;
+          return this.isDateBetween(
+            record[prop] as string,
+            searchTerms[`${prop}Start`].split("T")[0],
+            searchTerms[`${prop}End`].split("T")[0],
+          );
+        }
+        if (!this.isDateColumn(prop))
+          return (record[prop] as string).includes(searchTerms[prop].trim());
+        console.assert(
+          false,
+          "🚀 ~ TableComponent ~ createFilter ~ data: assert all data keys handled",
+        );
+        return true;
+      });
+    };
+  }
   private isDateBetween(
     checkDateStr: string,
     startDateStr: string,
     endDateStr: string,
   ) {
+    const parseLocalDate = (dateStr: string) => {
+      const [year, month, day] = dateStr.split("-").map(Number);
+      return new Date(year, month - 1, day); // month is zero-based
+    };
     if (
       ![checkDateStr, startDateStr, endDateStr].every((str) =>
         str ? this.isExpectedDateFormat(str) : true,
@@ -262,19 +309,19 @@ export class TableComponent implements OnInit, AfterViewInit {
     )
       throw new Error("Invalid date format");
     if (startDateStr && !endDateStr) {
-      const checkDate = this.parseLocalDate(checkDateStr);
-      const startDate = this.parseLocalDate(startDateStr);
+      const checkDate = parseLocalDate(checkDateStr);
+      const startDate = parseLocalDate(startDateStr);
       return checkDate >= startDate;
     }
     if (!startDateStr && endDateStr) {
-      const checkDate = this.parseLocalDate(checkDateStr);
-      const endDate = this.parseLocalDate(endDateStr);
+      const checkDate = parseLocalDate(checkDateStr);
+      const endDate = parseLocalDate(endDateStr);
       return checkDate <= endDate;
     }
     if (startDateStr && endDateStr) {
-      const checkDate = this.parseLocalDate(checkDateStr);
-      const startDate = this.parseLocalDate(startDateStr);
-      const endDate = this.parseLocalDate(endDateStr);
+      const checkDate = parseLocalDate(checkDateStr);
+      const startDate = parseLocalDate(startDateStr);
+      const endDate = parseLocalDate(endDateStr);
 
       return checkDate >= startDate && checkDate <= endDate;
     }
@@ -285,8 +332,18 @@ export class TableComponent implements OnInit, AfterViewInit {
     return false;
   }
 
+  clearFilter(key: string): void {
+    this.filterForm.get(key)?.reset();
+  }
+
+  private isExpectedDateFormat(str: string) {
+    const dateRegex = /^\d{4}-(\d{1,2})-(\d{1,2})$/;
+    return dateRegex.test(str);
+  }
+
   editTab: WindowProxy | null = null;
-  openEditTab(record: User) {
+  openEditTab(record: UserWithVersion) {
+    this.crossTabEditService.initializeEditSession(record, record._version, []);
     const editUrl = `record/${record.id}`;
     this.editTab = window.open(editUrl, "editTab");
   }
@@ -419,3 +476,8 @@ type WithDateRange<T> = T & {
 type FilterKeysType = keyof WithDateRange<User>;
 
 type DisplayedColumnType = keyof User | "actions";
+
+export interface SessionDataReqBody {
+  userId: string;
+  data: SessionData;
+}

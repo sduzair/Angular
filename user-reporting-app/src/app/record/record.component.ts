@@ -1,5 +1,5 @@
-import { AsyncPipe, CommonModule } from "@angular/common";
-import { Component, inject, OnInit } from "@angular/core";
+import { CommonModule } from "@angular/common";
+import { Component, OnDestroy, OnInit } from "@angular/core";
 import {
   FormArray,
   FormBuilder,
@@ -7,8 +7,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from "@angular/forms";
-import { ActivatedRoute } from "@angular/router";
-import { map, Observable, tap } from "rxjs";
+import { Subject, takeUntil } from "rxjs";
 import {
   Address,
   Bank,
@@ -43,12 +42,12 @@ import { MatDividerModule } from "@angular/material/divider";
 import { MatIcon } from "@angular/material/icon";
 import { MatChipsModule } from "@angular/material/chips";
 import { MatButtonModule } from "@angular/material/button";
+import { CrossTabEditService } from "../cross-tab-edit.service";
 
 @Component({
   selector: "app-record",
   imports: [
     CommonModule,
-    AsyncPipe,
     MatFormField,
     MatTabsModule,
     MatCardModule,
@@ -78,7 +77,6 @@ import { MatButtonModule } from "@angular/material/button";
     },
   ],
   template: `
-    <!-- <p>{{ userId$ | async }} record works!</p> -->
     <div class="user-form-container">
       <form [formGroup]="userForm" (ngSubmit)="onSubmit()">
         <div class="sub-group-header">
@@ -1134,12 +1132,10 @@ import { MatButtonModule } from "@angular/material/button";
   `,
   styleUrls: ["./record.component.scss"],
 })
-export class RecordComponent implements OnInit {
-  private readonly route = inject(ActivatedRoute);
-  userId$!: Observable<string | null>;
-
-  userForm!: FormGroup;
+export class RecordComponent implements OnInit, OnDestroy {
   originalUser: User | null = null;
+  userForm!: FormGroup;
+  newTechControl!: FormGroup;
   validatorParams = {
     maxBirthDate: new Date(),
     passwordLenMin: 6,
@@ -1150,21 +1146,28 @@ export class RecordComponent implements OnInit {
     postalCodeLenMax: 12,
     stateCodeLenMax: 3,
   };
-  newTechControl!: FormGroup;
 
-  constructor(private fb: FormBuilder) {}
-  ngOnInit(): void {
-    this.userId$ = this.route.paramMap.pipe(
-      tap(console.log),
-      map((params) => {
-        return params.get("userId");
-      })
-    );
+  constructor(
+    private fb: FormBuilder,
+    private crossTabEditService: CrossTabEditService,
+  ) {}
+
+  ngOnInit() {
     this.initializeEmptyForm();
-    // Call this.loadUserData() when receiving data from service
+
+    this.crossTabEditService.editSession$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((editSession) => {
+        this.userForm.patchValue(editSession!.userBefore);
+      });
+  }
+  private readonly destroy$ = new Subject<void>();
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
-  private initializeEmptyForm(): void {
+  private initializeEmptyForm() {
     this.userForm = this.fb.group({
       _id: [""],
       firstName: ["", Validators.required],
@@ -1310,7 +1313,7 @@ export class RecordComponent implements OnInit {
       projects: this.fb.array(
         work?.projects?.map((p) => this.createProjectGroup(p)) || [
           this.createProjectGroup(),
-        ]
+        ],
       ),
     });
   }
@@ -1321,12 +1324,12 @@ export class RecordComponent implements OnInit {
       name: [project?.name || "", Validators.required],
       description: [project?.description || ""],
       technologies: this.fb.array(
-        project?.technologies?.map((t) => this.createTechnologyGroup(t)) || []
+        project?.technologies?.map((t) => this.createTechnologyGroup(t)) || [],
       ),
       teamMembers: this.fb.array(
         project?.teamMembers?.map((tm) => this.createTeamMemberGroup(tm)) || [
           this.createTeamMemberGroup(),
-        ]
+        ],
       ),
     });
   }
@@ -1438,7 +1441,7 @@ export class RecordComponent implements OnInit {
     const techValue = this.newTechControl.get("technology")?.value?.trim();
     console.log("🚀 ~ RecordComponent ~ addTechnology ~ techValue:", techValue);
     this.technologiesArray(workIndex, projectIndex).push(
-      this.createTechnologyGroup({ _id: "", technology: techValue || "" })
+      this.createTechnologyGroup({ _id: "", technology: techValue || "" }),
     );
     this.newTechControl.reset();
   }
@@ -1446,41 +1449,23 @@ export class RecordComponent implements OnInit {
   removeTechnology(
     workIndex: number,
     projectIndex: number,
-    techIndex: number
+    techIndex: number,
   ): void {
     this.technologiesArray(workIndex, projectIndex).removeAt(techIndex);
   }
 
   addTeamMember(workIndex: number, projectIndex: number): void {
     this.teamMembersArray(workIndex, projectIndex).push(
-      this.createTeamMemberGroup()
+      this.createTeamMemberGroup(),
     );
   }
 
   removeTeamMember(
     workIndex: number,
     projectIndex: number,
-    teamMemberIndex: number
+    teamMemberIndex: number,
   ): void {
     this.teamMembersArray(workIndex, projectIndex).removeAt(teamMemberIndex);
-  }
-
-  // ----------------------
-  // Data Initialization
-  // ----------------------
-  loadUserData(user: User): void {
-    this.originalUser = structuredClone(user);
-    this.userForm!.patchValue({
-      ...user,
-      hair: this.createHairGroup(user.hair),
-      address: user.address.map((address) => this.createAddressGroup(address)),
-      bank: user.bank.map((bank) => this.createBankGroup(bank)),
-      company: user.company.map((company) => this.createCompanyGroup(company)),
-      crypto: user.crypto.map((crypto) => this.createCryptoGroup(crypto)),
-      workExperience: user.workExperience.map((workexp) =>
-        this.createWorkExperienceGroup(workexp)
-      ),
-    });
   }
 
   // ----------------------
@@ -1489,7 +1474,7 @@ export class RecordComponent implements OnInit {
   onSubmit(): void {
     console.log(
       "🚀 ~ RecordComponent ~ onSubmit ~ onSubmit:",
-      this.userForm.value
+      this.userForm.value,
     );
     if (this.userForm!.valid) {
       const currentUser = this.userForm!.value;
@@ -1510,12 +1495,12 @@ export class RecordComponent implements OnInit {
       phoneValue = phoneValue.replace(/\D/g, "");
       if (phoneValue.length > 3 && phoneValue.length <= 6) {
         phoneValue = `(${phoneValue.substring(0, 3)}) ${phoneValue.substring(
-          3
+          3,
         )}`;
       } else if (phoneValue.length > 6) {
         phoneValue = `(${phoneValue.substring(0, 3)}) ${phoneValue.substring(
           3,
-          6
+          6,
         )}-${phoneValue.substring(6, 10)}`;
       }
       phoneControl.setValue(phoneValue, { emitEvent: false });
