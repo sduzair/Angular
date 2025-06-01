@@ -48,11 +48,24 @@ if (app.Environment.IsDevelopment())
 
 app.MapGet("/api/users", async (IMongoDatabase db) =>
 {
-    var collection = db.GetCollection<BsonDocument>("users");
-    var sortDefinition = Builders<BsonDocument>.Sort.Ascending("id");
-    var documents = await collection.Find(FilterDefinition<BsonDocument>.Empty).Sort(sortDefinition).ToListAsync();
+    var collection = db.GetCollection<UserRecord>("users");
+    var sortDefinition = Builders<UserRecord>.Sort.Ascending("id");
+    var documents = await collection.Find(FilterDefinition<UserRecord>.Empty).Sort(sortDefinition).ToListAsync();
 
-    return Results.Ok(documents.Select(document => document.ToDictionary()).ToList());
+    var result = documents.Select(document =>
+        {
+            // Convert ExtraElements to a dictionary
+            var dict = document.ExtraElements.ToDictionary(
+                elem => elem.Name,
+                elem => BsonTypeMapper.MapToDotNetValue(elem.Value));
+
+            // Add the Id as a string (for JSON serialization)
+            dict["_id"] = document.UserId.ToString();
+
+            return dict;
+        }).ToList();
+
+    return Results.Ok(result);
 });
 
 app.MapGet("/api/sessions/{userId}", static async (IMongoDatabase db, string userId) =>
