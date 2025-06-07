@@ -39,7 +39,7 @@ export class ChangeLogService {
           }
           parent = current;
           current = current[index];
-          continue;
+          if (i !== pathParts.length - 1) continue;
         }
 
         if (i === pathParts.length - 1) {
