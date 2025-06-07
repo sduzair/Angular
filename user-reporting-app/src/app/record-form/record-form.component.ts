@@ -2,7 +2,7 @@ import { CommonModule } from "@angular/common";
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import {
   FormArray,
-  FormBuilder,
+  FormControl,
   FormGroup,
   ReactiveFormsModule,
   Validators,
@@ -17,7 +17,6 @@ import {
   Project,
   TeamMember,
   Technology,
-  User,
   WorkExperience,
   Crypto as ICrypto,
   CompanyAddress,
@@ -43,6 +42,22 @@ import { MatIcon } from "@angular/material/icon";
 import { MatChipsModule } from "@angular/material/chips";
 import { MatButtonModule } from "@angular/material/button";
 import { CrossTabEditService } from "../cross-tab-edit.service";
+import {
+  ChangeLog,
+  ChangeLogService,
+  UserWithVersion,
+} from "../change-log.service";
+import {
+  DateFnsAdapter,
+  MAT_DATE_FNS_FORMATS,
+} from "@angular/material-date-fns-adapter";
+import {
+  MAT_DATE_LOCALE,
+  DateAdapter,
+  MAT_DATE_FORMATS,
+} from "@angular/material/core";
+import { enCA } from "date-fns/locale";
+import { BirthDateDirective } from "../table/birth-date.directive";
 
 @Component({
   selector: "app-record",
@@ -62,8 +77,12 @@ import { CrossTabEditService } from "../cross-tab-edit.service";
     MatIcon,
     MatChipsModule,
     MatButtonModule,
+    BirthDateDirective,
   ],
   providers: [
+    { provide: MAT_DATE_LOCALE, useValue: enCA },
+    { provide: DateAdapter, useClass: DateFnsAdapter, deps: [MAT_DATE_LOCALE] },
+    { provide: MAT_DATE_FORMATS, useValue: MAT_DATE_FNS_FORMATS },
     {
       provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
       useValue: {
@@ -160,6 +179,7 @@ import { CrossTabEditService } from "../cross-tab-edit.service";
                       <mat-label>Birth Date</mat-label>
                       <input
                         matInput
+                        appBirthDate
                         [matDatepicker]="picker"
                         formControlName="birthDate"
                         [max]="validatorParams.maxBirthDate"
@@ -1127,15 +1147,13 @@ import { CrossTabEditService } from "../cross-tab-edit.service";
           </mat-tab>
         </mat-tab-group>
       </form>
-      <!-- <pre class="overlay-pre">Form values: {{ userForm.value | json }}</pre> -->
+      <pre class="overlay-pre">Form values: {{ userForm.value | json }}</pre>
     </div>
   `,
-  styleUrls: ["./record.component.scss"],
+  styleUrls: ["./record-form.component.scss"],
 })
-export class RecordComponent implements OnInit, OnDestroy {
-  originalUser: User | null = null;
-  userForm!: FormGroup;
-  newTechControl!: FormGroup;
+export class RecordFormComponent implements OnInit, OnDestroy {
+  userBefore: UserWithVersion | null = null;
   validatorParams = {
     maxBirthDate: new Date(),
     passwordLenMin: 6,
@@ -1148,16 +1166,18 @@ export class RecordComponent implements OnInit, OnDestroy {
   };
 
   constructor(
-    private fb: FormBuilder,
     private crossTabEditService: CrossTabEditService,
+    private changeLogService: ChangeLogService,
   ) {}
 
   ngOnInit() {
-    this.initializeEmptyForm();
-
     this.crossTabEditService.editSession$
       .pipe(takeUntil(this.destroy$))
       .subscribe((editSession) => {
+        this.userBefore = JSON.parse(
+          JSON.stringify(editSession!.userBefore),
+        ) as UserWithVersion;
+        // TODO fix issue not populating all items in case of array with more than one item
         this.userForm.patchValue(editSession!.userBefore);
       });
   }
@@ -1167,150 +1187,138 @@ export class RecordComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  private initializeEmptyForm() {
-    this.userForm = this.fb.group({
-      _id: [""],
-      firstName: ["", Validators.required],
-      lastName: ["", Validators.required],
-      maidenName: [""],
-      age: [null, [Validators.min(0)]],
-      gender: [""],
-      email: ["", [Validators.email]],
-      phone: ["", [Validators.pattern(this.validatorParams.phonePatterns.us)]],
-      username: [
-        "",
-        [Validators.minLength(this.validatorParams.usernameLenMin)],
-      ],
-      password: [
-        "",
-        [Validators.minLength(this.validatorParams.passwordLenMin)],
-      ],
-      birthDate: [""],
-      image: [""],
-      bloodGroup: [""],
-      height: [null],
-      weight: [null],
-      eyeColor: [""],
-      hair: this.createHairGroup(),
-      ip: [""],
-      address: this.fb.array([this.createAddressGroup()]),
-      macAddress: [""],
-      university: [""],
-      bank: this.fb.array([this.createBankGroup()]),
-      company: this.fb.array([this.createCompanyGroup()]),
-      ein: [""],
-      ssn: [""],
-      userAgent: [""],
-      crypto: this.fb.array([this.createCryptoGroup()]),
-      role: [""],
-      workExperience: this.fb.array([this.createWorkExperienceGroup()]),
-    });
+  userForm = new FormGroup({
+    _version: new FormControl<number>(null!),
+    _id: new FormControl(""),
+    id: new FormControl<number>(null!),
+    firstName: new FormControl("", Validators.required),
+    lastName: new FormControl("", Validators.required),
+    maidenName: new FormControl(""),
+    age: new FormControl<number>(null!, [Validators.min(0)]),
+    gender: new FormControl(""),
+    email: new FormControl("", [Validators.email]),
+    phone: new FormControl("", [
+      Validators.pattern(this.validatorParams.phonePatterns.us),
+    ]),
+    username: new FormControl("", [
+      Validators.minLength(this.validatorParams.usernameLenMin),
+    ]),
+    password: new FormControl("", [
+      Validators.minLength(this.validatorParams.passwordLenMin),
+    ]),
+    birthDate: new FormControl(""),
+    image: new FormControl(""),
+    bloodGroup: new FormControl(""),
+    height: new FormControl<number>(null!),
+    weight: new FormControl<number>(null!),
+    eyeColor: new FormControl(""),
+    hair: this.createHairGroup(),
+    ip: new FormControl(""),
+    address: new FormArray([this.createAddressGroup()]),
+    macAddress: new FormControl(""),
+    university: new FormControl(""),
+    bank: new FormArray([this.createBankGroup()]),
+    company: new FormArray([this.createCompanyGroup()]),
+    ein: new FormControl(""),
+    ssn: new FormControl(""),
+    userAgent: new FormControl(""),
+    crypto: new FormArray([this.createCryptoGroup()]),
+    role: new FormControl(""),
+    workExperience: new FormArray([this.createWorkExperienceGroup()]),
+  });
 
-    this.newTechControl = this.createTechnologyGroup();
-  }
+  newTechControl = this.createTechnologyGroup();
 
   // --------------------------
   // Form Group Creation Methods
   // --------------------------
   private createHairGroup(hair?: Hair): FormGroup {
-    return this.fb.group({
-      color: [hair?.color || ""],
-      type: [hair?.type || ""],
+    return new FormGroup({
+      color: new FormControl(hair?.color || ""),
+      type: new FormControl(hair?.type || ""),
     });
   }
 
   private createAddressGroup(address?: Address): FormGroup {
-    return this.fb.group({
-      _id: [address?._id || uuidv4()],
-      address: [address?.address || "", Validators.required],
-      city: [address?.city || "", Validators.required],
-      state: [address?.state || "", Validators.required],
-      stateCode: [
-        address?.stateCode || "",
-        [
-          Validators.required,
-          Validators.maxLength(this.validatorParams.stateCodeLenMax),
-        ],
-      ],
-      postalCode: [
-        address?.postalCode || "",
-        [
-          Validators.required,
-          Validators.maxLength(this.validatorParams.postalCodeLenMax),
-        ],
-      ],
+    return new FormGroup({
+      _id: new FormControl(address?._id || uuidv4()),
+      address: new FormControl(address?.address || "", Validators.required),
+      city: new FormControl(address?.city || "", Validators.required),
+      state: new FormControl(address?.state || "", Validators.required),
+      stateCode: new FormControl(address?.stateCode || "", [
+        Validators.required,
+        Validators.maxLength(this.validatorParams.stateCodeLenMax),
+      ]),
+      postalCode: new FormControl(address?.postalCode || "", [
+        Validators.required,
+        Validators.maxLength(this.validatorParams.postalCodeLenMax),
+      ]),
       coordinates: this.createCoordinatesGroup(address?.coordinates),
-      country: [address?.country || "", Validators.required],
+      country: new FormControl(address?.country || "", Validators.required),
     });
   }
 
   private createCompanyAddressGroup(address?: CompanyAddress): FormGroup {
-    return this.fb.group({
-      address: [address?.address || "", Validators.required],
-      city: [address?.city || "", Validators.required],
-      state: [address?.state || "", Validators.required],
-      stateCode: [
-        address?.stateCode || "",
-        [
-          Validators.required,
-          Validators.maxLength(this.validatorParams.stateCodeLenMax),
-        ],
-      ],
-      postalCode: [
-        address?.postalCode || "",
-        [
-          Validators.required,
-          Validators.maxLength(this.validatorParams.postalCodeLenMax),
-        ],
-      ],
+    return new FormGroup({
+      address: new FormControl(address?.address || "", Validators.required),
+      city: new FormControl(address?.city || "", Validators.required),
+      state: new FormControl(address?.state || "", Validators.required),
+      stateCode: new FormControl(address?.stateCode || "", [
+        Validators.required,
+        Validators.maxLength(this.validatorParams.stateCodeLenMax),
+      ]),
+      postalCode: new FormControl(address?.postalCode || "", [
+        Validators.required,
+        Validators.maxLength(this.validatorParams.postalCodeLenMax),
+      ]),
       coordinates: this.createCoordinatesGroup(address?.coordinates),
-      country: [address?.country || "", Validators.required],
+      country: new FormControl(address?.country || "", Validators.required),
     });
   }
 
   private createCoordinatesGroup(coords?: Coordinates): FormGroup {
-    return this.fb.group({
-      lat: [coords?.lat || null],
-      lng: [coords?.lng || null],
+    return new FormGroup({
+      lat: new FormControl(coords?.lat || null),
+      lng: new FormControl(coords?.lng || null),
     });
   }
 
   private createBankGroup(bank?: Bank): FormGroup {
-    return this.fb.group({
-      _id: [bank?._id || uuidv4()],
-      cardNumber: [bank?.cardNumber || "", Validators.required],
-      cardExpire: [bank?.cardExpire || "", Validators.required],
-      cardType: [bank?.cardType || "", Validators.required],
-      currency: [bank?.currency || ""],
-      iban: [bank?.iban || ""],
+    return new FormGroup({
+      _id: new FormControl(bank?._id || uuidv4()),
+      cardNumber: new FormControl(bank?.cardNumber || "", Validators.required),
+      cardExpire: new FormControl(bank?.cardExpire || "", Validators.required),
+      cardType: new FormControl(bank?.cardType || "", Validators.required),
+      currency: new FormControl(bank?.currency || ""),
+      iban: new FormControl(bank?.iban || ""),
     });
   }
 
   private createCompanyGroup(company?: Company): FormGroup {
-    return this.fb.group({
-      _id: [company?._id || uuidv4()],
-      department: [company?.department || ""],
-      name: [company?.name || "", Validators.required],
-      title: [company?.title || ""],
+    return new FormGroup({
+      _id: new FormControl(company?._id || uuidv4()),
+      department: new FormControl(company?.department || ""),
+      name: new FormControl(company?.name || "", Validators.required),
+      title: new FormControl(company?.title || ""),
       address: this.createCompanyAddressGroup(company?.address),
     });
   }
 
   private createCryptoGroup(crypto?: ICrypto): FormGroup {
-    return this.fb.group({
-      _id: [crypto?._id || uuidv4()],
-      coin: [crypto?.coin || "", Validators.required],
-      network: [crypto?.network || "", Validators.required],
-      wallet: [crypto?.wallet || ""],
+    return new FormGroup({
+      _id: new FormControl(crypto?._id || uuidv4()),
+      coin: new FormControl(crypto?.coin || "", Validators.required),
+      network: new FormControl(crypto?.network || "", Validators.required),
+      wallet: new FormControl(crypto?.wallet || ""),
     });
   }
 
   private createWorkExperienceGroup(work?: WorkExperience): FormGroup {
-    return this.fb.group({
-      _id: [work?._id || uuidv4()],
-      jobTitle: [work?.jobTitle || "", Validators.required],
-      employer: [work?.employer || "", Validators.required],
-      projects: this.fb.array(
+    return new FormGroup({
+      _id: new FormControl(work?._id || uuidv4()),
+      jobTitle: new FormControl(work?.jobTitle || "", Validators.required),
+      employer: new FormControl(work?.employer || "", Validators.required),
+      projects: new FormArray(
         work?.projects?.map((p) => this.createProjectGroup(p)) || [
           this.createProjectGroup(),
         ],
@@ -1319,14 +1327,16 @@ export class RecordComponent implements OnInit, OnDestroy {
   }
 
   private createProjectGroup(project?: Project): FormGroup {
-    return this.fb.group({
-      _id: [project?._id || uuidv4()],
-      name: [project?.name || "", Validators.required],
-      description: [project?.description || ""],
-      technologies: this.fb.array(
-        project?.technologies?.map((t) => this.createTechnologyGroup(t)) || [],
+    return new FormGroup({
+      _id: new FormControl(project?._id || uuidv4()),
+      name: new FormControl(project?.name || "", Validators.required),
+      description: new FormControl(project?.description || ""),
+      technologies: new FormArray(
+        project?.technologies?.map((t) => this.createTechnologyGroup(t)) || [
+          this.createTechnologyGroup(),
+        ],
       ),
-      teamMembers: this.fb.array(
+      teamMembers: new FormArray(
         project?.teamMembers?.map((tm) => this.createTeamMemberGroup(tm)) || [
           this.createTeamMemberGroup(),
         ],
@@ -1335,17 +1345,19 @@ export class RecordComponent implements OnInit, OnDestroy {
   }
 
   private createTechnologyGroup(tech?: Technology): FormGroup {
-    return this.fb.group({
-      _id: [tech?._id || uuidv4()],
-      technology: [tech?.technology || "", [Validators.required]],
+    return new FormGroup({
+      _id: new FormControl(tech?._id || uuidv4()),
+      technology: new FormControl(tech?.technology || "", [
+        Validators.required,
+      ]),
     });
   }
 
   private createTeamMemberGroup(member?: TeamMember): FormGroup {
-    return this.fb.group({
-      _id: [member?._id || uuidv4()],
-      name: [member?.name || "", Validators.required],
-      role: [member?.role || "", Validators.required],
+    return new FormGroup({
+      _id: new FormControl(member?._id || uuidv4()),
+      name: new FormControl(member?.name || "", Validators.required),
+      role: new FormControl(member?.role || "", Validators.required),
     });
   }
 
@@ -1439,7 +1451,6 @@ export class RecordComponent implements OnInit, OnDestroy {
 
   addTechnology(workIndex: number, projectIndex: number): void {
     const techValue = this.newTechControl.get("technology")?.value?.trim();
-    console.log("🚀 ~ RecordComponent ~ addTechnology ~ techValue:", techValue);
     this.technologiesArray(workIndex, projectIndex).push(
       this.createTechnologyGroup({ _id: "", technology: techValue || "" }),
     );
@@ -1472,17 +1483,14 @@ export class RecordComponent implements OnInit, OnDestroy {
   // Form Submission
   // ----------------------
   onSubmit(): void {
-    console.log(
-      "🚀 ~ RecordComponent ~ onSubmit ~ onSubmit:",
-      this.userForm.value,
+    if (!this.userForm!.valid) return;
+    const changes: ChangeLog[] = [];
+    this.changeLogService.compareProperties(
+      this.userBefore,
+      this.userForm!.value,
+      this.userBefore!._version! + 1,
+      changes,
     );
-    if (this.userForm!.valid) {
-      const currentUser = this.userForm!.value;
-      // const changes = this.generateChangeLog(this.originalUser, currentUser);
-
-      // Send changes to service
-      // console.log('Form Changes:', changes);
-    }
   }
 
   formatPhoneNumber(): void {
@@ -1491,7 +1499,6 @@ export class RecordComponent implements OnInit, OnDestroy {
 
     let phoneValue = phoneControl.value;
     if (phoneValue) {
-      // Simple formatting example - adjust to your needs
       phoneValue = phoneValue.replace(/\D/g, "");
       if (phoneValue.length > 3 && phoneValue.length <= 6) {
         phoneValue = `(${phoneValue.substring(0, 3)}) ${phoneValue.substring(

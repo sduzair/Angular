@@ -343,7 +343,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
 
   editTab: WindowProxy | null = null;
   openEditTab(record: UserWithVersion) {
-    this.crossTabEditService.initializeEditSession(record, record._version, []);
+    this.crossTabEditService.initializeEditSession(record);
     const editUrl = `record/${record.id}`;
     this.editTab = window.open(editUrl, "editTab");
   }

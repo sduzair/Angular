@@ -76,6 +76,8 @@ export class ChangeLogService {
       }
     });
 
+    result._version = changes.at(-1)?.version || 0;
+
     return result;
   }
 
@@ -101,9 +103,9 @@ export class ChangeLogService {
         this.compareProperties(
           originalMap.get(updatedItem._id),
           updatedItem,
-          itemPath,
           version,
           changes,
+          itemPath,
         );
       } else {
         // New item
@@ -132,9 +134,9 @@ export class ChangeLogService {
   compareProperties(
     obj1: any,
     obj2: any,
-    path: string,
     version: number,
     changes: ChangeLog[] = [],
+    path = "",
   ) {
     const allKeys = new Set([...Object.keys(obj1), ...Object.keys(obj2)]);
 
@@ -156,7 +158,7 @@ export class ChangeLogService {
           this.compareArrays(val1, val2, currentPath, version, changes);
         }
       } else if (typeof val2 === "object" && val2 !== null) {
-        this.compareProperties(val1 || {}, val2, currentPath, version, changes);
+        this.compareProperties(val1 || {}, val2, version, changes, currentPath);
       } else if (val1 !== val2) {
         changes.push({
           path: currentPath,
@@ -176,4 +178,4 @@ export interface ChangeLog {
   version: number;
 }
 
-export type UserWithVersion = User & { _version: number };
+export type UserWithVersion = User & { _version: number | null };

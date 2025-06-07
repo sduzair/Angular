@@ -1,7 +1,6 @@
 import { Injectable } from "@angular/core";
-import { User } from "./table/table.component";
 import { BehaviorSubject } from "rxjs/internal/BehaviorSubject";
-import { ChangeLog } from "./change-log.service";
+import { ChangeLog, UserWithVersion } from "./change-log.service";
 
 @Injectable({
   providedIn: "root",
@@ -26,15 +25,9 @@ export class CrossTabEditService {
     });
   }
 
-  initializeEditSession(
-    user: User,
-    versionBefore: number,
-    changeLogs: ChangeLog[],
-  ) {
+  initializeEditSession(userWithVersion: UserWithVersion) {
     const newEditSession: EditSession = {
-      userBefore: structuredClone(user),
-      userBeforeVersion: versionBefore,
-      changeLogs,
+      userBefore: structuredClone(userWithVersion),
     };
 
     localStorage.setItem(this.EDIT_SESSION_KEY, JSON.stringify(newEditSession));
@@ -47,22 +40,20 @@ export class CrossTabEditService {
     return session;
   }
 
-  saveChangesToEditSession(changes: ChangeLog[]) {
-    const currentEditSession = this.editSessionSubject.value;
-    if (!currentEditSession) throw new Error("No active session");
+  // saveChangesToEditSession(changes: ChangeLog[]) {
+  //   const currentEditSession = this.editSessionSubject.value;
+  //   if (!currentEditSession) throw new Error("No active session");
 
-    const updatedSession: EditSession = {
-      ...currentEditSession,
-      changeLogs: changes,
-    };
+  //   const updatedSession: EditSession = {
+  //     ...currentEditSession,
+  //     changeLogs: changes,
+  //   };
 
-    localStorage.setItem(this.EDIT_SESSION_KEY, JSON.stringify(updatedSession));
-    this.editSessionSubject.next(updatedSession);
-  }
+  //   localStorage.setItem(this.EDIT_SESSION_KEY, JSON.stringify(updatedSession));
+  //   this.editSessionSubject.next(updatedSession);
+  // }
 }
 
-interface EditSession {
-  userBefore: User;
-  userBeforeVersion: number;
-  changeLogs: ChangeLog[];
+export interface EditSession {
+  userBefore: UserWithVersion;
 }
