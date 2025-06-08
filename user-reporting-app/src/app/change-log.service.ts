@@ -13,7 +13,6 @@ export class ChangeLogService {
       const pathParts = change.path.split(".");
       let current: any = result;
       let parent: any = null;
-      let arrayPath: string | null = null;
       let targetId: string | null = null;
 
       for (let i = 0; i < pathParts.length; i++) {
@@ -24,7 +23,7 @@ export class ChangeLogService {
           targetId = part.split("=")[1];
           console.assert(
             Array.isArray(current),
-            `Assert item ${targetId} belongs to an item in array\n${JSON.stringify(change, null, 2)}`,
+            `Assert current is an array\n${JSON.stringify(change, null, 2)}`,
           );
           if (!Array.isArray(current)) {
             break;
@@ -32,7 +31,7 @@ export class ChangeLogService {
           const index = current.findIndex((item: any) => item._id === targetId);
           console.assert(
             index !== -1,
-            `Assert item ${targetId} found in array ${arrayPath}\n${JSON.stringify(change, null, 2)}`,
+            `Assert item ${targetId} found in array\n${JSON.stringify(change, null, 2)}`,
           );
           if (index === -1) {
             break;
@@ -45,22 +44,30 @@ export class ChangeLogService {
         if (i === pathParts.length - 1) {
           // Last segment - apply change
           if (change.newValue === undefined) {
-            // Remove array element
+            // Array item removal
             if (Array.isArray(parent) && targetId) {
               const index = parent.findIndex(
                 (item: any) => item._id === targetId,
               );
+              console.assert(
+                index !== -1,
+                `Assert item ${targetId} found in array\n${JSON.stringify(change, null, 2)}`,
+              );
               if (index !== -1) parent.splice(index, 1);
             }
-          } else if (arrayPath && !targetId) {
-            // Add to array
-            current.push(change.newValue);
+          } else if (
+            change.oldValue === undefined &&
+            Array.isArray(current[part])
+          ) {
+            // Array add new item
+            current[part].push(change.newValue);
           } else {
             // Modify value
             current[part] = change.newValue;
           }
           continue;
         }
+
         // Navigate deeper
         console.assert(
           current[part] != null,
@@ -69,10 +76,6 @@ export class ChangeLogService {
         if (!current[part]) break;
         parent = current;
         current = current[part];
-
-        if (Array.isArray(current))
-          // Track array parent for additions
-          arrayPath = part;
       }
     });
 
