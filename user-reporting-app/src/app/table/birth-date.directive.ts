@@ -1,4 +1,4 @@
-import { Directive, HostListener, Optional, Self } from "@angular/core";
+import { Directive, Optional, Self } from "@angular/core";
 import { ControlValueAccessor, NgControl } from "@angular/forms";
 import { MatDatepickerInput } from "@angular/material/datepicker";
 import { format } from "date-fns/fp/format";
@@ -33,7 +33,9 @@ export class BirthDateDirective implements ControlValueAccessor {
 
   registerOnChange(fn: (_: any) => void): void {
     this._onChange = (date: Date | null) => {
-      const formattedDate = BirthDateDirective.formatBirthDate(date!);
+      const formattedDate = date
+        ? BirthDateDirective.formatBirthDate(date!)
+        : null;
       fn(formattedDate);
     };
     this.datepickerInput.registerOnChange(this._onChange);

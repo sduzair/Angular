@@ -178,4 +178,6 @@ export interface ChangeLog {
   version: number;
 }
 
-export type UserWithVersion = User & { _version: number | null };
+export type UserWithVersion = User & {
+  _version: number | null;
+};

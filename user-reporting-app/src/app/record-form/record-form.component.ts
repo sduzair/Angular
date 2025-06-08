@@ -13,13 +13,11 @@ import {
   Bank,
   Company,
   Coordinates,
-  Hair,
   Project,
   TeamMember,
   Technology,
   WorkExperience,
   Crypto as ICrypto,
-  CompanyAddress,
 } from "../table/table.component";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -371,7 +369,7 @@ import { BirthDateDirective } from "../table/birth-date.directive";
               </div>
               <div
                 *ngFor="
-                  let addressGroup of addressArray.controls;
+                  let addressGroup of this.userForm.controls.address.controls;
                   let i = index
                 "
                 [formGroupName]="i"
@@ -484,7 +482,7 @@ import { BirthDateDirective } from "../table/birth-date.directive";
                   </div>
                 </mat-expansion-panel>
                 <mat-divider
-                  *ngIf="i < addressArray.controls.length - 1"
+                  *ngIf="i < this.userForm.controls.address.controls.length - 1"
                 ></mat-divider>
               </div>
             </div>
@@ -504,7 +502,7 @@ import { BirthDateDirective } from "../table/birth-date.directive";
                 </button>
               </div>
               <div
-                *ngFor="let bankGroup of bankArray.controls; let i = index"
+                *ngFor="let bankGroup of userForm.controls.bank.controls; let i = index"
                 [formGroupName]="i"
               >
                 <mat-expansion-panel [expanded]="true">
@@ -645,7 +643,7 @@ import { BirthDateDirective } from "../table/birth-date.directive";
                   </div>
                 </mat-expansion-panel>
                 <mat-divider
-                  *ngIf="i < bankArray.controls.length - 1"
+                  *ngIf="i < userForm.controls.bank.controls.length - 1"
                 ></mat-divider>
               </div>
             </div>
@@ -666,7 +664,7 @@ import { BirthDateDirective } from "../table/birth-date.directive";
               </div>
               <div
                 *ngFor="
-                  let companyGroup of companyArray.controls;
+                  let companyGroup of userForm.controls.company.controls;
                   let i = index
                 "
                 [formGroupName]="i"
@@ -813,7 +811,7 @@ import { BirthDateDirective } from "../table/birth-date.directive";
                   </div>
                 </mat-expansion-panel>
                 <mat-divider
-                  *ngIf="i < companyArray.controls.length - 1"
+                  *ngIf="i < userForm.controls.company.controls.length - 1"
                 ></mat-divider>
               </div>
             </div>
@@ -834,7 +832,7 @@ import { BirthDateDirective } from "../table/birth-date.directive";
               </div>
 
               <div
-                *ngFor="let cryptoGroup of cryptoArray.controls; let i = index"
+                *ngFor="let cryptoGroup of userForm.controls.crypto.controls; let i = index"
                 [formGroupName]="i"
               >
                 <mat-expansion-panel [expanded]="true">
@@ -886,7 +884,7 @@ import { BirthDateDirective } from "../table/birth-date.directive";
                   </div>
                 </mat-expansion-panel>
                 <mat-divider
-                  *ngIf="i < cryptoArray.controls.length - 1"
+                  *ngIf="i < userForm.controls.crypto.controls.length - 1"
                 ></mat-divider>
               </div>
             </div>
@@ -907,7 +905,7 @@ import { BirthDateDirective } from "../table/birth-date.directive";
               </div>
               <div
                 *ngFor="
-                  let workExpGroup of workExperienceArray.controls;
+                  let workExpGroup of userForm.controls.workExperience.controls;
                   let workIndex = index
                 "
                 [formGroupName]="workIndex"
@@ -969,7 +967,8 @@ import { BirthDateDirective } from "../table/birth-date.directive";
                     </div>
                     <div
                       *ngFor="
-                        let projectGroup of projectsArray(workIndex).controls;
+                        let projectGroup of userForm.controls.workExperience.at(workIndex).controls
+                              .projects.controls;
                         let projIndex = index
                       "
                       [formGroupName]="projIndex"
@@ -1045,10 +1044,10 @@ import { BirthDateDirective } from "../table/birth-date.directive";
                           <mat-chip-set #techList>
                             <mat-chip
                               *ngFor="
-                                let techGroup of technologiesArray(
-                                  workIndex,
-                                  projIndex
-                                ).controls;
+                                let techGroup of userForm.controls.workExperience
+                                      .at(workIndex)
+                                            .controls.projects.at(projIndex).controls.technologies
+                                            .controls;
                                 let techIndex = index
                               "
                               [formGroupName]="techIndex"
@@ -1083,10 +1082,9 @@ import { BirthDateDirective } from "../table/birth-date.directive";
                           </div>
                           <div
                             *ngFor="
-                              let memberGroup of teamMembersArray(
-                                workIndex,
-                                projIndex
-                              ).controls;
+                              let memberGroup of userForm.controls.workExperience
+                                    .at(workIndex)
+                                          .controls.projects.at(projIndex).controls.teamMembers.controls;
                               let teamMemberIndex = index
                             "
                             [formGroupName]="teamMemberIndex"
@@ -1140,14 +1138,14 @@ import { BirthDateDirective } from "../table/birth-date.directive";
                   </div>
                 </mat-expansion-panel>
                 <mat-divider
-                  *ngIf="workIndex < workExperienceArray.controls.length - 1"
+                  *ngIf="workIndex < userForm.controls.workExperience.controls.length - 1"
                 ></mat-divider>
               </div>
             </div>
           </mat-tab>
         </mat-tab-group>
       </form>
-      <pre class="overlay-pre">Form values: {{ userForm.value | json }}</pre>
+      <!-- <pre class="overlay-pre">Form values: {{ userForm.value | json }}</pre> -->
     </div>
   `,
   styleUrls: ["./record-form.component.scss"],
@@ -1165,6 +1163,7 @@ export class RecordFormComponent implements OnInit, OnDestroy {
     stateCodeLenMax: 3,
   };
 
+  userForm: UserFormType = null!;
   constructor(
     private crossTabEditService: CrossTabEditService,
     private changeLogService: ChangeLogService,
@@ -1177,8 +1176,7 @@ export class RecordFormComponent implements OnInit, OnDestroy {
         this.userBefore = JSON.parse(
           JSON.stringify(editSession!.userBefore),
         ) as UserWithVersion;
-        // TODO fix issue not populating all items in case of array with more than one item
-        this.userForm.patchValue(editSession!.userBefore);
+        this.createUserForm(editSession!.userBefore);
       });
   }
   private readonly destroy$ = new Subject<void>();
@@ -1187,79 +1185,77 @@ export class RecordFormComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  userForm = new FormGroup({
-    _version: new FormControl<number>(null!),
-    _id: new FormControl(""),
-    id: new FormControl<number>(null!),
-    firstName: new FormControl("", Validators.required),
-    lastName: new FormControl("", Validators.required),
-    maidenName: new FormControl(""),
-    age: new FormControl<number>(null!, [Validators.min(0)]),
-    gender: new FormControl(""),
-    email: new FormControl("", [Validators.email]),
-    phone: new FormControl("", [
-      Validators.pattern(this.validatorParams.phonePatterns.us),
-    ]),
-    username: new FormControl("", [
-      Validators.minLength(this.validatorParams.usernameLenMin),
-    ]),
-    password: new FormControl("", [
-      Validators.minLength(this.validatorParams.passwordLenMin),
-    ]),
-    birthDate: new FormControl(""),
-    image: new FormControl(""),
-    bloodGroup: new FormControl(""),
-    height: new FormControl<number>(null!),
-    weight: new FormControl<number>(null!),
-    eyeColor: new FormControl(""),
-    hair: this.createHairGroup(),
-    ip: new FormControl(""),
-    address: new FormArray([this.createAddressGroup()]),
-    macAddress: new FormControl(""),
-    university: new FormControl(""),
-    bank: new FormArray([this.createBankGroup()]),
-    company: new FormArray([this.createCompanyGroup()]),
-    ein: new FormControl(""),
-    ssn: new FormControl(""),
-    userAgent: new FormControl(""),
-    crypto: new FormArray([this.createCryptoGroup()]),
-    role: new FormControl(""),
-    workExperience: new FormArray([this.createWorkExperienceGroup()]),
-  });
-
-  newTechControl = this.createTechnologyGroup();
+  private createUserForm(user: UserWithVersion | null) {
+    this.userForm = new FormGroup({
+      _version: new FormControl<number>(user?._version || 0),
+      _id: new FormControl(user?._id || uuidv4()),
+      id: new FormControl<number>(user?.id || null!),
+      firstName: new FormControl(user?.firstName || "", Validators.required),
+      lastName: new FormControl(user?.lastName || "", Validators.required),
+      maidenName: new FormControl(user?.maidenName || ""),
+      age: new FormControl<number>(user?.age || null!, [Validators.min(0)]),
+      gender: new FormControl(user?.gender || ""),
+      email: new FormControl(user?.email || "", [Validators.email]),
+      phone: new FormControl(user?.phone || "", [
+        Validators.pattern(this.validatorParams.phonePatterns.us),
+      ]),
+      username: new FormControl(user?.username || "", [
+        Validators.minLength(this.validatorParams.usernameLenMin),
+      ]),
+      password: new FormControl(user?.password || "", [
+        Validators.minLength(this.validatorParams.passwordLenMin),
+      ]),
+      birthDate: new FormControl(user?.birthDate || ""),
+      image: new FormControl(user?.image || ""),
+      bloodGroup: new FormControl(user?.bloodGroup || ""),
+      height: new FormControl<number>(user?.height || null!),
+      weight: new FormControl<number>(user?.weight || null!),
+      eyeColor: new FormControl(user?.eyeColor || ""),
+      hair: new FormGroup({
+        color: new FormControl(user?.hair.color || ""),
+        type: new FormControl(user?.hair.type || ""),
+      }),
+      ip: new FormControl(user?.ip || ""),
+      address: new FormArray(
+        user?.address.map((item) => this.createAddressGroup(item)) || [
+          this.createAddressGroup(),
+        ],
+      ),
+      macAddress: new FormControl(user?.macAddress || ""),
+      university: new FormControl(user?.university || ""),
+      bank: new FormArray(
+        user?.bank.map((item) => this.createBankGroup(item)) || [
+          this.createBankGroup(),
+        ],
+      ),
+      company: new FormArray(
+        user?.company.map((item) => this.createCompanyGroup(item)) || [
+          this.createCompanyGroup(),
+        ],
+      ),
+      ein: new FormControl(user?.ein || ""),
+      ssn: new FormControl(user?.ssn || ""),
+      userAgent: new FormControl(user?.userAgent || ""),
+      crypto: new FormArray(
+        user?.crypto.map((item) => this.createCryptoGroup(item)) || [
+          this.createCryptoGroup(),
+        ],
+      ),
+      role: new FormControl(user?.role || ""),
+      workExperience: new FormArray(
+        user?.workExperience.map((exp) =>
+          this.createWorkExperienceGroup(exp),
+        ) || [this.createWorkExperienceGroup()],
+      ),
+    });
+  }
 
   // --------------------------
   // Form Group Creation Methods
   // --------------------------
-  private createHairGroup(hair?: Hair): FormGroup {
-    return new FormGroup({
-      color: new FormControl(hair?.color || ""),
-      type: new FormControl(hair?.type || ""),
-    });
-  }
-
   private createAddressGroup(address?: Address): FormGroup {
     return new FormGroup({
       _id: new FormControl(address?._id || uuidv4()),
-      address: new FormControl(address?.address || "", Validators.required),
-      city: new FormControl(address?.city || "", Validators.required),
-      state: new FormControl(address?.state || "", Validators.required),
-      stateCode: new FormControl(address?.stateCode || "", [
-        Validators.required,
-        Validators.maxLength(this.validatorParams.stateCodeLenMax),
-      ]),
-      postalCode: new FormControl(address?.postalCode || "", [
-        Validators.required,
-        Validators.maxLength(this.validatorParams.postalCodeLenMax),
-      ]),
-      coordinates: this.createCoordinatesGroup(address?.coordinates),
-      country: new FormControl(address?.country || "", Validators.required),
-    });
-  }
-
-  private createCompanyAddressGroup(address?: CompanyAddress): FormGroup {
-    return new FormGroup({
       address: new FormControl(address?.address || "", Validators.required),
       city: new FormControl(address?.city || "", Validators.required),
       state: new FormControl(address?.state || "", Validators.required),
@@ -1300,7 +1296,33 @@ export class RecordFormComponent implements OnInit, OnDestroy {
       department: new FormControl(company?.department || ""),
       name: new FormControl(company?.name || "", Validators.required),
       title: new FormControl(company?.title || ""),
-      address: this.createCompanyAddressGroup(company?.address),
+      address: new FormGroup({
+        address: new FormControl(
+          company?.address?.address || "",
+          Validators.required,
+        ),
+        city: new FormControl(
+          company?.address?.city || "",
+          Validators.required,
+        ),
+        state: new FormControl(
+          company?.address?.state || "",
+          Validators.required,
+        ),
+        stateCode: new FormControl(company?.address?.stateCode || "", [
+          Validators.required,
+          Validators.maxLength(this.validatorParams.stateCodeLenMax),
+        ]),
+        postalCode: new FormControl(company?.address?.postalCode || "", [
+          Validators.required,
+          Validators.maxLength(this.validatorParams.postalCodeLenMax),
+        ]),
+        coordinates: this.createCoordinatesGroup(company?.address?.coordinates),
+        country: new FormControl(
+          company?.address?.country || "",
+          Validators.required,
+        ),
+      }),
     });
   }
 
@@ -1344,6 +1366,8 @@ export class RecordFormComponent implements OnInit, OnDestroy {
     });
   }
 
+  newTechControl = this.createTechnologyGroup();
+
   private createTechnologyGroup(tech?: Technology): FormGroup {
     return new FormGroup({
       _id: new FormControl(tech?._id || uuidv4()),
@@ -1362,98 +1386,68 @@ export class RecordFormComponent implements OnInit, OnDestroy {
   }
 
   // ----------------------
-  // Form Array Accessors
-  // ----------------------
-  get addressArray(): FormArray {
-    return this.userForm!.get("address") as FormArray;
-  }
-
-  get bankArray(): FormArray {
-    return this.userForm!.get("bank") as FormArray;
-  }
-
-  get companyArray(): FormArray {
-    return this.userForm!.get("company") as FormArray;
-  }
-
-  get cryptoArray(): FormArray {
-    return this.userForm!.get("crypto") as FormArray;
-  }
-
-  get workExperienceArray(): FormArray {
-    return this.userForm!.get("workExperience") as FormArray;
-  }
-
-  projectsArray(workIndex: number): FormArray {
-    return this.workExperienceArray.at(workIndex).get("projects") as FormArray;
-  }
-
-  technologiesArray(workIndex: number, projectIndex: number): FormArray {
-    return this.projectsArray(workIndex)
-      .at(projectIndex)
-      .get("technologies") as FormArray;
-  }
-
-  teamMembersArray(workIndex: number, projectIndex: number): FormArray {
-    return this.projectsArray(workIndex)
-      .at(projectIndex)
-      .get("teamMembers") as FormArray;
-  }
-
-  // ----------------------
   // Array Management
   // ----------------------
   addAddress(): void {
-    this.addressArray.push(this.createAddressGroup());
+    this.userForm.controls.address.push(this.createAddressGroup());
   }
 
   removeAddress(index: number): void {
-    this.addressArray.removeAt(index);
+    this.userForm.controls.address.removeAt(index);
   }
 
   addBank(): void {
-    this.bankArray.push(this.createBankGroup());
+    this.userForm.controls.bank.push(this.createBankGroup());
   }
 
   removeBank(index: number): void {
-    this.bankArray.removeAt(index);
+    this.userForm.controls.bank.removeAt(index);
   }
 
   addCompany(): void {
-    this.companyArray.push(this.createCompanyGroup());
+    this.userForm.controls.company.push(this.createCompanyGroup());
   }
 
   removeCompany(index: number): void {
-    this.companyArray.removeAt(index);
+    this.userForm.controls.company.removeAt(index);
   }
   addCrypto(): void {
-    this.cryptoArray.push(this.createCryptoGroup());
+    this.userForm.controls.crypto.push(this.createCryptoGroup());
   }
 
   removeCrypto(index: number): void {
-    this.cryptoArray.removeAt(index);
+    this.userForm.controls.crypto.removeAt(index);
   }
 
   addWorkExperience(): void {
-    this.workExperienceArray.push(this.createWorkExperienceGroup());
+    this.userForm.controls.workExperience.push(
+      this.createWorkExperienceGroup(),
+    );
   }
 
   removeWorkExperience(index: number): void {
-    this.workExperienceArray.removeAt(index);
+    this.userForm.controls.workExperience.removeAt(index);
   }
   addProject(workIndex: number): void {
-    this.projectsArray(workIndex).push(this.createProjectGroup());
+    this.userForm.controls.workExperience
+      .at(workIndex)
+      .controls.projects.push(this.createProjectGroup());
   }
 
   removeProject(workIndex: number, projectIndex: number): void {
-    this.projectsArray(workIndex).removeAt(projectIndex);
+    this.userForm.controls.workExperience
+      .at(workIndex)
+      .controls.projects.removeAt(projectIndex);
   }
 
   addTechnology(workIndex: number, projectIndex: number): void {
     const techValue = this.newTechControl.get("technology")?.value?.trim();
-    this.technologiesArray(workIndex, projectIndex).push(
-      this.createTechnologyGroup({ _id: "", technology: techValue || "" }),
-    );
+    this.userForm.controls.workExperience
+      .at(workIndex)
+      .controls.projects.at(projectIndex)
+      .controls.technologies.push(
+        this.createTechnologyGroup({ _id: "", technology: techValue || "" }),
+      );
     this.newTechControl.reset();
   }
 
@@ -1462,13 +1456,17 @@ export class RecordFormComponent implements OnInit, OnDestroy {
     projectIndex: number,
     techIndex: number,
   ): void {
-    this.technologiesArray(workIndex, projectIndex).removeAt(techIndex);
+    this.userForm.controls.workExperience
+      .at(workIndex)
+      .controls.projects.at(projectIndex)
+      .controls.technologies.removeAt(techIndex);
   }
 
   addTeamMember(workIndex: number, projectIndex: number): void {
-    this.teamMembersArray(workIndex, projectIndex).push(
-      this.createTeamMemberGroup(),
-    );
+    this.userForm.controls.workExperience
+      .at(workIndex)
+      .controls.projects.at(projectIndex)
+      .controls.teamMembers.push(this.createTeamMemberGroup());
   }
 
   removeTeamMember(
@@ -1476,7 +1474,10 @@ export class RecordFormComponent implements OnInit, OnDestroy {
     projectIndex: number,
     teamMemberIndex: number,
   ): void {
-    this.teamMembersArray(workIndex, projectIndex).removeAt(teamMemberIndex);
+    this.userForm.controls.workExperience
+      .at(workIndex)
+      .controls.projects.at(projectIndex)
+      .controls.teamMembers.removeAt(teamMemberIndex);
   }
 
   // ----------------------
@@ -1491,6 +1492,7 @@ export class RecordFormComponent implements OnInit, OnDestroy {
       this.userBefore!._version! + 1,
       changes,
     );
+    console.log("🚀 ~ RecordFormComponent ~ onSubmit ~ changes:", changes);
   }
 
   formatPhoneNumber(): void {
@@ -1514,3 +1516,23 @@ export class RecordFormComponent implements OnInit, OnDestroy {
     }
   }
 }
+
+type UserNestedFormGoupType =
+  | "user"
+  | "address"
+  | "bank"
+  | "company"
+  | "crypto"
+  | "workExperience";
+
+type TypedForm<T> = {
+  [K in keyof T]: T[K] extends Array<infer U>
+    ? FormArray<
+        U extends object ? FormGroup<TypedForm<U>> : FormControl<U | null>
+      >
+    : T[K] extends object
+      ? FormGroup<TypedForm<T[K]>>
+      : FormControl<T[K] | null>;
+};
+
+type UserFormType = FormGroup<TypedForm<UserWithVersion>>;
