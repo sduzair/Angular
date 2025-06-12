@@ -25,13 +25,7 @@ import { MatTableDataSource, MatTableModule } from "@angular/material/table";
 import { CamelCaseToSpacesPipe } from "../pipes/camelcase-to-spaces.pipe";
 import { ChangeLogService, UserWithVersion } from "../change-log.service";
 import { CrossTabEditService } from "../cross-tab-edit.service";
-import {
-  combineLatest,
-  scan,
-  Subject,
-  switchMap,
-  takeUntil,
-} from "rxjs";
+import { combineLatest, scan, Subject, switchMap, takeUntil } from "rxjs";
 import { type SessionState, SessionDataService } from "../session-data.service";
 import { FingerprintingService } from "../fingerprinting.service";
 import { RecordService } from "../record.service";
@@ -126,7 +120,11 @@ import { RecordService } from "../record.service";
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: displayedColumns"
+          [class.recentOpenHighlight]="recentOpenRowId === row._id"
+        ></tr>
       </table>
     </div>
     <mat-paginator
@@ -216,6 +214,8 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
 
   @ViewChild(MatPaginator) paginator: MatPaginator | undefined;
   @ViewChild(MatSort) sort: MatSort | undefined;
+
+  recentOpenRowId = "";
 
   constructor(
     private changeLogService: ChangeLogService,
@@ -362,6 +362,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
 
   editFormTab: WindowProxy | null = null;
   openEditFormTab(record: UserWithVersion) {
+    this.recentOpenRowId = record._id;
     this.editFormTab = this.crossTabEditService.openEditFormTab(record);
   }
 }

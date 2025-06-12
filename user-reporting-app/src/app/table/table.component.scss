@@ -37,9 +37,9 @@
   left: 0;
   min-width: 85px; // Bigger than natural width
   padding: 0;
-  
+
   &::after {
-    content: '';
+    content: "";
     position: absolute;
     right: 0;
     top: 0;
@@ -55,9 +55,9 @@
   z-index: 1;
   left: 85px; // Match actions column width
   padding: 0;
-  
+
   &::after {
-    content: '';
+    content: "";
     position: absolute;
     right: 0;
     top: 0;
@@ -85,6 +85,10 @@
 }
 
 .mat-mdc-row:hover {
+  background-color: var(--mat-sys-primary-fixed);
+}
+
+.mat-mdc-row.recentOpenHighlight {
   background-color: var(--mat-sys-primary-fixed);
 }
 
