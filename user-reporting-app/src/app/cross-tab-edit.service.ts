@@ -1,59 +1,97 @@
 import { Injectable } from "@angular/core";
 import { BehaviorSubject } from "rxjs/internal/BehaviorSubject";
-import { ChangeLog, UserWithVersion } from "./change-log.service";
+import {
+  ChangeLogWithoutVersion,
+  UserWithVersion,
+} from "./change-log.service";
+import { filter, map } from "rxjs/operators";
+import { fromEvent, Observable } from "rxjs";
+import { UserChangeLog } from "./session-data.service";
 
 @Injectable({
   providedIn: "root",
 })
 export class CrossTabEditService {
-  private readonly EDIT_SESSION_KEY = "user-edit-session";
-  private editSessionSubject = new BehaviorSubject<EditSession | null>(
-    this.getEditSession(),
-  );
-  editSession$ = this.editSessionSubject.asObservable();
+  private editResponseSubject = new BehaviorSubject<Extract<
+    EditSession,
+    { type: "EDIT_RESULT" }
+  > | null>(null);
+  editResponse$ = this.editResponseSubject.asObservable();
 
   constructor() {
-    this.initStorageListener();
+    this.initStorageListenerForEditResponse();
   }
 
-  private initStorageListener() {
-    window.addEventListener("storage", (ev) => {
-      if (ev.key !== this.EDIT_SESSION_KEY || !ev.newValue) return;
-      const editSession = JSON.parse(ev.newValue) as EditSession;
-      if (!editSession) return;
-      this.editSessionSubject.next(editSession);
-    });
+  private initStorageListenerForEditResponse() {
+    fromEvent<StorageEvent>(window, "storage")
+      .pipe(
+        filter(
+          (ev) =>
+            !!ev.key && ev.key.startsWith("edit-session") && !!ev.newValue,
+        ),
+        map((ev) => {
+          const editSession = JSON.parse(ev.newValue!) as EditSession;
+          return { editSession, key: ev.key! };
+        }),
+        filter(
+          ({ editSession }) =>
+            !!editSession && editSession.type === "EDIT_RESULT",
+        ),
+      )
+      .subscribe(({ editSession, key }) => {
+        this.editResponseSubject.next(editSession as any);
+        localStorage.removeItem(key);
+      });
   }
 
-  initializeEditSession(userWithVersion: UserWithVersion) {
-    const newEditSession: EditSession = {
-      userBefore: structuredClone(userWithVersion),
+  getEditRequestBySessionId(
+    sessionId: string,
+  ): Observable<Extract<EditSession, { type: "EDIT_REQUEST" }>> {
+    return fromEvent(window, "DOMContentLoaded").pipe(
+      map(() => {
+        const payload = JSON.parse(
+          localStorage.getItem(sessionId)!,
+        ) as EditSession;
+        return payload;
+      }),
+    ) as any;
+  }
+
+  openEditFormTab(userWithVersion: UserWithVersion) {
+    const sessionId = `edit-session-${Date.now()}`;
+
+    const payload: EditSession = {
+      type: "EDIT_REQUEST",
+      payload: structuredClone(userWithVersion),
     };
 
-    localStorage.setItem(this.EDIT_SESSION_KEY, JSON.stringify(newEditSession));
+    localStorage.setItem(sessionId, JSON.stringify(payload));
+
+    return window.open(`edit-form/${sessionId}`, "editTab");
   }
 
-  private getEditSession() {
-    const session: EditSession | null = JSON.parse(
-      localStorage.getItem(this.EDIT_SESSION_KEY) as string,
-    );
-    return session;
+  saveEditResponseToLocalStorage(
+    sessionId: string,
+    userId: string,
+    changeLogs: ChangeLogWithoutVersion[],
+  ) {
+    const payload: EditSession = {
+      type: "EDIT_RESULT",
+      payload: { userId, changeLogs },
+    };
+    localStorage.setItem(sessionId, JSON.stringify(payload));
+    // window.close();
   }
-
-  // saveChangesToEditSession(changes: ChangeLog[]) {
-  //   const currentEditSession = this.editSessionSubject.value;
-  //   if (!currentEditSession) throw new Error("No active session");
-
-  //   const updatedSession: EditSession = {
-  //     ...currentEditSession,
-  //     changeLogs: changes,
-  //   };
-
-  //   localStorage.setItem(this.EDIT_SESSION_KEY, JSON.stringify(updatedSession));
-  //   this.editSessionSubject.next(updatedSession);
-  // }
 }
 
-export interface EditSession {
-  userBefore: UserWithVersion;
-}
+export type EditSession =
+  | {
+      type: "EDIT_REQUEST";
+      payload: UserWithVersion;
+    }
+  | {
+      type: "EDIT_RESULT";
+      payload: Omit<UserChangeLog, "changeLogs"> & {
+        changeLogs: ChangeLogWithoutVersion[];
+      };
+    };

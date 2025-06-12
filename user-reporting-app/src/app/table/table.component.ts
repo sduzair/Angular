@@ -25,8 +25,14 @@ import { MatTableDataSource, MatTableModule } from "@angular/material/table";
 import { CamelCaseToSpacesPipe } from "../pipes/camelcase-to-spaces.pipe";
 import { ChangeLogService, UserWithVersion } from "../change-log.service";
 import { CrossTabEditService } from "../cross-tab-edit.service";
-import { combineLatest, map, Subject, switchMap, takeUntil } from "rxjs";
-import { type SessionData, SessionDataService } from "../session-data.service";
+import {
+  combineLatest,
+  scan,
+  Subject,
+  switchMap,
+  takeUntil,
+} from "rxjs";
+import { type SessionState, SessionDataService } from "../session-data.service";
 import { FingerprintingService } from "../fingerprinting.service";
 import { RecordService } from "../record.service";
 
@@ -91,7 +97,7 @@ import { RecordService } from "../record.service";
           </th>
           <td mat-cell *matCellDef="let row">
             <div [class.sticky-cell]="true">
-              <button mat-icon-button (click)="openEditTab(row)">
+              <button mat-icon-button (click)="openEditFormTab(row)">
                 <mat-icon>edit</mat-icon>
               </button>
             </div>
@@ -240,19 +246,31 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   setupTableDataSource() {
-    this.fingerprintingService
-      .generate()
+    this.fingerprintingService.browserFingerPrint$
       .pipe(
         switchMap((fprint) => this.sessionDataService.intialize(fprint)),
         switchMap(() =>
           combineLatest([
             this.recordService.getUsers(),
-            this.sessionDataService.sessionData$,
+            this.sessionDataService.sessionState$,
           ]),
         ),
-        map(([users, sessionData]) => {
-          return users.map((user) => {
-            const userChanges = sessionData.editedUsers.find(
+        scan((acc, [users, sessionState]) => {
+          const { data: sessionStateData, recentEdit } = sessionState;
+
+          if (recentEdit != null) {
+            console.assert(acc.length > 0);
+            return acc.map((user) => {
+              if (recentEdit.userId !== user._id) return user;
+              return this.changeLogService.applyChanges(
+                user,
+                recentEdit.changeLogs,
+              );
+            });
+          }
+
+          const usersResult = users.map((user) => {
+            const userChanges = sessionStateData.editedUsers.find(
               (editedUser) => editedUser.userId === user._id,
             );
             return this.changeLogService.applyChanges(
@@ -260,7 +278,8 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
               userChanges?.changeLogs || [],
             );
           });
-        }),
+          return usersResult;
+        }, [] as UserWithVersion[]),
         takeUntil(this.destroy$),
       )
       .subscribe((users) => {
@@ -341,11 +360,9 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     return dateRegex.test(str);
   }
 
-  editTab: WindowProxy | null = null;
-  openEditTab(record: UserWithVersion) {
-    this.crossTabEditService.initializeEditSession(record);
-    const editUrl = `record/${record.id}`;
-    this.editTab = window.open(editUrl, "editTab");
+  editFormTab: WindowProxy | null = null;
+  openEditFormTab(record: UserWithVersion) {
+    this.editFormTab = this.crossTabEditService.openEditFormTab(record);
   }
 }
 
@@ -479,5 +496,5 @@ type DisplayedColumnType = keyof User | "actions";
 
 export interface SessionDataReqBody {
   userId: string;
-  data: SessionData;
+  data: SessionState;
 }

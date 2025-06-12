@@ -1,6 +1,7 @@
 import { Injectable } from "@angular/core";
 import { User } from "./table/table.component";
 
+// todo generate tests for prop change, array item addition/removal
 @Injectable({
   providedIn: "root",
 })
@@ -87,9 +88,8 @@ export class ChangeLogService {
   private compareArrays(
     arr1: any[],
     arr2: any[],
-    path: string,
-    version: number,
-    changes: ChangeLog[] = [],
+    changes: ChangeLogWithoutVersion[] = [],
+    path = "",
   ) {
     const originalMap = new Map<string, any>(
       arr1.filter((i) => i._id).map((i) => [i._id, i]),
@@ -106,7 +106,6 @@ export class ChangeLogService {
         this.compareProperties(
           originalMap.get(updatedItem._id),
           updatedItem,
-          version,
           changes,
           itemPath,
         );
@@ -116,7 +115,6 @@ export class ChangeLogService {
           path: path,
           oldValue: undefined,
           newValue: updatedItem,
-          version,
         });
       }
     });
@@ -128,7 +126,6 @@ export class ChangeLogService {
           path: `${path}.$id=${originalItem._id}`,
           oldValue: originalItem,
           newValue: undefined,
-          version,
         });
       }
     });
@@ -137,8 +134,7 @@ export class ChangeLogService {
   compareProperties(
     obj1: any,
     obj2: any,
-    version: number,
-    changes: ChangeLog[] = [],
+    changes: ChangeLogWithoutVersion[] = [],
     path = "",
   ) {
     const allKeys = new Set([...Object.keys(obj1), ...Object.keys(obj2)]);
@@ -155,24 +151,24 @@ export class ChangeLogService {
             path: currentPath,
             oldValue: val1,
             newValue: val2,
-            version,
           });
         } else {
-          this.compareArrays(val1, val2, currentPath, version, changes);
+          this.compareArrays(val1, val2, changes, currentPath);
         }
       } else if (typeof val2 === "object" && val2 !== null) {
-        this.compareProperties(val1 || {}, val2, version, changes, currentPath);
+        this.compareProperties(val1 || {}, val2, changes, currentPath);
       } else if (val1 !== val2) {
         changes.push({
           path: currentPath,
           oldValue: val1,
           newValue: val2,
-          version,
         });
       }
     });
   }
 }
+
+export type ChangeLogWithoutVersion = Omit<ChangeLog, "version">;
 
 export interface ChangeLog {
   path: string; // Format: "arrayName.$id=ID.property" or "arrayName"
@@ -182,5 +178,10 @@ export interface ChangeLog {
 }
 
 export type UserWithVersion = User & {
+  /**
+   * This version is not session version. It represents the last session in which the user was edited
+   *
+   * @type {(number | null)}
+   */
   _version: number | null;
 };

@@ -101,7 +101,7 @@ app.MapPost("/api/sessions", async (IMongoDatabase db, CreateSessionRequest requ
     // Add system-managed fields
     var session = new Session
     {
-        Version = 1,
+        Version = 0,
         CreatedAt = DateTime.UtcNow,
         UserId = request.UserId,
         Data = request.Data.ToBsonDocument()

@@ -7,7 +7,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from "@angular/forms";
-import { Subject, takeUntil } from "rxjs";
+import { map, Subject, switchMap, takeUntil, tap } from "rxjs";
 import {
   Address,
   Bank,
@@ -56,9 +56,10 @@ import {
 } from "@angular/material/core";
 import { enCA } from "date-fns/locale";
 import { BirthDateDirective } from "../table/birth-date.directive";
+import { ActivatedRoute } from "@angular/router";
 
 @Component({
-  selector: "app-record",
+  selector: "app-edit-form",
   imports: [
     CommonModule,
     MatFormField,
@@ -95,7 +96,7 @@ import { BirthDateDirective } from "../table/birth-date.directive";
   ],
   template: `
     <div class="user-form-container">
-      <form [formGroup]="userForm" (ngSubmit)="onSubmit()">
+      <form *ngIf="userForm" [formGroup]="userForm" (ngSubmit)="onSubmit()">
         <div class="sub-group-header">
           <h2>User Information Form</h2>
           <button mat-raised-button color="primary" type="submit">
@@ -1148,9 +1149,9 @@ import { BirthDateDirective } from "../table/birth-date.directive";
       <!-- <pre class="overlay-pre">Form values: {{ userForm.value | json }}</pre> -->
     </div>
   `,
-  styleUrls: ["./record-form.component.scss"],
+  styleUrls: ["./edit-form.component.scss"],
 })
-export class RecordFormComponent implements OnInit, OnDestroy {
+export class EditFormComponent implements OnInit, OnDestroy {
   userBefore: UserWithVersion | null = null;
   validatorParams = {
     maxBirthDate: new Date(),
@@ -1164,19 +1165,32 @@ export class RecordFormComponent implements OnInit, OnDestroy {
   };
 
   userForm: UserFormType = null!;
+  private sessionId: string = null!;
   constructor(
     private crossTabEditService: CrossTabEditService,
     private changeLogService: ChangeLogService,
+    private activatedRoute: ActivatedRoute,
   ) {}
 
   ngOnInit() {
-    this.crossTabEditService.editSession$
-      .pipe(takeUntil(this.destroy$))
+    this.activatedRoute.params
+      .pipe(
+        takeUntil(this.destroy$),
+        map((params) => params["sessionId"] as string),
+        tap((sessionId) => {
+          this.sessionId = sessionId;
+        }),
+        switchMap((sessionId) =>
+          this.crossTabEditService
+            .getEditRequestBySessionId(sessionId)
+            .pipe(takeUntil(this.destroy$)),
+        ),
+      )
       .subscribe((editSession) => {
         this.userBefore = JSON.parse(
-          JSON.stringify(editSession!.userBefore),
+          JSON.stringify(editSession!.payload),
         ) as UserWithVersion;
-        this.createUserForm(editSession!.userBefore);
+        this.createUserForm(editSession!.payload);
       });
   }
   private readonly destroy$ = new Subject<void>();
@@ -1489,10 +1503,14 @@ export class RecordFormComponent implements OnInit, OnDestroy {
     this.changeLogService.compareProperties(
       this.userBefore,
       this.userForm!.value,
-      this.userBefore!._version! + 1,
       changes,
     );
-    console.log("🚀 ~ RecordFormComponent ~ onSubmit ~ changes:", changes);
+    this.crossTabEditService.saveEditResponseToLocalStorage(
+      this.sessionId,
+      this.userBefore?._id!,
+      changes,
+    );
+    this.userBefore = this.userForm.value as any as UserWithVersion;
   }
 
   formatPhoneNumber(): void {

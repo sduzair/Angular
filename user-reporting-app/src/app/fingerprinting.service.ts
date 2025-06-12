@@ -1,13 +1,14 @@
 import { Injectable } from "@angular/core";
-import { from, Observable } from "rxjs";
+import { from, shareReplay } from "rxjs";
 
 @Injectable({
   providedIn: "root",
 })
 export class FingerprintingService {
-  generate(): Observable<string> {
-    return from(this.generateBrowserFingerprint());
-  }
+  browserFingerPrint$ = from(this.generateBrowserFingerprint()).pipe(
+    shareReplay(1),
+  );
+
   private async generateBrowserFingerprint(): Promise<string> {
     const fingerprintData = {
       userAgent: navigator.userAgent,
