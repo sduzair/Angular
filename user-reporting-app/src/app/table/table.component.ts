@@ -17,7 +17,7 @@ import {
   MatFormFieldDefaultOptions,
   MatFormFieldModule,
 } from "@angular/material/form-field";
-import { MatIcon } from "@angular/material/icon";
+import { MatIconModule } from "@angular/material/icon";
 import { MatInputModule } from "@angular/material/input";
 import { MatPaginator, MatPaginatorModule } from "@angular/material/paginator";
 import { MatSort, MatSortModule } from "@angular/material/sort";
@@ -29,6 +29,10 @@ import { combineLatest, scan, Subject, switchMap, takeUntil } from "rxjs";
 import { type SessionState, SessionDataService } from "../session-data.service";
 import { FingerprintingService } from "../fingerprinting.service";
 import { RecordService } from "../record.service";
+import { SelectionModel } from "@angular/cdk/collections";
+import { MatCheckboxModule } from "@angular/material/checkbox";
+import { MatSidenavModule } from "@angular/material/sidenav";
+import { MatToolbarModule } from "@angular/material/toolbar";
 
 @Component({
   selector: "app-table",
@@ -39,101 +43,155 @@ import { RecordService } from "../record.service";
     MatSortModule,
     DatePipe,
     MatFormFieldModule,
-    MatIcon,
+    MatIconModule,
     ReactiveFormsModule,
     MatInputModule,
     MatDatepicker,
     MatDatepickerInput,
     MatDatepickerToggle,
     CamelCaseToSpacesPipe,
+    MatCheckboxModule,
+    MatSidenavModule,
+    MatToolbarModule,
   ],
-  template: `<div class="table-system">
-    <form [formGroup]="filterForm" class="filter-header">
-      <ng-container *ngFor="let key of filterKeys">
-        <!-- Text Filter -->
-        <mat-form-field *ngIf="isTextFilterKey(key)">
-          <mat-label>Filter {{ key | appCamelCaseToSpaces }}</mat-label>
-          <input
-            matInput
-            [formControlName]="key"
-            [placeholder]="'Filter ' + key"
-          />
+  template: `
+    <div class="table-system">
+      <mat-toolbar>
+        <mat-toolbar-row>
+          <span>Reporting UI</span>
+          <span class="toolbarrow-spacer"></span>
           <button
-            matSuffix
-            mat-icon-button
-            *ngIf="filterForm.get(key)?.value"
-            (click)="clearFilter(key)"
+            matFab
+            extended
+            class="filter-button"
+            (click)="drawer.toggle()"
           >
-            <mat-icon>clear</mat-icon>
+            <mat-icon>filter_list</mat-icon>
+            Filter
           </button>
-        </mat-form-field>
+        </mat-toolbar-row>
+      </mat-toolbar>
+      <mat-drawer-container hasBackdrop="false">
+        <mat-drawer position="end" #drawer>
+          <form [formGroup]="filterForm" class="filter-header">
+            <ng-container *ngFor="let key of filterKeys">
+              <!-- Text Filter -->
+              <mat-form-field *ngIf="isTextFilterKey(key)">
+                <mat-label>Filter {{ key | appCamelCaseToSpaces }}</mat-label>
+                <input
+                  matInput
+                  [formControlName]="key"
+                  [placeholder]="'Filter ' + key"
+                />
+                <button
+                  matSuffix
+                  mat-icon-button
+                  *ngIf="filterForm.get(key)?.value"
+                  (click)="clearFilter(key)"
+                >
+                  <mat-icon>clear</mat-icon>
+                </button>
+              </mat-form-field>
 
-        <!-- Date Filter  -->
-        <div *ngIf="isDateFilterKey(key)">
-          <mat-form-field>
-            <mat-label>{{ key | appCamelCaseToSpaces }}</mat-label>
-            <input matInput [formControlName]="key" [matDatepicker]="picker" />
-            <mat-datepicker-toggle
-              matSuffix
-              [for]="picker"
-            ></mat-datepicker-toggle>
-            <mat-datepicker #picker></mat-datepicker>
-          </mat-form-field>
-        </div>
-      </ng-container>
-    </form>
-    <div class="mat-elevation-z8 table-container">
-      <table mat-table [dataSource]="dataSource" matSort>
-        <!-- Action Column -->
-        <ng-container matColumnDef="actions">
-          <th mat-header-cell *matHeaderCellDef>
-            <div [class.sticky-cell]="true">Actions</div>
-          </th>
-          <td mat-cell *matCellDef="let row">
-            <div [class.sticky-cell]="true">
-              <button mat-icon-button (click)="openEditFormTab(row)">
-                <mat-icon>edit</mat-icon>
-              </button>
-            </div>
-          </td>
-        </ng-container>
-        <!-- Column Definitions  -->
-        <ng-container
-          *ngFor="let column of dataColumns"
-          [matColumnDef]="column"
-        >
-          <th mat-header-cell *matHeaderCellDef [mat-sort-header]="column">
-            <div [class.sticky-cell]="isStickyColumn(column)">
-              {{ column | appCamelCaseToSpaces }}
-            </div>
-          </th>
-          <td mat-cell *matCellDef="let row">
-            <div [class.sticky-cell]="isStickyColumn(column)">
-              <ng-container *ngIf="isDateColumn(column)">
-                {{ row[column] | date : "MM/dd/yyyy" }}
-              </ng-container>
-              <ng-container *ngIf="!isDateColumn(column)">
-                {{ row[column] }}
-              </ng-container>
-            </div>
-          </td>
-        </ng-container>
+              <!-- Date Filter  -->
+              <div *ngIf="isDateFilterKey(key)">
+                <mat-form-field>
+                  <mat-label>{{ key | appCamelCaseToSpaces }}</mat-label>
+                  <input
+                    matInput
+                    [formControlName]="key"
+                    [matDatepicker]="picker"
+                  />
+                  <mat-datepicker-toggle
+                    matSuffix
+                    [for]="picker"
+                  ></mat-datepicker-toggle>
+                  <mat-datepicker #picker></mat-datepicker>
+                </mat-form-field>
+              </div>
+            </ng-container>
+          </form>
+        </mat-drawer>
 
-        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr
-          mat-row
-          *matRowDef="let row; columns: displayedColumns"
-          [class.recentOpenHighlight]="recentOpenRowId === row._id"
-        ></tr>
-      </table>
+        <mat-drawer-content>
+          <div class="table-container">
+            <table mat-table [dataSource]="dataSource" matSort>
+              <!-- Action Column -->
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef>
+                  <div [class.sticky-cell]="true">Actions</div>
+                </th>
+                <td mat-cell *matCellDef="let row">
+                  <div [class.sticky-cell]="true">
+                    <button mat-icon-button (click)="openEditFormTab(row)">
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                  </div>
+                </td>
+              </ng-container>
+              <!-- Selection Model -->
+              <ng-container matColumnDef="select">
+                <th mat-header-cell *matHeaderCellDef>
+                  <mat-checkbox
+                    (change)="$event ? toggleAllRows() : null"
+                    [checked]="selection.hasValue() && isAllSelected()"
+                    [indeterminate]="selection.hasValue() && !isAllSelected()"
+                  >
+                  </mat-checkbox>
+                </th>
+                <td mat-cell *matCellDef="let row">
+                  <mat-checkbox
+                    (click)="$event.stopPropagation()"
+                    (change)="$event ? selection.toggle(row) : null"
+                    [checked]="selection.isSelected(row)"
+                  >
+                  </mat-checkbox>
+                </td>
+              </ng-container>
+              <!-- Column Definitions  -->
+              <ng-container
+                *ngFor="let column of dataColumns"
+                [matColumnDef]="column"
+              >
+                <th
+                  mat-header-cell
+                  *matHeaderCellDef
+                  [mat-sort-header]="column"
+                >
+                  <div [class.sticky-cell]="isStickyColumn(column)">
+                    {{ column | appCamelCaseToSpaces }}
+                  </div>
+                </th>
+                <td mat-cell *matCellDef="let row">
+                  <div [class.sticky-cell]="isStickyColumn(column)">
+                    <ng-container *ngIf="isDateColumn(column)">
+                      {{ row[column] | date : "MM/dd/yyyy" }}
+                    </ng-container>
+                    <ng-container *ngIf="!isDateColumn(column)">
+                      {{ row[column] }}
+                    </ng-container>
+                  </div>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+              <tr
+                mat-row
+                *matRowDef="let row; columns: displayedColumns"
+                [class.recentOpenHighlight]="recentOpenRowId === row._id"
+              ></tr>
+            </table>
+          </div>
+        </mat-drawer-content>
+      </mat-drawer-container>
+      <mat-paginator
+        [pageSizeOptions]="[5, 10, 20]"
+        showFirstLastButtons
+        aria-label="Select page of periodic elements"
+      >
+      </mat-paginator>
     </div>
-    <mat-paginator
-      [pageSizeOptions]="[5, 10, 20]"
-      showFirstLastButtons
-      aria-label="Select page of periodic elements"
-    >
-    </mat-paginator>
-  </div>`,
+  `,
   styleUrls: ["./table.component.scss"],
   providers: [
     {
@@ -146,6 +204,18 @@ import { RecordService } from "../record.service";
   ],
 })
 export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
+  isAllSelected(): unknown {
+    const numSelected = this.selection.selected.length;
+    const numRows = this.dataSource.filteredData.length;
+    return numSelected === numRows;
+  }
+  toggleAllRows() {
+    this.isAllSelected()
+      ? this.selection.clear()
+      : this.dataSource.filteredData.forEach((row) =>
+          this.selection.select(row),
+        );
+  }
   dataColumns: Array<keyof User> = [
     "id",
     "firstName",
@@ -172,6 +242,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
   ];
   displayedColumns: DisplayedColumnType[] = [
     "actions" as const,
+    "select" as const,
     ...this.dataColumns,
   ];
   stickyColumns: DisplayedColumnType[] = ["actions", "id"];
@@ -210,12 +281,14 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     ),
   );
 
-  dataSource = new MatTableDataSource<User>();
+  dataSource = new MatTableDataSource<UserWithVersion>();
 
   @ViewChild(MatPaginator) paginator: MatPaginator | undefined;
   @ViewChild(MatSort) sort: MatSort | undefined;
 
   recentOpenRowId = "";
+
+  selection = new SelectionModel<UserWithVersion>(true, []);
 
   constructor(
     private changeLogService: ChangeLogService,
@@ -236,6 +309,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     this.filterForm.valueChanges.subscribe((val) => {
       if (this.filterForm.invalid) return;
       this.dataSource.filter = JSON.stringify(val);
+      this.selection.clear();
     });
 
     this.setupTableDataSource();
@@ -493,7 +567,7 @@ type WithDateRange<T> = T & {
 
 type FilterKeysType = keyof WithDateRange<User>;
 
-type DisplayedColumnType = keyof User | "actions";
+type DisplayedColumnType = keyof User | "actions" | "select";
 
 export interface SessionDataReqBody {
   userId: string;

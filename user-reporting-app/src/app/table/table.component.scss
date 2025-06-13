@@ -4,14 +4,23 @@
   display: flex;
   flex-direction: column;
   max-height: 100dvh;
-  overflow: hidden; /* Prevents double scrollbars */
+}
+
+mat-drawer-container {
+  display: flex;
+}
+
+mat-drawer-content {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  height: unset;
 }
 
 /* Container for horizontal scrolling */
 .table-container {
-  flex: 1 1 auto;
   overflow-y: auto; /* Table scrolls internally */
-  min-height: 0;
 }
 
 /* Table styling */
@@ -30,7 +39,6 @@
   max-width: 300px; /* Maximum column width before ellipsis */
 }
 
-/* Sticky actions column */
 .mat-column-actions {
   position: sticky;
   z-index: 1;
@@ -49,11 +57,27 @@
   }
 }
 
-/* Sticky first data column (id) */
-.mat-column-id {
+.mat-column-select {
   position: sticky;
   z-index: 1;
   left: 85px; // Match actions column width
+  padding: 0;
+
+  &::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(0, 0, 0, 0.12);
+  }
+}
+
+.mat-column-id {
+  position: sticky;
+  z-index: 1;
+  left: 125px; // Match actions + select column width
   padding: 0;
 
   &::after {
@@ -142,4 +166,13 @@ mat-hint {
 .filter-header {
   @include mat.button-density(-5);
   @include mat.form-field-density(-5);
+}
+
+.toolbarrow-spacer {
+  flex: 1 1 auto;
+}
+
+.filter-button {
+  display: flex;
+  align-items: center;
 }
