@@ -1,9 +1,6 @@
 import { Injectable } from "@angular/core";
 import { BehaviorSubject } from "rxjs/internal/BehaviorSubject";
-import {
-  ChangeLogWithoutVersion,
-  UserWithVersion,
-} from "./change-log.service";
+import { ChangeLogWithoutVersion, UserWithVersion } from "./change-log.service";
 import { filter, map } from "rxjs/operators";
 import { fromEvent, Observable } from "rxjs";
 import { UserChangeLog } from "./session-data.service";
@@ -46,7 +43,9 @@ export class CrossTabEditService {
 
   getEditRequestBySessionId(
     sessionId: string,
-  ): Observable<Extract<EditSession, { type: "EDIT_REQUEST" }>> {
+  ): Observable<
+    Extract<EditSession, { type: "EDIT_REQUEST" | "BULK_EDIT_REQUEST" }>
+  > {
     return fromEvent(window, "DOMContentLoaded").pipe(
       map(() => {
         const payload = JSON.parse(
@@ -57,16 +56,27 @@ export class CrossTabEditService {
     ) as any;
   }
 
-  openEditFormTab(userWithVersion: UserWithVersion) {
+  openEditFormTab(
+    req:
+      | { user: UserWithVersion; editType: "EDIT_REQUEST" }
+      | { users: UserWithVersion[]; editType: "BULK_EDIT_REQUEST" },
+  ) {
     const sessionId = `edit-session-${Date.now()}`;
 
-    const payload: EditSession = {
-      type: "EDIT_REQUEST",
-      payload: structuredClone(userWithVersion),
-    };
+    let payload: EditSession | null = null;
+    if (req.editType === "EDIT_REQUEST") {
+      payload = {
+        type: req.editType,
+        payload: req.user,
+      };
+    }
+    if (req.editType === "BULK_EDIT_REQUEST") {
+      payload = { type: req.editType, payload: req.users };
+    }
 
-    localStorage.setItem(sessionId, JSON.stringify(payload));
+    console.assert(payload != null);
 
+    localStorage.setItem(sessionId, JSON.stringify(payload!));
     return window.open(`edit-form/${sessionId}`, "editTab");
   }
 
@@ -94,4 +104,8 @@ export type EditSession =
       payload: Omit<UserChangeLog, "changeLogs"> & {
         changeLogs: ChangeLogWithoutVersion[];
       };
+    }
+  | {
+      type: "BULK_EDIT_REQUEST";
+      payload: UserWithVersion[];
     };

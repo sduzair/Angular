@@ -1,4 +1,22 @@
-/* You can add global styles to this file, and also import other style files */
+@use "@angular/material" as mat;
+
+html {
+  @include mat.theme(
+    (
+      color: mat.$rose-palette,
+      typography: Roboto,
+      density: -2,
+    )
+  );
+}
+
+.mat-warn {
+  @include mat.icon-overrides(
+    (
+      color: #f44336,
+    )
+  );
+}
 
 html,
 body {
@@ -10,9 +28,7 @@ body {
 }
 
 body {
-  background-color: var(
-    --mat-sys-surface-container-low
-  ); /* #fdf1f2 - Very light pink */
+  background-color: var(--mat-sys-surface-container-low);
   color: var(--mat-sys-on-background);
 }
 

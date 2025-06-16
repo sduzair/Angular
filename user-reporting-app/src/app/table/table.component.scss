@@ -61,6 +61,7 @@ mat-drawer-content {
   position: sticky;
   z-index: 1;
   left: 85px; // Match actions column width
+  min-width: 40px;
   padding: 0;
 
   &::after {
@@ -168,11 +169,14 @@ mat-hint {
   @include mat.form-field-density(-5);
 }
 
+mat-toolbar-row {
+  gap: 0.5em;
+}
+
 .toolbarrow-spacer {
   flex: 1 1 auto;
 }
 
-.filter-button {
-  display: flex;
-  align-items: center;
+.mat-column-select {
+  text-align: center;
 }

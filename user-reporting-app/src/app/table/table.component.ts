@@ -2,6 +2,7 @@ import { CommonModule, DatePipe } from "@angular/common";
 import {
   type AfterViewInit,
   Component,
+  HostListener,
   OnDestroy,
   type OnInit,
   ViewChild,
@@ -25,7 +26,15 @@ import { MatTableDataSource, MatTableModule } from "@angular/material/table";
 import { CamelCaseToSpacesPipe } from "../pipes/camelcase-to-spaces.pipe";
 import { ChangeLogService, UserWithVersion } from "../change-log.service";
 import { CrossTabEditService } from "../cross-tab-edit.service";
-import { combineLatest, scan, Subject, switchMap, takeUntil } from "rxjs";
+import {
+  combineLatest,
+  interval,
+  scan,
+  Subject,
+  switchMap,
+  takeUntil,
+  takeWhile,
+} from "rxjs";
 import { type SessionState, SessionDataService } from "../session-data.service";
 import { FingerprintingService } from "../fingerprinting.service";
 import { RecordService } from "../record.service";
@@ -33,6 +42,9 @@ import { SelectionModel } from "@angular/cdk/collections";
 import { MatCheckboxModule } from "@angular/material/checkbox";
 import { MatSidenavModule } from "@angular/material/sidenav";
 import { MatToolbarModule } from "@angular/material/toolbar";
+import { MatButtonModule } from "@angular/material/button";
+import { ActivatedRoute } from "@angular/router";
+import { removePageFromOpenTabs } from "../single-tab.guard";
 
 @Component({
   selector: "app-table",
@@ -53,19 +65,19 @@ import { MatToolbarModule } from "@angular/material/toolbar";
     MatCheckboxModule,
     MatSidenavModule,
     MatToolbarModule,
+    MatButtonModule,
   ],
   template: `
     <div class="table-system">
       <mat-toolbar>
         <mat-toolbar-row>
-          <span>Reporting UI</span>
+          <h2>Reporting UI</h2>
           <span class="toolbarrow-spacer"></span>
-          <button
-            matFab
-            extended
-            class="filter-button"
-            (click)="drawer.toggle()"
-          >
+          <button (click)="openBulkEditFormTab()" *ngIf="!this.selection.isEmpty()" mat-flat-button [disabled]="this.isSingleOrBulkEditTabOpen">
+            <mat-icon>edit</mat-icon>
+            Bulk Edit
+          </button>
+          <button mat-raised-button (click)="drawer.toggle()">
             <mat-icon>filter_list</mat-icon>
             Filter
           </button>
@@ -73,6 +85,14 @@ import { MatToolbarModule } from "@angular/material/toolbar";
       </mat-toolbar>
       <mat-drawer-container hasBackdrop="false">
         <mat-drawer position="end" #drawer>
+          <mat-toolbar>
+            <mat-toolbar-row>
+              <span class="toolbarrow-spacer"></span>
+              <button mat-icon-button (click)="drawer.toggle()">
+                <mat-icon>close</mat-icon>
+              </button>
+            </mat-toolbar-row>
+          </mat-toolbar>
           <form [formGroup]="filterForm" class="filter-header">
             <ng-container *ngFor="let key of filterKeys">
               <!-- Text Filter -->
@@ -123,7 +143,7 @@ import { MatToolbarModule } from "@angular/material/toolbar";
                 </th>
                 <td mat-cell *matCellDef="let row">
                   <div [class.sticky-cell]="true">
-                    <button mat-icon-button (click)="openEditFormTab(row)">
+                    <button [disabled]="this.isSingleOrBulkEditTabOpen" mat-icon-button (click)="openEditFormTab(row)">
                       <mat-icon>edit</mat-icon>
                     </button>
                   </div>
@@ -136,6 +156,7 @@ import { MatToolbarModule } from "@angular/material/toolbar";
                     (change)="$event ? toggleAllRows() : null"
                     [checked]="selection.hasValue() && isAllSelected()"
                     [indeterminate]="selection.hasValue() && !isAllSelected()"
+                    [disabled]="this.isSingleOrBulkEditTabOpen"
                   >
                   </mat-checkbox>
                 </th>
@@ -144,6 +165,7 @@ import { MatToolbarModule } from "@angular/material/toolbar";
                     (click)="$event.stopPropagation()"
                     (change)="$event ? selection.toggle(row) : null"
                     [checked]="selection.isSelected(row)"
+                    [disabled]="this.isSingleOrBulkEditTabOpen"
                   >
                   </mat-checkbox>
                 </td>
@@ -178,7 +200,7 @@ import { MatToolbarModule } from "@angular/material/toolbar";
               <tr
                 mat-row
                 *matRowDef="let row; columns: displayedColumns"
-                [class.recentOpenHighlight]="recentOpenRowId === row._id"
+                [class.recentOpenHighlight]="this.recentOpenRows.includes(row._id)"
               ></tr>
             </table>
           </div>
@@ -286,7 +308,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild(MatPaginator) paginator: MatPaginator | undefined;
   @ViewChild(MatSort) sort: MatSort | undefined;
 
-  recentOpenRowId = "";
+  recentOpenRows: string[] = [];
 
   selection = new SelectionModel<UserWithVersion>(true, []);
 
@@ -296,13 +318,22 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     private fingerprintingService: FingerprintingService,
     private sessionDataService: SessionDataService,
     private recordService: RecordService,
+    private route: ActivatedRoute,
   ) {}
 
   private destroy$ = new Subject<void>();
-  ngOnDestroy(): void {
+
+  @HostListener("window:beforeunload", ["$event"])
+  ngOnDestroy = (($event: Event) => {
     this.destroy$.next();
     this.destroy$.complete();
-  }
+
+    if (this.editFormTab) this.editFormTab.close();
+    if (this.bulkEditFormTab) this.bulkEditFormTab.close();
+
+    removePageFromOpenTabs(this.route.snapshot);
+  }) as () => void;
+
   ngOnInit() {
     this.dataSource.filterPredicate = this.createFilterPredicate();
 
@@ -436,8 +467,39 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
 
   editFormTab: WindowProxy | null = null;
   openEditFormTab(record: UserWithVersion) {
-    this.recentOpenRowId = record._id;
-    this.editFormTab = this.crossTabEditService.openEditFormTab(record);
+    this.recentOpenRows = [record._id];
+    this.editFormTab = this.crossTabEditService.openEditFormTab({
+      editType: "EDIT_REQUEST",
+      user: record,
+    });
+    this.monitorEditTabOpenStatus({ tabWindow: this.editFormTab! });
+  }
+
+  bulkEditFormTab: WindowProxy | null = null;
+  openBulkEditFormTab() {
+    this.recentOpenRows = this.selection.selected.map((user) => user._id);
+    this.bulkEditFormTab = this.crossTabEditService.openEditFormTab({
+      editType: "BULK_EDIT_REQUEST",
+      users: this.selection.selected,
+    });
+    this.monitorEditTabOpenStatus({
+      tabWindow: this.bulkEditFormTab!,
+    });
+  }
+
+  isSingleOrBulkEditTabOpen = false;
+  monitorEditTabOpenStatus({ tabWindow }: { tabWindow: WindowProxy }) {
+    this.isSingleOrBulkEditTabOpen = true;
+    interval(500)
+      .pipe(
+        takeWhile(() => !!tabWindow && !tabWindow.closed),
+        takeUntil(this.destroy$),
+      )
+      .subscribe({
+        complete: () => {
+          this.isSingleOrBulkEditTabOpen = false;
+        },
+      });
   }
 }
 

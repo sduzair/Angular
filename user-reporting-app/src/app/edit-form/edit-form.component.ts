@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, OnDestroy, OnInit } from "@angular/core";
+import { Component, HostListener, OnDestroy, OnInit } from "@angular/core";
 import {
   FormArray,
   FormControl,
@@ -57,6 +57,7 @@ import {
 import { enCA } from "date-fns/locale";
 import { BirthDateDirective } from "../table/birth-date.directive";
 import { ActivatedRoute } from "@angular/router";
+import { removePageFromOpenTabs } from "../single-tab.guard";
 
 @Component({
   selector: "app-edit-form",
@@ -98,7 +99,16 @@ import { ActivatedRoute } from "@angular/router";
     <div class="user-form-container">
       <form *ngIf="userForm" [formGroup]="userForm" (ngSubmit)="onSubmit()">
         <div class="sub-group-header">
-          <h2>User Information Form</h2>
+          <h2>
+            User Information Form -
+            {{
+              this.userBeforeEdit
+                ? "Single Edit"
+                : this.usersBeforeBulkEdit
+                ? "Bulk Edit"
+                : ""
+            }}
+          </h2>
           <button mat-raised-button color="primary" type="submit">
             Submit
           </button>
@@ -503,7 +513,10 @@ import { ActivatedRoute } from "@angular/router";
                 </button>
               </div>
               <div
-                *ngFor="let bankGroup of userForm.controls.bank.controls; let i = index"
+                *ngFor="
+                  let bankGroup of userForm.controls.bank.controls;
+                  let i = index
+                "
                 [formGroupName]="i"
               >
                 <mat-expansion-panel [expanded]="true">
@@ -833,7 +846,10 @@ import { ActivatedRoute } from "@angular/router";
               </div>
 
               <div
-                *ngFor="let cryptoGroup of userForm.controls.crypto.controls; let i = index"
+                *ngFor="
+                  let cryptoGroup of userForm.controls.crypto.controls;
+                  let i = index
+                "
                 [formGroupName]="i"
               >
                 <mat-expansion-panel [expanded]="true">
@@ -968,8 +984,9 @@ import { ActivatedRoute } from "@angular/router";
                     </div>
                     <div
                       *ngFor="
-                        let projectGroup of userForm.controls.workExperience.at(workIndex).controls
-                              .projects.controls;
+                        let projectGroup of userForm.controls.workExperience.at(
+                          workIndex
+                        ).controls.projects.controls;
                         let projIndex = index
                       "
                       [formGroupName]="projIndex"
@@ -1046,9 +1063,9 @@ import { ActivatedRoute } from "@angular/router";
                             <mat-chip
                               *ngFor="
                                 let techGroup of userForm.controls.workExperience
-                                      .at(workIndex)
-                                            .controls.projects.at(projIndex).controls.technologies
-                                            .controls;
+                                  .at(workIndex)
+                                  .controls.projects.at(projIndex).controls
+                                  .technologies.controls;
                                 let techIndex = index
                               "
                               [formGroupName]="techIndex"
@@ -1084,8 +1101,9 @@ import { ActivatedRoute } from "@angular/router";
                           <div
                             *ngFor="
                               let memberGroup of userForm.controls.workExperience
-                                    .at(workIndex)
-                                          .controls.projects.at(projIndex).controls.teamMembers.controls;
+                                .at(workIndex)
+                                .controls.projects.at(projIndex).controls
+                                .teamMembers.controls;
                               let teamMemberIndex = index
                             "
                             [formGroupName]="teamMemberIndex"
@@ -1139,7 +1157,10 @@ import { ActivatedRoute } from "@angular/router";
                   </div>
                 </mat-expansion-panel>
                 <mat-divider
-                  *ngIf="workIndex < userForm.controls.workExperience.controls.length - 1"
+                  *ngIf="
+                    workIndex <
+                    userForm.controls.workExperience.controls.length - 1
+                  "
                 ></mat-divider>
               </div>
             </div>
@@ -1152,7 +1173,8 @@ import { ActivatedRoute } from "@angular/router";
   styleUrls: ["./edit-form.component.scss"],
 })
 export class EditFormComponent implements OnInit, OnDestroy {
-  userBefore: UserWithVersion | null = null;
+  userBeforeEdit: UserWithVersion | null = null;
+  usersBeforeBulkEdit: UserWithVersion[] | null = null;
   validatorParams = {
     maxBirthDate: new Date(),
     passwordLenMin: 6,
@@ -1170,6 +1192,7 @@ export class EditFormComponent implements OnInit, OnDestroy {
     private crossTabEditService: CrossTabEditService,
     private changeLogService: ChangeLogService,
     private activatedRoute: ActivatedRoute,
+    private route: ActivatedRoute,
   ) {}
 
   ngOnInit() {
@@ -1186,20 +1209,28 @@ export class EditFormComponent implements OnInit, OnDestroy {
             .pipe(takeUntil(this.destroy$)),
         ),
       )
-      .subscribe((editSession) => {
-        this.userBefore = JSON.parse(
-          JSON.stringify(editSession!.payload),
-        ) as UserWithVersion;
-        this.createUserForm(editSession!.payload);
+      .subscribe(({ type, payload }) => {
+        if (type === "EDIT_REQUEST") {
+          this.userBeforeEdit = payload;
+          this.createUserForm(payload);
+        }
+        if (type === "BULK_EDIT_REQUEST") {
+          this.usersBeforeBulkEdit = payload;
+          this.createUserForm();
+        }
       });
   }
   private readonly destroy$ = new Subject<void>();
-  ngOnDestroy(): void {
+
+  @HostListener("window:beforeunload", ["$event"])
+  ngOnDestroy = (($event: Event) => {
     this.destroy$.next();
     this.destroy$.complete();
-  }
 
-  private createUserForm(user: UserWithVersion | null) {
+    removePageFromOpenTabs(this.route.snapshot);
+  }) as () => void;
+
+  private createUserForm(user?: UserWithVersion | null) {
     this.userForm = new FormGroup({
       _version: new FormControl<number>(user?._version || 0),
       _id: new FormControl(user?._id || uuidv4()),
@@ -1501,16 +1532,16 @@ export class EditFormComponent implements OnInit, OnDestroy {
     if (!this.userForm!.valid) return;
     const changes: ChangeLog[] = [];
     this.changeLogService.compareProperties(
-      this.userBefore,
+      this.userBeforeEdit,
       this.userForm!.value,
       changes,
     );
     this.crossTabEditService.saveEditResponseToLocalStorage(
       this.sessionId,
-      this.userBefore?._id!,
+      this.userBeforeEdit?._id!,
       changes,
     );
-    this.userBefore = this.userForm.value as any as UserWithVersion;
+    this.userBeforeEdit = this.userForm.value as any as UserWithVersion;
   }
 
   formatPhoneNumber(): void {
@@ -1534,14 +1565,6 @@ export class EditFormComponent implements OnInit, OnDestroy {
     }
   }
 }
-
-type UserNestedFormGoupType =
-  | "user"
-  | "address"
-  | "bank"
-  | "company"
-  | "crypto"
-  | "workExperience";
 
 type TypedForm<T> = {
   [K in keyof T]: T[K] extends Array<infer U>
