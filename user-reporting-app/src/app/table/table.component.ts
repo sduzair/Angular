@@ -66,6 +66,7 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
     MatSidenavModule,
     MatToolbarModule,
     MatButtonModule,
+    MatInputModule,
   ],
   template: `
     <div class="table-system">
@@ -73,7 +74,12 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
         <mat-toolbar-row>
           <h2>Reporting UI</h2>
           <span class="toolbarrow-spacer"></span>
-          <button (click)="openBulkEditFormTab()" *ngIf="!this.selection.isEmpty()" mat-flat-button [disabled]="this.isSingleOrBulkEditTabOpen">
+          <button
+            (click)="openBulkEditFormTab()"
+            *ngIf="!this.selection.isEmpty()"
+            mat-flat-button
+            [disabled]="this.isSingleOrBulkEditTabOpen"
+          >
             <mat-icon>edit</mat-icon>
             Bulk Edit
           </button>
@@ -83,7 +89,7 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
           </button>
         </mat-toolbar-row>
       </mat-toolbar>
-      <mat-drawer-container hasBackdrop="false">
+      <mat-drawer-container class="table-filter-container" hasBackdrop="false">
         <mat-drawer position="end" #drawer>
           <mat-toolbar>
             <mat-toolbar-row>
@@ -114,7 +120,7 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
               </mat-form-field>
 
               <!-- Date Filter  -->
-              <div *ngIf="isDateFilterKey(key)">
+              <div *ngIf="this.dateFilters.isDateFilterKey(key)">
                 <mat-form-field>
                   <mat-label>{{ key | appCamelCaseToSpaces }}</mat-label>
                   <input
@@ -127,6 +133,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                     [for]="picker"
                   ></mat-datepicker-toggle>
                   <mat-datepicker #picker></mat-datepicker>
+                </mat-form-field>
+              </div>
+
+              <!-- Column Filter  -->
+              <div *ngIf="this.selectFilters.isSelectFilterKey(key)">
+                <mat-form-field>
+                  <mat-label>{{ key | appCamelCaseToSpaces }}</mat-label>
+                  <select matNativeControl [formControlName]="key">
+                    <option value=""></option>
+                    <option
+                      *ngFor="
+                        let option of getUniqueColumnValuesForSelectFilter(key)
+                      "
+                      [value]="option"
+                    >
+                      {{ option }}
+                    </option>
+                  </select>
                 </mat-form-field>
               </div>
             </ng-container>
@@ -143,7 +167,11 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                 </th>
                 <td mat-cell *matCellDef="let row">
                   <div [class.sticky-cell]="true">
-                    <button [disabled]="this.isSingleOrBulkEditTabOpen" mat-icon-button (click)="openEditFormTab(row)">
+                    <button
+                      [disabled]="this.isSingleOrBulkEditTabOpen"
+                      mat-icon-button
+                      (click)="openEditFormTab(row)"
+                    >
                       <mat-icon>edit</mat-icon>
                     </button>
                   </div>
@@ -186,10 +214,14 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                 </th>
                 <td mat-cell *matCellDef="let row">
                   <div [class.sticky-cell]="isStickyColumn(column)">
-                    <ng-container *ngIf="isDateColumn(column)">
+                    <ng-container
+                      *ngIf="this.dateFilters.values.includes(column)"
+                    >
                       {{ row[column] | date : "MM/dd/yyyy" }}
                     </ng-container>
-                    <ng-container *ngIf="!isDateColumn(column)">
+                    <ng-container
+                      *ngIf="!this.dateFilters.values.includes(column)"
+                    >
                       {{ row[column] }}
                     </ng-container>
                   </div>
@@ -200,7 +232,9 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
               <tr
                 mat-row
                 *matRowDef="let row; columns: displayedColumns"
-                [class.recentOpenHighlight]="this.recentOpenRows.includes(row._id)"
+                [class.recentOpenHighlight]="
+                  this.recentOpenRows.includes(row._id)
+                "
               ></tr>
             </table>
           </div>
@@ -268,31 +302,72 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     ...this.dataColumns,
   ];
   stickyColumns: DisplayedColumnType[] = ["actions", "id"];
+  selectFilters: {
+    values: DisplayedColumnType[];
+    generateFilterKey: (col: string) => string;
+    parseFilterKey: (key: string) => string;
+    isSelectFilterKey: (key: string) => boolean;
+  } = {
+    values: ["gender", "bloodGroup", "eyeColor", "university", "role"],
+    generateFilterKey: (column) =>
+      `select${column.charAt(0).toUpperCase() + column.slice(1)}`,
+    parseFilterKey: (key) => {
+      console.assert(key.startsWith("select"));
+      const column = key.slice(6); // Remove 'select'
+      return column.charAt(0).toLowerCase() + column.slice(1);
+    },
+    isSelectFilterKey: (key: string) => {
+      return (
+        key.startsWith("select") &&
+        this.selectFilters.values.some(
+          (col) => col === this.selectFilters.parseFilterKey(key),
+        )
+      );
+    },
+  };
+  dateFilters: {
+    values: DisplayedColumnType[];
+    generateStartAndEndFilterKeys: (col: string) => string[];
+    parseFilterKey: (key: string) => string;
+    isDateFilterKey: (key: string) => boolean;
+  } = {
+    values: ["birthDate"],
+    generateStartAndEndFilterKeys: (column) => [
+      `${column}Start`,
+      `${column}End`,
+    ],
+    parseFilterKey: (key) => {
+      for (const col of this.dateFilters.values) {
+        if (key === `${col}Start` || key === `${col}End`) {
+          return col;
+        }
+      }
+      throw new Error("Not a valid date filter key");
+    },
+    isDateFilterKey: (key) =>
+      this.dateFilters.values.some(
+        (col) => key === `${col}Start` || key === `${col}End`,
+      ),
+  };
+
   filterKeys = this.dataColumns.flatMap((column) => {
-    if (column.toLowerCase().includes("date")) {
-      return [`${column}Start`, `${column}End`];
+    if (this.dateFilters.values.includes(column)) {
+      return this.dateFilters.generateStartAndEndFilterKeys(column);
     }
+    if (this.selectFilters.values.includes(column))
+      return [column, this.selectFilters.generateFilterKey(column)];
+
     return column;
   });
-  isDateFilterKey(key: string) {
-    if (
-      !key.toLowerCase().includes("date") ||
-      (!key.toLowerCase().includes("start") &&
-        !key.toLowerCase().includes("end"))
-    ) {
+  isTextFilterKey(key: string) {
+    if (this.dateFilters.isDateFilterKey(key)) return false;
+    if (this.selectFilters.isSelectFilterKey(key)) return false;
+    if (this.selectFilters.values.includes(key as DisplayedColumnType))
       return false;
-    }
-    return true;
-  }
-  isTextFilterKey(key: string): any {
-    if (key.toLowerCase().includes("date")) return false;
     return true;
   }
   isStickyColumn(col: string) {
     return this.stickyColumns.includes(col as DisplayedColumnType);
-  }
-  isDateColumn(col: string) {
-    return ["birthDate"].includes(col);
   }
   filterForm = new FormGroup(
     this.filterKeys.reduce(
@@ -397,8 +472,14 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
       const searchTerms: { [key: string]: string } = JSON.parse(filter);
       return Object.keys(record).every((key) => {
         const prop = key as keyof User;
-        if (!searchTerms[prop] && !this.isDateColumn(prop)) return true;
-        if (this.isDateColumn(prop)) {
+        if (
+          !searchTerms[prop] &&
+          !this.dateFilters.values.includes(prop) &&
+          !this.selectFilters.values.includes(prop)
+        )
+          return true;
+
+        if (this.dateFilters.values.includes(prop)) {
           if (!searchTerms[`${prop}Start`] && !searchTerms[`${prop}End`])
             return true;
           return this.isDateBetween(
@@ -407,8 +488,18 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
             searchTerms[`${prop}End`].split("T")[0],
           );
         }
-        if (!this.isDateColumn(prop))
+        if (this.selectFilters.values.includes(prop)) {
+          const filterTerm =
+            searchTerms[this.selectFilters.generateFilterKey(prop)];
+          if (!filterTerm) return true;
+          return (record[prop] as string) === filterTerm;
+        }
+        if (
+          !this.dateFilters.values.includes(prop) &&
+          !this.selectFilters.values.includes(prop)
+        )
           return (record[prop] as string).includes(searchTerms[prop].trim());
+
         console.assert(
           false,
           "🚀 ~ TableComponent ~ createFilter ~ data: assert all data keys handled",
@@ -417,6 +508,14 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
       });
     };
   }
+
+  getUniqueColumnValuesForSelectFilter(key: string) {
+    const values = this.dataSource.filteredData.map(
+      (user) => user[this.selectFilters.parseFilterKey(key) as keyof User],
+    ) as string[];
+    return new Set(values);
+  }
+
   private isDateBetween(
     checkDateStr: string,
     startDateStr: string,

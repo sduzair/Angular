@@ -180,3 +180,25 @@ mat-toolbar-row {
 .mat-column-select {
   text-align: center;
 }
+
+.table-filter-container .mat-drawer-inner-container {
+  position: relative;
+}
+
+.table-filter-container mat-toolbar.mat-toolbar.mat-toolbar-multiple-rows {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.mat-drawer-container.table-filter-container {
+  flex: 1 1 auto;
+}
+
+.table-system {
+  height: 100dvh;
+}
+
+.table-container {
+  flex: 1 1 auto;
+}
