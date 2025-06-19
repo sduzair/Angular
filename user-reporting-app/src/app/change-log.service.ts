@@ -1,14 +1,12 @@
 import { Injectable } from "@angular/core";
-import { User } from "./table/table.component";
 
-// todo generate tests for prop change, array item addition/removal
 @Injectable({
   providedIn: "root",
 })
-export class ChangeLogService {
+export class ChangeLogService<T extends object> {
   // Function to Recreate User from Changes
-  applyChanges(original: User, changes: ChangeLog[]) {
-    const result = JSON.parse(JSON.stringify(original)) as UserWithVersion;
+  applyChanges(original: T, changes: ChangeLog<T>[]) {
+    const result = JSON.parse(JSON.stringify(original)) as WithVersion<T>;
 
     changes.forEach((change) => {
       const pathParts = change.path.split(".");
@@ -44,18 +42,20 @@ export class ChangeLogService {
 
         if (i === pathParts.length - 1) {
           // Last segment - apply change
-          if (change.newValue === undefined) {
+          if (
+            change.newValue === undefined &&
+            Array.isArray(parent) &&
+            targetId
+          ) {
             // Array item removal
-            if (Array.isArray(parent) && targetId) {
-              const index = parent.findIndex(
-                (item: any) => item._id === targetId,
-              );
-              console.assert(
-                index !== -1,
-                `Assert item ${targetId} found in array\n${JSON.stringify(change, null, 2)}`,
-              );
-              if (index !== -1) parent.splice(index, 1);
-            }
+            const index = parent.findIndex(
+              (item: any) => item._id === targetId,
+            );
+            console.assert(
+              index !== -1,
+              `Assert item ${targetId} found in array\n${JSON.stringify(change, null, 2)}`,
+            );
+            if (index !== -1) parent.splice(index, 1);
           } else if (
             change.oldValue === undefined &&
             Array.isArray(current[part])
@@ -86,15 +86,15 @@ export class ChangeLogService {
   }
 
   private compareArrays(
-    arr1: any[],
-    arr2: any[],
-    changes: ChangeLogWithoutVersion[] = [],
+    arr1: WithId[],
+    arr2: WithId[],
+    changes: ChangeLogWithoutVersion<T>[] = [],
     path = "",
   ) {
-    const originalMap = new Map<string, any>(
+    const originalMap = new Map<string, WithId>(
       arr1.filter((i) => i._id).map((i) => [i._id, i]),
     );
-    const updatedMap = new Map<string, any>(
+    const updatedMap = new Map<string, WithId>(
       arr2.filter((i) => i._id).map((i) => [i._id, i]),
     );
 
@@ -134,7 +134,7 @@ export class ChangeLogService {
   compareProperties(
     obj1: any,
     obj2: any,
-    changes: ChangeLogWithoutVersion[] = [],
+    changes: ChangeLogWithoutVersion<T>[] = [],
     path = "",
   ) {
     const allKeys = new Set([...Object.keys(obj1), ...Object.keys(obj2)]);
@@ -146,7 +146,7 @@ export class ChangeLogService {
 
       if (Array.isArray(val2)) {
         if (!Array.isArray(val1)) {
-          // Whole array replacement
+          // Whole array addition
           changes.push({
             path: currentPath,
             oldValue: val1,
@@ -168,16 +168,16 @@ export class ChangeLogService {
   }
 }
 
-export type ChangeLogWithoutVersion = Omit<ChangeLog, "version">;
+export type ChangeLogWithoutVersion<T = any> = Omit<ChangeLog<T>, "version">;
 
-export interface ChangeLog {
+export interface ChangeLog<T = any> {
   path: string; // Format: "arrayName.$id=ID.property" or "arrayName"
   oldValue: any;
   newValue: any;
   version: number;
 }
 
-export type UserWithVersion = User & {
+export type WithVersion<T> = T & {
   /**
    * This version is not session version. It represents the last session in which the user was edited
    *
@@ -185,3 +185,5 @@ export type UserWithVersion = User & {
    */
   _version: number | null;
 };
+
+type WithId = { _id: string };

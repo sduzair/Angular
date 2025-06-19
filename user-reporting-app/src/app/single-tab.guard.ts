@@ -9,7 +9,7 @@ import {
 const STORAGE_KEY = "appOpenTabs";
 
 /**
- * IMPORTANT: The route component that uses this guard must define a window unload handler to remove route entry
+ * IMPORTANT: The route component that uses this guard must define a window unload handler that removes route entry
  *
  * @param {*} route
  * @param {*} state

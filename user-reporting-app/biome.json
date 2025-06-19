@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "ignore": ["**/node_modules/**", "usersData.json"]
+    "ignore": ["**/node_modules/**", "usersData.json", "karma.conf.js"]
   },
   "formatter": {
     "enabled": true,

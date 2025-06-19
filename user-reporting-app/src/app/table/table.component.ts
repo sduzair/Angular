@@ -24,7 +24,7 @@ import { MatPaginator, MatPaginatorModule } from "@angular/material/paginator";
 import { MatSort, MatSortModule } from "@angular/material/sort";
 import { MatTableDataSource, MatTableModule } from "@angular/material/table";
 import { CamelCaseToSpacesPipe } from "../pipes/camelcase-to-spaces.pipe";
-import { ChangeLogService, UserWithVersion } from "../change-log.service";
+import { ChangeLogService, WithVersion } from "../change-log.service";
 import { CrossTabEditService } from "../cross-tab-edit.service";
 import {
   combineLatest,
@@ -378,17 +378,17 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     ),
   );
 
-  dataSource = new MatTableDataSource<UserWithVersion>();
+  dataSource = new MatTableDataSource<WithVersion<User>>();
 
   @ViewChild(MatPaginator) paginator: MatPaginator | undefined;
   @ViewChild(MatSort) sort: MatSort | undefined;
 
   recentOpenRows: string[] = [];
 
-  selection = new SelectionModel<UserWithVersion>(true, []);
+  selection = new SelectionModel<WithVersion<User>>(true, []);
 
   constructor(
-    private changeLogService: ChangeLogService,
+    private changeLogService: ChangeLogService<User>,
     private crossTabEditService: CrossTabEditService,
     private fingerprintingService: FingerprintingService,
     private sessionDataService: SessionDataService,
@@ -459,7 +459,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
             );
           });
           return usersResult;
-        }, [] as UserWithVersion[]),
+        }, [] as WithVersion<User>[]),
         takeUntil(this.destroy$),
       )
       .subscribe((users) => {
@@ -565,7 +565,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   editFormTab: WindowProxy | null = null;
-  openEditFormTab(record: UserWithVersion) {
+  openEditFormTab(record: WithVersion<User>) {
     this.recentOpenRows = [record._id];
     this.editFormTab = this.crossTabEditService.openEditFormTab({
       editType: "EDIT_REQUEST",

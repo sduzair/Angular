@@ -1,9 +1,10 @@
 import { Injectable } from "@angular/core";
 import { BehaviorSubject } from "rxjs/internal/BehaviorSubject";
-import { ChangeLogWithoutVersion, UserWithVersion } from "./change-log.service";
+import { ChangeLogWithoutVersion, WithVersion } from "./change-log.service";
 import { filter, map } from "rxjs/operators";
 import { fromEvent, Observable } from "rxjs";
 import { UserChangeLog } from "./session-data.service";
+import { User } from "./table/table.component";
 
 @Injectable({
   providedIn: "root",
@@ -58,8 +59,8 @@ export class CrossTabEditService {
 
   openEditFormTab(
     req:
-      | { user: UserWithVersion; editType: "EDIT_REQUEST" }
-      | { users: UserWithVersion[]; editType: "BULK_EDIT_REQUEST" },
+      | { user: WithVersion<User>; editType: "EDIT_REQUEST" }
+      | { users: WithVersion<User>[]; editType: "BULK_EDIT_REQUEST" },
   ) {
     const sessionId = `edit-session-${Date.now()}`;
 
@@ -97,7 +98,7 @@ export class CrossTabEditService {
 export type EditSession =
   | {
       type: "EDIT_REQUEST";
-      payload: UserWithVersion;
+      payload: WithVersion<User>;
     }
   | {
       type: "EDIT_RESULT";
@@ -107,5 +108,5 @@ export type EditSession =
     }
   | {
       type: "BULK_EDIT_REQUEST";
-      payload: UserWithVersion[];
+      payload: WithVersion<User>[];
     };
