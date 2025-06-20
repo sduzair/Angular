@@ -18,6 +18,7 @@ import {
   Technology,
   WorkExperience,
   Crypto as ICrypto,
+  User,
 } from "../table/table.component";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -43,7 +44,7 @@ import { CrossTabEditService } from "../cross-tab-edit.service";
 import {
   ChangeLog,
   ChangeLogService,
-  UserWithVersion,
+  WithVersion,
 } from "../change-log.service";
 import {
   DateFnsAdapter,
@@ -1173,8 +1174,8 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
   styleUrls: ["./edit-form.component.scss"],
 })
 export class EditFormComponent implements OnInit, OnDestroy {
-  userBeforeEdit: UserWithVersion | null = null;
-  usersBeforeBulkEdit: UserWithVersion[] | null = null;
+  userBeforeEdit: WithVersion<User> | null = null;
+  usersBeforeBulkEdit: WithVersion<User>[] | null = null;
   validatorParams = {
     maxBirthDate: new Date(),
     passwordLenMin: 6,
@@ -1190,7 +1191,7 @@ export class EditFormComponent implements OnInit, OnDestroy {
   private sessionId: string = null!;
   constructor(
     private crossTabEditService: CrossTabEditService,
-    private changeLogService: ChangeLogService,
+    private changeLogService: ChangeLogService<User>,
     private activatedRoute: ActivatedRoute,
     private route: ActivatedRoute,
   ) {}
@@ -1230,7 +1231,7 @@ export class EditFormComponent implements OnInit, OnDestroy {
     removePageFromOpenTabs(this.route.snapshot);
   }) as () => void;
 
-  private createUserForm(user?: UserWithVersion | null) {
+  private createUserForm(user?: WithVersion<User> | null) {
     this.userForm = new FormGroup({
       _version: new FormControl<number>(user?._version || 0),
       _id: new FormControl(user?._id || uuidv4()),
@@ -1529,6 +1530,10 @@ export class EditFormComponent implements OnInit, OnDestroy {
   // Form Submission
   // ----------------------
   onSubmit(): void {
+    console.log(
+      "🚀 ~ EditFormComponent ~ onSubmit ~ this.userForm!.value:",
+      this.userForm!.value,
+    );
     if (!this.userForm!.valid) return;
     const changes: ChangeLog[] = [];
     this.changeLogService.compareProperties(
@@ -1541,7 +1546,7 @@ export class EditFormComponent implements OnInit, OnDestroy {
       this.userBeforeEdit?._id!,
       changes,
     );
-    this.userBeforeEdit = this.userForm.value as any as UserWithVersion;
+    this.userBeforeEdit = this.userForm.value as any as WithVersion<User>;
   }
 
   formatPhoneNumber(): void {
@@ -1576,4 +1581,4 @@ type TypedForm<T> = {
       : FormControl<T[K] | null>;
 };
 
-type UserFormType = FormGroup<TypedForm<UserWithVersion>>;
+type UserFormType = FormGroup<TypedForm<WithVersion<User>>>;

@@ -1,127 +1,62 @@
 import { Injectable } from "@angular/core";
 
-@Injectable({
-  providedIn: "root",
-})
+type DiscriminatorType = "_id" | "index";
+
+@Injectable({ providedIn: "root" })
 export class ChangeLogService<T extends object> {
-  // Function to Recreate User from Changes
-  applyChanges(original: T, changes: ChangeLog<T>[]) {
-    const result = JSON.parse(JSON.stringify(original)) as WithVersion<T>;
-
-    changes.forEach((change) => {
-      const pathParts = change.path.split(".");
-      let current: any = result;
-      let parent: any = null;
-      let targetId: string | null = null;
-
-      for (let i = 0; i < pathParts.length; i++) {
-        const part = pathParts[i];
-
-        if (part.startsWith("$id=")) {
-          // Array element reference
-          targetId = part.split("=")[1];
-          console.assert(
-            Array.isArray(current),
-            `Assert current is an array\n${JSON.stringify(change, null, 2)}`,
-          );
-          if (!Array.isArray(current)) {
-            break;
-          }
-          const index = current.findIndex((item: any) => item._id === targetId);
-          console.assert(
-            index !== -1,
-            `Assert item ${targetId} found in array\n${JSON.stringify(change, null, 2)}`,
-          );
-          if (index === -1) {
-            break;
-          }
-          parent = current;
-          current = current[index];
-          if (i !== pathParts.length - 1) continue;
-        }
-
-        if (i === pathParts.length - 1) {
-          // Last segment - apply change
-          if (
-            change.newValue === undefined &&
-            Array.isArray(parent) &&
-            targetId
-          ) {
-            // Array item removal
-            const index = parent.findIndex(
-              (item: any) => item._id === targetId,
-            );
-            console.assert(
-              index !== -1,
-              `Assert item ${targetId} found in array\n${JSON.stringify(change, null, 2)}`,
-            );
-            if (index !== -1) parent.splice(index, 1);
-          } else if (
-            change.oldValue === undefined &&
-            Array.isArray(current[part])
-          ) {
-            // Array add new item
-            current[part].push(change.newValue);
-          } else {
-            // Modify value
-            current[part] = change.newValue;
-          }
-          continue;
-        }
-
-        // Navigate deeper
-        console.assert(
-          current[part] != null,
-          `Assert property ${part} exists\n${JSON.stringify(change, null, 2)}`,
-        );
-        if (!current[part]) break;
-        parent = current;
-        current = current[part];
+  // Closure-based path resolver factory
+  private createPathResolver(discriminator: DiscriminatorType) {
+    return (arr: any[], part: string): number => {
+      if (part.startsWith("$id=") && discriminator === "_id") {
+        const targetId = part.split("=")[1];
+        return arr.findIndex((item) => item._id === targetId);
       }
-    });
-
-    result._version = changes.at(-1)?.version || 0;
-
-    return result;
+      if (part.startsWith("$idx=") && discriminator === "index") {
+        return Number(part.split("=")[1]);
+      }
+      return -1;
+    };
   }
 
-  private compareArrays(
-    arr1: WithId[],
-    arr2: WithId[],
-    changes: ChangeLogWithoutVersion<T>[] = [],
-    path = "",
-  ) {
-    const originalMap = new Map<string, WithId>(
-      arr1.filter((i) => i._id).map((i) => [i._id, i]),
-    );
-    const updatedMap = new Map<string, WithId>(
-      arr2.filter((i) => i._id).map((i) => [i._id, i]),
-    );
+  // Higher-order function for array comparison
+  private getArrayComparator(discriminator: DiscriminatorType) {
+    return (
+      arr1: any[],
+      arr2: any[],
+      changes: ChangeLogWithoutVersion[],
+      path: string,
+    ) => {
+      if (discriminator === "_id") {
+        this.compareById(arr1, arr2, changes, path);
+      } else {
+        this.compareByIndex(arr1, arr2, changes, path);
+      }
+    };
+  }
 
-    // Handle modifications and additions
+  // Refactored array comparison by ID
+  private compareById(
+    arr1: any[],
+    arr2: any[],
+    changes: ChangeLogWithoutVersion[],
+    path: string,
+  ) {
+    const originalMap = new Map(arr1.map((item) => [item._id, item]));
+    const updatedMap = new Map(arr2.map((item) => [item._id, item]));
+
+    // Process additions and modifications
     arr2.forEach((updatedItem) => {
       const itemPath = `${path}.$id=${updatedItem._id}`;
-      if (updatedItem._id && originalMap.has(updatedItem._id)) {
-        // Existing item - compare properties
-        this.compareProperties(
-          originalMap.get(updatedItem._id),
-          updatedItem,
-          changes,
-          itemPath,
-        );
-      } else {
-        // New item
-        changes.push({
-          path: path,
-          oldValue: undefined,
-          newValue: updatedItem,
-        });
-      }
+      const originalItem = originalMap.get(updatedItem._id);
+
+      originalItem
+        ? this.compareProperties(originalItem, updatedItem, changes, itemPath)
+        : changes.push({ path, oldValue: undefined, newValue: updatedItem });
     });
 
-    // Handle removals
+    // Process deletions
     arr1.forEach((originalItem) => {
-      if (originalItem._id && !updatedMap.has(originalItem._id)) {
+      if (!updatedMap.has(originalItem._id)) {
         changes.push({
           path: `${path}.$id=${originalItem._id}`,
           oldValue: originalItem,
@@ -131,46 +66,151 @@ export class ChangeLogService<T extends object> {
     });
   }
 
+  // Refactored array comparison by index
+  private compareByIndex(
+    arr1: any[],
+    arr2: any[],
+    changes: ChangeLogWithoutVersion[],
+    path: string,
+  ) {
+    const maxLength = Math.max(arr1.length, arr2.length);
+
+    Array.from({ length: maxLength }).forEach((_, i) => {
+      const itemPath = `${path}.$idx=${i}`;
+      const originalItem = arr1[i];
+      const updatedItem = arr2[i];
+
+      if (i < arr1.length && i < arr2.length) {
+        this.compareProperties(originalItem, updatedItem, changes, itemPath);
+      } else if (i < arr1.length) {
+        changes.push({
+          path: itemPath,
+          oldValue: originalItem,
+          newValue: undefined,
+        });
+      } else {
+        changes.push({ path, oldValue: undefined, newValue: updatedItem });
+      }
+    });
+  }
+
+  // Main applyChanges function using path traversal closure
+  applyChanges(original: T, changes: ChangeLog[]): WithVersion<T> {
+    const result = structuredClone(original) as WithVersion<T>;
+
+    changes.forEach((change) => {
+      const pathParts = change.path.split(".");
+      let current: Record<string, unknown> = result;
+      let parent: Record<string, unknown> | null = null;
+      let targetIndex: number | null = null;
+
+      pathParts.forEach((part, index) => {
+        const isLastSegment = index === pathParts.length - 1;
+        const isArraySegment = ["$id=", "$idx="].some((prefix) =>
+          part.startsWith(prefix),
+        );
+
+        // Handle array navigation
+        if (isArraySegment) {
+          let resolvePath: ReturnType<typeof this.createPathResolver> | null =
+            null;
+          if (part.startsWith("$id="))
+            resolvePath = this.createPathResolver("_id");
+          if (part.startsWith("$idx="))
+            resolvePath = this.createPathResolver("index");
+
+          if (!Array.isArray(current)) throw new Error("exptected array");
+
+          targetIndex = resolvePath!(current, part);
+          if (targetIndex === -1) return;
+
+          parent = current;
+          current = current[targetIndex];
+          if (!isLastSegment) return;
+        }
+
+        // Apply changes at terminal node
+        if (isLastSegment) {
+          this.applyChange(change, current, parent, targetIndex, part);
+          return;
+        }
+
+        // Continue traversal
+        parent = current;
+        current = current[part] as any;
+      });
+    });
+
+    result._version = changes.at(-1)?.version ?? 0;
+    return result;
+  }
+
+  // Change application logic extracted to method
+  private applyChange(
+    change: ChangeLog,
+    current: any,
+    parent: any,
+    targetIndex: number | null,
+    part: string,
+  ) {
+    if (
+      change.newValue === undefined &&
+      Array.isArray(parent) &&
+      targetIndex !== null
+    ) {
+      parent.splice(targetIndex, 1);
+    } else if (change.oldValue === undefined && Array.isArray(current[part])) {
+      current[part].push(change.newValue);
+    } else {
+      current[part] = change.newValue;
+    }
+  }
+
+  // Refactored comparison using higher-order comparator
   compareProperties(
     obj1: any,
     obj2: any,
-    changes: ChangeLogWithoutVersion<T>[] = [],
+    changes: ChangeLogWithoutVersion[] = [],
     path = "",
+    discriminator: DiscriminatorType = "_id",
   ) {
-    const allKeys = new Set([...Object.keys(obj1), ...Object.keys(obj2)]);
+    const allKeys = new Set([
+      ...Object.keys(obj1 ?? {}),
+      ...Object.keys(obj2 ?? {}),
+    ]);
+    const compareArrays = this.getArrayComparator(discriminator);
 
     allKeys.forEach((key) => {
       const currentPath = path ? `${path}.${key}` : key;
       const val1 = obj1?.[key];
       const val2 = obj2?.[key];
 
-      if (Array.isArray(val2)) {
-        if (!Array.isArray(val1)) {
-          // Whole array addition
-          changes.push({
-            path: currentPath,
-            oldValue: val1,
-            newValue: val2,
-          });
-        } else {
-          this.compareArrays(val1, val2, changes, currentPath);
-        }
-      } else if (typeof val2 === "object" && val2 !== null) {
-        this.compareProperties(val1 || {}, val2, changes, currentPath);
-      } else if (val1 !== val2) {
+      if (!val1 && Array.isArray(val2)) {
         changes.push({
           path: currentPath,
-          oldValue: val1,
+          oldValue: undefined,
           newValue: val2,
         });
+      } else if (Array.isArray(val1) && Array.isArray(val2)) {
+        compareArrays(val1, val2, changes, currentPath);
+      } else if (typeof val2 === "object" && val2 !== null) {
+        this.compareProperties(
+          val1 ?? {},
+          val2,
+          changes,
+          currentPath,
+          discriminator,
+        );
+      } else if (val1 !== val2) {
+        changes.push({ path: currentPath, oldValue: val1, newValue: val2 });
       }
     });
   }
 }
 
-export type ChangeLogWithoutVersion<T = any> = Omit<ChangeLog<T>, "version">;
+export type ChangeLogWithoutVersion = Omit<ChangeLog, "version">;
 
-export interface ChangeLog<T = any> {
+export interface ChangeLog {
   path: string; // Format: "arrayName.$id=ID.property" or "arrayName"
   oldValue: any;
   newValue: any;
