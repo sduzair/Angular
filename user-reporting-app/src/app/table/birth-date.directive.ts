@@ -22,13 +22,13 @@ export class BirthDateDirective implements ControlValueAccessor {
   writeValue(value: string | Date | null): void {
     let parsedDate: Date | null = null;
 
-    if (typeof value === "string") {
+    if (value && typeof value === "string") {
       parsedDate = BirthDateDirective.parseBirthDate(value);
     }
 
-    console.assert(!!parsedDate, "Assert parsed date is not null");
+    // console.assert(!!parsedDate, "Assert parsed date is not null");
 
-    this.datepickerInput.value = parsedDate;
+    this.datepickerInput.value = parsedDate ? parsedDate : null;
   }
 
   registerOnChange(fn: (_: any) => void): void {

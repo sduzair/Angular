@@ -29,7 +29,6 @@ import {
 import { MatTabsModule } from "@angular/material/tabs";
 import { MAT_CARD_CONFIG, MatCardModule } from "@angular/material/card";
 import { MatInputModule } from "@angular/material/input";
-import { MatSelectModule } from "@angular/material/select";
 import {
   MatDatepicker,
   MatDatepickerInput,
@@ -37,7 +36,7 @@ import {
 } from "@angular/material/datepicker";
 import { MatExpansionModule } from "@angular/material/expansion";
 import { MatDividerModule } from "@angular/material/divider";
-import { MatIcon } from "@angular/material/icon";
+import { MatIconModule } from "@angular/material/icon";
 import { MatChipsModule } from "@angular/material/chips";
 import { MatButtonModule } from "@angular/material/button";
 import { CrossTabEditService } from "../cross-tab-edit.service";
@@ -59,6 +58,8 @@ import { enCA } from "date-fns/locale";
 import { BirthDateDirective } from "../table/birth-date.directive";
 import { ActivatedRoute } from "@angular/router";
 import { removePageFromOpenTabs } from "../single-tab.guard";
+import { ClearFieldDirective } from "./clear-field.directive";
+import { ResetFieldDirective } from "./reset-field.directive";
 
 @Component({
   selector: "app-edit-form",
@@ -68,17 +69,18 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
     MatTabsModule,
     MatCardModule,
     MatInputModule,
-    MatSelectModule,
     MatDatepicker,
     MatDatepickerInput,
     MatDatepickerToggle,
     MatExpansionModule,
     MatDividerModule,
     ReactiveFormsModule,
-    MatIcon,
+    MatIconModule,
     MatChipsModule,
     MatButtonModule,
     BirthDateDirective,
+    ClearFieldDirective,
+    ResetFieldDirective,
   ],
   providers: [
     { provide: MAT_DATE_LOCALE, useValue: enCA },
@@ -98,7 +100,12 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
   ],
   template: `
     <div class="user-form-container">
-      <form *ngIf="userForm" [formGroup]="userForm" (ngSubmit)="onSubmit()">
+      <form
+        *ngIf="userForm"
+        [formGroup]="userForm"
+        (ngSubmit)="onSubmit()"
+        [class.bulk-edit-form]="this.usersBeforeBulkEdit"
+      >
         <div class="sub-group-header">
           <h2>
             User Information Form -
@@ -110,6 +117,7 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                 : ""
             }}
           </h2>
+          <div class="sub-group-header-gap"></div>
           <button mat-raised-button color="primary" type="submit">
             Submit
           </button>
@@ -134,6 +142,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                       >
                         First name is required
                       </mat-error>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
 
                     <mat-form-field>
@@ -149,6 +175,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                       >
                         Last name is required
                       </mat-error>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
 
                     <mat-form-field>
@@ -159,6 +203,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         formControlName="maidenName"
                         autocomplete="additional-name"
                       />
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
                   </div>
 
@@ -174,15 +236,51 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                       <mat-error *ngIf="userForm.get('age')?.hasError('min')">
                         Age must be positive
                       </mat-error>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
 
                     <mat-form-field>
                       <mat-label>Gender</mat-label>
-                      <mat-select formControlName="gender">
-                        <mat-option value="male">Male</mat-option>
-                        <mat-option value="female">Female</mat-option>
-                        <mat-option value="other">Other</mat-option>
-                      </mat-select>
+                      <select matNativeControl formControlName="gender">
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </select>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
 
                     <mat-form-field>
@@ -211,6 +309,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                       >
                         Invalid birth date
                       </mat-error>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
                   </div>
 
@@ -235,6 +351,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                       >
                         Enter a valid email
                       </mat-error>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
 
                     <mat-form-field>
@@ -257,6 +391,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                       >
                         Invalid phone number format
                       </mat-error>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
                   </div>
 
@@ -280,6 +432,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         Username must be atleast
                         {{ this.validatorParams.usernameLenMin }} characters
                       </mat-error>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
 
                     <mat-form-field>
@@ -301,6 +471,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         Password must be at least
                         {{ this.validatorParams.passwordLenMin }} characters
                       </mat-error>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
                   </div>
                 </mat-card-content>
@@ -316,26 +504,80 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                   <div class="form-row">
                     <mat-form-field>
                       <mat-label>Blood Group</mat-label>
-                      <mat-select formControlName="bloodGroup">
-                        <mat-option value="A+">A+</mat-option>
-                        <mat-option value="A-">A-</mat-option>
-                        <mat-option value="B+">B+</mat-option>
-                        <mat-option value="B-">B-</mat-option>
-                        <mat-option value="AB+">AB+</mat-option>
-                        <mat-option value="AB-">AB-</mat-option>
-                        <mat-option value="O+">O+</mat-option>
-                        <mat-option value="O-">O-</mat-option>
-                      </mat-select>
+                      <select matNativeControl formControlName="bloodGroup">
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                      </select>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
 
                     <mat-form-field>
                       <mat-label>Height (cm)</mat-label>
                       <input matInput type="number" formControlName="height" />
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
 
                     <mat-form-field>
                       <mat-label>Weight (kg)</mat-label>
                       <input matInput type="number" formControlName="weight" />
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
                   </div>
 
@@ -343,6 +585,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                     <mat-form-field>
                       <mat-label>Eye Color</mat-label>
                       <input matInput formControlName="eyeColor" />
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
                   </div>
 
@@ -353,11 +613,47 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                       <mat-form-field>
                         <mat-label>Hair Color</mat-label>
                         <input matInput formControlName="color" />
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appResetField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>refresh</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <mat-form-field>
                         <mat-label>Hair Type</mat-label>
                         <input matInput formControlName="type" />
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appResetField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>refresh</mat-icon>
+                        </button>
                       </mat-form-field>
                     </div>
                   </div>
@@ -369,15 +665,20 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
           <!-- Addresses Tab with FormArray -->
           <mat-tab label="Addresses" formArrayName="address">
             <div class="tab-content">
-              <div class="add-button-container top">
-                <button
-                  mat-raised-button
-                  color="primary"
-                  type="button"
-                  (click)="addAddress()"
-                >
-                  Add Address
-                </button>
+              <div class="sub-group-header">
+                <h3>Addresses</h3>
+                <div class="sub-group-header-gap"></div>
+                <div class="add-button-container top">
+                  <button
+                    type="button"
+                    mat-raised-button
+                    color="primary"
+                    type="button"
+                    (click)="addAddress()"
+                  >
+                    Add Address
+                  </button>
+                </div>
               </div>
               <div
                 *ngFor="
@@ -413,6 +714,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         >
                           Address is required
                         </mat-error>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appResetField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>refresh</mat-icon>
+                        </button>
                       </mat-form-field>
                     </div>
 
@@ -425,6 +744,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         >
                           City is required
                         </mat-error>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appResetField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>refresh</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <mat-form-field>
@@ -437,6 +774,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         >
                           State is required
                         </mat-error>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appResetField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>refresh</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <mat-form-field>
@@ -447,6 +802,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                             addressGroup.get("stateCode")?.value?.length || 0
                           }}/3</mat-hint
                         >
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appResetField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>refresh</mat-icon>
+                        </button>
                       </mat-form-field>
                     </div>
 
@@ -461,6 +834,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         >
                           Postal code is required
                         </mat-error>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appResetField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>refresh</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <mat-form-field>
@@ -473,6 +864,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         >
                           Country is required
                         </mat-error>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appResetField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>refresh</mat-icon>
+                        </button>
                       </mat-form-field>
                     </div>
 
@@ -483,11 +892,47 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         <mat-form-field>
                           <mat-label>Latitude</mat-label>
                           <input matInput type="number" formControlName="lat" />
+                          <button
+                            [disabled]="!this.usersBeforeBulkEdit"
+                            type="button"
+                            appClearField
+                            mat-icon-button
+                            matSuffix
+                          >
+                            <mat-icon>close</mat-icon>
+                          </button>
+                          <button
+                            [disabled]="!this.usersBeforeBulkEdit"
+                            type="button"
+                            appResetField
+                            mat-icon-button
+                            matSuffix
+                          >
+                            <mat-icon>refresh</mat-icon>
+                          </button>
                         </mat-form-field>
 
                         <mat-form-field>
                           <mat-label>Longitude</mat-label>
                           <input matInput type="number" formControlName="lng" />
+                          <button
+                            [disabled]="!this.usersBeforeBulkEdit"
+                            type="button"
+                            appClearField
+                            mat-icon-button
+                            matSuffix
+                          >
+                            <mat-icon>close</mat-icon>
+                          </button>
+                          <button
+                            [disabled]="!this.usersBeforeBulkEdit"
+                            type="button"
+                            appResetField
+                            mat-icon-button
+                            matSuffix
+                          >
+                            <mat-icon>refresh</mat-icon>
+                          </button>
                         </mat-form-field>
                       </div>
                     </div>
@@ -503,7 +948,9 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
           <!-- Bank Tab with FormArray -->
           <mat-tab label="Bank Info" formArrayName="bank">
             <div class="tab-content">
-              <div class="add-button-container top">
+              <div class="sub-group-header">
+                <h3>Banks</h3>
+                <div class="sub-group-header-gap"></div>
                 <button
                   mat-raised-button
                   color="primary"
@@ -564,20 +1011,38 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                             bankGroup.get("cardNumber")?.value?.length || 0
                           }}/19</mat-hint
                         >
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appResetField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>refresh</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <!-- Card Type: Select -->
                       <mat-form-field>
                         <mat-label>Card Type</mat-label>
-                        <mat-select formControlName="cardType">
-                          <mat-option value="Visa">Visa</mat-option>
-                          <mat-option value="MasterCard">MasterCard</mat-option>
-                          <mat-option value="American Express"
-                            >American Express</mat-option
-                          >
-                          <mat-option value="Discover">Discover</mat-option>
-                          <mat-option value="Other">Other</mat-option>
-                        </mat-select>
+                        <select matNativeControl formControlName="cardType">
+                          <option value="Visa">Visa</option>
+                          <option value="MasterCard">MasterCard</option>
+                          <option value="American Express">
+                            American Express
+                          </option>
+                          <option value="Discover">Discover</option>
+                          <option value="Other">Other</option>
+                        </select>
                         <mat-error
                           *ngIf="
                             bankGroup.get('cardType')?.hasError('required')
@@ -585,6 +1050,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         >
                           Card type is required
                         </mat-error>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appResetField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>refresh</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <!-- Card Expiry: Month/Year Picker -->
@@ -600,6 +1083,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         />
                         <mat-icon matSuffix>event</mat-icon>
                         <mat-hint>Format: MM/YY</mat-hint>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appResetField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>refresh</mat-icon>
+                        </button>
                       </mat-form-field>
                     </div>
 
@@ -607,20 +1108,14 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                       <!-- Currency: Select -->
                       <mat-form-field>
                         <mat-label>Currency</mat-label>
-                        <mat-select formControlName="currency">
-                          <mat-option value="USD">USD - US Dollar</mat-option>
-                          <mat-option value="EUR">EUR - Euro</mat-option>
-                          <mat-option value="GBP"
-                            >GBP - British Pound</mat-option
-                          >
-                          <mat-option value="JPY"
-                            >JPY - Japanese Yen</mat-option
-                          >
-                          <mat-option value="INR"
-                            >INR - Indian Rupee</mat-option
-                          >
-                          <mat-option value="Other">Other</mat-option>
-                        </mat-select>
+                        <select matNativeControl formControlName="currency">
+                          <option value="USD">USD - US Dollar</option>
+                          <option value="EUR">EUR - Euro</option>
+                          <option value="GBP">GBP - British Pound</option>
+                          <option value="JPY">JPY - Japanese Yen</option>
+                          <option value="INR">INR - Indian Rupee</option>
+                          <option value="Other">Other</option>
+                        </select>
                         <mat-error
                           *ngIf="
                             bankGroup.get('currency')?.hasError('required')
@@ -628,6 +1123,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         >
                           Currency is required
                         </mat-error>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appResetField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>refresh</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <!-- IBAN: Text, Uppercase -->
@@ -653,6 +1166,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                             bankGroup.get("iban")?.value?.length || 0
                           }}/34</mat-hint
                         >
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appResetField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>refresh</mat-icon>
+                        </button>
                       </mat-form-field>
                     </div>
                   </div>
@@ -667,7 +1198,9 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
           <!-- Work Place Tab with FormArray -->
           <mat-tab label="Work Place" formArrayName="company">
             <div class="tab-content">
-              <div class="add-button-container top">
+              <div class="sub-group-header">
+                <h3>Work Places</h3>
+                <div class="sub-group-header-gap"></div>
                 <button
                   mat-raised-button
                   color="primary"
@@ -703,24 +1236,78 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                     <!-- Company Name -->
                     <mat-form-field>
                       <mat-label>Company Name</mat-label>
-                      <input matInput formControlName="name" required />
+                      <input matInput formControlName="name" />
                       <mat-error
                         *ngIf="companyGroup.get('name')?.hasError('required')"
                       >
                         Company name is required
                       </mat-error>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
 
                     <!-- Department -->
                     <mat-form-field>
                       <mat-label>Department</mat-label>
                       <input matInput formControlName="department" />
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
 
                     <!-- Title/Position -->
                     <mat-form-field>
                       <mat-label>Title/Position</mat-label>
                       <input matInput formControlName="title" />
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
                   </div>
 
@@ -730,7 +1317,7 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                     <div class="form-row">
                       <mat-form-field>
                         <mat-label>Street Address</mat-label>
-                        <input matInput formControlName="address" required />
+                        <input matInput formControlName="address" />
                         <mat-error
                           *ngIf="
                             companyGroup
@@ -740,11 +1327,29 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         >
                           Address is required
                         </mat-error>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appResetField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>refresh</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <mat-form-field>
                         <mat-label>City</mat-label>
-                        <input matInput formControlName="city" required />
+                        <input matInput formControlName="city" />
                         <mat-error
                           *ngIf="
                             companyGroup
@@ -754,6 +1359,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         >
                           City is required
                         </mat-error>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appResetField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>refresh</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <mat-form-field>
@@ -768,6 +1391,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         >
                           State is required
                         </mat-error>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appResetField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>refresh</mat-icon>
+                        </button>
                       </mat-form-field>
                     </div>
                     <div class="form-row">
@@ -780,6 +1421,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                               ?.length || 0
                           }}/3</mat-hint
                         >
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appResetField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>refresh</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <mat-form-field>
@@ -794,11 +1453,29 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         >
                           Postal code is required
                         </mat-error>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appResetField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>refresh</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <mat-form-field>
                         <mat-label>Country</mat-label>
-                        <input matInput formControlName="country" required />
+                        <input matInput formControlName="country" />
                         <mat-error
                           *ngIf="
                             companyGroup
@@ -808,6 +1485,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         >
                           Country is required
                         </mat-error>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>close</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.usersBeforeBulkEdit"
+                          type="button"
+                          appResetField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>refresh</mat-icon>
+                        </button>
                       </mat-form-field>
                     </div>
                     <!-- Coordinates Group -->
@@ -816,10 +1511,46 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         <mat-form-field>
                           <mat-label>Latitude</mat-label>
                           <input matInput type="number" formControlName="lat" />
+                          <button
+                            [disabled]="!this.usersBeforeBulkEdit"
+                            type="button"
+                            appClearField
+                            mat-icon-button
+                            matSuffix
+                          >
+                            <mat-icon>close</mat-icon>
+                          </button>
+                          <button
+                            [disabled]="!this.usersBeforeBulkEdit"
+                            type="button"
+                            appResetField
+                            mat-icon-button
+                            matSuffix
+                          >
+                            <mat-icon>refresh</mat-icon>
+                          </button>
                         </mat-form-field>
                         <mat-form-field>
                           <mat-label>Longitude</mat-label>
                           <input matInput type="number" formControlName="lng" />
+                          <button
+                            [disabled]="!this.usersBeforeBulkEdit"
+                            type="button"
+                            appClearField
+                            mat-icon-button
+                            matSuffix
+                          >
+                            <mat-icon>close</mat-icon>
+                          </button>
+                          <button
+                            [disabled]="!this.usersBeforeBulkEdit"
+                            type="button"
+                            appResetField
+                            mat-icon-button
+                            matSuffix
+                          >
+                            <mat-icon>refresh</mat-icon>
+                          </button>
                         </mat-form-field>
                       </div>
                     </div>
@@ -835,7 +1566,9 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
           <!-- Crypto Tab with FormArray -->
           <mat-tab label="Cryptocurrency" formArrayName="crypto">
             <div class="tab-content">
-              <div class="add-button-container top">
+              <div class="sub-group-header">
+                <h3>Cryptocurrencies</h3>
+                <div class="sub-group-header-gap"></div>
                 <button
                   mat-raised-button
                   color="primary"
@@ -878,6 +1611,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                       >
                         Coin is required
                       </mat-error>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
                     <mat-form-field>
                       <mat-label>Network</mat-label>
@@ -888,6 +1639,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                       >
                         Network is required
                       </mat-error>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
                   </div>
                   <div class="form-row">
@@ -898,6 +1667,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         formControlName="wallet"
                         rows="3"
                       ></textarea>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
                   </div>
                 </mat-expansion-panel>
@@ -911,7 +1698,9 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
           <!-- Work Exp. Tab with FormArray -->
           <mat-tab label="Work Experience" formArrayName="workExperience">
             <div class="tab-content">
-              <div class="add-button-container top">
+              <div class="sub-group-header">
+                <h3>Work Expreriences</h3>
+                <div class="sub-group-header-gap"></div>
                 <button
                   mat-raised-button
                   color="primary"
@@ -955,6 +1744,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                       >
                         Job title is required
                       </mat-error>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
 
                     <!-- Employer -->
@@ -968,12 +1775,31 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                       >
                         Employer name is required
                       </mat-error>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.usersBeforeBulkEdit"
+                        type="button"
+                        appResetField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>refresh</mat-icon>
+                      </button>
                     </mat-form-field>
                   </div>
 
                   <div formArrayName="projects">
                     <div class="sub-group-header">
                       <h3>Projects</h3>
+                      <div class="sub-group-header-gap"></div>
                       <button
                         mat-stroked-button
                         type="button"
@@ -1020,6 +1846,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                             >
                               Project name is required
                             </mat-error>
+                            <button
+                              [disabled]="!this.usersBeforeBulkEdit"
+                              type="button"
+                              appClearField
+                              mat-icon-button
+                              matSuffix
+                            >
+                              <mat-icon>close</mat-icon>
+                            </button>
+                            <button
+                              [disabled]="!this.usersBeforeBulkEdit"
+                              type="button"
+                              appResetField
+                              mat-icon-button
+                              matSuffix
+                            >
+                              <mat-icon>refresh</mat-icon>
+                            </button>
                           </mat-form-field>
 
                           <!-- Project Description -->
@@ -1030,6 +1874,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                               formControlName="description"
                               rows="1"
                             ></textarea>
+                            <button
+                              [disabled]="!this.usersBeforeBulkEdit"
+                              type="button"
+                              appClearField
+                              mat-icon-button
+                              matSuffix
+                            >
+                              <mat-icon>close</mat-icon>
+                            </button>
+                            <button
+                              [disabled]="!this.usersBeforeBulkEdit"
+                              type="button"
+                              appResetField
+                              mat-icon-button
+                              matSuffix
+                            >
+                              <mat-icon>refresh</mat-icon>
+                            </button>
                           </mat-form-field>
                         </div>
 
@@ -1037,6 +1899,7 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         <div formArrayName="technologies">
                           <div class="sub-group-header">
                             <h4>Technologies Used</h4>
+                            <div class="sub-group-header-gap"></div>
                             <div [formGroup]="newTechControl">
                               <mat-form-field class="sub-absolute">
                                 <input
@@ -1049,12 +1912,31 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                                   "
                                 />
                                 <button
+                                  type="button"
                                   mat-icon-button
                                   matSuffix
                                   (click)="addTechnology(workIndex, projIndex)"
                                   [disabled]="newTechControl.invalid"
                                 >
                                   <mat-icon>add</mat-icon>
+                                </button>
+                                <button
+                                  [disabled]="!this.usersBeforeBulkEdit"
+                                  type="button"
+                                  appClearField
+                                  mat-icon-button
+                                  matSuffix
+                                >
+                                  <mat-icon>close</mat-icon>
+                                </button>
+                                <button
+                                  [disabled]="!this.usersBeforeBulkEdit"
+                                  type="button"
+                                  appResetField
+                                  mat-icon-button
+                                  matSuffix
+                                >
+                                  <mat-icon>refresh</mat-icon>
                                 </button>
                               </mat-form-field>
                             </div>
@@ -1090,6 +1972,7 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                         <div formArrayName="teamMembers">
                           <div class="sub-group-header">
                             <h4>Team Members</h4>
+                            <div class="sub-group-header-gap"></div>
                             <button
                               mat-stroked-button
                               type="button"
@@ -1122,6 +2005,24 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                                   "
                                   >Name is required</mat-error
                                 >
+                                <button
+                                  [disabled]="!this.usersBeforeBulkEdit"
+                                  type="button"
+                                  appClearField
+                                  mat-icon-button
+                                  matSuffix
+                                >
+                                  <mat-icon>close</mat-icon>
+                                </button>
+                                <button
+                                  [disabled]="!this.usersBeforeBulkEdit"
+                                  type="button"
+                                  appResetField
+                                  mat-icon-button
+                                  matSuffix
+                                >
+                                  <mat-icon>refresh</mat-icon>
+                                </button>
                               </mat-form-field>
 
                               <mat-form-field>
@@ -1135,9 +2036,28 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                                   "
                                   >Role is required</mat-error
                                 >
+                                <button
+                                  [disabled]="!this.usersBeforeBulkEdit"
+                                  type="button"
+                                  appClearField
+                                  mat-icon-button
+                                  matSuffix
+                                >
+                                  <mat-icon>close</mat-icon>
+                                </button>
+                                <button
+                                  [disabled]="!this.usersBeforeBulkEdit"
+                                  type="button"
+                                  appResetField
+                                  mat-icon-button
+                                  matSuffix
+                                >
+                                  <mat-icon>refresh</mat-icon>
+                                </button>
                               </mat-form-field>
 
                               <button
+                                type="button"
                                 mat-icon-button
                                 color="warn"
                                 (click)="
@@ -1241,7 +2161,10 @@ export class EditFormComponent implements OnInit, OnDestroy {
       maidenName: new FormControl(user?.maidenName || ""),
       age: new FormControl<number>(user?.age || null!, [Validators.min(0)]),
       gender: new FormControl(user?.gender || ""),
-      email: new FormControl(user?.email || "", [Validators.email]),
+      email: new FormControl(user?.email || "", [
+        Validators.required,
+        Validators.email,
+      ]),
       phone: new FormControl(user?.phone || "", [
         Validators.pattern(this.validatorParams.phonePatterns.us),
       ]),
@@ -1417,9 +2340,7 @@ export class EditFormComponent implements OnInit, OnDestroy {
   private createTechnologyGroup(tech?: Technology): FormGroup {
     return new FormGroup({
       _id: new FormControl(tech?._id || uuidv4()),
-      technology: new FormControl(tech?.technology || "", [
-        Validators.required,
-      ]),
+      technology: new FormControl(tech?.technology || ""),
     });
   }
 

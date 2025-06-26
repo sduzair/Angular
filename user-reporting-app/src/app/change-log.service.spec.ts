@@ -9,12 +9,11 @@ import { Address, User, WorkExperience } from "./table/table.component";
 describe("ChangeLogService", () => {
   let service: ChangeLogService<DeepPartial<User>>;
   // Mock user structure
-  let mockUserUsingIdAsDiscriminator: DeepPartial<WithVersion<User>> = null!;
-  let mockUserUsingIndexDiscriminator: DeepPartial<User> = null!;
+  let mockUser: DeepPartial<WithVersion<User>> = null!;
 
   beforeEach(() => {
     service = new ChangeLogService();
-    mockUserUsingIdAsDiscriminator = {
+    mockUser = {
       _id: "user1",
       firstName: "John Doe",
       age: 30,
@@ -22,17 +21,6 @@ describe("ChangeLogService", () => {
       address: [
         {
           _id: "add1",
-          state: "ON",
-          city: "Metropolis",
-        },
-      ],
-    };
-    mockUserUsingIndexDiscriminator = {
-      firstName: "John Doe",
-      age: 30,
-      hair: { color: "black", type: "afro" },
-      address: [
-        {
           state: "ON",
           city: "Metropolis",
         },
@@ -51,10 +39,7 @@ describe("ChangeLogService", () => {
         },
       ];
 
-      const result = service.applyChanges(
-        mockUserUsingIdAsDiscriminator,
-        changes,
-      );
+      const result = service.applyChanges(mockUser, changes);
 
       expect(result.firstName).toBe("Jane Smith");
       expect(result._version).toBe(1);
@@ -70,54 +55,60 @@ describe("ChangeLogService", () => {
         },
       ];
 
-      const result = service.applyChanges(
-        mockUserUsingIdAsDiscriminator,
-        changes,
-      );
+      const result = service.applyChanges(mockUser, changes);
 
       expect(result?.hair?.color).toBe("white");
       expect(result._version).toBe(1);
     });
 
-    it("should add new array item", () => {
-      const workAddress: DeepPartial<Address> = {
-        _id: "add2",
-        city: "toronto",
-      };
-      const changes: ChangeLog[] = [
-        {
-          path: "address",
-          oldValue: undefined,
-          newValue: workAddress,
-          version: 1,
-        },
-      ];
-
-      const result = service.applyChanges(
-        mockUserUsingIdAsDiscriminator,
-        changes,
-      );
-
-      expect(result?.address?.length).toBe(2);
-      expect(result?.address![1]).toEqual(workAddress);
-      expect(result._version).toBe(1);
-    });
-
     describe("for items with _id as discriminator", () => {
+      it("should add new array item", () => {
+        const workAddress: DeepPartial<Address> = {
+          _id: "add2",
+          city: "toronto",
+        };
+        const changes: ChangeLog[] = [
+          {
+            path: "address",
+            oldValue: undefined,
+            newValue: workAddress,
+            version: 1,
+          },
+        ];
+
+        const result = service.applyChanges(mockUser, changes);
+
+        expect(result?.address?.length).toBe(2);
+        expect(result?.address![1]).toEqual(workAddress);
+        expect(result._version).toBe(1);
+      });
+
+      it("should remove entire array", () => {
+        const changes: ChangeLog[] = [
+          {
+            path: "address",
+            oldValue: mockUser.address!,
+            newValue: undefined,
+            version: 1,
+          },
+        ];
+        const result = service.applyChanges(mockUser, changes);
+
+        expect(result.address).toBeUndefined();
+        expect(result._version).toBe(1);
+      });
+
       it("should remove array item", () => {
         const changes: ChangeLog[] = [
           {
             path: "address.$id=add1",
-            oldValue: mockUserUsingIdAsDiscriminator.address![0],
+            oldValue: mockUser.address![0],
             newValue: undefined,
             version: 1,
           },
         ];
 
-        const result = service.applyChanges(
-          mockUserUsingIdAsDiscriminator,
-          changes,
-        );
+        const result = service.applyChanges(mockUser, changes);
 
         expect(result.address!.length).toBe(0);
         expect(result._version).toBe(1);
@@ -133,10 +124,7 @@ describe("ChangeLogService", () => {
           },
         ];
 
-        const result = service.applyChanges(
-          mockUserUsingIdAsDiscriminator,
-          changes,
-        );
+        const result = service.applyChanges(mockUser, changes);
 
         const add1 = result.address!.find((a) => a!._id === "add1");
         expect(add1?.state).toBe("AB");
@@ -145,20 +133,53 @@ describe("ChangeLogService", () => {
     });
 
     describe("for items with index as discriminator", () => {
+      it("should add new array item", () => {
+        const workAddress: DeepPartial<Address> = {
+          _id: "add2",
+          city: "toronto",
+        };
+        const changes: ChangeLog[] = [
+          {
+            path: "address",
+            oldValue: undefined,
+            newValue: workAddress,
+            version: 1,
+          },
+        ];
+
+        const result = service.applyChanges(mockUser, changes);
+
+        expect(result?.address?.length).toBe(2);
+        expect(result?.address![1]).toEqual(workAddress);
+        expect(result._version).toBe(1);
+      });
+
+      it("should remove entire array", () => {
+        const changes: ChangeLog[] = [
+          {
+            path: "address",
+            oldValue: mockUser.address!,
+            newValue: undefined,
+            version: 1,
+          },
+        ];
+        const result = service.applyChanges(mockUser, changes);
+
+        expect(result.address).toBeUndefined();
+        expect(result._version).toBe(1);
+      });
+
       it("should remove array item", () => {
         const changes: ChangeLog[] = [
           {
             path: "address.$idx=0",
-            oldValue: mockUserUsingIdAsDiscriminator.address![0],
+            oldValue: mockUser.address![0],
             newValue: undefined,
             version: 1,
           },
         ];
 
-        const result = service.applyChanges(
-          mockUserUsingIndexDiscriminator,
-          changes,
-        );
+        const result = service.applyChanges(mockUser, changes);
 
         expect(result.address!.length).toBe(0);
         expect(result._version).toBe(1);
@@ -174,10 +195,7 @@ describe("ChangeLogService", () => {
           },
         ];
 
-        const result = service.applyChanges(
-          mockUserUsingIndexDiscriminator,
-          changes,
-        );
+        const result = service.applyChanges(mockUser, changes);
 
         const add1 = result.address![0];
         expect(add1?.state).toBe("AB");
@@ -189,16 +207,12 @@ describe("ChangeLogService", () => {
   describe("compareProperties", () => {
     it("should detect simple property change", () => {
       const updatedUser: DeepPartial<User> = {
-        ...mockUserUsingIdAsDiscriminator,
+        ...mockUser,
         firstName: "Iqbal Ahmed",
       };
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(
-        mockUserUsingIdAsDiscriminator,
-        updatedUser,
-        changes,
-      );
+      service.compareProperties(mockUser, updatedUser, changes);
 
       expect(changes).toEqual([
         {
@@ -211,16 +225,12 @@ describe("ChangeLogService", () => {
 
     it("should detect nested property change", () => {
       const updatedUser: DeepPartial<User> = {
-        ...mockUserUsingIdAsDiscriminator,
-        hair: { ...mockUserUsingIdAsDiscriminator.hair, color: "blonde" },
+        ...mockUser,
+        hair: { ...mockUser.hair, color: "blonde" },
       };
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(
-        mockUserUsingIdAsDiscriminator,
-        updatedUser,
-        changes,
-      );
+      service.compareProperties(mockUser, updatedUser, changes);
 
       expect(changes).toEqual([
         {
@@ -232,20 +242,56 @@ describe("ChangeLogService", () => {
     });
 
     describe("for items with _id as discriminator", () => {
+      it("should detect entire array addition", () => {
+        const initWorkExpArray: DeepPartial<WorkExperience>[] = [
+          { _id: "work1", employer: "cibc" },
+        ];
+
+        const updatedUser: DeepPartial<User> = {
+          ...mockUser,
+          workExperience: initWorkExpArray,
+        };
+        const changes: ChangeLogWithoutVersion[] = [];
+
+        service.compareProperties(mockUser, updatedUser, changes);
+
+        expect(changes).toEqual([
+          {
+            path: "workExperience",
+            oldValue: undefined,
+            newValue: initWorkExpArray,
+          },
+        ]);
+      });
+
+      it("should detect entire array removal", () => {
+        const updatedUser: DeepPartial<User> = {
+          ...mockUser,
+          address: undefined,
+        };
+        const changes: ChangeLogWithoutVersion[] = [];
+
+        service.compareProperties(mockUser, updatedUser, changes);
+
+        expect(changes).toEqual([
+          {
+            path: "address",
+            oldValue: mockUser.address,
+            newValue: undefined,
+          },
+        ]);
+      });
+
       it("should detect array item modification", () => {
         const updatedUser: DeepPartial<User> = {
-          ...mockUserUsingIdAsDiscriminator,
-          address: mockUserUsingIdAsDiscriminator.address!.map((address) =>
+          ...mockUser,
+          address: mockUser.address!.map((address) =>
             address!._id === "add1" ? { ...address, state: "BC" } : address,
           ),
         };
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(
-          mockUserUsingIdAsDiscriminator,
-          updatedUser,
-          changes,
-        );
+        service.compareProperties(mockUser, updatedUser, changes);
 
         expect(changes).toEqual([
           {
@@ -262,16 +308,12 @@ describe("ChangeLogService", () => {
           city: "Paris",
         };
         const updatedUser: DeepPartial<User> = {
-          ...mockUserUsingIdAsDiscriminator,
-          address: [...mockUserUsingIdAsDiscriminator.address!, workAddress],
+          ...mockUser,
+          address: [...mockUser.address!, workAddress],
         };
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(
-          mockUserUsingIdAsDiscriminator,
-          updatedUser,
-          changes,
-        );
+        service.compareProperties(mockUser, updatedUser, changes);
 
         expect(changes).toEqual([
           {
@@ -284,23 +326,17 @@ describe("ChangeLogService", () => {
 
       it("should detect array item removal", () => {
         const updatedUser: DeepPartial<User> = {
-          ...mockUserUsingIdAsDiscriminator,
-          address: mockUserUsingIdAsDiscriminator.address?.filter(
-            (add) => add?._id !== "add1",
-          ),
+          ...mockUser,
+          address: mockUser.address?.filter((add) => add?._id !== "add1"),
         };
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(
-          mockUserUsingIdAsDiscriminator,
-          updatedUser,
-          changes,
-        );
+        service.compareProperties(mockUser, updatedUser, changes);
 
         expect(changes).toEqual([
           {
             path: "address.$id=add1",
-            oldValue: mockUserUsingIdAsDiscriminator.address![0],
+            oldValue: mockUser.address![0],
             newValue: undefined,
           },
         ]);
@@ -308,22 +344,56 @@ describe("ChangeLogService", () => {
     });
 
     describe("for items with index as discriminator", () => {
+      it("should detect entire  array addition", () => {
+        const initWorkExpArray: DeepPartial<WorkExperience>[] = [
+          { _id: "work1", employer: "cibc" },
+        ];
+
+        const updatedUser: DeepPartial<User> = {
+          ...mockUser,
+          workExperience: initWorkExpArray,
+        };
+        const changes: ChangeLogWithoutVersion[] = [];
+
+        service.compareProperties(mockUser, updatedUser, changes);
+
+        expect(changes).toEqual([
+          {
+            path: "workExperience",
+            oldValue: undefined,
+            newValue: initWorkExpArray,
+          },
+        ]);
+      });
+
+      it("should detect entire array removal", () => {
+        const updatedUser: DeepPartial<User> = {
+          ...mockUser,
+          address: undefined,
+        };
+        const changes: ChangeLogWithoutVersion[] = [];
+
+        service.compareProperties(mockUser, updatedUser, changes);
+
+        expect(changes).toEqual([
+          {
+            path: "address",
+            oldValue: mockUser.address,
+            newValue: undefined,
+          },
+        ]);
+      });
+
       it("should detect array item modification", () => {
         const updatedUser: DeepPartial<User> = {
-          ...mockUserUsingIndexDiscriminator,
-          address: mockUserUsingIndexDiscriminator.address!.map((add, i) =>
+          ...mockUser,
+          address: mockUser.address!.map((add, i) =>
             i === 0 ? { ...add, state: "BC" } : add,
           ),
         };
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(
-          mockUserUsingIndexDiscriminator,
-          updatedUser,
-          changes,
-          "",
-          "index",
-        );
+        service.compareProperties(mockUser, updatedUser, changes, "", "index");
 
         expect(changes).toEqual([
           {
@@ -337,18 +407,12 @@ describe("ChangeLogService", () => {
       it("should detect array item addition", () => {
         const workAddress: DeepPartial<Address> = { city: "Paris" };
         const updatedUser: DeepPartial<User> = {
-          ...mockUserUsingIndexDiscriminator,
-          address: [...mockUserUsingIndexDiscriminator.address!, workAddress],
+          ...mockUser,
+          address: [...mockUser.address!, workAddress],
         };
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(
-          mockUserUsingIndexDiscriminator,
-          updatedUser,
-          changes,
-          "",
-          "index",
-        );
+        service.compareProperties(mockUser, updatedUser, changes, "", "index");
 
         expect(changes).toEqual([
           {
@@ -361,25 +425,17 @@ describe("ChangeLogService", () => {
 
       it("should detect array item removal", () => {
         const updatedUser: DeepPartial<User> = {
-          ...mockUserUsingIndexDiscriminator,
-          address: mockUserUsingIndexDiscriminator.address!.filter(
-            (_, i) => i !== 0,
-          ),
+          ...mockUser,
+          address: mockUser.address!.filter((_, i) => i !== 0),
         };
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(
-          mockUserUsingIndexDiscriminator,
-          updatedUser,
-          changes,
-          "",
-          "index",
-        );
+        service.compareProperties(mockUser, updatedUser, changes, "", "index");
 
         expect(changes).toEqual([
           {
             path: "address.$idx=0",
-            oldValue: mockUserUsingIndexDiscriminator.address![0],
+            oldValue: mockUser.address![0],
             newValue: undefined,
           },
         ]);
@@ -392,21 +448,14 @@ describe("ChangeLogService", () => {
         city: "Vancouver",
       };
       const updatedUser: DeepPartial<User> = {
-        ...mockUserUsingIdAsDiscriminator,
+        ...mockUser,
         firstName: "Jane Smith",
         age: 31,
-        address: [
-          { ...mockUserUsingIdAsDiscriminator.address![0], state: "SK" },
-          workAddress,
-        ],
+        address: [{ ...mockUser.address![0], state: "SK" }, workAddress],
       };
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(
-        mockUserUsingIdAsDiscriminator,
-        updatedUser,
-        changes,
-      );
+      service.compareProperties(mockUser, updatedUser, changes);
 
       expect(changes).toEqual([
         { path: "firstName", oldValue: "John Doe", newValue: "Jane Smith" },
@@ -420,32 +469,6 @@ describe("ChangeLogService", () => {
           path: "address",
           oldValue: undefined,
           newValue: workAddress,
-        },
-      ]);
-    });
-
-    it("should handle whole array addition", () => {
-      const initWorkExpArray: DeepPartial<WorkExperience>[] = [
-        { _id: "work1", employer: "cibc" },
-      ];
-
-      const updatedUser: DeepPartial<User> = {
-        ...mockUserUsingIdAsDiscriminator,
-        workExperience: initWorkExpArray,
-      };
-      const changes: ChangeLogWithoutVersion[] = [];
-
-      service.compareProperties(
-        mockUserUsingIdAsDiscriminator,
-        updatedUser,
-        changes,
-      );
-
-      expect(changes).toEqual([
-        {
-          path: "workExperience",
-          oldValue: undefined,
-          newValue: initWorkExpArray,
         },
       ]);
     });
