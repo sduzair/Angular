@@ -50,7 +50,9 @@ export class ChangeLogService<T extends object> {
       const originalItem = originalMap.get(updatedItem._id);
 
       originalItem
-        ? this.compareProperties(originalItem, updatedItem, changes, itemPath)
+        ? this.compareProperties(originalItem, updatedItem, changes, {
+            path: itemPath,
+          })
         : changes.push({ path, oldValue: undefined, newValue: updatedItem });
     });
 
@@ -81,7 +83,9 @@ export class ChangeLogService<T extends object> {
       const updatedItem = arr2[i];
 
       if (i < arr1.length && i < arr2.length) {
-        this.compareProperties(originalItem, updatedItem, changes, itemPath);
+        this.compareProperties(originalItem, updatedItem, changes, {
+          path: itemPath,
+        });
       } else if (i < arr1.length) {
         changes.push({
           path: itemPath,
@@ -170,9 +174,14 @@ export class ChangeLogService<T extends object> {
   compareProperties(
     obj1: any,
     obj2: any,
-    changes: ChangeLogWithoutVersion[] = [],
-    path = "",
-    discriminator: DiscriminatorType = "_id",
+    changes: ChangeLogWithoutVersion[],
+    {
+      path = "",
+      discriminator = "_id",
+    }: {
+      path?: string;
+      discriminator?: DiscriminatorType;
+    } = {},
   ) {
     const allKeys = new Set([
       ...Object.keys(obj1 ?? {}),
@@ -180,31 +189,38 @@ export class ChangeLogService<T extends object> {
     ]);
     const compareArrays = this.getArrayComparator(discriminator);
 
-    allKeys.forEach((key) => {
-      const currentPath = path ? `${path}.${key}` : key;
-      const val1 = obj1?.[key];
-      const val2 = obj2?.[key];
+    [...allKeys.values()]
+      .filter((key) => !key.startsWith("_hidden"))
+      .forEach((key) => {
+        const currentPath = path ? `${path}.${key}` : key;
+        const val1 = obj1?.[key];
+        const val2 = obj2?.[key];
 
-      if (!val1 && Array.isArray(val2)) {
-        changes.push({
-          path: currentPath,
-          oldValue: undefined,
-          newValue: val2,
-        });
-      } else if (Array.isArray(val1) && Array.isArray(val2)) {
-        compareArrays(val1, val2, changes, currentPath);
-      } else if (typeof val2 === "object" && val2 !== null) {
-        this.compareProperties(
-          val1 ?? {},
-          val2,
-          changes,
-          currentPath,
-          discriminator,
-        );
-      } else if (val1 !== val2) {
-        changes.push({ path: currentPath, oldValue: val1, newValue: val2 });
-      }
-    });
+        if (!val1 && Array.isArray(val2) && val2.length !== 0) {
+          changes.push({
+            path: currentPath,
+            oldValue: undefined,
+            newValue: val2,
+          });
+        } else if (Array.isArray(val1) && Array.isArray(val2)) {
+          compareArrays(val1, val2, changes, currentPath);
+        } else if (typeof val2 === "object" && val2 !== null) {
+          this.compareProperties(val1 ?? {}, val2, changes, {
+            path: currentPath,
+            discriminator,
+          });
+        } else if (
+          val1 !== val2 &&
+          !(val1 === "" && val2 == null) &&
+          !(val1 == null && val2 === "") &&
+          !(val1 == null && val2 == null) &&
+          !(val1 == null && Array.isArray(val2) && val2.length === 0) &&
+          !(Array.isArray(val1) && val1.length === 0 && val2 == null) &&
+          !(val1 == null && typeof val2 === "boolean" && val2 === false)
+        ) {
+          changes.push({ path: currentPath, oldValue: val1, newValue: val2 });
+        }
+      });
   }
 }
 

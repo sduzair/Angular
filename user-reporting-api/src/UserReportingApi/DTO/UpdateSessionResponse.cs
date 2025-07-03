@@ -1,1 +1,1 @@
-public record UpdateSessionResponse(string UserId, int NewVersion, DateTime? UpdatedAt);
+public record UpdateSessionResponse(string SessionId, int NewVersion, DateTime? UpdatedAt);

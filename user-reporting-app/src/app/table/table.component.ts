@@ -23,10 +23,10 @@ import { MatInputModule } from "@angular/material/input";
 import { MatPaginator, MatPaginatorModule } from "@angular/material/paginator";
 import { MatSort, MatSortModule } from "@angular/material/sort";
 import { MatTableDataSource, MatTableModule } from "@angular/material/table";
-import { CamelCaseToSpacesPipe } from "../pipes/camelcase-to-spaces.pipe";
 import { ChangeLogService, WithVersion } from "../change-log.service";
 import { CrossTabEditService } from "../cross-tab-edit.service";
 import {
+  catchError,
   combineLatest,
   interval,
   scan,
@@ -34,9 +34,10 @@ import {
   switchMap,
   takeUntil,
   takeWhile,
+  throwError,
 } from "rxjs";
 import { type SessionState, SessionDataService } from "../session-data.service";
-import { FingerprintingService } from "../fingerprinting.service";
+import { AuthService } from "../fingerprinting.service";
 import { RecordService } from "../record.service";
 import { SelectionModel } from "@angular/cdk/collections";
 import { MatCheckboxModule } from "@angular/material/checkbox";
@@ -45,6 +46,9 @@ import { MatToolbarModule } from "@angular/material/toolbar";
 import { MatButtonModule } from "@angular/material/button";
 import { ActivatedRoute } from "@angular/router";
 import { removePageFromOpenTabs } from "../single-tab.guard";
+import { format, isAfter, isBefore, startOfDay } from "date-fns";
+import { PadZeroPipe } from "./pad-zero.pipe";
+import { MatChipsModule } from "@angular/material/chips";
 
 @Component({
   selector: "app-table",
@@ -61,19 +65,39 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
     MatDatepicker,
     MatDatepickerInput,
     MatDatepickerToggle,
-    CamelCaseToSpacesPipe,
     MatCheckboxModule,
     MatSidenavModule,
     MatToolbarModule,
     MatButtonModule,
     MatInputModule,
+    PadZeroPipe,
+    MatChipsModule,
   ],
   template: `
     <div class="table-system">
       <mat-toolbar>
         <mat-toolbar-row>
-          <h2>Reporting UI</h2>
-          <span class="toolbarrow-spacer"></span>
+          <h1>Reporting UI</h1>
+        </mat-toolbar-row>
+        <mat-toolbar-row>
+          <!-- Active Filter Chips -->
+          <mat-chip-set aria-label="Active filters" class="filter-chips">
+            <mat-chip
+              *ngFor="
+                let filter of filterForm.activeFilters;
+                trackBy: filterForm.trackBy
+              "
+              removable="true"
+              highlighted="true"
+              disableRipple="true"
+              (removed)="filterForm.removeFilter(filter.sanitizedKey)"
+            >
+              {{ filter.key }}: {{ filter.value }}
+              <button matChipRemove>
+                <mat-icon>cancel</mat-icon>
+              </button>
+            </mat-chip>
+          </mat-chip-set>
           <button
             (click)="openBulkEditFormTab()"
             *ngIf="!this.selection.isEmpty()"
@@ -93,27 +117,35 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
         <mat-drawer position="end" #drawer>
           <mat-toolbar>
             <mat-toolbar-row>
-              <span class="toolbarrow-spacer"></span>
               <button mat-icon-button (click)="drawer.toggle()">
                 <mat-icon>close</mat-icon>
               </button>
             </mat-toolbar-row>
           </mat-toolbar>
-          <form [formGroup]="filterForm" class="filter-header">
+          <form [formGroup]="filterForm.formGroup" class="filter-header">
             <ng-container *ngFor="let key of filterKeys">
               <!-- Text Filter -->
               <mat-form-field *ngIf="isTextFilterKey(key)">
-                <mat-label>Filter {{ key | appCamelCaseToSpaces }}</mat-label>
+                <mat-label
+                  >Filter {{ this.displayedColumns.transform(key) }}</mat-label
+                >
                 <input
                   matInput
-                  [formControlName]="key"
-                  [placeholder]="'Filter ' + key"
+                  [formControlName]="this.filterForm.filterFormKeySanitize(key)"
                 />
                 <button
                   matSuffix
                   mat-icon-button
-                  *ngIf="filterForm.get(key)?.value"
-                  (click)="clearFilter(key)"
+                  *ngIf="
+                    filterForm.formGroup.get(
+                      this.filterForm.filterFormKeySanitize(key)
+                    )?.value
+                  "
+                  (click)="
+                    this.filterForm.formGroup
+                      .get(this.filterForm.filterFormKeySanitize(key))
+                      ?.reset()
+                  "
                 >
                   <mat-icon>clear</mat-icon>
                 </button>
@@ -122,10 +154,14 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
               <!-- Date Filter  -->
               <div *ngIf="this.dateFilters.isDateFilterKey(key)">
                 <mat-form-field>
-                  <mat-label>{{ key | appCamelCaseToSpaces }}</mat-label>
+                  <mat-label>{{
+                    this.displayedColumns.transform(key)
+                  }}</mat-label>
                   <input
                     matInput
-                    [formControlName]="key"
+                    [formControlName]="
+                      this.filterForm.filterFormKeySanitize(key)
+                    "
                     [matDatepicker]="picker"
                   />
                   <mat-datepicker-toggle
@@ -139,9 +175,15 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
               <!-- Column Filter  -->
               <div *ngIf="this.selectFilters.isSelectFilterKey(key)">
                 <mat-form-field>
-                  <mat-label>{{ key | appCamelCaseToSpaces }}</mat-label>
-                  <select matNativeControl [formControlName]="key">
-                    <option value=""></option>
+                  <mat-label>{{
+                    this.displayedColumns.transform(key)
+                  }}</mat-label>
+                  <select
+                    matNativeControl
+                    [formControlName]="
+                      this.filterForm.filterFormKeySanitize(key)
+                    "
+                  >
                     <option
                       *ngFor="
                         let option of getUniqueColumnValuesForSelectFilter(key)
@@ -200,7 +242,7 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
               </ng-container>
               <!-- Column Definitions  -->
               <ng-container
-                *ngFor="let column of dataColumns"
+                *ngFor="let column of dataColumns.values"
                 [matColumnDef]="column"
               >
                 <th
@@ -209,31 +251,47 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
                   [mat-sort-header]="column"
                 >
                   <div [class.sticky-cell]="isStickyColumn(column)">
-                    {{ column | appCamelCaseToSpaces }}
+                    {{ this.displayedColumns.transform(column) }}
                   </div>
                 </th>
                 <td mat-cell *matCellDef="let row">
                   <div [class.sticky-cell]="isStickyColumn(column)">
                     <ng-container
+                      *ngIf="this.dateFilters.valuesTime.includes(column)"
+                    >
+                      {{
+                        this.dataColumns.getValueByPath(row, column)
+                          | appPadZero : 5
+                      }} </ng-container
+                    ><ng-container
                       *ngIf="this.dateFilters.values.includes(column)"
                     >
-                      {{ row[column] | date : "MM/dd/yyyy" }}
+                      {{
+                        this.dataColumns.getValueByPath(row, column)
+                          | date : "MM/dd/yyyy"
+                      }}
                     </ng-container>
                     <ng-container
-                      *ngIf="!this.dateFilters.values.includes(column)"
+                      *ngIf="
+                        !this.dateFilters.values.includes(column) &&
+                        !this.dateFilters.valuesIgnore.includes(column)
+                      "
                     >
-                      {{ row[column] }}
+                      {{ this.dataColumns.getValueByPath(row, column) }}
                     </ng-container>
                   </div>
                 </td>
               </ng-container>
 
-              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+              <tr
+                mat-header-row
+                *matHeaderRowDef="this.displayedColumns.values"
+              ></tr>
               <tr
                 mat-row
-                *matRowDef="let row; columns: displayedColumns"
+                *matRowDef="let row; columns: this.displayedColumns.values"
                 [class.recentOpenHighlight]="
-                  this.recentOpenRows.includes(row._id)
+                  this.recentOpenRows.includes(row._mongoid)
                 "
               ></tr>
             </table>
@@ -272,72 +330,215 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
           this.selection.select(row),
         );
   }
-  dataColumns: Array<keyof User> = [
-    "id",
-    "firstName",
-    "lastName",
-    "maidenName",
-    "age",
-    "gender",
-    "email",
-    "phone",
-    "username",
-    "password",
-    "birthDate",
-    "bloodGroup",
-    "height",
-    "weight",
-    "eyeColor",
-    "ip",
-    "macAddress",
-    "university",
-    "ein",
-    "ssn",
-    "userAgent",
-    "role",
-  ];
-  displayedColumns: DisplayedColumnType[] = [
-    "actions" as const,
-    "select" as const,
-    ...this.dataColumns,
-  ];
-  stickyColumns: DisplayedColumnType[] = ["actions", "id"];
-  selectFilters: {
-    values: DisplayedColumnType[];
-    generateFilterKey: (col: string) => string;
-    parseFilterKey: (key: string) => string;
+  get dataColumns() {
+    return TableComponent.dataColumns;
+  }
+  static readonly dataColumns = {
+    values: [
+      "dateOfTxn",
+      "timeOfTxn",
+      "dateOfPosting",
+      "timeOfPosting",
+      "methodOfTxn",
+      "reportingEntityLocationNo",
+      "startingActions.0.directionOfSA",
+      "startingActions.0.typeOfFunds",
+      "startingActions.0.amount",
+      "startingActions.0.currency",
+      "startingActions.0.fiuNo",
+      "startingActions.0.branch",
+      "startingActions.0.account",
+      "startingActions.0.accountType",
+      "completingActions.0.detailsOfDispo",
+      "completingActions.0.amount",
+      "completingActions.0.currency",
+      "completingActions.0.fiuNo",
+      "completingActions.0.branch",
+      "completingActions.0.account",
+      "completingActions.0.accountType",
+      "startingActions.0.accountOpen",
+      "startingActions.0.accountClose",
+      "startingActions.0.accountCurrency",
+      "completingActions.0.accountOpen",
+      "completingActions.0.accountClose",
+      "completingActions.0.accountCurrency",
+      "reportingEntityTxnRefNo",
+    ] as Array<DataColumnsType>,
+    getValueByPath(obj: StrTxn, path: string): any {
+      const keys = path.split(".");
+
+      return keys.reduce((acc, key) => {
+        if (acc === undefined || acc === null) return undefined;
+
+        // If key is a number string (array index), convert to number
+        const arrayIndex = Number(key);
+        if (!Number.isNaN(arrayIndex) && Array.isArray(acc)) {
+          return acc[arrayIndex];
+        }
+
+        return acc[key as keyof StrTxn];
+      }, obj);
+    },
+  };
+  get displayedColumns() {
+    return TableComponent.displayedColumns;
+  }
+  static displayedColumns = {
+    values: [
+      "actions" as const,
+      "select" as const,
+      ...TableComponent.dataColumns.values,
+    ],
+    /**
+     * Generates names for table headers and filter form input field labels
+     *
+     * @param {string} value
+     * @returns {string}
+     */
+    transform(value: string): string {
+      if (TableComponent.dateFilters.isDateFilterKeyStart(value)) {
+        const parsedKey = TableComponent.dateFilters.parseFilterKey(value);
+        return `${TableComponent.displayedColumns.columnHeaderMap[
+          parsedKey
+        ]!}  Start`;
+      }
+      if (TableComponent.dateFilters.isDateFilterKeyEnd(value)) {
+        const parsedKey = TableComponent.dateFilters.parseFilterKey(value);
+        return `${TableComponent.displayedColumns.columnHeaderMap[
+          parsedKey
+        ]!}  End`;
+      }
+      if (
+        TableComponent.dateFilters.values.includes(value as DataColumnsType)
+      ) {
+        return TableComponent.displayedColumns.columnHeaderMap[
+          value as DataColumnsType
+        ]!;
+      }
+      if (TableComponent.selectFilters.isSelectFilterKey(value)) {
+        const parsedVal = TableComponent.selectFilters.parseFilterKey(value);
+        return TableComponent.displayedColumns.columnHeaderMap[
+          parsedVal as ColumnHeaderKeys
+        ]!;
+      }
+      if (
+        TableComponent.selectFilters.values.includes(value as DataColumnsType)
+      ) {
+        return TableComponent.displayedColumns.columnHeaderMap[
+          value as DataColumnsType
+        ]!;
+      }
+      if (TableComponent.isTextFilterKey(value))
+        return TableComponent.displayedColumns.columnHeaderMap[
+          value as DataColumnsType
+        ]!;
+
+      throw new Error("Unknown column header");
+    },
+    get columnHeaderMap(): Partial<Record<ColumnHeaderKeys, string>> {
+      return {
+        dateOfTxn: "Date of Txn",
+        timeOfTxn: "Time of Txn",
+        dateOfPosting: "Date of Post",
+        timeOfPosting: "Time of Post",
+        methodOfTxn: "Method of Txn",
+        reportingEntityLocationNo: "Reporting Entity",
+        "startingActions.0.directionOfSA": "Direction",
+        "startingActions.0.typeOfFunds": "Type of Funds",
+        "startingActions.0.amount": "Debit",
+        "startingActions.0.currency": "Debit Currency",
+        "startingActions.0.fiuNo": "Debit FIU",
+        "startingActions.0.branch": "Debit Branch",
+        "startingActions.0.account": "Debit Account",
+        "startingActions.0.accountType": "Debit Account Type",
+        "completingActions.0.detailsOfDispo": "Details of Disposition",
+        "completingActions.0.amount": "Credit Amount",
+        "completingActions.0.currency": "Credit Currency",
+        "completingActions.0.fiuNo": "Credit FIU",
+        "completingActions.0.branch": "Credit Branch",
+        "completingActions.0.account": "Credit Account",
+        "completingActions.0.accountType": "Credit Account Type",
+        "startingActions.0.accountOpen": "Debit Account Open",
+        "startingActions.0.accountClose": "Debit Account Close",
+        "startingActions.0.accountCurrency": "Debit Account Currency",
+        "completingActions.0.accountOpen": "Credit Account Open",
+        "completingActions.0.accountClose": "Credit Account Close",
+        "completingActions.0.accountCurrency": "Credit Account Currency",
+        reportingEntityTxnRefNo: "Transaction Reference No",
+      };
+    },
+  };
+  get stickyColumns() {
+    return TableComponent.stickyColumns;
+  }
+  private static stickyColumns: DisplayedColumnType[] = ["actions", "_mongoid"];
+  get selectFilters() {
+    return TableComponent.selectFilters;
+  }
+  static selectFilters: {
+    values: DataColumnsType[];
+    generateFilterKey: (col: string) => `select${string}`;
+    parseFilterKey: (key: string) => DataColumnsType;
     isSelectFilterKey: (key: string) => boolean;
   } = {
-    values: ["gender", "bloodGroup", "eyeColor", "university", "role"],
+    values: [
+      "methodOfTxn",
+      "reportingEntityLocationNo",
+      "startingActions.0.directionOfSA",
+      "startingActions.0.typeOfFunds",
+      "startingActions.0.fiuNo",
+      "startingActions.0.accountType",
+      "startingActions.0.currency",
+      "startingActions.0.branch",
+      "startingActions.0.account",
+      "startingActions.0.accountCurrency",
+      "completingActions.0.detailsOfDispo",
+      "completingActions.0.fiuNo",
+      "completingActions.0.accountType",
+      "completingActions.0.currency",
+      "completingActions.0.branch",
+      "completingActions.0.account",
+      "completingActions.0.accountCurrency",
+    ] as const,
     generateFilterKey: (column) =>
-      `select${column.charAt(0).toUpperCase() + column.slice(1)}`,
+      `select${column.charAt(0).toUpperCase() + column.slice(1)}` as const,
     parseFilterKey: (key) => {
       console.assert(key.startsWith("select"));
       const column = key.slice(6); // Remove 'select'
-      return column.charAt(0).toLowerCase() + column.slice(1);
+      return (column.charAt(0).toLowerCase() +
+        column.slice(
+          1,
+        )) as (typeof TableComponent.selectFilters.values)[number];
     },
     isSelectFilterKey: (key: string) => {
       return (
         key.startsWith("select") &&
-        this.selectFilters.values.some(
-          (col) => col === this.selectFilters.parseFilterKey(key),
+        TableComponent.selectFilters.values.some(
+          (col) => col === TableComponent.selectFilters.parseFilterKey(key),
         )
       );
     },
   };
-  dateFilters: {
-    values: DisplayedColumnType[];
+  get dateFilters() {
+    return TableComponent.dateFilters;
+  }
+  static dateFilters: {
+    values: DataColumnsType[];
     generateStartAndEndFilterKeys: (col: string) => string[];
-    parseFilterKey: (key: string) => string;
+    parseFilterKey: (key: string) => DataColumnsType;
     isDateFilterKey: (key: string) => boolean;
+    isDateFilterKeyStart: (key: string) => boolean;
+    isDateFilterKeyEnd: (key: string) => boolean;
+    valuesIgnore: DataColumnsType[];
+    valuesTime: DataColumnsType[];
   } = {
-    values: ["birthDate"],
+    values: ["dateOfTxn", "dateOfPosting"],
     generateStartAndEndFilterKeys: (column) => [
       `${column}Start`,
       `${column}End`,
     ],
     parseFilterKey: (key) => {
-      for (const col of this.dateFilters.values) {
+      for (const col of TableComponent.dateFilters.values) {
         if (key === `${col}Start` || key === `${col}End`) {
           return col;
         }
@@ -345,52 +546,116 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
       throw new Error("Not a valid date filter key");
     },
     isDateFilterKey: (key) =>
-      this.dateFilters.values.some(
+      TableComponent.dateFilters.values.some(
         (col) => key === `${col}Start` || key === `${col}End`,
       ),
+    isDateFilterKeyStart: (key) =>
+      TableComponent.dateFilters.values.some((col) => key === `${col}Start`),
+    isDateFilterKeyEnd: (key) =>
+      TableComponent.dateFilters.values.some((col) => key === `${col}End`),
+    valuesIgnore: [
+      "timeOfTxn",
+      "timeOfPosting",
+      "startingActions.0.accountOpen",
+      "startingActions.0.accountClose",
+      "completingActions.0.accountOpen",
+      "completingActions.0.accountClose",
+    ],
+    valuesTime: ["timeOfTxn", "timeOfPosting"],
   };
 
-  filterKeys = this.dataColumns.flatMap((column) => {
-    if (this.dateFilters.values.includes(column)) {
-      return this.dateFilters.generateStartAndEndFilterKeys(column);
-    }
-    if (this.selectFilters.values.includes(column))
-      return [column, this.selectFilters.generateFilterKey(column)];
+  get filterKeys() {
+    return TableComponent.filterKeys;
+  }
+  private static filterKeys = TableComponent.dataColumns.values.flatMap(
+    (column) => {
+      if (TableComponent.dateFilters.values.includes(column)) {
+        return TableComponent.dateFilters.generateStartAndEndFilterKeys(column);
+      }
+      if (TableComponent.dateFilters.valuesIgnore.includes(column)) return [];
+      if (TableComponent.selectFilters.values.includes(column))
+        return TableComponent.selectFilters.generateFilterKey(column);
 
-    return column;
-  });
+      return column;
+    },
+  );
   isTextFilterKey(key: string) {
-    if (this.dateFilters.isDateFilterKey(key)) return false;
-    if (this.selectFilters.isSelectFilterKey(key)) return false;
-    if (this.selectFilters.values.includes(key as DisplayedColumnType))
-      return false;
+    return TableComponent.isTextFilterKey(key);
+  }
+  static isTextFilterKey(key: string) {
+    if (TableComponent.dateFilters.isDateFilterKey(key)) return false;
+    if (TableComponent.selectFilters.isSelectFilterKey(key)) return false;
     return true;
   }
   isStickyColumn(col: string) {
-    return this.stickyColumns.includes(col as DisplayedColumnType);
+    return TableComponent.stickyColumns.includes(col as DisplayedColumnType);
   }
-  filterForm = new FormGroup(
-    this.filterKeys.reduce(
-      (acc, item) => ({ ...acc, [item]: new FormControl("") }),
-      {} as {
-        [key in FilterKeysType]: FormControl;
-      },
-    ),
-  );
-
-  dataSource = new MatTableDataSource<WithVersion<User>>();
+  get filterForm() {
+    return TableComponent.filterForm;
+  }
+  static filterForm = {
+    filterFormKeySanitize: (value: string): string => {
+      // Replace all dots with underscores to make keys safe for FormGroup
+      return value.replace(/\./g, "_");
+    },
+    filterFormKeyDesanitize: (value: string): string => {
+      // Replace all underscores back to dots for filter predicate
+      return value.replace(/_/g, ".");
+    },
+    _formGroup: null as FormGroup | null,
+    get formGroup() {
+      if (this._formGroup) return this._formGroup;
+      this._formGroup = new FormGroup(
+        TableComponent.filterKeys.reduce(
+          (acc, item) => ({
+            ...acc,
+            [TableComponent.filterForm.filterFormKeySanitize(item)]:
+              new FormControl(""),
+          }),
+          {} as {
+            [key in FilterKeysType]: FormControl;
+          },
+        ),
+        { updateOn: "blur" },
+      );
+      return this._formGroup;
+    },
+    get activeFilters() {
+      return Object.keys(this._formGroup!.value).flatMap((sanitizedKey) => {
+        const desanitizedKey = this.filterFormKeyDesanitize(sanitizedKey);
+        const key = TableComponent.displayedColumns.transform(desanitizedKey);
+        const value = this._formGroup?.get(sanitizedKey)!.value;
+        if (!value) return [];
+        if (TableComponent.dateFilters.isDateFilterKey(desanitizedKey)) {
+          return {
+            key,
+            value: format(value, "MM/dd/yyyy"),
+            sanitizedKey,
+          };
+        }
+        return { key, value, sanitizedKey };
+      });
+    },
+    removeFilter(sanitizedKey: string) {
+      this._formGroup?.get(sanitizedKey)!.reset();
+    },
+    trackBy(_: number, item: any) {
+      item.sanitizedKey;
+    },
+  };
+  dataSource = new MatTableDataSource<WithVersion<StrTxn>>();
 
   @ViewChild(MatPaginator) paginator: MatPaginator | undefined;
   @ViewChild(MatSort) sort: MatSort | undefined;
 
   recentOpenRows: string[] = [];
 
-  selection = new SelectionModel<WithVersion<User>>(true, []);
+  selection = new SelectionModel<WithVersion<StrTxn>>(true, []);
 
   constructor(
-    private changeLogService: ChangeLogService<User>,
+    private changeLogService: ChangeLogService<StrTxn>,
     private crossTabEditService: CrossTabEditService,
-    private fingerprintingService: FingerprintingService,
+    private authService: AuthService,
     private sessionDataService: SessionDataService,
     private recordService: RecordService,
     private route: ActivatedRoute,
@@ -412,8 +677,8 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnInit() {
     this.dataSource.filterPredicate = this.createFilterPredicate();
 
-    this.filterForm.valueChanges.subscribe((val) => {
-      if (this.filterForm.invalid) return;
+    this.filterForm.formGroup.valueChanges.subscribe((val) => {
+      if (this.filterForm.formGroup.invalid) return;
       this.dataSource.filter = JSON.stringify(val);
       this.selection.clear();
     });
@@ -426,40 +691,51 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   setupTableDataSource() {
-    this.fingerprintingService.browserFingerPrint$
+    this.authService.userAuthId$
       .pipe(
-        switchMap((fprint) => this.sessionDataService.intialize(fprint)),
+        switchMap((userAuthId) =>
+          this.sessionDataService.fetchSession("64a7f8c9e3a5b1d2f3c4e5a6").pipe(
+            catchError((error) => {
+              if (error.status === 404) {
+                return this.sessionDataService.initialize(userAuthId);
+              }
+              return throwError(() => error);
+            }),
+          ),
+        ),
         switchMap(() =>
           combineLatest([
-            this.recordService.getUsers(),
+            this.recordService.getStrTxns(),
             this.sessionDataService.sessionState$,
           ]),
         ),
-        scan((acc, [users, sessionState]) => {
-          const { data: sessionStateData, recentEdit } = sessionState;
+        scan((acc, [strTxns, sessionState]) => {
+          const { data: sessionStateData, recentEditFromEditForm } =
+            sessionState;
 
-          if (recentEdit != null) {
+          if (recentEditFromEditForm != null) {
             console.assert(acc.length > 0);
             return acc.map((user) => {
-              if (recentEdit.userId !== user._id) return user;
+              if (recentEditFromEditForm.strTxnId !== user._mongoid)
+                return user;
               return this.changeLogService.applyChanges(
                 user,
-                recentEdit.changeLogs,
+                recentEditFromEditForm.changeLogs,
               );
             });
           }
 
-          const usersResult = users.map((user) => {
-            const userChanges = sessionStateData.editedUsers.find(
-              (editedUser) => editedUser.userId === user._id,
+          const strTxnsResult = strTxns.map((strTxn) => {
+            const userChanges = sessionStateData?.editedStrTxns?.find(
+              (editedUser) => editedUser.strTxnId === strTxn._mongoid,
             );
             return this.changeLogService.applyChanges(
-              user,
+              strTxn,
               userChanges?.changeLogs || [],
             );
           });
-          return usersResult;
-        }, [] as WithVersion<User>[]),
+          return strTxnsResult;
+        }, [] as WithVersion<StrTxn>[]),
         takeUntil(this.destroy$),
       )
       .subscribe((users) => {
@@ -467,119 +743,81 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
       });
   }
 
-  private createFilterPredicate(): (record: User, filter: string) => boolean {
+  // todo match empty values
+  private createFilterPredicate(): (record: StrTxn, filter: string) => boolean {
     return (record, filter) => {
       const searchTerms: { [key: string]: string } = JSON.parse(filter);
-      return Object.keys(record).every((key) => {
-        const prop = key as keyof User;
-        if (
-          !searchTerms[prop] &&
-          !this.dateFilters.values.includes(prop) &&
-          !this.selectFilters.values.includes(prop)
-        )
-          return true;
+      return Object.keys(searchTerms).every((searchTermKey) => {
+        const desanitizedKey =
+          this.filterForm.filterFormKeyDesanitize(searchTermKey);
 
-        if (this.dateFilters.values.includes(prop)) {
-          if (!searchTerms[`${prop}Start`] && !searchTerms[`${prop}End`])
-            return true;
-          return this.isDateBetween(
-            record[prop] as string,
-            searchTerms[`${prop}Start`].split("T")[0],
-            searchTerms[`${prop}End`].split("T")[0],
+        if (this.dateFilters.isDateFilterKey(desanitizedKey)) {
+          const keyPath = this.dateFilters.parseFilterKey(desanitizedKey);
+          const recordVal = startOfDay(
+            this.dataColumns.getValueByPath(record, keyPath),
           );
+          const startDate = searchTerms[`${keyPath}Start`]
+            ? startOfDay(searchTerms[`${keyPath}Start`])
+            : "";
+          const endDate = searchTerms[`${keyPath}End`]
+            ? startOfDay(searchTerms[`${keyPath}End`])
+            : "";
+          if (startDate && !isAfter(recordVal, startDate)) return false;
+          if (endDate && !isBefore(recordVal, endDate)) return false;
+          return true;
         }
-        if (this.selectFilters.values.includes(prop)) {
-          const filterTerm =
-            searchTerms[this.selectFilters.generateFilterKey(prop)];
-          if (!filterTerm) return true;
-          return (record[prop] as string) === filterTerm;
-        }
-        if (
-          !this.dateFilters.values.includes(prop) &&
-          !this.selectFilters.values.includes(prop)
-        )
-          return (record[prop] as string).includes(searchTerms[prop].trim());
 
-        console.assert(
-          false,
-          "🚀 ~ TableComponent ~ createFilter ~ data: assert all data keys handled",
-        );
-        return true;
+        if (this.selectFilters.isSelectFilterKey(desanitizedKey)) {
+          if (!searchTerms[searchTermKey]) return true;
+          const keyPath = this.selectFilters.parseFilterKey(desanitizedKey);
+          const recordVal = this.dataColumns.getValueByPath(record, keyPath);
+          return searchTerms[searchTermKey] === recordVal;
+        }
+
+        if (this.isTextFilterKey(desanitizedKey)) {
+          if (!searchTerms[searchTermKey]) return true;
+          const recordVal = this.dataColumns.getValueByPath(
+            record,
+            desanitizedKey,
+          );
+          return searchTerms[searchTermKey].trim() === String(recordVal).trim();
+        }
+
+        throw new Error("Unknown filter search term");
       });
     };
   }
 
   getUniqueColumnValuesForSelectFilter(key: string) {
-    const values = this.dataSource.filteredData.map(
-      (user) => user[this.selectFilters.parseFilterKey(key) as keyof User],
-    ) as string[];
-    return new Set(values);
-  }
-
-  private isDateBetween(
-    checkDateStr: string,
-    startDateStr: string,
-    endDateStr: string,
-  ) {
-    const parseLocalDate = (dateStr: string) => {
-      const [year, month, day] = dateStr.split("-").map(Number);
-      return new Date(year, month - 1, day); // month is zero-based
-    };
-    if (
-      ![checkDateStr, startDateStr, endDateStr].every((str) =>
-        str ? this.isExpectedDateFormat(str) : true,
-      )
-    )
-      throw new Error("Invalid date format");
-    if (startDateStr && !endDateStr) {
-      const checkDate = parseLocalDate(checkDateStr);
-      const startDate = parseLocalDate(startDateStr);
-      return checkDate >= startDate;
-    }
-    if (!startDateStr && endDateStr) {
-      const checkDate = parseLocalDate(checkDateStr);
-      const endDate = parseLocalDate(endDateStr);
-      return checkDate <= endDate;
-    }
-    if (startDateStr && endDateStr) {
-      const checkDate = parseLocalDate(checkDateStr);
-      const startDate = parseLocalDate(startDateStr);
-      const endDate = parseLocalDate(endDateStr);
-
-      return checkDate >= startDate && checkDate <= endDate;
-    }
-    console.assert(
-      false,
-      "🚀 ~ TableComponent ~ isDateBetween: assert all cases handled",
-    );
-    return false;
-  }
-
-  clearFilter(key: string): void {
-    this.filterForm.get(key)?.reset();
-  }
-
-  private isExpectedDateFormat(str: string) {
-    const dateRegex = /^\d{4}-(\d{1,2})-(\d{1,2})$/;
-    return dateRegex.test(str);
+    const uniques = new Set([""]);
+    return this.dataSource.data.reduce((acc, txn) => {
+      return acc.add(
+        this.dataColumns.getValueByPath(
+          txn,
+          this.selectFilters.parseFilterKey(key),
+        ) ?? "",
+      );
+    }, uniques);
   }
 
   editFormTab: WindowProxy | null = null;
-  openEditFormTab(record: WithVersion<User>) {
-    this.recentOpenRows = [record._id];
+  openEditFormTab(record: WithVersion<StrTxn>) {
+    this.recentOpenRows = [record._mongoid];
     this.editFormTab = this.crossTabEditService.openEditFormTab({
       editType: "EDIT_REQUEST",
-      user: record,
+      strTxn: record,
     });
     this.monitorEditTabOpenStatus({ tabWindow: this.editFormTab! });
   }
 
   bulkEditFormTab: WindowProxy | null = null;
   openBulkEditFormTab() {
-    this.recentOpenRows = this.selection.selected.map((user) => user._id);
+    this.recentOpenRows = this.selection.selected.map(
+      (strTxn) => strTxn._mongoid,
+    );
     this.bulkEditFormTab = this.crossTabEditService.openEditFormTab({
       editType: "BULK_EDIT_REQUEST",
-      users: this.selection.selected,
+      strTxns: this.selection.selected,
     });
     this.monitorEditTabOpenStatus({
       tabWindow: this.bulkEditFormTab!,
@@ -602,118 +840,118 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 }
 
-export interface User {
-  _id: string;
-  id: number;
-  firstName: string;
-  lastName: string;
-  maidenName: string;
-  age: number;
-  gender: string;
-  email: string;
-  phone: string;
-  username: string;
-  password: string;
-  birthDate: string;
-  image: string;
-  bloodGroup: string;
-  height: number;
-  weight: number;
-  eyeColor: string;
-  hair: Hair;
-  ip: string;
-  address: Address[];
-  macAddress: string;
-  university: string;
-  bank: Bank[];
-  company: Company[];
-  ein: string;
-  ssn: string;
-  userAgent: string;
-  crypto: Crypto[];
-  role: string;
-  workExperience: WorkExperience[];
+export interface StrTxn {
+  _mongoid: string;
+  wasTxnAttempted: boolean;
+  wasTxnAttemptedReason: string;
+  dateOfTxn: string;
+  timeOfTxn: string;
+  hasPostingDate: boolean;
+  dateOfPosting: string;
+  timeOfPosting: string;
+  methodOfTxn: string;
+  methodOfTxnOther: string;
+  reportingEntityTxnRefNo: string;
+  purposeOfTxn: string;
+  reportingEntityLocationNo: string;
+  startingActions: StartingAction[];
+  completingActions: CompletingAction[];
 }
 
-export interface Crypto {
+export interface CompletingAction {
   _id: string;
-  coin: string;
-  wallet: string;
-  network: string;
-}
-
-export interface Company {
-  _id: string;
-  department: string;
-  name: string;
-  title: string;
-  address: CompanyAddress;
-}
-
-export interface Bank {
-  _id: string;
-  cardExpire: string;
-  cardNumber: string;
-  cardType: string;
+  detailsOfDispo: string;
+  detailsOfDispoOther: string;
+  amount: number;
   currency: string;
-  iban: string;
+  exchangeRate: number;
+  valueInCad: number;
+  fiuNo: string;
+  branch: string;
+  account: string;
+  accountType: string;
+  accountTypeOther: string;
+  accountCurrency: string;
+  accountOpen: string;
+  accountClose: string;
+  accountStatus: string;
+  accountHolders?: AccountHolder[];
+  wasAnyOtherSubInvolved: boolean;
+  involvedIn?: InvolvedIn[];
+  wasBenInfoObtained: boolean;
+  beneficiaries?: Beneficiary[];
 }
 
-export interface Address {
+export interface Beneficiary {
   _id: string;
-  address: string;
-  city: string;
-  state: string;
-  stateCode: string;
-  postalCode: string;
-  coordinates: Coordinates;
-  country: string;
+  linkToSub: string;
+  clientNo: number;
+  email: string;
+  url: null;
 }
 
-export interface CompanyAddress {
-  address: string;
-  city: string;
-  state: string;
-  stateCode: string;
-  postalCode: string;
-  coordinates: Coordinates;
-  country: string;
-}
-
-export interface Coordinates {
-  lat: number;
-  lng: number;
-}
-
-export interface Hair {
-  color: string;
-  type: string;
-}
-
-export interface WorkExperience {
+export interface InvolvedIn {
   _id: string;
-  jobTitle: string;
-  employer: string;
-  projects: Project[];
+  linkToSub: string;
+  accountNumber: string;
+  policyNumber: string;
+  identifyingNumber: string;
 }
 
-export interface Project {
+export interface AccountHolder {
   _id: string;
-  name: string;
-  description: string;
-  technologies: Technology[];
-  teamMembers: TeamMember[];
+  linkToSub: string;
 }
 
-export interface TeamMember {
+export interface StartingAction {
   _id: string;
-  name: string;
-  role: string;
+  directionOfSA: string;
+  typeOfFunds: string;
+  typeOfFundsOther: string;
+  amount: number;
+  currency: string;
+  fiuNo: string;
+  branch: string;
+  account: string;
+  accountType: string;
+  accountTypeOther: string;
+  accountOpen: string;
+  accountClose: string;
+  accountStatus: string;
+  howFundsObtained: string;
+  accountCurrency: string;
+  accountHolders?: AccountHolder[];
+  wasSofInfoObtained: boolean;
+  sourceOfFunds: SourceOfFunds[];
+  wasCondInfoObtained: boolean;
+  conductors: Conductor[];
 }
 
-export interface Technology {
+export interface Conductor {
   _id: string;
-  technology: string;
+  linkToSub: string;
+  clientNo: string;
+  email: string;
+  url: string;
+  wasConductedOnBehalf: boolean;
+  onBehalfOf: OnBehalfOf[];
+}
+
+export interface SourceOfFunds {
+  _id: string;
+  linkToSub: string;
+  accountNumber: string;
+  policyNumber: string;
+  identifyingNumber: string;
+}
+
+export interface OnBehalfOf {
+  linkToSub: string;
+  clientNo: string;
+  email: string;
+  url: string;
+  relationToCond: string;
+  relationToCondOther: string;
 }
 
 type DateKeys<T> = {
@@ -726,11 +964,26 @@ type WithDateRange<T> = T & {
   [K in DateKeys<T> as `${K & string}End`]: string;
 };
 
-type FilterKeysType = keyof WithDateRange<User>;
+type FilterKeysType = keyof WithDateRange<StrTxn>;
 
-type DisplayedColumnType = keyof User | "actions" | "select";
+export type DataColumnsType =
+  | keyof StrTxn
+  | keyof AddPrefixToObject<StartingAction, "startingActions.0.">
+  | keyof AddPrefixToObject<CompletingAction, "completingActions.0.">;
+
+type DisplayedColumnType = DataColumnsType | "actions" | "select";
+
+type AddPrefixToObject<T, P extends string> = {
+  [K in keyof T as K extends string ? `${P}${K}` : never]: T[K];
+};
 
 export interface SessionDataReqBody {
   userId: string;
   data: SessionState;
 }
+
+type ColumnHeaderKeys =
+  | (typeof TableComponent.dataColumns.values)[number]
+  | ReturnType<typeof TableComponent.selectFilters.generateFilterKey>
+  | `${string}Start`
+  | `${string}End`;

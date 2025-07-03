@@ -4,7 +4,7 @@ import { BehaviorSubject, catchError, map, Observable, Subject } from "rxjs";
 import { ChangeLog } from "./change-log.service";
 import { CrossTabEditService, EditSession } from "./cross-tab-edit.service";
 import { switchMap, tap, withLatestFrom } from "rxjs/operators";
-import { FingerprintingService } from "./fingerprinting.service";
+import { AuthService } from "./fingerprinting.service";
 
 @Injectable({
   providedIn: "root",
@@ -19,41 +19,43 @@ export class SessionDataService {
   constructor(
     private http: HttpClient,
     private crossTabEditService: CrossTabEditService,
-    private fingerprintingService: FingerprintingService,
+    private authService: AuthService,
   ) {
     this.crossTabEditService.editResponse$
       .pipe(
-        withLatestFrom(
-          this.sessionState$,
-          this.fingerprintingService.browserFingerPrint$,
-        ),
-        switchMap(([recentEdit, sessionStateCurrent, fingerprintId]) => {
-          return this.update(fingerprintId, sessionStateCurrent, recentEdit!);
+        withLatestFrom(this.sessionState$),
+        switchMap(([recentEdit, sessionStateCurrent]) => {
+          return this.update(
+            sessionStateCurrent.sessionId,
+            sessionStateCurrent,
+            recentEdit!,
+          );
         }),
       )
       .subscribe();
   }
 
-  intialize(fingerprint: string) {
-    return this.http
-      .get<GetSessionResponse>(`/api/sessions/${fingerprint}`)
-      .pipe(
-        tap((res) => {
-          this.sessionState.next({
-            version: res.version,
-            data: res.data,
-            recentEdit: null,
-          });
-        }),
-        catchError(() => this.createNew(fingerprint)),
-      );
+  fetchSession(sessionId: string) {
+    return this.http.get<GetSessionResponse>(`/api/sessions/${sessionId}`).pipe(
+      map((res) => {
+        const remoteSess = {
+          sessionId,
+          version: res.version,
+          data: res.data,
+          recentEditFromEditForm: null,
+        };
+        this.sessionState.next(remoteSess);
+        return remoteSess;
+      }),
+    );
   }
 
-  private createNew(fingerprint: string): Observable<SessionState> {
+  initialize(fingerprint: string): Observable<SessionState> {
     const newSession: SessionState = {
+      sessionId: null!,
       version: 0,
-      data: { editedUsers: [] },
-      recentEdit: null,
+      data: { editedStrTxns: [] },
+      recentEditFromEditForm: null,
     };
     const payload: CreateSessionRequest = {
       userId: fingerprint,
@@ -62,6 +64,7 @@ export class SessionDataService {
     return this.http.post<CreateSessionResponse>("/api/sessions", payload).pipe(
       map((res) => {
         console.assert(res.version === newSession.version);
+        newSession.sessionId = res.sessionId;
         this.sessionState.next(newSession);
         return newSession;
       }),
@@ -69,13 +72,13 @@ export class SessionDataService {
   }
 
   private update(
-    userId: string,
+    sessionId: string,
     sessionStateCurrent: SessionState,
     recentEdit: Extract<EditSession, { type: "EDIT_RESULT" }>,
   ): Observable<SessionState> {
     const newSessionData = structuredClone(sessionStateCurrent.data);
-    const user = newSessionData.editedUsers.find(
-      (user) => user.userId === recentEdit?.payload.userId,
+    const txn = newSessionData.editedStrTxns?.find(
+      (user) => user.strTxnId === recentEdit?.payload.strTxnId,
     );
 
     const changeLogsVersioned = recentEdit!.payload.changeLogs.map(
@@ -85,13 +88,14 @@ export class SessionDataService {
       }),
     );
 
-    if (!user) {
-      newSessionData.editedUsers.push({
-        userId: recentEdit!.payload.userId,
+    if (!txn) {
+      if (!newSessionData.editedStrTxns) newSessionData.editedStrTxns = [];
+      newSessionData.editedStrTxns.push({
+        strTxnId: recentEdit!.payload.strTxnId,
         changeLogs: changeLogsVersioned,
       });
     } else {
-      user.changeLogs.push(...changeLogsVersioned);
+      txn.changeLogs.push(...changeLogsVersioned);
     }
 
     const payload: UpdateSessionRequest = {
@@ -99,15 +103,16 @@ export class SessionDataService {
       data: newSessionData,
     };
     return this.http
-      .put<UpdateSessionResponse>(`/api/sessions/${userId}`, payload)
+      .put<UpdateSessionResponse>(`/api/sessions/${sessionId}`, payload)
       .pipe(
         map((res) => {
           console.assert(res.newVersion === payload.currentVersion + 1);
-          const newSessionState = {
+          const newSessionState: SessionState = {
+            sessionId,
             version: res.newVersion,
             data: newSessionData,
-            recentEdit: {
-              userId: recentEdit!.payload.userId,
+            recentEditFromEditForm: {
+              strTxnId: recentEdit!.payload.strTxnId,
               changeLogs: changeLogsVersioned,
             },
           };
@@ -119,17 +124,18 @@ export class SessionDataService {
 }
 
 export interface SessionState {
+  sessionId: string;
   version: number;
   data: SessionData;
-  recentEdit: UserChangeLog | null;
+  recentEditFromEditForm: StrTxnChangeLog | null;
 }
 
 export interface SessionData {
-  editedUsers: UserChangeLog[];
+  editedStrTxns?: StrTxnChangeLog[];
 }
 
-export interface UserChangeLog {
-  userId: string;
+export interface StrTxnChangeLog {
+  strTxnId: string;
   changeLogs: ChangeLog[];
 }
 
@@ -147,6 +153,7 @@ interface CreateSessionRequest {
 }
 
 interface CreateSessionResponse {
+  sessionId: string;
   userId: string;
   version: number;
   createdAt: string;
@@ -158,7 +165,7 @@ interface UpdateSessionRequest {
 }
 
 interface UpdateSessionResponse {
-  userId: string;
+  sessionId: string;
   newVersion: number;
   updatedAt: string;
 }

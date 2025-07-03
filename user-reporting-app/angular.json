@@ -34,7 +34,11 @@
                 "input": "public"
               }
             ],
-            "styles": ["src/styles.scss"],
+            "styles": [
+              "node_modules/bootstrap/dist/css/bootstrap-utilities.css",
+              "node_modules/bootstrap/dist/css/bootstrap-grid.css",
+              "src/styles.scss"
+            ],
             "scripts": [],
             "stylePreprocessorOptions": {
               "includePaths": ["node_modules"]

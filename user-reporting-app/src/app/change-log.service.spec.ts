@@ -4,27 +4,25 @@ import {
   WithVersion,
 } from "./change-log.service";
 import { ChangeLog } from "./change-log.service";
-import { Address, User, WorkExperience } from "./table/table.component";
+import { StartingAction, StrTxn } from "./table/table.component";
 
 describe("ChangeLogService", () => {
-  let service: ChangeLogService<DeepPartial<User>>;
-  // Mock user structure
-  let mockUser: DeepPartial<WithVersion<User>> = null!;
+  let service: ChangeLogService<DeepPartial<StrTxn>>;
+  // Mock StrTxn structure
+  let mockTxn: DeepPartial<WithVersion<StrTxn>> = null!;
 
   beforeEach(() => {
     service = new ChangeLogService();
-    mockUser = {
-      _id: "user1",
-      firstName: "John Doe",
-      age: 30,
-      hair: { color: "black", type: "afro" },
-      address: [
+    mockTxn = {
+      _mongoid: "txn1",
+      purposeOfTxn: "savings",
+      startingActions: [
         {
-          _id: "add1",
-          state: "ON",
-          city: "Metropolis",
+          _id: "sa1",
+          currency: "CAD",
         },
       ],
+      _version: 0,
     };
   });
 
@@ -32,173 +30,174 @@ describe("ChangeLogService", () => {
     it("should apply simple property change", () => {
       const changes: ChangeLog[] = [
         {
-          path: "firstName",
-          oldValue: "John Doe",
-          newValue: "Jane Smith",
+          path: "purposeOfTxn",
+          oldValue: "savings",
+          newValue: "grocery",
           version: 1,
         },
       ];
 
-      const result = service.applyChanges(mockUser, changes);
+      const result = service.applyChanges(mockTxn, changes);
 
-      expect(result.firstName).toBe("Jane Smith");
+      expect(result.purposeOfTxn).toBe("grocery");
       expect(result._version).toBe(1);
     });
 
     it("should apply nested property change", () => {
       const changes: ChangeLog[] = [
         {
-          path: "hair.color",
-          oldValue: "black",
-          newValue: "white",
+          path: "startingActions.$idx=0.currency",
+          oldValue: "CAD",
+          newValue: "USD",
           version: 1,
         },
       ];
 
-      const result = service.applyChanges(mockUser, changes);
+      const result = service.applyChanges(mockTxn, changes);
 
-      expect(result?.hair?.color).toBe("white");
+      expect(result?.startingActions?.[0]?.currency).toBe("USD");
       expect(result._version).toBe(1);
     });
 
     describe("for items with _id as discriminator", () => {
       it("should add new array item", () => {
-        const workAddress: DeepPartial<Address> = {
-          _id: "add2",
-          city: "toronto",
+        const newSa: DeepPartial<StartingAction> = {
+          _id: "sa2",
+          typeOfFundsOther: "investment",
         };
         const changes: ChangeLog[] = [
           {
-            path: "address",
+            path: "startingActions",
             oldValue: undefined,
-            newValue: workAddress,
+            newValue: newSa,
             version: 1,
           },
         ];
 
-        const result = service.applyChanges(mockUser, changes);
+        const result = service.applyChanges(mockTxn, changes);
 
-        expect(result?.address?.length).toBe(2);
-        expect(result?.address![1]).toEqual(workAddress);
+        expect(result?.startingActions?.length).toBe(2);
+        expect(result?.startingActions![1]).toEqual(newSa);
         expect(result._version).toBe(1);
       });
 
       it("should remove entire array", () => {
         const changes: ChangeLog[] = [
           {
-            path: "address",
-            oldValue: mockUser.address!,
+            path: "startingActions",
+            oldValue: mockTxn.startingActions!,
             newValue: undefined,
             version: 1,
           },
         ];
-        const result = service.applyChanges(mockUser, changes);
+        const result = service.applyChanges(mockTxn, changes);
 
-        expect(result.address).toBeUndefined();
+        expect(result.startingActions).toBeUndefined();
         expect(result._version).toBe(1);
       });
 
       it("should remove array item", () => {
         const changes: ChangeLog[] = [
           {
-            path: "address.$id=add1",
-            oldValue: mockUser.address![0],
+            path: "startingActions.$id=sa1",
+            oldValue: mockTxn.startingActions![0],
             newValue: undefined,
             version: 1,
           },
         ];
 
-        const result = service.applyChanges(mockUser, changes);
+        const result = service.applyChanges(mockTxn, changes);
 
-        expect(result.address!.length).toBe(0);
+        expect(result.startingActions!.length).toBe(0);
         expect(result._version).toBe(1);
       });
 
       it("should modify array item property", () => {
         const changes: ChangeLog[] = [
           {
-            path: "address.$id=add1.state",
-            oldValue: "ON",
-            newValue: "AB",
+            path: "startingActions.$id=sa1.currency",
+            oldValue: "CAD",
+            newValue: "USD",
             version: 1,
           },
         ];
 
-        const result = service.applyChanges(mockUser, changes);
+        const result = service.applyChanges(mockTxn, changes);
 
-        const add1 = result.address!.find((a) => a!._id === "add1");
-        expect(add1?.state).toBe("AB");
+        const sa1 = result.startingActions!.find((a) => a!._id === "sa1");
+        expect(sa1?.currency).toBe("USD");
         expect(result._version).toBe(1);
       });
     });
 
     describe("for items with index as discriminator", () => {
       it("should add new array item", () => {
-        const workAddress: DeepPartial<Address> = {
-          _id: "add2",
-          city: "toronto",
+        const saNew: DeepPartial<StartingAction> = {
+          _id: "sa2",
+          wasCondInfoObtained: true,
+          conductors: [{ email: "nobody@me.com" }],
         };
         const changes: ChangeLog[] = [
           {
-            path: "address",
+            path: "startingActions",
             oldValue: undefined,
-            newValue: workAddress,
+            newValue: saNew,
             version: 1,
           },
         ];
 
-        const result = service.applyChanges(mockUser, changes);
+        const result = service.applyChanges(mockTxn, changes);
 
-        expect(result?.address?.length).toBe(2);
-        expect(result?.address![1]).toEqual(workAddress);
+        expect(result?.startingActions?.length).toBe(2);
+        expect(result?.startingActions![1]).toEqual(saNew);
         expect(result._version).toBe(1);
       });
 
       it("should remove entire array", () => {
         const changes: ChangeLog[] = [
           {
-            path: "address",
-            oldValue: mockUser.address!,
+            path: "startingActions",
+            oldValue: mockTxn.startingActions!,
             newValue: undefined,
             version: 1,
           },
         ];
-        const result = service.applyChanges(mockUser, changes);
+        const result = service.applyChanges(mockTxn, changes);
 
-        expect(result.address).toBeUndefined();
+        expect(result.startingActions).toBeUndefined();
         expect(result._version).toBe(1);
       });
 
       it("should remove array item", () => {
         const changes: ChangeLog[] = [
           {
-            path: "address.$idx=0",
-            oldValue: mockUser.address![0],
+            path: "startingActions.$idx=0",
+            oldValue: mockTxn.startingActions![0],
             newValue: undefined,
             version: 1,
           },
         ];
 
-        const result = service.applyChanges(mockUser, changes);
+        const result = service.applyChanges(mockTxn, changes);
 
-        expect(result.address!.length).toBe(0);
+        expect(result.startingActions!.length).toBe(0);
         expect(result._version).toBe(1);
       });
 
       it("should modify array item property", () => {
         const changes: ChangeLog[] = [
           {
-            path: "address.$idx=0.state",
-            oldValue: "ON",
-            newValue: "AB",
+            path: "startingActions.$idx=0.currency",
+            oldValue: "CAD",
+            newValue: "USD",
             version: 1,
           },
         ];
 
-        const result = service.applyChanges(mockUser, changes);
+        const result = service.applyChanges(mockTxn, changes);
 
-        const add1 = result.address![0];
-        expect(add1?.state).toBe("AB");
+        const sa1 = result.startingActions![0];
+        expect(sa1?.currency).toBe("USD");
         expect(result._version).toBe(1);
       });
     });
@@ -206,137 +205,334 @@ describe("ChangeLogService", () => {
 
   describe("compareProperties", () => {
     it("should detect simple property change", () => {
-      const updatedUser: DeepPartial<User> = {
-        ...mockUser,
-        firstName: "Iqbal Ahmed",
-      };
+      const txnBefore = structuredClone(mockTxn);
+      txnBefore.purposeOfTxn = "savings";
+      const txnAfter = structuredClone(mockTxn);
+      txnAfter.purposeOfTxn = "trade";
+
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(mockUser, updatedUser, changes);
+      service.compareProperties(txnBefore, txnAfter, changes);
 
       expect(changes).toEqual([
         {
-          path: "firstName",
-          oldValue: "John Doe",
-          newValue: "Iqbal Ahmed",
+          path: "purposeOfTxn",
+          oldValue: "savings",
+          newValue: "trade",
         },
       ]);
     });
 
     it("should detect nested property change", () => {
-      const updatedUser: DeepPartial<User> = {
-        ...mockUser,
-        hair: { ...mockUser.hair, color: "blonde" },
-      };
+      const txnBefore = structuredClone(mockTxn);
+      txnBefore.startingActions = [{ _id: "sa1", amount: 100 }];
+      const txnAfter = structuredClone(mockTxn);
+      txnAfter.startingActions = [{ _id: "sa1", amount: 200 }];
+
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(mockUser, updatedUser, changes);
+      service.compareProperties(txnBefore, txnAfter, changes);
 
       expect(changes).toEqual([
         {
-          path: "hair.color",
-          oldValue: "black",
-          newValue: "blonde",
+          path: "startingActions.$id=sa1.amount",
+          oldValue: 100,
+          newValue: 200,
+        },
+      ]);
+    });
+
+    it("should ignore null to undefined property change", () => {
+      const txnBefore = structuredClone(mockTxn);
+      txnBefore.purposeOfTxn = null;
+      const txnAfter = structuredClone(mockTxn);
+      txnAfter.purposeOfTxn = undefined;
+
+      const changes: ChangeLogWithoutVersion[] = [];
+
+      service.compareProperties(txnBefore, txnAfter, changes);
+
+      expect(changes).toEqual([]);
+    });
+
+    it("should ignore undefined to null property change", () => {
+      const txnBefore = structuredClone(mockTxn);
+      txnBefore.purposeOfTxn = undefined;
+      const txnAfter = structuredClone(mockTxn);
+      txnAfter.purposeOfTxn = null;
+
+      const changes: ChangeLogWithoutVersion[] = [];
+
+      service.compareProperties(txnBefore, txnAfter, changes);
+
+      expect(changes).toEqual([]);
+    });
+
+    it("should ignore null to empty string property change", () => {
+      const txnBefore = structuredClone(mockTxn);
+      txnBefore.purposeOfTxn = null;
+      const txnAfter = structuredClone(mockTxn);
+      txnAfter.purposeOfTxn = "";
+
+      const changes: ChangeLogWithoutVersion[] = [];
+
+      service.compareProperties(txnBefore, txnAfter, changes);
+
+      expect(changes).toEqual([]);
+    });
+
+    it("should ignore empty string to null property change", () => {
+      const txnBefore = structuredClone(mockTxn);
+      txnBefore.purposeOfTxn = "";
+      const txnAfter = structuredClone(mockTxn);
+      txnAfter.purposeOfTxn = null;
+
+      const changes: ChangeLogWithoutVersion[] = [];
+
+      service.compareProperties(txnBefore, txnAfter, changes);
+
+      expect(changes).toEqual([]);
+    });
+
+    it("should ignore undefined to empty string property change", () => {
+      const txnBefore = structuredClone(mockTxn);
+      txnBefore.purposeOfTxn = undefined;
+      const txnAfter = structuredClone(mockTxn);
+      txnAfter.purposeOfTxn = "";
+
+      const changes: ChangeLogWithoutVersion[] = [];
+
+      service.compareProperties(txnBefore, txnAfter, changes);
+
+      expect(changes).toEqual([]);
+    });
+
+    it("should ignore empty string to undefined property change", () => {
+      const txnBefore = structuredClone(mockTxn);
+      txnBefore.purposeOfTxn = "";
+      const txnAfter = structuredClone(mockTxn);
+      txnAfter.purposeOfTxn = undefined;
+
+      const changes: ChangeLogWithoutVersion[] = [];
+
+      service.compareProperties(txnBefore, txnAfter, changes);
+
+      expect(changes).toEqual([]);
+    });
+
+    it("should ignore _hidden prefix property changes", () => {
+      const txnBefore = structuredClone(mockTxn);
+      (txnBefore as { _hiddenProp: string })._hiddenProp = "oldVal";
+      const txnAfter = structuredClone(mockTxn);
+      (txnAfter as { _hiddenProp: string })._hiddenProp = "newVal";
+
+      const changes: ChangeLogWithoutVersion[] = [];
+
+      service.compareProperties(txnBefore, txnAfter, changes);
+
+      expect(changes).toEqual([]);
+    });
+
+    it("should ignore null/undefined to empty array property change", () => {
+      const txnBefore = structuredClone(mockTxn);
+      txnBefore.startingActions = undefined;
+      const txnAfter = structuredClone(mockTxn);
+      txnAfter.startingActions = [];
+
+      const changes: ChangeLogWithoutVersion[] = [];
+
+      service.compareProperties(txnBefore, txnAfter, changes);
+
+      expect(changes).toEqual([]);
+    });
+
+    it("should ignore empty array to null/undefined property change", () => {
+      const txnBefore = structuredClone(mockTxn);
+      txnBefore.startingActions = [];
+      const txnAfter = structuredClone(mockTxn);
+      txnAfter.startingActions = undefined;
+
+      const changes: ChangeLogWithoutVersion[] = [];
+
+      service.compareProperties(txnBefore, txnAfter, changes);
+
+      expect(changes).toEqual([]);
+    });
+
+    it("should ignore empty array to empty array property change", () => {
+      const txnBefore = structuredClone(mockTxn);
+      txnBefore.startingActions = [];
+      const txnAfter = structuredClone(mockTxn);
+      txnAfter.startingActions = [];
+
+      const changes: ChangeLogWithoutVersion[] = [];
+
+      service.compareProperties(txnBefore, txnAfter, changes);
+
+      expect(changes).toEqual([]);
+    });
+
+    it("should ignore undefined to boolean false", () => {
+      const txnBefore = structuredClone(mockTxn);
+      txnBefore.hasPostingDate = undefined;
+      const txnAfter = structuredClone(mockTxn);
+      txnAfter.hasPostingDate = false;
+
+      const changes: ChangeLogWithoutVersion[] = [];
+
+      service.compareProperties(txnBefore, txnAfter, changes);
+
+      expect(changes).toEqual([]);
+    });
+
+    it("should ignore null to boolean false", () => {
+      const txnBefore = structuredClone(mockTxn);
+      txnBefore.hasPostingDate = null;
+      const txnAfter = structuredClone(mockTxn);
+      txnAfter.hasPostingDate = false;
+
+      const changes: ChangeLogWithoutVersion[] = [];
+
+      service.compareProperties(txnBefore, txnAfter, changes);
+
+      expect(changes).toEqual([]);
+    });
+
+    it("should not ignore undefined to boolean true", () => {
+      const txnBefore = structuredClone(mockTxn);
+      txnBefore.hasPostingDate = undefined;
+      const txnAfter = structuredClone(mockTxn);
+      txnAfter.hasPostingDate = true;
+
+      const changes: ChangeLogWithoutVersion[] = [];
+
+      service.compareProperties(txnBefore, txnAfter, changes);
+
+      expect(changes).toEqual([
+        {
+          path: "hasPostingDate",
+          oldValue: undefined,
+          newValue: true,
+        },
+      ]);
+    });
+
+    it("should not ignore null to boolean true", () => {
+      const txnBefore = structuredClone(mockTxn);
+      txnBefore.hasPostingDate = null;
+      const txnAfter = structuredClone(mockTxn);
+      txnAfter.hasPostingDate = true;
+
+      const changes: ChangeLogWithoutVersion[] = [];
+
+      service.compareProperties(txnBefore, txnAfter, changes);
+
+      expect(changes).toEqual([
+        {
+          path: "hasPostingDate",
+          oldValue: null,
+          newValue: true,
         },
       ]);
     });
 
     describe("for items with _id as discriminator", () => {
       it("should detect entire array addition", () => {
-        const initWorkExpArray: DeepPartial<WorkExperience>[] = [
-          { _id: "work1", employer: "cibc" },
-        ];
+        const txnBefore = structuredClone(mockTxn);
+        txnBefore.startingActions = undefined;
+        const txnAfter = structuredClone(mockTxn);
+        txnAfter.startingActions = [{ _id: "sa1", branch: "123" }];
 
-        const updatedUser: DeepPartial<User> = {
-          ...mockUser,
-          workExperience: initWorkExpArray,
-        };
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(mockUser, updatedUser, changes);
+        service.compareProperties(txnBefore, txnAfter, changes);
 
         expect(changes).toEqual([
           {
-            path: "workExperience",
+            path: "startingActions",
             oldValue: undefined,
-            newValue: initWorkExpArray,
+            newValue: [{ _id: "sa1", branch: "123" }],
           },
         ]);
       });
 
       it("should detect entire array removal", () => {
-        const updatedUser: DeepPartial<User> = {
-          ...mockUser,
-          address: undefined,
-        };
+        const txnBefore = structuredClone(mockTxn);
+        txnBefore.startingActions = [{ _id: "sa1", branch: "123" }];
+        const txnAfter = structuredClone(mockTxn);
+        txnAfter.startingActions = undefined;
+
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(mockUser, updatedUser, changes);
+        service.compareProperties(txnBefore, txnAfter, changes);
 
         expect(changes).toEqual([
           {
-            path: "address",
-            oldValue: mockUser.address,
+            path: "startingActions",
+            oldValue: txnBefore.startingActions,
             newValue: undefined,
           },
         ]);
       });
 
       it("should detect array item modification", () => {
-        const updatedUser: DeepPartial<User> = {
-          ...mockUser,
-          address: mockUser.address!.map((address) =>
-            address!._id === "add1" ? { ...address, state: "BC" } : address,
-          ),
-        };
+        const txnBefore = structuredClone(mockTxn);
+        txnBefore.startingActions = [{ _id: "sa1", amount: 100 }];
+        const txnAfter = structuredClone(mockTxn);
+        txnAfter.startingActions = [{ _id: "sa1", amount: 200 }];
+
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(mockUser, updatedUser, changes);
+        service.compareProperties(txnBefore, txnAfter, changes);
 
         expect(changes).toEqual([
           {
-            path: "address.$id=add1.state",
-            oldValue: "ON",
-            newValue: "BC",
+            path: "startingActions.$id=sa1.amount",
+            oldValue: 100,
+            newValue: 200,
           },
         ]);
       });
 
       it("should detect array item addition", () => {
-        const workAddress: DeepPartial<Address> = {
-          _id: "add2",
-          city: "Paris",
-        };
-        const updatedUser: DeepPartial<User> = {
-          ...mockUser,
-          address: [...mockUser.address!, workAddress],
-        };
+        const txnBefore = structuredClone(mockTxn);
+        txnBefore.startingActions = [{ _id: "sa1", branch: "123" }];
+        const txnAfter = structuredClone(mockTxn);
+        txnAfter.startingActions = [
+          { _id: "sa1", branch: "123" },
+          { _id: "sa2", branch: "321" },
+        ];
+
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(mockUser, updatedUser, changes);
+        service.compareProperties(txnBefore, txnAfter, changes);
 
         expect(changes).toEqual([
           {
-            path: "address",
+            path: "startingActions",
             oldValue: undefined,
-            newValue: workAddress,
+            newValue: { _id: "sa2", branch: "321" },
           },
         ]);
       });
 
       it("should detect array item removal", () => {
-        const updatedUser: DeepPartial<User> = {
-          ...mockUser,
-          address: mockUser.address?.filter((add) => add?._id !== "add1"),
-        };
+        const txnBefore = structuredClone(mockTxn);
+        txnBefore.startingActions = [
+          { _id: "sa1", branch: "123" },
+          { _id: "sa2", branch: "321" },
+        ];
+        const txnAfter = structuredClone(mockTxn);
+        txnAfter.startingActions = [{ _id: "sa1", branch: "123" }];
+
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(mockUser, updatedUser, changes);
+        service.compareProperties(txnBefore, txnAfter, changes);
 
         expect(changes).toEqual([
           {
-            path: "address.$id=add1",
-            oldValue: mockUser.address![0],
+            path: "startingActions.$id=sa2",
+            oldValue: txnBefore.startingActions[1],
             newValue: undefined,
           },
         ]);
@@ -344,98 +540,106 @@ describe("ChangeLogService", () => {
     });
 
     describe("for items with index as discriminator", () => {
-      it("should detect entire  array addition", () => {
-        const initWorkExpArray: DeepPartial<WorkExperience>[] = [
-          { _id: "work1", employer: "cibc" },
-        ];
+      it("should detect entire array addition", () => {
+        const txnBefore = structuredClone(mockTxn);
+        txnBefore.startingActions = undefined;
+        const txnAfter = structuredClone(mockTxn);
+        txnAfter.startingActions = [{ _id: "sa1", branch: "123" }];
 
-        const updatedUser: DeepPartial<User> = {
-          ...mockUser,
-          workExperience: initWorkExpArray,
-        };
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(mockUser, updatedUser, changes);
+        service.compareProperties(txnBefore, txnAfter, changes);
 
         expect(changes).toEqual([
           {
-            path: "workExperience",
+            path: "startingActions",
             oldValue: undefined,
-            newValue: initWorkExpArray,
+            newValue: [{ _id: "sa1", branch: "123" }],
           },
         ]);
       });
 
       it("should detect entire array removal", () => {
-        const updatedUser: DeepPartial<User> = {
-          ...mockUser,
-          address: undefined,
-        };
+        const txnBefore = structuredClone(mockTxn);
+        txnBefore.startingActions = [{ _id: "sa1", branch: "123" }];
+        const txnAfter = structuredClone(mockTxn);
+        txnAfter.startingActions = undefined;
+
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(mockUser, updatedUser, changes);
+        service.compareProperties(txnBefore, txnAfter, changes);
 
         expect(changes).toEqual([
           {
-            path: "address",
-            oldValue: mockUser.address,
+            path: "startingActions",
+            oldValue: txnBefore.startingActions,
             newValue: undefined,
           },
         ]);
       });
 
       it("should detect array item modification", () => {
-        const updatedUser: DeepPartial<User> = {
-          ...mockUser,
-          address: mockUser.address!.map((add, i) =>
-            i === 0 ? { ...add, state: "BC" } : add,
-          ),
-        };
+        const txnBefore = structuredClone(mockTxn);
+        txnBefore.startingActions = [{ _id: "sa1", amount: 100 }];
+        const txnAfter = structuredClone(mockTxn);
+        txnAfter.startingActions = [{ _id: "sa1", amount: 200 }];
+
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(mockUser, updatedUser, changes, "", "index");
+        service.compareProperties(txnBefore, txnAfter, changes, {
+          discriminator: "index",
+        });
 
         expect(changes).toEqual([
           {
-            path: "address.$idx=0.state",
-            oldValue: "ON",
-            newValue: "BC",
+            path: "startingActions.$idx=0.amount",
+            oldValue: 100,
+            newValue: 200,
           },
         ]);
       });
 
       it("should detect array item addition", () => {
-        const workAddress: DeepPartial<Address> = { city: "Paris" };
-        const updatedUser: DeepPartial<User> = {
-          ...mockUser,
-          address: [...mockUser.address!, workAddress],
-        };
+        const txnBefore = structuredClone(mockTxn);
+        txnBefore.startingActions = [{ _id: "sa1", branch: "123" }];
+        const txnAfter = structuredClone(mockTxn);
+        txnAfter.startingActions = [
+          { _id: "sa1", branch: "123" },
+          { _id: "sa2", branch: "321" },
+        ];
+
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(mockUser, updatedUser, changes, "", "index");
+        service.compareProperties(txnBefore, txnAfter, changes);
 
         expect(changes).toEqual([
           {
-            path: "address",
+            path: "startingActions",
             oldValue: undefined,
-            newValue: workAddress,
+            newValue: { _id: "sa2", branch: "321" },
           },
         ]);
       });
 
       it("should detect array item removal", () => {
-        const updatedUser: DeepPartial<User> = {
-          ...mockUser,
-          address: mockUser.address!.filter((_, i) => i !== 0),
-        };
+        const txnBefore = structuredClone(mockTxn);
+        txnBefore.startingActions = [
+          { _id: "sa1", branch: "123" },
+          { _id: "sa2", branch: "321" },
+        ];
+        const txnAfter = structuredClone(mockTxn);
+        txnAfter.startingActions = [{ _id: "sa1", branch: "123" }];
+
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(mockUser, updatedUser, changes, "", "index");
+        service.compareProperties(txnBefore, txnAfter, changes, {
+          discriminator: "index",
+        });
 
         expect(changes).toEqual([
           {
-            path: "address.$idx=0",
-            oldValue: mockUser.address![0],
+            path: "startingActions.$idx=1",
+            oldValue: txnBefore.startingActions[1],
             newValue: undefined,
           },
         ]);
@@ -443,32 +647,35 @@ describe("ChangeLogService", () => {
     });
 
     it("should detect multiple changes", () => {
-      const workAddress: DeepPartial<Address> = {
-        _id: "add2",
-        city: "Vancouver",
-      };
-      const updatedUser: DeepPartial<User> = {
-        ...mockUser,
-        firstName: "Jane Smith",
-        age: 31,
-        address: [{ ...mockUser.address![0], state: "SK" }, workAddress],
-      };
+      const txnBefore = structuredClone(mockTxn);
+      txnBefore.purposeOfTxn = "savings";
+      txnBefore.startingActions = [{ _id: "sa1", amount: 100 }];
+      const txnAfter = structuredClone(mockTxn);
+      txnAfter.purposeOfTxn = "trade";
+      txnAfter.startingActions = [
+        { _id: "sa1", amount: 200 },
+        { _id: "sa2", branch: "321" },
+      ];
+
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(mockUser, updatedUser, changes);
+      service.compareProperties(txnBefore, txnAfter, changes);
 
       expect(changes).toEqual([
-        { path: "firstName", oldValue: "John Doe", newValue: "Jane Smith" },
-        { path: "age", oldValue: 30, newValue: 31 },
         {
-          path: "address.$id=add1.state",
-          oldValue: "ON",
-          newValue: "SK",
+          path: "purposeOfTxn",
+          oldValue: "savings",
+          newValue: "trade",
         },
         {
-          path: "address",
+          path: "startingActions.$id=sa1.amount",
+          oldValue: 100,
+          newValue: 200,
+        },
+        {
+          path: "startingActions",
           oldValue: undefined,
-          newValue: workAddress,
+          newValue: { _id: "sa2", branch: "321" },
         },
       ]);
     });
@@ -476,5 +683,5 @@ describe("ChangeLogService", () => {
 });
 
 type DeepPartial<T> = {
-  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> | null : T[P] | null;
 };

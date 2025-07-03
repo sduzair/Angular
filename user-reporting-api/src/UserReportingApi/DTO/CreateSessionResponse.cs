@@ -1,1 +1,1 @@
-public record CreateSessionResponse(string UserId, int Version, DateTime CreatedAt);
+public record CreateSessionResponse(string SessionId, string UserId, int Version, DateTime CreatedAt);

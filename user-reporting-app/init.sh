@@ -1,8 +1,9 @@
 #!/bin/bash
 set -e
 
-# Import users data into MongoDB
-mongoimport --db userAppDB --collection users --file /docker-entrypoint-initdb.d/usersData.json --jsonArray
+# Import strTxns data into MongoDB
+mongoimport --db strTxnDB --collection strTxns --file /docker-entrypoint-initdb.d/MOCK_DATA_cashDepositComplete.json --jsonArray
+mongoimport --db strTxnDB --collection strTxns --file /docker-entrypoint-initdb.d/MOCK_DATA_cashWithdrawalComplete.json --jsonArray
 
 # Create empty sessions collection
-mongosh userAppDB --eval "db.createCollection('sessions')"
+mongosh strTxnDB --eval "db.createCollection('sessions')"

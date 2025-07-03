@@ -5,21 +5,8 @@ import {
   FormControl,
   FormGroup,
   ReactiveFormsModule,
-  Validators,
 } from "@angular/forms";
 import { map, Subject, switchMap, takeUntil, tap } from "rxjs";
-import {
-  Address,
-  Bank,
-  Company,
-  Coordinates,
-  Project,
-  TeamMember,
-  Technology,
-  WorkExperience,
-  Crypto as ICrypto,
-  User,
-} from "../table/table.component";
 import { v4 as uuidv4 } from "uuid";
 import {
   MAT_FORM_FIELD_DEFAULT_OPTIONS,
@@ -29,11 +16,7 @@ import {
 import { MatTabsModule } from "@angular/material/tabs";
 import { MAT_CARD_CONFIG, MatCardModule } from "@angular/material/card";
 import { MatInputModule } from "@angular/material/input";
-import {
-  MatDatepicker,
-  MatDatepickerInput,
-  MatDatepickerToggle,
-} from "@angular/material/datepicker";
+import { MatDatepickerModule } from "@angular/material/datepicker";
 import { MatExpansionModule } from "@angular/material/expansion";
 import { MatDividerModule } from "@angular/material/divider";
 import { MatIconModule } from "@angular/material/icon";
@@ -45,21 +28,26 @@ import {
   ChangeLogService,
   WithVersion,
 } from "../change-log.service";
-import {
-  DateFnsAdapter,
-  MAT_DATE_FNS_FORMATS,
-} from "@angular/material-date-fns-adapter";
-import {
-  MAT_DATE_LOCALE,
-  DateAdapter,
-  MAT_DATE_FORMATS,
-} from "@angular/material/core";
-import { enCA } from "date-fns/locale";
-import { BirthDateDirective } from "../table/birth-date.directive";
 import { ActivatedRoute } from "@angular/router";
 import { removePageFromOpenTabs } from "../single-tab.guard";
 import { ClearFieldDirective } from "./clear-field.directive";
 import { ResetFieldDirective } from "./reset-field.directive";
+import {
+  AccountHolder,
+  Beneficiary,
+  CompletingAction,
+  Conductor,
+  InvolvedIn,
+  OnBehalfOf,
+  SourceOfFunds,
+  StartingAction,
+  StrTxn,
+} from "../table/table.component";
+import { MatCheckboxModule } from "@angular/material/checkbox";
+import { ControlToggleDirective } from "./control-toggle.directive";
+import { MatToolbarModule } from "@angular/material/toolbar";
+import { TransactionDateDirective } from "./transaction-date.directive";
+import { TransactionTimeDirective } from "./transaction-time.directive";
 
 @Component({
   selector: "app-edit-form",
@@ -69,23 +57,22 @@ import { ResetFieldDirective } from "./reset-field.directive";
     MatTabsModule,
     MatCardModule,
     MatInputModule,
-    MatDatepicker,
-    MatDatepickerInput,
-    MatDatepickerToggle,
+    MatDatepickerModule,
     MatExpansionModule,
     MatDividerModule,
     ReactiveFormsModule,
     MatIconModule,
     MatChipsModule,
     MatButtonModule,
-    BirthDateDirective,
     ClearFieldDirective,
     ResetFieldDirective,
+    MatCheckboxModule,
+    ControlToggleDirective,
+    MatToolbarModule,
+    TransactionDateDirective,
+    TransactionTimeDirective,
   ],
   providers: [
-    { provide: MAT_DATE_LOCALE, useValue: enCA },
-    { provide: DateAdapter, useClass: DateFnsAdapter, deps: [MAT_DATE_LOCALE] },
-    { provide: MAT_DATE_FORMATS, useValue: MAT_DATE_FNS_FORMATS },
     {
       provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
       useValue: {
@@ -99,2003 +86,1173 @@ import { ResetFieldDirective } from "./reset-field.directive";
     },
   ],
   template: `
-    <div class="user-form-container">
+    <!-- str-txn-form.component.html -->
+    <mat-toolbar>
+      <div class="d-flex justify-content-between align-items-center">
+        <h1>
+          STR Transaction Form
+          {{ this.strTxnsBeforeBulkEdit ? " - Bulk Edit" : "" }}
+        </h1>
+      </div>
+    </mat-toolbar>
+    <div class="container form-field-density mat-typography">
       <form
-        *ngIf="userForm"
-        [formGroup]="userForm"
+        *ngIf="strTxnForm"
+        [formGroup]="strTxnForm"
         (ngSubmit)="onSubmit()"
-        [class.bulk-edit-form]="this.usersBeforeBulkEdit"
+        [class.bulk-edit-form]="this.strTxnsBeforeBulkEdit"
       >
-        <div class="sub-group-header">
-          <h2>
-            User Information Form -
-            {{
-              this.userBeforeEdit
-                ? "Single Edit"
-                : this.usersBeforeBulkEdit
-                ? "Bulk Edit"
-                : ""
-            }}
-          </h2>
-          <div class="sub-group-header-gap"></div>
+        <mat-toolbar class="justify-content-end">
           <button mat-raised-button color="primary" type="submit">
             Submit
           </button>
-        </div>
+        </mat-toolbar>
+        <!-- Main Tabs -->
         <mat-tab-group>
-          <!-- Basic Information Tab -->
-          <mat-tab label="Basic Information">
-            <div class="tab-content">
+          <!-- Transaction Details Tab -->
+          <mat-tab label="Transaction Details">
+            <div>
               <mat-card>
-                <mat-card-content>
-                  <div class="form-row">
-                    <mat-form-field>
-                      <mat-label>First Name</mat-label>
+                <mat-card-header>
+                  <mat-card-title>Transaction Information</mat-card-title>
+                </mat-card-header>
+                <mat-card-content class="mt-5">
+                  <div class="row row-cols-md-4">
+                    <mat-form-field class="col">
+                      <mat-label>Date of Transaction</mat-label>
                       <input
                         matInput
-                        formControlName="firstName"
-                        autocomplete="given-name"
-                      />
-                      <mat-icon matPrefix>person</mat-icon>
-                      <mat-error
-                        *ngIf="userForm.get('firstName')?.hasError('required')"
-                      >
-                        First name is required
-                      </mat-error>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
-                    </mat-form-field>
-
-                    <mat-form-field>
-                      <mat-label>Last Name</mat-label>
-                      <input
-                        matInput
-                        formControlName="lastName"
-                        autocomplete="family-name"
-                      />
-                      <mat-icon matPrefix>person</mat-icon>
-                      <mat-error
-                        *ngIf="userForm.get('lastName')?.hasError('required')"
-                      >
-                        Last name is required
-                      </mat-error>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
-                    </mat-form-field>
-
-                    <mat-form-field>
-                      <mat-label>Maiden Name</mat-label>
-                      <mat-icon matPrefix>person</mat-icon>
-                      <input
-                        matInput
-                        formControlName="maidenName"
-                        autocomplete="additional-name"
-                      />
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
-                    </mat-form-field>
-                  </div>
-
-                  <div class="form-row">
-                    <mat-form-field>
-                      <mat-label>Age</mat-label>
-                      <input matInput type="number" formControlName="age" />
-                      <mat-error
-                        *ngIf="userForm.get('age')?.hasError('required')"
-                      >
-                        Age is required
-                      </mat-error>
-                      <mat-error *ngIf="userForm.get('age')?.hasError('min')">
-                        Age must be positive
-                      </mat-error>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
-                    </mat-form-field>
-
-                    <mat-form-field>
-                      <mat-label>Gender</mat-label>
-                      <select matNativeControl formControlName="gender">
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                        <option value="other">Other</option>
-                      </select>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
-                    </mat-form-field>
-
-                    <mat-form-field>
-                      <mat-label>Birth Date</mat-label>
-                      <input
-                        matInput
-                        appBirthDate
-                        [matDatepicker]="picker"
-                        formControlName="birthDate"
-                        [max]="validatorParams.maxBirthDate"
+                        formControlName="dateOfTxn"
+                        [matDatepicker]="dateOfTxnPicker"
+                        appTransactionDate
                       />
                       <mat-datepicker-toggle
-                        matSuffix
-                        [for]="picker"
+                        matIconSuffix
+                        [for]="dateOfTxnPicker"
                       ></mat-datepicker-toggle>
-                      <mat-datepicker
-                        #picker
-                        startView="multi-year"
-                      ></mat-datepicker>
-                      <mat-error
-                        *ngIf="
-                          userForm
-                            .get('birthDate')
-                            ?.hasError('matDatepickerMax')
-                        "
-                      >
-                        Invalid birth date
-                      </mat-error>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
+                      <mat-datepicker #dateOfTxnPicker />
+                    </mat-form-field>
+
+                    <mat-form-field class="col">
+                      <mat-label>Time of Transaction</mat-label>
+                      <input
+                        matInput
+                        formControlName="timeOfTxn"
+                        type="time"
+                        step="1"
+                        appTransactionTime
+                      />
+                    </mat-form-field>
+
+                    <mat-checkbox formControlName="hasPostingDate" class="col">
+                      Has Posting Date?
+                    </mat-checkbox>
+                  </div>
+
+                  <div class="row row-cols-md-4">
+                    <mat-form-field class="col">
+                      <mat-label>Date of Posting</mat-label>
+                      <input
+                        matInput
+                        formControlName="dateOfPosting"
+                        [matDatepicker]="dateOfPostingPicker"
+                        appTransactionDate
+                        [appControlToggle]="'hasPostingDate'"
+                      />
+                      <mat-datepicker-toggle
+                        matIconSuffix
+                        [for]="dateOfPostingPicker"
+                      ></mat-datepicker-toggle>
+                      <mat-datepicker #dateOfPostingPicker />
+                    </mat-form-field>
+
+                    <mat-form-field class="col">
+                      <mat-label>Time of Posting</mat-label>
+                      <input
+                        matInput
+                        formControlName="timeOfPosting"
+                        type="time"
+                        step="1"
+                        appTransactionTime
+                        [appControlToggle]="'hasPostingDate'"
+                      />
                     </mat-form-field>
                   </div>
 
-                  <h3>Contact Info</h3>
-                  <div class="form-row">
-                    <mat-form-field>
-                      <mat-label>Email</mat-label>
-                      <input
-                        matInput
-                        type="email"
-                        formControlName="email"
-                        autocomplete="email"
-                      />
-                      <mat-icon matPrefix>email</mat-icon>
-                      <mat-error
-                        *ngIf="userForm.get('email')?.hasError('required')"
-                      >
-                        Email is required
-                      </mat-error>
-                      <mat-error
-                        *ngIf="userForm.get('email')?.hasError('email')"
-                      >
-                        Enter a valid email
-                      </mat-error>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
-                    </mat-form-field>
-
-                    <mat-form-field>
-                      <mat-label>Phone</mat-label>
-                      <input
-                        matInput
-                        formControlName="phone"
-                        autocomplete="tel"
-                        (blur)="formatPhoneNumber()"
-                      />
-                      <mat-icon matPrefix>phone</mat-icon>
-                      <mat-error
-                        *ngIf="userForm.get('phone')?.hasError('required')"
-                      >
-                        Phone is required
-                      </mat-error>
-
-                      <mat-error
-                        *ngIf="userForm.get('phone')?.hasError('pattern')"
-                      >
-                        Invalid phone number format
-                      </mat-error>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
-                    </mat-form-field>
-                  </div>
-
-                  <div class="form-row">
-                    <mat-form-field>
-                      <mat-label>Username</mat-label>
-                      <input
-                        matInput
-                        formControlName="username"
-                        autocomplete="username"
-                      />
-                      <mat-icon matPrefix>alternate_email</mat-icon>
-                      <mat-error
-                        *ngIf="userForm.get('username')?.hasError('required')"
-                      >
-                        Username is required
-                      </mat-error>
-                      <mat-error
-                        *ngIf="userForm.get('username')?.hasError('minlength')"
-                      >
-                        Username must be atleast
-                        {{ this.validatorParams.usernameLenMin }} characters
-                      </mat-error>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
-                    </mat-form-field>
-
-                    <mat-form-field>
-                      <mat-label>Password</mat-label>
-                      <input
-                        matInput
-                        type="password"
-                        formControlName="password"
-                        autocomplete="new-password"
-                      />
-                      <mat-error
-                        *ngIf="userForm.get('password')?.hasError('required')"
-                      >
-                        Password is required
-                      </mat-error>
-                      <mat-error
-                        *ngIf="userForm.get('password')?.hasError('minlength')"
-                      >
-                        Password must be at least
-                        {{ this.validatorParams.passwordLenMin }} characters
-                      </mat-error>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
-                    </mat-form-field>
-                  </div>
-                </mat-card-content>
-              </mat-card>
-            </div>
-          </mat-tab>
-
-          <!-- Physical Characteristics Tab -->
-          <mat-tab label="Physical Characteristics">
-            <div class="tab-content">
-              <mat-card>
-                <mat-card-content>
-                  <div class="form-row">
-                    <mat-form-field>
-                      <mat-label>Blood Group</mat-label>
-                      <select matNativeControl formControlName="bloodGroup">
-                        <option value="A+">A+</option>
-                        <option value="A-">A-</option>
-                        <option value="B+">B+</option>
-                        <option value="B-">B-</option>
-                        <option value="AB+">AB+</option>
-                        <option value="AB-">AB-</option>
-                        <option value="O+">O+</option>
-                        <option value="O-">O-</option>
+                  <div class="row">
+                    <mat-form-field class="col-md-3">
+                      <mat-label>Method of Transaction</mat-label>
+                      <select matNativeControl formControlName="methodOfTxn">
+                        <option value="ABM">ABM</option>
+                        <option value="In-Person">In-Person</option>
+                        <option value="Online">Online</option>
+                        <option value="Other">Other</option>
                       </select>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
                     </mat-form-field>
 
-                    <mat-form-field>
-                      <mat-label>Height (cm)</mat-label>
-                      <input matInput type="number" formControlName="height" />
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
-                    </mat-form-field>
-
-                    <mat-form-field>
-                      <mat-label>Weight (kg)</mat-label>
-                      <input matInput type="number" formControlName="weight" />
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
+                    <mat-form-field class="col-md-9">
+                      <mat-label>Specify Method of Transaction</mat-label>
+                      <input
+                        matInput
+                        formControlName="methodOfTxnOther"
+                        [appControlToggle]="'methodOfTxn'"
+                        [appControlToggleValue]="'Other'"
+                      />
                     </mat-form-field>
                   </div>
 
-                  <div class="form-row">
-                    <mat-form-field>
-                      <mat-label>Eye Color</mat-label>
-                      <input matInput formControlName="eyeColor" />
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
+                  <div class="row">
+                    <mat-checkbox
+                      formControlName="wasTxnAttempted"
+                      class="col-md-2"
+                    >
+                      Was Transaction Attempted?
+                    </mat-checkbox>
+
+                    <mat-form-field class="col-md-10">
+                      <mat-label
+                        >Reason transaction was not completed</mat-label
                       >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
+                      <input
+                        matInput
+                        formControlName="wasTxnAttemptedReason"
+                        [appControlToggle]="'wasTxnAttempted'"
+                      />
                     </mat-form-field>
                   </div>
 
-                  <!-- Hair Section -->
-                  <div formGroupName="hair">
-                    <h3>Hair Details</h3>
-                    <div class="form-row">
-                      <mat-form-field>
-                        <mat-label>Hair Color</mat-label>
-                        <input matInput formControlName="color" />
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appClearField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>close</mat-icon>
-                        </button>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appResetField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>refresh</mat-icon>
-                        </button>
-                      </mat-form-field>
+                  <div class="row row-cols-md-1">
+                    <mat-form-field class="col">
+                      <mat-label>Purpose of Transaction</mat-label>
+                      <input matInput formControlName="purposeOfTxn" />
+                    </mat-form-field>
 
-                      <mat-form-field>
-                        <mat-label>Hair Type</mat-label>
-                        <input matInput formControlName="type" />
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appClearField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>close</mat-icon>
-                        </button>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appResetField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>refresh</mat-icon>
-                        </button>
-                      </mat-form-field>
-                    </div>
+                    <mat-form-field class="col">
+                      <mat-label>Reporting Entity Ref No</mat-label>
+                      <input
+                        matInput
+                        formControlName="reportingEntityTxnRefNo"
+                        readonly="true"
+                      />
+                    </mat-form-field>
                   </div>
                 </mat-card-content>
               </mat-card>
             </div>
           </mat-tab>
 
-          <!-- Addresses Tab with FormArray -->
-          <mat-tab label="Addresses" formArrayName="address">
-            <div class="tab-content">
-              <div class="sub-group-header">
-                <h3>Addresses</h3>
-                <div class="sub-group-header-gap"></div>
-                <div class="add-button-container top">
-                  <button
-                    type="button"
-                    mat-raised-button
-                    color="primary"
-                    type="button"
-                    (click)="addAddress()"
-                  >
-                    Add Address
-                  </button>
-                </div>
-              </div>
-              <div
-                *ngFor="
-                  let addressGroup of this.userForm.controls.address.controls;
-                  let i = index
-                "
-                [formGroupName]="i"
+          <!-- Starting Actions Tab -->
+          <mat-tab label="Starting Actions">
+            <div class="d-flex flex-column align-items-end">
+              <button
+                type="button"
+                mat-raised-button
+                color="primary"
+                (click)="addStartingAction()"
+                class="m-2"
               >
-                <mat-expansion-panel [expanded]="true">
-                  <mat-expansion-panel-header>
-                    <mat-panel-title>
-                      <h3>Address #{{ i + 1 }}</h3>
-                      <button
-                        mat-mini-fab
-                        type="button"
-                        (click)="removeAddress(i)"
-                        aria-label="Remove Address"
-                      >
-                        <mat-icon>delete</mat-icon>
-                      </button>
-                    </mat-panel-title>
-                  </mat-expansion-panel-header>
+                <mat-icon>add</mat-icon> Add Starting Action
+              </button>
 
-                  <div>
-                    <div class="form-row">
-                      <mat-form-field>
-                        <mat-label>Address</mat-label>
-                        <input matInput formControlName="address" />
-                        <mat-error
-                          *ngIf="
-                            addressGroup.get('address')?.hasError('required')
-                          "
-                        >
-                          Address is required
-                        </mat-error>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appClearField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>close</mat-icon>
-                        </button>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appResetField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>refresh</mat-icon>
-                        </button>
-                      </mat-form-field>
-                    </div>
-
-                    <div class="form-row">
-                      <mat-form-field>
-                        <mat-label>City</mat-label>
-                        <input matInput formControlName="city" />
-                        <mat-error
-                          *ngIf="addressGroup.get('city')?.hasError('required')"
-                        >
-                          City is required
-                        </mat-error>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appClearField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>close</mat-icon>
-                        </button>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appResetField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>refresh</mat-icon>
-                        </button>
-                      </mat-form-field>
-
-                      <mat-form-field>
-                        <mat-label>State</mat-label>
-                        <input matInput formControlName="state" />
-                        <mat-error
-                          *ngIf="
-                            addressGroup.get('state')?.hasError('required')
-                          "
-                        >
-                          State is required
-                        </mat-error>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appClearField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>close</mat-icon>
-                        </button>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appResetField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>refresh</mat-icon>
-                        </button>
-                      </mat-form-field>
-
-                      <mat-form-field>
-                        <mat-label>State Code</mat-label>
-                        <input matInput formControlName="stateCode" />
-                        <mat-hint align="end"
-                          >{{
-                            addressGroup.get("stateCode")?.value?.length || 0
-                          }}/3</mat-hint
-                        >
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appClearField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>close</mat-icon>
-                        </button>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appResetField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>refresh</mat-icon>
-                        </button>
-                      </mat-form-field>
-                    </div>
-
-                    <div class="form-row">
-                      <mat-form-field>
-                        <mat-label>Postal Code</mat-label>
-                        <input matInput formControlName="postalCode" />
-                        <mat-error
-                          *ngIf="
-                            addressGroup.get('postalCode')?.hasError('required')
-                          "
-                        >
-                          Postal code is required
-                        </mat-error>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appClearField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>close</mat-icon>
-                        </button>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appResetField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>refresh</mat-icon>
-                        </button>
-                      </mat-form-field>
-
-                      <mat-form-field>
-                        <mat-label>Country</mat-label>
-                        <input matInput formControlName="country" />
-                        <mat-error
-                          *ngIf="
-                            addressGroup.get('country')?.hasError('required')
-                          "
-                        >
-                          Country is required
-                        </mat-error>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appClearField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>close</mat-icon>
-                        </button>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appResetField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>refresh</mat-icon>
-                        </button>
-                      </mat-form-field>
-                    </div>
-
-                    <!-- Nested Coordinates FormGroup -->
-                    <div formGroupName="coordinates">
-                      <h4>Coordinates</h4>
-                      <div class="form-row">
-                        <mat-form-field>
-                          <mat-label>Latitude</mat-label>
-                          <input matInput type="number" formControlName="lat" />
-                          <button
-                            [disabled]="!this.usersBeforeBulkEdit"
-                            type="button"
-                            appClearField
-                            mat-icon-button
-                            matSuffix
-                          >
-                            <mat-icon>close</mat-icon>
-                          </button>
-                          <button
-                            [disabled]="!this.usersBeforeBulkEdit"
-                            type="button"
-                            appResetField
-                            mat-icon-button
-                            matSuffix
-                          >
-                            <mat-icon>refresh</mat-icon>
-                          </button>
-                        </mat-form-field>
-
-                        <mat-form-field>
-                          <mat-label>Longitude</mat-label>
-                          <input matInput type="number" formControlName="lng" />
-                          <button
-                            [disabled]="!this.usersBeforeBulkEdit"
-                            type="button"
-                            appClearField
-                            mat-icon-button
-                            matSuffix
-                          >
-                            <mat-icon>close</mat-icon>
-                          </button>
-                          <button
-                            [disabled]="!this.usersBeforeBulkEdit"
-                            type="button"
-                            appResetField
-                            mat-icon-button
-                            matSuffix
-                          >
-                            <mat-icon>refresh</mat-icon>
-                          </button>
-                        </mat-form-field>
-                      </div>
-                    </div>
-                  </div>
-                </mat-expansion-panel>
-                <mat-divider
-                  *ngIf="i < this.userForm.controls.address.controls.length - 1"
-                ></mat-divider>
-              </div>
-            </div>
-          </mat-tab>
-
-          <!-- Bank Tab with FormArray -->
-          <mat-tab label="Bank Info" formArrayName="bank">
-            <div class="tab-content">
-              <div class="sub-group-header">
-                <h3>Banks</h3>
-                <div class="sub-group-header-gap"></div>
-                <button
-                  mat-raised-button
-                  color="primary"
-                  type="button"
-                  (click)="addBank()"
+              <div
+                formArrayName="startingActions"
+                class="w-100 d-flex flex-column gap-3"
+              >
+                <div
+                  *ngFor="
+                    let saAction of this.strTxnForm.controls.startingActions
+                      .controls;
+                    let saIndex = index
+                  "
+                  [formGroupName]="saIndex"
                 >
-                  Add Bank
-                </button>
-              </div>
-              <div
-                *ngFor="
-                  let bankGroup of userForm.controls.bank.controls;
-                  let i = index
-                "
-                [formGroupName]="i"
-              >
-                <mat-expansion-panel [expanded]="true">
-                  <mat-expansion-panel-header>
-                    <mat-panel-title>
-                      <h3>Bank #{{ i + 1 }}</h3>
-                      <button
-                        mat-mini-fab
-                        type="button"
-                        (click)="removeBank(i)"
-                        aria-label="remove bank"
-                      >
-                        <mat-icon>delete</mat-icon>
-                      </button></mat-panel-title
-                    >
-                  </mat-expansion-panel-header>
-
-                  <div>
-                    <div class="form-row">
-                      <!-- Card Number: Numeric -->
-                      <mat-form-field>
-                        <mat-label>Card Number</mat-label>
-                        <input
-                          matInput
-                          formControlName="cardNumber"
-                          maxlength="19"
-                          autocomplete="cc-number"
-                          inputmode="numeric"
-                          pattern="[0-9 ]*"
-                        />
-                        <mat-icon matSuffix>credit_card</mat-icon>
-                        <mat-error
-                          *ngIf="
-                            bankGroup.get('cardNumber')?.hasError('required')
-                          "
-                        >
-                          Card number is required
-                        </mat-error>
-                        <mat-hint align="start"
-                          >Example: 1234 5678 9012 3456</mat-hint
-                        >
-                        <mat-hint align="end"
-                          >{{
-                            bankGroup.get("cardNumber")?.value?.length || 0
-                          }}/19</mat-hint
-                        >
+                  <mat-expansion-panel [expanded]="true">
+                    <mat-expansion-panel-header>
+                      <mat-panel-title class="d-flex align-items-center"
+                        ><h1>Starting Action #{{ saIndex + 1 }}</h1>
                         <button
-                          [disabled]="!this.usersBeforeBulkEdit"
                           type="button"
-                          appClearField
                           mat-icon-button
-                          matSuffix
+                          (click)="removeStartingAction(saIndex)"
                         >
-                          <mat-icon>close</mat-icon>
+                          <mat-icon>delete</mat-icon>
                         </button>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appResetField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>refresh</mat-icon>
-                        </button>
-                      </mat-form-field>
+                      </mat-panel-title>
+                    </mat-expansion-panel-header>
 
-                      <!-- Card Type: Select -->
-                      <mat-form-field>
-                        <mat-label>Card Type</mat-label>
-                        <select matNativeControl formControlName="cardType">
-                          <option value="Visa">Visa</option>
-                          <option value="MasterCard">MasterCard</option>
-                          <option value="American Express">
-                            American Express
-                          </option>
-                          <option value="Discover">Discover</option>
-                          <option value="Other">Other</option>
+                    <div class="row row-cols-4">
+                      <mat-form-field class="col">
+                        <mat-label>Direction</mat-label>
+                        <select
+                          matNativeControl
+                          formControlName="directionOfSA"
+                        >
+                          <option value="In">In</option>
+                          <option value="Out">Out</option>
+                          <!-- Options here -->
                         </select>
-                        <mat-error
-                          *ngIf="
-                            bankGroup.get('cardType')?.hasError('required')
-                          "
-                        >
-                          Card type is required
-                        </mat-error>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appClearField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>close</mat-icon>
-                        </button>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appResetField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>refresh</mat-icon>
-                        </button>
                       </mat-form-field>
 
-                      <!-- Card Expiry: Month/Year Picker -->
-                      <mat-form-field>
-                        <mat-label>Card Expiry</mat-label>
+                      <mat-form-field class="col">
+                        <mat-label>Type of Funds</mat-label>
+                        <select matNativeControl formControlName="typeOfFunds">
+                          <option value="Funds Withdrawal">
+                            Funds Withdrawal
+                          </option>
+                          <option value="Cash">Cash</option>
+                          <option value="Cheque">Cheque</option>
+                          <option value="Domestic Funds Transfer">
+                            Domestic Funds Transfer
+                          </option>
+                          <option value="Email Monel Transfer">
+                            Email Monel Transfer
+                          </option>
+                          <option value="Other">Other</option>
+                          <!-- Options here -->
+                        </select>
+                      </mat-form-field>
+
+                      <mat-form-field class="col">
+                        <mat-label>Specify Other</mat-label>
                         <input
                           matInput
-                          formControlName="cardExpire"
-                          maxlength="5"
-                          autocomplete="cc-exp"
-                          inputmode="text"
-                          pattern="(0[1-9]|1[0-2])/?([0-9]{2})"
+                          formControlName="typeOfFundsOther"
+                          [appControlToggle]="
+                            'startingActions.' + saIndex + '.typeOfFunds'
+                          "
+                          [appControlToggleValue]="'Other'"
                         />
-                        <mat-icon matSuffix>event</mat-icon>
-                        <mat-hint>Format: MM/YY</mat-hint>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appClearField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>close</mat-icon>
-                        </button>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appResetField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>refresh</mat-icon>
-                        </button>
                       </mat-form-field>
                     </div>
 
-                    <div class="form-row">
-                      <!-- Currency: Select -->
-                      <mat-form-field>
+                    <div class="row row-cols-4">
+                      <mat-form-field class="col">
+                        <mat-label>Amount</mat-label>
+                        <input
+                          matInput
+                          type="number"
+                          formControlName="amount"
+                        />
+                      </mat-form-field>
+                      <mat-form-field class="col">
                         <mat-label>Currency</mat-label>
                         <select matNativeControl formControlName="currency">
-                          <option value="USD">USD - US Dollar</option>
-                          <option value="EUR">EUR - Euro</option>
-                          <option value="GBP">GBP - British Pound</option>
-                          <option value="JPY">JPY - Japanese Yen</option>
-                          <option value="INR">INR - Indian Rupee</option>
+                          <option value=""></option>
+                          <option value="CAD">CAD</option>
+                          <option value="USD">USD</option>
+                        </select>
+                      </mat-form-field>
+                    </div>
+
+                    <div class="row row-cols-4">
+                      <mat-form-field class="col">
+                        <mat-label>FIU Number</mat-label>
+                        <input matInput formControlName="fiuNo" />
+                      </mat-form-field>
+                      <mat-form-field class="col">
+                        <mat-label>Branch</mat-label>
+                        <input matInput formControlName="branch" />
+                      </mat-form-field>
+                      <mat-form-field class="col">
+                        <mat-label>Account Number</mat-label>
+                        <input matInput formControlName="account" />
+                      </mat-form-field>
+                    </div>
+
+                    <div class="row row-cols-4">
+                      <mat-form-field class="col">
+                        <mat-label>Account Type</mat-label>
+                        <select matNativeControl formControlName="accountType">
+                          <option value=""></option>
+                          <option value="Business">Business</option>
+                          <option value="Casino">Casino</option>
+                          <option value="Personal">Personal</option>
                           <option value="Other">Other</option>
                         </select>
-                        <mat-error
-                          *ngIf="
-                            bankGroup.get('currency')?.hasError('required')
-                          "
-                        >
-                          Currency is required
-                        </mat-error>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appClearField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>close</mat-icon>
-                        </button>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appResetField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>refresh</mat-icon>
-                        </button>
                       </mat-form-field>
 
-                      <!-- IBAN: Text, Uppercase -->
-                      <mat-form-field>
-                        <mat-label>IBAN</mat-label>
+                      <mat-form-field class="col">
+                        <mat-label>Specify Other</mat-label>
                         <input
                           matInput
-                          formControlName="iban"
-                          maxlength="34"
-                          style="text-transform: uppercase"
-                          autocomplete="off"
+                          formControlName="accountTypeOther"
+                          [appControlToggle]="
+                            'startingActions.' + saIndex + '.accountType'
+                          "
+                          [appControlToggleValue]="'Other'"
                         />
-                        <mat-error
-                          *ngIf="bankGroup.get('iban')?.hasError('required')"
+                      </mat-form-field>
+
+                      <mat-form-field class="col">
+                        <mat-label>Account Currency</mat-label>
+                        <select
+                          matNativeControl
+                          formControlName="accountCurrency"
                         >
-                          IBAN is required
-                        </mat-error>
-                        <mat-hint align="start"
-                          >Example: DE89 3704 0044 0532 0130 00</mat-hint
+                          <option value=""></option>
+                          <option value="CAD">CAD</option>
+                          <option value="USD">USD</option>
+                        </select>
+                      </mat-form-field>
+
+                      <mat-form-field class="col">
+                        <mat-label>Account Status</mat-label>
+                        <select
+                          matNativeControl
+                          formControlName="accountStatus"
                         >
-                        <mat-hint align="end"
-                          >{{
-                            bankGroup.get("iban")?.value?.length || 0
-                          }}/34</mat-hint
-                        >
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appClearField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>close</mat-icon>
-                        </button>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appResetField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>refresh</mat-icon>
-                        </button>
+                          <option value=""></option>
+                          <option value="Active">Active</option>
+                          <option value="Closed">Closed</option>
+                          <option value="Inactive">Inactive</option>
+                          <option value="Dorment">Dorment</option>
+                        </select>
                       </mat-form-field>
                     </div>
-                  </div>
-                </mat-expansion-panel>
-                <mat-divider
-                  *ngIf="i < userForm.controls.bank.controls.length - 1"
-                ></mat-divider>
-              </div>
-            </div>
-          </mat-tab>
 
-          <!-- Work Place Tab with FormArray -->
-          <mat-tab label="Work Place" formArrayName="company">
-            <div class="tab-content">
-              <div class="sub-group-header">
-                <h3>Work Places</h3>
-                <div class="sub-group-header-gap"></div>
-                <button
-                  mat-raised-button
-                  color="primary"
-                  type="button"
-                  (click)="addCompany()"
-                >
-                  Add Company
-                </button>
-              </div>
-              <div
-                *ngFor="
-                  let companyGroup of userForm.controls.company.controls;
-                  let i = index
-                "
-                [formGroupName]="i"
-              >
-                <mat-expansion-panel [expanded]="true">
-                  <mat-expansion-panel-header>
-                    <mat-panel-title>
-                      <h3>Company #{{ i + 1 }}</h3>
-                      <button
-                        mat-mini-fab
-                        type="button"
-                        (click)="removeCompany(i)"
-                        aria-label="Remove company"
-                      >
-                        <mat-icon>delete</mat-icon>
-                      </button>
-                    </mat-panel-title>
-                  </mat-expansion-panel-header>
-
-                  <div class="form-row">
-                    <!-- Company Name -->
-                    <mat-form-field>
-                      <mat-label>Company Name</mat-label>
-                      <input matInput formControlName="name" />
-                      <mat-error
-                        *ngIf="companyGroup.get('name')?.hasError('required')"
-                      >
-                        Company name is required
-                      </mat-error>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
-                    </mat-form-field>
-
-                    <!-- Department -->
-                    <mat-form-field>
-                      <mat-label>Department</mat-label>
-                      <input matInput formControlName="department" />
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
-                    </mat-form-field>
-
-                    <!-- Title/Position -->
-                    <mat-form-field>
-                      <mat-label>Title/Position</mat-label>
-                      <input matInput formControlName="title" />
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
-                    </mat-form-field>
-                  </div>
-
-                  <!-- Address Group -->
-                  <div formGroupName="address">
-                    <h4>Address</h4>
-                    <div class="form-row">
-                      <mat-form-field>
-                        <mat-label>Street Address</mat-label>
-                        <input matInput formControlName="address" />
-                        <mat-error
-                          *ngIf="
-                            companyGroup
-                              .get('address.address')
-                              ?.hasError('required')
-                          "
-                        >
-                          Address is required
-                        </mat-error>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appClearField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>close</mat-icon>
-                        </button>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appResetField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>refresh</mat-icon>
-                        </button>
+                    <div class="row row-cols-4">
+                      <mat-form-field class="col">
+                        <mat-label>Account Open Date</mat-label>
+                        <input
+                          matInput
+                          formControlName="accountOpen"
+                          [matDatepicker]="accountOpenPicker"
+                          appTransactionDate
+                        />
+                        <mat-datepicker-toggle
+                          matIconSuffix
+                          [for]="accountOpenPicker"
+                        ></mat-datepicker-toggle>
+                        <mat-datepicker #accountOpenPicker />
                       </mat-form-field>
+                      <mat-form-field class="col">
+                        <mat-label>Account Close Date</mat-label>
+                        <input
+                          matInput
+                          formControlName="accountClose"
+                          [matDatepicker]="accountClosePicker"
+                          appTransactionDate
+                        />
 
-                      <mat-form-field>
-                        <mat-label>City</mat-label>
-                        <input matInput formControlName="city" />
-                        <mat-error
-                          *ngIf="
-                            companyGroup
-                              .get('address.city')
-                              ?.hasError('required')
-                          "
-                        >
-                          City is required
-                        </mat-error>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appClearField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>close</mat-icon>
-                        </button>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appResetField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>refresh</mat-icon>
-                        </button>
-                      </mat-form-field>
-
-                      <mat-form-field>
-                        <mat-label>State</mat-label>
-                        <input matInput formControlName="state" />
-                        <mat-error
-                          *ngIf="
-                            companyGroup
-                              .get('address.state')
-                              ?.hasError('required')
-                          "
-                        >
-                          State is required
-                        </mat-error>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appClearField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>close</mat-icon>
-                        </button>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appResetField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>refresh</mat-icon>
-                        </button>
+                        <mat-datepicker-toggle
+                          matIconSuffix
+                          [for]="accountClosePicker"
+                        ></mat-datepicker-toggle>
+                        <mat-datepicker #accountClosePicker />
                       </mat-form-field>
                     </div>
-                    <div class="form-row">
-                      <mat-form-field>
-                        <mat-label>State Code</mat-label>
-                        <input matInput formControlName="stateCode" />
-                        <mat-hint align="end"
-                          >{{
-                            companyGroup.get("address.stateCode")?.value
-                              ?.length || 0
-                          }}/3</mat-hint
-                        >
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appClearField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>close</mat-icon>
-                        </button>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appResetField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>refresh</mat-icon>
-                        </button>
-                      </mat-form-field>
 
-                      <mat-form-field>
-                        <mat-label>Postal Code</mat-label>
-                        <input matInput formControlName="postalCode" />
-                        <mat-error
-                          *ngIf="
-                            companyGroup
-                              .get('address.postalCode')
-                              ?.hasError('required')
-                          "
-                        >
-                          Postal code is required
-                        </mat-error>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appClearField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>close</mat-icon>
-                        </button>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appResetField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>refresh</mat-icon>
-                        </button>
-                      </mat-form-field>
-
-                      <mat-form-field>
-                        <mat-label>Country</mat-label>
-                        <input matInput formControlName="country" />
-                        <mat-error
-                          *ngIf="
-                            companyGroup
-                              .get('address.country')
-                              ?.hasError('required')
-                          "
-                        >
-                          Country is required
-                        </mat-error>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appClearField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>close</mat-icon>
-                        </button>
-                        <button
-                          [disabled]="!this.usersBeforeBulkEdit"
-                          type="button"
-                          appResetField
-                          mat-icon-button
-                          matSuffix
-                        >
-                          <mat-icon>refresh</mat-icon>
-                        </button>
+                    <div class="row">
+                      <mat-form-field class="col-12">
+                        <mat-label>How Funds Were Obtained</mat-label>
+                        <textarea
+                          matInput
+                          formControlName="howFundsObtained"
+                          rows="2"
+                        ></textarea>
                       </mat-form-field>
                     </div>
-                    <!-- Coordinates Group -->
-                    <div formGroupName="coordinates">
-                      <div class="form-row">
-                        <mat-form-field>
-                          <mat-label>Latitude</mat-label>
-                          <input matInput type="number" formControlName="lat" />
-                          <button
-                            [disabled]="!this.usersBeforeBulkEdit"
-                            type="button"
-                            appClearField
-                            mat-icon-button
-                            matSuffix
-                          >
-                            <mat-icon>close</mat-icon>
-                          </button>
-                          <button
-                            [disabled]="!this.usersBeforeBulkEdit"
-                            type="button"
-                            appResetField
-                            mat-icon-button
-                            matSuffix
-                          >
-                            <mat-icon>refresh</mat-icon>
-                          </button>
-                        </mat-form-field>
-                        <mat-form-field>
-                          <mat-label>Longitude</mat-label>
-                          <input matInput type="number" formControlName="lng" />
-                          <button
-                            [disabled]="!this.usersBeforeBulkEdit"
-                            type="button"
-                            appClearField
-                            mat-icon-button
-                            matSuffix
-                          >
-                            <mat-icon>close</mat-icon>
-                          </button>
-                          <button
-                            [disabled]="!this.usersBeforeBulkEdit"
-                            type="button"
-                            appResetField
-                            mat-icon-button
-                            matSuffix
-                          >
-                            <mat-icon>refresh</mat-icon>
-                          </button>
-                        </mat-form-field>
-                      </div>
-                    </div>
-                  </div>
-                </mat-expansion-panel>
-                <mat-divider
-                  *ngIf="i < userForm.controls.company.controls.length - 1"
-                ></mat-divider>
-              </div>
-            </div>
-          </mat-tab>
 
-          <!-- Crypto Tab with FormArray -->
-          <mat-tab label="Cryptocurrency" formArrayName="crypto">
-            <div class="tab-content">
-              <div class="sub-group-header">
-                <h3>Cryptocurrencies</h3>
-                <div class="sub-group-header-gap"></div>
-                <button
-                  mat-raised-button
-                  color="primary"
-                  type="button"
-                  (click)="addCrypto()"
-                >
-                  Add Crypto
-                </button>
-              </div>
-
-              <div
-                *ngFor="
-                  let cryptoGroup of userForm.controls.crypto.controls;
-                  let i = index
-                "
-                [formGroupName]="i"
-              >
-                <mat-expansion-panel [expanded]="true">
-                  <mat-expansion-panel-header>
-                    <mat-panel-title>
-                      <h3>Crypto #{{ i + 1 }}</h3>
-                      <button
-                        mat-mini-fab
-                        type="button"
-                        (click)="removeCrypto(i)"
-                        aria-label="Remove crypto"
-                      >
-                        <mat-icon>delete</mat-icon>
-                      </button>
-                    </mat-panel-title>
-                  </mat-expansion-panel-header>
-
-                  <div class="form-row">
-                    <mat-form-field>
-                      <mat-label>Coin</mat-label>
-                      <input matInput formControlName="coin" />
-                      <mat-hint>E.g., Bitcoin, Ethereum</mat-hint>
-                      <mat-error
-                        *ngIf="cryptoGroup.get('coin')?.hasError('required')"
-                      >
-                        Coin is required
-                      </mat-error>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
-                    </mat-form-field>
-                    <mat-form-field>
-                      <mat-label>Network</mat-label>
-                      <input matInput formControlName="network" />
-                      <mat-hint>E.g., ERC-20, BEP-20</mat-hint>
-                      <mat-error
-                        *ngIf="cryptoGroup.get('network')?.hasError('required')"
-                      >
-                        Network is required
-                      </mat-error>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
-                    </mat-form-field>
-                  </div>
-                  <div class="form-row">
-                    <mat-form-field>
-                      <mat-label>Wallet Address</mat-label>
-                      <textarea
-                        matInput
-                        formControlName="wallet"
-                        rows="3"
-                      ></textarea>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
-                    </mat-form-field>
-                  </div>
-                </mat-expansion-panel>
-                <mat-divider
-                  *ngIf="i < userForm.controls.crypto.controls.length - 1"
-                ></mat-divider>
-              </div>
-            </div>
-          </mat-tab>
-
-          <!-- Work Exp. Tab with FormArray -->
-          <mat-tab label="Work Experience" formArrayName="workExperience">
-            <div class="tab-content">
-              <div class="sub-group-header">
-                <h3>Work Expreriences</h3>
-                <div class="sub-group-header-gap"></div>
-                <button
-                  mat-raised-button
-                  color="primary"
-                  type="button"
-                  (click)="addWorkExperience()"
-                >
-                  Add Work Experience
-                </button>
-              </div>
-              <div
-                *ngFor="
-                  let workExpGroup of userForm.controls.workExperience.controls;
-                  let workIndex = index
-                "
-                [formGroupName]="workIndex"
-              >
-                <mat-expansion-panel [expanded]="true">
-                  <mat-expansion-panel-header>
-                    <mat-panel-title>
-                      <h3>Work Experience #{{ workIndex + 1 }}</h3>
-                      <button
-                        mat-mini-fab
-                        type="button"
-                        (click)="removeWorkExperience(workIndex)"
-                        aria-label="Remove work experience"
-                      >
-                        <mat-icon>delete</mat-icon>
-                      </button>
-                    </mat-panel-title>
-                  </mat-expansion-panel-header>
-
-                  <div class="form-row">
-                    <!-- Job Title -->
-                    <mat-form-field>
-                      <mat-label>Job Title</mat-label>
-                      <input matInput formControlName="jobTitle" />
-                      <mat-error
-                        *ngIf="
-                          workExpGroup.get('jobTitle')?.hasError('required')
-                        "
-                      >
-                        Job title is required
-                      </mat-error>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
-                    </mat-form-field>
-
-                    <!-- Employer -->
-                    <mat-form-field>
-                      <mat-label>Employer</mat-label>
-                      <input matInput formControlName="employer" />
-                      <mat-error
-                        *ngIf="
-                          workExpGroup.get('employer')?.hasError('required')
-                        "
-                      >
-                        Employer name is required
-                      </mat-error>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appClearField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                      <button
-                        [disabled]="!this.usersBeforeBulkEdit"
-                        type="button"
-                        appResetField
-                        mat-icon-button
-                        matSuffix
-                      >
-                        <mat-icon>refresh</mat-icon>
-                      </button>
-                    </mat-form-field>
-                  </div>
-
-                  <div formArrayName="projects">
-                    <div class="sub-group-header">
-                      <h3>Projects</h3>
-                      <div class="sub-group-header-gap"></div>
-                      <button
-                        mat-stroked-button
-                        type="button"
-                        (click)="addProject(workIndex)"
-                      >
-                        <mat-icon>add</mat-icon>
-                        Add Project
-                      </button>
-                    </div>
+                    <!-- Account Holders Section -->
+                    <h2>Account Holders</h2>
                     <div
-                      *ngFor="
-                        let projectGroup of userForm.controls.workExperience.at(
-                          workIndex
-                        ).controls.projects.controls;
-                        let projIndex = index
-                      "
-                      [formGroupName]="projIndex"
-                      class="nested-array"
+                      formArrayName="accountHolders"
+                      class="d-flex flex-column align-items-end"
                     >
-                      <mat-expansion-panel [expanded]="true">
-                        <mat-expansion-panel-header>
-                          <mat-panel-title
-                            ><h3>Project #{{ projIndex + 1 }}</h3>
-                            <button
-                              mat-mini-fab
-                              type="button"
-                              (click)="removeProject(workIndex, projIndex)"
-                              aria-label="Remove project"
-                            >
-                              <mat-icon>delete</mat-icon>
-                            </button>
-                          </mat-panel-title>
-                        </mat-expansion-panel-header>
-
-                        <div class="form-row">
-                          <!-- Project Name -->
-                          <mat-form-field>
-                            <mat-label>Project Name</mat-label>
-                            <input matInput formControlName="name" />
-                            <mat-error
-                              *ngIf="
-                                projectGroup.get('name')?.hasError('required')
-                              "
-                            >
-                              Project name is required
-                            </mat-error>
-                            <button
-                              [disabled]="!this.usersBeforeBulkEdit"
-                              type="button"
-                              appClearField
-                              mat-icon-button
-                              matSuffix
-                            >
-                              <mat-icon>close</mat-icon>
-                            </button>
-                            <button
-                              [disabled]="!this.usersBeforeBulkEdit"
-                              type="button"
-                              appResetField
-                              mat-icon-button
-                              matSuffix
-                            >
-                              <mat-icon>refresh</mat-icon>
-                            </button>
-                          </mat-form-field>
-
-                          <!-- Project Description -->
-                          <mat-form-field>
-                            <mat-label>Description</mat-label>
-                            <textarea
-                              matInput
-                              formControlName="description"
-                              rows="1"
-                            ></textarea>
-                            <button
-                              [disabled]="!this.usersBeforeBulkEdit"
-                              type="button"
-                              appClearField
-                              mat-icon-button
-                              matSuffix
-                            >
-                              <mat-icon>close</mat-icon>
-                            </button>
-                            <button
-                              [disabled]="!this.usersBeforeBulkEdit"
-                              type="button"
-                              appResetField
-                              mat-icon-button
-                              matSuffix
-                            >
-                              <mat-icon>refresh</mat-icon>
-                            </button>
-                          </mat-form-field>
-                        </div>
-
-                        <!-- Technologies -->
-                        <div formArrayName="technologies">
-                          <div class="sub-group-header">
-                            <h4>Technologies Used</h4>
-                            <div class="sub-group-header-gap"></div>
-                            <div [formGroup]="newTechControl">
-                              <mat-form-field class="sub-absolute">
-                                <input
-                                  matInput
-                                  placeholder="Add technology..."
-                                  formControlName="technology"
-                                  (keydown.enter)="
-                                    addTechnology(workIndex, projIndex);
-                                    $event.preventDefault()
-                                  "
-                                />
-                                <button
-                                  type="button"
-                                  mat-icon-button
-                                  matSuffix
-                                  (click)="addTechnology(workIndex, projIndex)"
-                                  [disabled]="newTechControl.invalid"
-                                >
-                                  <mat-icon>add</mat-icon>
-                                </button>
-                                <button
-                                  [disabled]="!this.usersBeforeBulkEdit"
-                                  type="button"
-                                  appClearField
-                                  mat-icon-button
-                                  matSuffix
-                                >
-                                  <mat-icon>close</mat-icon>
-                                </button>
-                                <button
-                                  [disabled]="!this.usersBeforeBulkEdit"
-                                  type="button"
-                                  appResetField
-                                  mat-icon-button
-                                  matSuffix
-                                >
-                                  <mat-icon>refresh</mat-icon>
-                                </button>
-                              </mat-form-field>
-                            </div>
-                          </div>
-
-                          <mat-chip-set #techList>
-                            <mat-chip
-                              *ngFor="
-                                let techGroup of userForm.controls.workExperience
-                                  .at(workIndex)
-                                  .controls.projects.at(projIndex).controls
-                                  .technologies.controls;
-                                let techIndex = index
-                              "
-                              [formGroupName]="techIndex"
-                              (removed)="
-                                removeTechnology(
-                                  workIndex,
-                                  projIndex,
-                                  techIndex
-                                )
-                              "
-                            >
-                              {{ techGroup.value.technology }}
-                              <button matChipRemove>
-                                <mat-icon>cancel</mat-icon>
-                              </button>
-                            </mat-chip>
-                          </mat-chip-set>
-                        </div>
-
-                        <!-- Team Members -->
-                        <div formArrayName="teamMembers">
-                          <div class="sub-group-header">
-                            <h4>Team Members</h4>
-                            <div class="sub-group-header-gap"></div>
-                            <button
-                              mat-stroked-button
-                              type="button"
-                              (click)="addTeamMember(workIndex, projIndex)"
-                            >
-                              <mat-icon>person_add</mat-icon>
-                              Add Team Member
-                            </button>
-                          </div>
+                      <mat-card class="w-100 border-0">
+                        <div class="row row-cols-2">
                           <div
                             *ngFor="
-                              let memberGroup of userForm.controls.workExperience
-                                .at(workIndex)
-                                .controls.projects.at(projIndex).controls
-                                .teamMembers.controls;
-                              let teamMemberIndex = index
+                              let holder of saAction.controls.accountHolders
+                                ?.controls;
+                              let holderIndex = index
                             "
-                            [formGroupName]="teamMemberIndex"
-                            class="nested-array"
+                            [formGroupName]="holderIndex"
+                            class="col my-2"
                           >
-                            <div class="form-row">
-                              <mat-form-field>
-                                <mat-label>Name</mat-label>
-                                <input matInput formControlName="name" />
-                                <mat-error
-                                  *ngIf="
-                                    memberGroup
-                                      .get('name')
-                                      ?.hasError('required')
-                                  "
-                                  >Name is required</mat-error
-                                >
-                                <button
-                                  [disabled]="!this.usersBeforeBulkEdit"
-                                  type="button"
-                                  appClearField
-                                  mat-icon-button
-                                  matSuffix
-                                >
-                                  <mat-icon>close</mat-icon>
-                                </button>
-                                <button
-                                  [disabled]="!this.usersBeforeBulkEdit"
-                                  type="button"
-                                  appResetField
-                                  mat-icon-button
-                                  matSuffix
-                                >
-                                  <mat-icon>refresh</mat-icon>
-                                </button>
+                            <div class="row">
+                              <mat-form-field class="col">
+                                <mat-label>Link to Subject</mat-label>
+                                <input matInput formControlName="linkToSub" />
                               </mat-form-field>
-
-                              <mat-form-field>
-                                <mat-label>Role</mat-label>
-                                <input matInput formControlName="role" />
-                                <mat-error
-                                  *ngIf="
-                                    memberGroup
-                                      .get('role')
-                                      ?.hasError('required')
-                                  "
-                                  >Role is required</mat-error
-                                >
-                                <button
-                                  [disabled]="!this.usersBeforeBulkEdit"
-                                  type="button"
-                                  appClearField
-                                  mat-icon-button
-                                  matSuffix
-                                >
-                                  <mat-icon>close</mat-icon>
-                                </button>
-                                <button
-                                  [disabled]="!this.usersBeforeBulkEdit"
-                                  type="button"
-                                  appResetField
-                                  mat-icon-button
-                                  matSuffix
-                                >
-                                  <mat-icon>refresh</mat-icon>
-                                </button>
-                              </mat-form-field>
-
                               <button
                                 type="button"
                                 mat-icon-button
-                                color="warn"
                                 (click)="
-                                  removeTeamMember(
-                                    workIndex,
-                                    projIndex,
-                                    teamMemberIndex
+                                  removeAccountHolder(
+                                    'startingActions',
+                                    saIndex,
+                                    holderIndex
                                   )
                                 "
+                                class="col-auto"
                               >
                                 <mat-icon>delete</mat-icon>
                               </button>
                             </div>
                           </div>
                         </div>
-                      </mat-expansion-panel>
+                      </mat-card>
+
+                      <button
+                        type="button"
+                        mat-raised-button
+                        color="primary"
+                        (click)="addAccountHolder('startingActions', saIndex)"
+                      >
+                        <mat-icon>add</mat-icon> Add Account Holder
+                      </button>
                     </div>
-                  </div>
-                </mat-expansion-panel>
-                <mat-divider
-                  *ngIf="
-                    workIndex <
-                    userForm.controls.workExperience.controls.length - 1
+
+                    <!-- Source of Funds Section -->
+                    <h2>Source of Funds</h2>
+                    <div class="row">
+                      <mat-checkbox
+                        class="col"
+                        formControlName="wasSofInfoObtained"
+                      >
+                        Was Source of Funds Info Obtained?
+                      </mat-checkbox>
+                    </div>
+
+                    <div
+                      formArrayName="sourceOfFunds"
+                      class="d-flex flex-column align-items-end gap-3"
+                      [appControlToggle]="
+                        'startingActions.' + saIndex + '.wasSofInfoObtained'
+                      "
+                    >
+                      <div
+                        *ngFor="
+                          let source of saAction.controls.sourceOfFunds
+                            .controls;
+                          let fundsIndex = index
+                        "
+                        [formGroupName]="fundsIndex"
+                        class="w-100"
+                      >
+                        <mat-expansion-panel [expanded]="true">
+                          <mat-expansion-panel-header>
+                            <mat-panel-title class="d-flex align-items-center"
+                              ><h3>Source of Funds #{{ fundsIndex + 1 }}</h3>
+                              <button
+                                type="button"
+                                mat-icon-button
+                                (click)="
+                                  removeSourceOfFunds(saIndex, fundsIndex)
+                                "
+                              >
+                                <mat-icon>delete</mat-icon>
+                              </button>
+                            </mat-panel-title>
+                          </mat-expansion-panel-header>
+
+                          <div class="row row-cols-1 row-cols-md-2">
+                            <mat-form-field class="col">
+                              <mat-label>Link to Subject</mat-label>
+                              <input matInput formControlName="linkToSub" />
+                            </mat-form-field>
+
+                            <mat-form-field class="col">
+                              <mat-label>Account Number</mat-label>
+                              <input matInput formControlName="accountNumber" />
+                            </mat-form-field>
+
+                            <mat-form-field class="col">
+                              <mat-label>Policy Number</mat-label>
+                              <input matInput formControlName="policyNumber" />
+                            </mat-form-field>
+
+                            <mat-form-field class="col">
+                              <mat-label>Identifying Number</mat-label>
+                              <input
+                                matInput
+                                formControlName="identifyingNumber"
+                              />
+                            </mat-form-field>
+                          </div>
+                        </mat-expansion-panel>
+                      </div>
+                      <button
+                        type="button"
+                        mat-raised-button
+                        color="primary"
+                        (click)="addSourceOfFunds(saIndex)"
+                      >
+                        <mat-icon>add</mat-icon> Add Source of Funds
+                      </button>
+                    </div>
+
+                    <!-- Conductors Section -->
+                    <h2>Conductors</h2>
+                    <div class="row">
+                      <mat-checkbox
+                        class="col"
+                        formControlName="wasCondInfoObtained"
+                      >
+                        Was Conductor Info Obtained?
+                      </mat-checkbox>
+                    </div>
+
+                    <div
+                      formArrayName="conductors"
+                      class="d-flex flex-column align-items-end gap-3"
+                      [appControlToggle]="
+                        'startingActions.' + saIndex + '.wasCondInfoObtained'
+                      "
+                    >
+                      <div
+                        *ngFor="
+                          let conductor of saAction.controls.conductors
+                            .controls;
+                          let condIndex = index
+                        "
+                        [formGroupName]="condIndex"
+                        class="w-100"
+                      >
+                        <mat-expansion-panel [expanded]="true">
+                          <mat-expansion-panel-header>
+                            <mat-panel-title class="d-flex align-items-center"
+                              ><h3>Conductor #{{ condIndex + 1 }}</h3>
+                              <button
+                                type="button"
+                                mat-icon-button
+                                (click)="removeConductor(saIndex, condIndex)"
+                              >
+                                <mat-icon>delete</mat-icon>
+                              </button>
+                            </mat-panel-title>
+                          </mat-expansion-panel-header>
+
+                          <div class="row row-cols-1 row-cols-md-2">
+                            <mat-form-field class="col">
+                              <mat-label>Link to Subject</mat-label>
+                              <input matInput formControlName="linkToSub" />
+                            </mat-form-field>
+
+                            <mat-form-field class="col">
+                              <mat-label>Client Number</mat-label>
+                              <input matInput formControlName="clientNo" />
+                            </mat-form-field>
+
+                            <mat-form-field class="col">
+                              <mat-label>Email</mat-label>
+                              <input
+                                matInput
+                                type="email"
+                                formControlName="email"
+                              />
+                            </mat-form-field>
+
+                            <mat-form-field class="col">
+                              <mat-label>URL</mat-label>
+                              <input
+                                matInput
+                                type="url"
+                                formControlName="url"
+                              />
+                            </mat-form-field>
+                          </div>
+
+                          <h3>On Behalf Of</h3>
+
+                          <div class="row">
+                            <mat-checkbox
+                              formControlName="wasConductedOnBehalf"
+                            >
+                              Was Conducted On Behalf Of Others?
+                            </mat-checkbox>
+                          </div>
+
+                          <!-- On Behalf Of Subsection -->
+                          <div
+                            formArrayName="onBehalfOf"
+                            class="d-flex flex-column align-items-end gap-3"
+                            [appControlToggle]="
+                              'startingActions.' +
+                              saIndex +
+                              '.conductors.' +
+                              condIndex +
+                              '.wasConductedOnBehalf'
+                            "
+                          >
+                            <div
+                              *ngFor="
+                                let behalf of conductor.controls.onBehalfOf
+                                  .controls;
+                                let behalfIndex = index
+                              "
+                              [formGroupName]="behalfIndex"
+                              class="w-100"
+                            >
+                              <mat-expansion-panel [expanded]="true">
+                                <mat-expansion-panel-header>
+                                  <mat-panel-title
+                                    class="d-flex align-items-center"
+                                    ><h3>
+                                      On Behalf Of #{{ behalfIndex + 1 }}
+                                    </h3>
+                                    <button
+                                      type="button"
+                                      mat-icon-button
+                                      (click)="
+                                        removeOnBehalfOf(
+                                          saIndex,
+                                          condIndex,
+                                          behalfIndex
+                                        )
+                                      "
+                                    >
+                                      <mat-icon>delete</mat-icon>
+                                    </button>
+                                  </mat-panel-title>
+                                </mat-expansion-panel-header>
+
+                                <div class="row row-cols-1 row-cols-md-2">
+                                  <mat-form-field class="col">
+                                    <mat-label>Link to Subject</mat-label>
+                                    <input
+                                      matInput
+                                      formControlName="linkToSub"
+                                    />
+                                  </mat-form-field>
+
+                                  <mat-form-field class="col">
+                                    <mat-label>Client Number</mat-label>
+                                    <input
+                                      matInput
+                                      formControlName="clientNo"
+                                    />
+                                  </mat-form-field>
+
+                                  <mat-form-field class="col">
+                                    <mat-label>Email</mat-label>
+                                    <input
+                                      matInput
+                                      type="email"
+                                      formControlName="email"
+                                    />
+                                  </mat-form-field>
+
+                                  <mat-form-field class="col">
+                                    <mat-label>URL</mat-label>
+                                    <input
+                                      matInput
+                                      type="url"
+                                      formControlName="url"
+                                    />
+                                  </mat-form-field>
+
+                                  <mat-form-field class="col">
+                                    <mat-label>Relation to Conductor</mat-label>
+                                    <select
+                                      matNativeControl
+                                      formControlName="relationToCond"
+                                    >
+                                      <option value="Accountant">
+                                        Accountant
+                                      </option>
+                                      <option value="Agent">Agent</option>
+                                      <option value="Borrower">Borrower</option>
+                                      <option value="Broker">Broker</option>
+                                      <option value="Joint/Secondary Owner">
+                                        Joint/Secondary Owner
+                                      </option>
+                                      <option value="Employer">Employer</option>
+                                      <option value="Other">Other</option>
+                                    </select>
+                                  </mat-form-field>
+
+                                  <mat-form-field class="col">
+                                    <mat-label
+                                      >Specify Other Relation</mat-label
+                                    >
+                                    <input
+                                      matInput
+                                      formControlName="relationToCondOther"
+                                      [appControlToggle]="
+                                        'startingActions.' +
+                                        saIndex +
+                                        '.conductors.' +
+                                        condIndex +
+                                        '.onBehalfOf.' +
+                                        behalfIndex +
+                                        '.relationToCond'
+                                      "
+                                      [appControlToggleValue]="'Other'"
+                                    />
+                                  </mat-form-field>
+                                </div>
+                              </mat-expansion-panel>
+                            </div>
+                            <button
+                              type="button"
+                              mat-raised-button
+                              color="primary"
+                              (click)="addOnBehalfOf(saIndex, condIndex)"
+                            >
+                              <mat-icon>add</mat-icon> Add On Behalf Of
+                            </button>
+                          </div>
+                        </mat-expansion-panel>
+                      </div>
+                      <button
+                        type="button"
+                        mat-raised-button
+                        color="primary"
+                        (click)="addConductor(saIndex)"
+                      >
+                        <mat-icon>add</mat-icon> Add Conductor
+                      </button>
+                    </div>
+                  </mat-expansion-panel>
+                </div>
+              </div>
+            </div>
+          </mat-tab>
+
+          <!-- Completing Actions Tab -->
+          <mat-tab label="Completing Actions">
+            <div class="d-flex flex-column align-items-end">
+              <button
+                type="button"
+                mat-raised-button
+                color="primary"
+                (click)="addCompletingAction()"
+                class="m-2"
+              >
+                <mat-icon>add</mat-icon> Add Completing Action
+              </button>
+
+              <div
+                formArrayName="completingActions"
+                class="w-100 d-flex flex-column gap-3"
+              >
+                <div
+                  *ngFor="
+                    let caAction of this.strTxnForm.controls.completingActions
+                      .controls;
+                    let caIndex = index
                   "
-                ></mat-divider>
+                  [formGroupName]="caIndex"
+                >
+                  <mat-expansion-panel [expanded]="true">
+                    <mat-expansion-panel-header>
+                      <mat-panel-title class="d-flex align-items-center"
+                        ><h1>Completing Action #{{ caIndex + 1 }}</h1>
+                        <button
+                          type="button"
+                          mat-icon-button
+                          (click)="removeCompletingAction(caIndex)"
+                        >
+                          <mat-icon>delete</mat-icon>
+                        </button>
+                      </mat-panel-title>
+                    </mat-expansion-panel-header>
+
+                    <!-- Disposition Details -->
+                    <div class="row row-cols-4">
+                      <mat-form-field class="col">
+                        <mat-label>Details of Disposition</mat-label>
+                        <select
+                          matNativeControl
+                          formControlName="detailsOfDispo"
+                        >
+                          <option value="Deposit to account">
+                            Deposit to account
+                          </option>
+                          <option value="Cash Withdrawal">
+                            Cash Withdrawal
+                          </option>
+                          <option value="Issued Cheque">Issued Cheque</option>
+                          <option value="Outgoing Email Transfer">
+                            Outgoing Email Transfer
+                          </option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </mat-form-field>
+
+                      <mat-form-field class="col">
+                        <mat-label>Specify Other</mat-label>
+                        <input
+                          matInput
+                          formControlName="detailsOfDispoOther"
+                          [appControlToggle]="
+                            'completingActions.' + caIndex + '.detailsOfDispo'
+                          "
+                          [appControlToggleValue]="'Other'"
+                        />
+                      </mat-form-field>
+                    </div>
+
+                    <!-- Amount Section -->
+                    <div class="row row-cols-4">
+                      <mat-form-field class="col">
+                        <mat-label>Amount</mat-label>
+                        <input
+                          matInput
+                          type="number"
+                          formControlName="amount"
+                        />
+                      </mat-form-field>
+
+                      <mat-form-field class="col">
+                        <mat-label>Currency</mat-label>
+                        <select matNativeControl formControlName="currency">
+                          <option value=""></option>
+                          <option value="CAD">CAD</option>
+                          <option value="USD">USD</option>
+                          <!-- Add other currencies -->
+                        </select>
+                      </mat-form-field>
+
+                      <mat-form-field class="col">
+                        <mat-label>Exchange Rate</mat-label>
+                        <input
+                          matInput
+                          type="number"
+                          formControlName="exchangeRate"
+                        />
+                      </mat-form-field>
+
+                      <mat-form-field class="col">
+                        <mat-label>Value in CAD</mat-label>
+                        <input
+                          matInput
+                          type="number"
+                          formControlName="valueInCad"
+                        />
+                      </mat-form-field>
+                    </div>
+
+                    <!-- Account Information -->
+                    <div class="row row-cols-4">
+                      <mat-form-field class="col">
+                        <mat-label>FIU Number</mat-label>
+                        <input matInput formControlName="fiuNo" />
+                      </mat-form-field>
+                      <mat-form-field class="col">
+                        <mat-label>Branch</mat-label>
+                        <input matInput formControlName="branch" />
+                      </mat-form-field>
+                      <mat-form-field class="col">
+                        <mat-label>Account Number</mat-label>
+                        <input matInput formControlName="account" />
+                      </mat-form-field>
+                    </div>
+
+                    <div class="row row-cols-4">
+                      <mat-form-field class="col">
+                        <mat-label>Account Type</mat-label>
+                        <select matNativeControl formControlName="accountType">
+                          <option value=""></option>
+                          <option value="Business">Business</option>
+                          <option value="Casino">Casino</option>
+                          <option value="Personal">Personal</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </mat-form-field>
+
+                      <mat-form-field class="col">
+                        <mat-label>Specify Other</mat-label>
+                        <input
+                          matInput
+                          formControlName="accountTypeOther"
+                          [appControlToggle]="
+                            'completingActions.' + caIndex + '.accountType'
+                          "
+                          [appControlToggleValue]="'Other'"
+                        />
+                      </mat-form-field>
+
+                      <mat-form-field class="col">
+                        <mat-label>Account Currency</mat-label>
+                        <select
+                          matNativeControl
+                          formControlName="accountCurrency"
+                        >
+                          <option value=""></option>
+                          <option value="CAD">CAD</option>
+                          <option value="USD">USD</option>
+                        </select>
+                      </mat-form-field>
+
+                      <mat-form-field class="col">
+                        <mat-label>Account Status</mat-label>
+                        <select
+                          matNativeControl
+                          formControlName="accountStatus"
+                        >
+                          <option value=""></option>
+                          <option value="Active">Active</option>
+                          <option value="Closed">Closed</option>
+                          <option value="Inactive">Inactive</option>
+                          <option value="Dormant">Dormant</option>
+                        </select>
+                      </mat-form-field>
+                    </div>
+
+                    <div class="row row-cols-4">
+                      <mat-form-field class="col">
+                        <mat-label>Account Open Date</mat-label>
+                        <input
+                          matInput
+                          formControlName="accountOpen"
+                          [matDatepicker]="accountOpenPicker"
+                          appTransactionDate
+                        />
+
+                        <mat-datepicker-toggle
+                          matIconSuffix
+                          [for]="accountOpenPicker"
+                        ></mat-datepicker-toggle>
+                        <mat-datepicker #accountOpenPicker />
+                      </mat-form-field>
+                      <mat-form-field class="col">
+                        <mat-label>Account Close Date</mat-label>
+                        <input
+                          matInput
+                          formControlName="accountClose"
+                          [matDatepicker]="accountClosePicker"
+                          appTransactionDate
+                        />
+
+                        <mat-datepicker-toggle
+                          matIconSuffix
+                          [for]="accountClosePicker"
+                        ></mat-datepicker-toggle>
+                        <mat-datepicker #accountClosePicker />
+                      </mat-form-field>
+                    </div>
+
+                    <!-- Account Holders Section -->
+                    <h2>Account Holders</h2>
+                    <div
+                      formArrayName="accountHolders"
+                      class="d-flex flex-column align-items-end"
+                    >
+                      <mat-card class="w-100 border-0">
+                        <div class="row row-cols-2">
+                          <div
+                            *ngFor="
+                              let holder of caAction.controls.accountHolders
+                                ?.controls;
+                              let holderIndex = index
+                            "
+                            [formGroupName]="holderIndex"
+                            class="col my-2"
+                          >
+                            <div class="row">
+                              <mat-form-field class="col">
+                                <mat-label>Link to Subject</mat-label>
+                                <input matInput formControlName="linkToSub" />
+                              </mat-form-field>
+                              <button
+                                type="button"
+                                mat-icon-button
+                                (click)="
+                                  removeAccountHolder(
+                                    'completingActions',
+                                    caIndex,
+                                    holderIndex
+                                  )
+                                "
+                                class="col-auto"
+                              >
+                                <mat-icon>delete</mat-icon>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </mat-card>
+
+                      <button
+                        type="button"
+                        mat-raised-button
+                        color="primary"
+                        (click)="addAccountHolder('completingActions', caIndex)"
+                      >
+                        <mat-icon>add</mat-icon> Add Account Holder
+                      </button>
+                    </div>
+
+                    <!-- Involved In Section -->
+                    <h2>Other Involved Subjects</h2>
+                    <div class="row">
+                      <mat-checkbox
+                        class="col"
+                        formControlName="wasAnyOtherSubInvolved"
+                      >
+                        Was any other subject involved?
+                      </mat-checkbox>
+                    </div>
+
+                    <div
+                      formArrayName="involvedIn"
+                      class="d-flex flex-column align-items-end gap-3"
+                      [appControlToggle]="
+                        'completingActions.' +
+                        caIndex +
+                        '.wasAnyOtherSubInvolved'
+                      "
+                    >
+                      <div
+                        *ngFor="
+                          let involved of caAction.controls.involvedIn
+                            ?.controls;
+                          let invIndex = index
+                        "
+                        [formGroupName]="invIndex"
+                        class="w-100"
+                      >
+                        <mat-expansion-panel [expanded]="true">
+                          <mat-expansion-panel-header>
+                            <mat-panel-title class="d-flex align-items-center"
+                              ><h3>Involved Subject #{{ invIndex + 1 }}</h3>
+                              <button
+                                type="button"
+                                mat-icon-button
+                                (click)="removeInvolvedIn(caIndex, invIndex)"
+                              >
+                                <mat-icon>delete</mat-icon>
+                              </button>
+                            </mat-panel-title>
+                          </mat-expansion-panel-header>
+
+                          <div class="row row-cols-1 row-cols-md-2">
+                            <mat-form-field class="col">
+                              <mat-label>Link to Subject</mat-label>
+                              <input matInput formControlName="linkToSub" />
+                            </mat-form-field>
+
+                            <mat-form-field class="col">
+                              <mat-label>Account Number</mat-label>
+                              <input matInput formControlName="accountNumber" />
+                            </mat-form-field>
+
+                            <mat-form-field class="col">
+                              <mat-label>Policy Number</mat-label>
+                              <input matInput formControlName="policyNumber" />
+                            </mat-form-field>
+
+                            <mat-form-field class="col">
+                              <mat-label>Identifying Number</mat-label>
+                              <input
+                                matInput
+                                formControlName="identifyingNumber"
+                              />
+                            </mat-form-field>
+                          </div>
+                        </mat-expansion-panel>
+                      </div>
+                      <button
+                        type="button"
+                        mat-raised-button
+                        color="primary"
+                        (click)="addInvolvedIn(caIndex)"
+                      >
+                        <mat-icon>add</mat-icon> Add Involved Subject
+                      </button>
+                    </div>
+
+                    <!-- Beneficiaries Section -->
+                    <h2>Beneficiaries</h2>
+                    <div class="row">
+                      <mat-checkbox
+                        class="col"
+                        formControlName="wasBenInfoObtained"
+                      >
+                        Was Beneficiary Info Obtained?
+                      </mat-checkbox>
+                    </div>
+
+                    <div
+                      formArrayName="beneficiaries"
+                      class="d-flex flex-column align-items-end gap-3"
+                      [appControlToggle]="
+                        'completingActions.' + caIndex + '.wasBenInfoObtained'
+                      "
+                    >
+                      <div
+                        *ngFor="
+                          let beneficiary of caAction.controls.beneficiaries
+                            ?.controls;
+                          let benIndex = index
+                        "
+                        [formGroupName]="benIndex"
+                        class="w-100"
+                      >
+                        <mat-expansion-panel [expanded]="true">
+                          <mat-expansion-panel-header>
+                            <mat-panel-title class="d-flex align-items-center"
+                              ><h3>Beneficiary #{{ benIndex + 1 }}</h3>
+                              <button
+                                type="button"
+                                mat-icon-button
+                                (click)="removeBeneficiary(caIndex, benIndex)"
+                              >
+                                <mat-icon>delete</mat-icon>
+                              </button>
+                            </mat-panel-title>
+                          </mat-expansion-panel-header>
+
+                          <div class="row row-cols-1 row-cols-md-2">
+                            <mat-form-field class="col">
+                              <mat-label>Link to Subject</mat-label>
+                              <input matInput formControlName="linkToSub" />
+                            </mat-form-field>
+
+                            <mat-form-field class="col">
+                              <mat-label>Client Number</mat-label>
+                              <input matInput formControlName="clientNo" />
+                            </mat-form-field>
+
+                            <mat-form-field class="col">
+                              <mat-label>Email</mat-label>
+                              <input
+                                matInput
+                                type="email"
+                                formControlName="email"
+                              />
+                            </mat-form-field>
+
+                            <mat-form-field class="col">
+                              <mat-label>URL</mat-label>
+                              <input
+                                matInput
+                                type="url"
+                                formControlName="url"
+                              />
+                            </mat-form-field>
+                          </div>
+                        </mat-expansion-panel>
+                      </div>
+                      <button
+                        type="button"
+                        mat-raised-button
+                        color="primary"
+                        (click)="addBeneficiary(caIndex)"
+                      >
+                        <mat-icon>add</mat-icon> Add Beneficiary
+                      </button>
+                    </div>
+                  </mat-expansion-panel>
+                </div>
               </div>
             </div>
           </mat-tab>
         </mat-tab-group>
+        <pre class="overlay-pre">
+Form values: {{ strTxnForm.value | json }}</pre
+        >
       </form>
-      <!-- <pre class="overlay-pre">Form values: {{ userForm.value | json }}</pre> -->
     </div>
   `,
   styleUrls: ["./edit-form.component.scss"],
 })
 export class EditFormComponent implements OnInit, OnDestroy {
-  userBeforeEdit: WithVersion<User> | null = null;
-  usersBeforeBulkEdit: WithVersion<User>[] | null = null;
+  strTxnBeforeEdit: WithVersion<StrTxn> | null = null;
+  strTxnsBeforeBulkEdit: WithVersion<StrTxn>[] | null = null;
   validatorParams = {
     maxBirthDate: new Date(),
     passwordLenMin: 6,
@@ -2107,11 +1264,11 @@ export class EditFormComponent implements OnInit, OnDestroy {
     stateCodeLenMax: 3,
   };
 
-  userForm: UserFormType = null!;
+  strTxnForm: StrTxnFormType = null!;
   private sessionId: string = null!;
   constructor(
     private crossTabEditService: CrossTabEditService,
-    private changeLogService: ChangeLogService<User>,
+    private changeLogService: ChangeLogService<StrTxn>,
     private activatedRoute: ActivatedRoute,
     private route: ActivatedRoute,
   ) {}
@@ -2132,12 +1289,12 @@ export class EditFormComponent implements OnInit, OnDestroy {
       )
       .subscribe(({ type, payload }) => {
         if (type === "EDIT_REQUEST") {
-          this.userBeforeEdit = payload;
-          this.createUserForm(payload);
+          this.strTxnBeforeEdit = payload;
+          this.createStrTxnForm({ txn: payload });
         }
         if (type === "BULK_EDIT_REQUEST") {
-          this.usersBeforeBulkEdit = payload;
-          this.createUserForm();
+          this.strTxnsBeforeBulkEdit = payload;
+          this.createStrTxnForm({ createEmptyArrays: true });
         }
       });
   }
@@ -2151,70 +1308,47 @@ export class EditFormComponent implements OnInit, OnDestroy {
     removePageFromOpenTabs(this.route.snapshot);
   }) as () => void;
 
-  private createUserForm(user?: WithVersion<User> | null) {
-    this.userForm = new FormGroup({
-      _version: new FormControl<number>(user?._version || 0),
-      _id: new FormControl(user?._id || uuidv4()),
-      id: new FormControl<number>(user?.id || null!),
-      firstName: new FormControl(user?.firstName || "", Validators.required),
-      lastName: new FormControl(user?.lastName || "", Validators.required),
-      maidenName: new FormControl(user?.maidenName || ""),
-      age: new FormControl<number>(user?.age || null!, [Validators.min(0)]),
-      gender: new FormControl(user?.gender || ""),
-      email: new FormControl(user?.email || "", [
-        Validators.required,
-        Validators.email,
-      ]),
-      phone: new FormControl(user?.phone || "", [
-        Validators.pattern(this.validatorParams.phonePatterns.us),
-      ]),
-      username: new FormControl(user?.username || "", [
-        Validators.minLength(this.validatorParams.usernameLenMin),
-      ]),
-      password: new FormControl(user?.password || "", [
-        Validators.minLength(this.validatorParams.passwordLenMin),
-      ]),
-      birthDate: new FormControl(user?.birthDate || ""),
-      image: new FormControl(user?.image || ""),
-      bloodGroup: new FormControl(user?.bloodGroup || ""),
-      height: new FormControl<number>(user?.height || null!),
-      weight: new FormControl<number>(user?.weight || null!),
-      eyeColor: new FormControl(user?.eyeColor || ""),
-      hair: new FormGroup({
-        color: new FormControl(user?.hair.color || ""),
-        type: new FormControl(user?.hair.type || ""),
-      }),
-      ip: new FormControl(user?.ip || ""),
-      address: new FormArray(
-        user?.address.map((item) => this.createAddressGroup(item)) || [
-          this.createAddressGroup(),
-        ],
+  private createStrTxnForm({
+    txn,
+    createEmptyArrays = false,
+  }: {
+    txn?: WithVersion<StrTxn> | null;
+    createEmptyArrays?: boolean;
+  }) {
+    this.strTxnForm = new FormGroup({
+      _version: new FormControl<number>(txn?._version || 0),
+      _mongoid: new FormControl(txn?._mongoid || `mtxn-${uuidv4()}`),
+      wasTxnAttempted: new FormControl(txn?.wasTxnAttempted || false),
+      wasTxnAttemptedReason: new FormControl(txn?.wasTxnAttemptedReason || ""),
+      dateOfTxn: new FormControl(txn?.dateOfTxn || ""),
+      timeOfTxn: new FormControl(txn?.timeOfTxn || ""),
+      hasPostingDate: new FormControl(txn?.hasPostingDate || false),
+      dateOfPosting: new FormControl(txn?.dateOfPosting || ""),
+      timeOfPosting: new FormControl(txn?.timeOfPosting || ""),
+      methodOfTxn: new FormControl(txn?.methodOfTxn || ""),
+      methodOfTxnOther: new FormControl(txn?.methodOfTxnOther || ""),
+      reportingEntityTxnRefNo: new FormControl(
+        txn?.reportingEntityTxnRefNo || "",
       ),
-      macAddress: new FormControl(user?.macAddress || ""),
-      university: new FormControl(user?.university || ""),
-      bank: new FormArray(
-        user?.bank.map((item) => this.createBankGroup(item)) || [
-          this.createBankGroup(),
-        ],
+      purposeOfTxn: new FormControl(txn?.purposeOfTxn || ""),
+      reportingEntityLocationNo: new FormControl(
+        txn?.reportingEntityLocationNo || "",
       ),
-      company: new FormArray(
-        user?.company.map((item) => this.createCompanyGroup(item)) || [
-          this.createCompanyGroup(),
-        ],
+      startingActions: new FormArray(
+        txn?.startingActions?.map((action) =>
+          this.createStartingActionGroup({ action }),
+        ) ||
+          (createEmptyArrays
+            ? [this.createStartingActionGroup({ createEmptyArrays })]
+            : []),
       ),
-      ein: new FormControl(user?.ein || ""),
-      ssn: new FormControl(user?.ssn || ""),
-      userAgent: new FormControl(user?.userAgent || ""),
-      crypto: new FormArray(
-        user?.crypto.map((item) => this.createCryptoGroup(item)) || [
-          this.createCryptoGroup(),
-        ],
-      ),
-      role: new FormControl(user?.role || ""),
-      workExperience: new FormArray(
-        user?.workExperience.map((exp) =>
-          this.createWorkExperienceGroup(exp),
-        ) || [this.createWorkExperienceGroup()],
+      completingActions: new FormArray(
+        txn?.completingActions?.map((action) =>
+          this.createCompletingActionGroup({ action }),
+        ) ||
+          (createEmptyArrays
+            ? [this.createCompletingActionGroup({ createEmptyArrays })]
+            : []),
       ),
     });
   }
@@ -2222,229 +1356,311 @@ export class EditFormComponent implements OnInit, OnDestroy {
   // --------------------------
   // Form Group Creation Methods
   // --------------------------
-  private createAddressGroup(address?: Address): FormGroup {
+  private createStartingActionGroup({
+    action,
+    createEmptyArrays = false,
+  }: { action?: StartingAction; createEmptyArrays?: boolean } = {}): FormGroup {
     return new FormGroup({
-      _id: new FormControl(address?._id || uuidv4()),
-      address: new FormControl(address?.address || "", Validators.required),
-      city: new FormControl(address?.city || "", Validators.required),
-      state: new FormControl(address?.state || "", Validators.required),
-      stateCode: new FormControl(address?.stateCode || "", [
-        Validators.required,
-        Validators.maxLength(this.validatorParams.stateCodeLenMax),
-      ]),
-      postalCode: new FormControl(address?.postalCode || "", [
-        Validators.required,
-        Validators.maxLength(this.validatorParams.postalCodeLenMax),
-      ]),
-      coordinates: this.createCoordinatesGroup(address?.coordinates),
-      country: new FormControl(address?.country || "", Validators.required),
-    });
-  }
-
-  private createCoordinatesGroup(coords?: Coordinates): FormGroup {
-    return new FormGroup({
-      lat: new FormControl(coords?.lat || null),
-      lng: new FormControl(coords?.lng || null),
-    });
-  }
-
-  private createBankGroup(bank?: Bank): FormGroup {
-    return new FormGroup({
-      _id: new FormControl(bank?._id || uuidv4()),
-      cardNumber: new FormControl(bank?.cardNumber || "", Validators.required),
-      cardExpire: new FormControl(bank?.cardExpire || "", Validators.required),
-      cardType: new FormControl(bank?.cardType || "", Validators.required),
-      currency: new FormControl(bank?.currency || ""),
-      iban: new FormControl(bank?.iban || ""),
-    });
-  }
-
-  private createCompanyGroup(company?: Company): FormGroup {
-    return new FormGroup({
-      _id: new FormControl(company?._id || uuidv4()),
-      department: new FormControl(company?.department || ""),
-      name: new FormControl(company?.name || "", Validators.required),
-      title: new FormControl(company?.title || ""),
-      address: new FormGroup({
-        address: new FormControl(
-          company?.address?.address || "",
-          Validators.required,
-        ),
-        city: new FormControl(
-          company?.address?.city || "",
-          Validators.required,
-        ),
-        state: new FormControl(
-          company?.address?.state || "",
-          Validators.required,
-        ),
-        stateCode: new FormControl(company?.address?.stateCode || "", [
-          Validators.required,
-          Validators.maxLength(this.validatorParams.stateCodeLenMax),
-        ]),
-        postalCode: new FormControl(company?.address?.postalCode || "", [
-          Validators.required,
-          Validators.maxLength(this.validatorParams.postalCodeLenMax),
-        ]),
-        coordinates: this.createCoordinatesGroup(company?.address?.coordinates),
-        country: new FormControl(
-          company?.address?.country || "",
-          Validators.required,
-        ),
-      }),
-    });
-  }
-
-  private createCryptoGroup(crypto?: ICrypto): FormGroup {
-    return new FormGroup({
-      _id: new FormControl(crypto?._id || uuidv4()),
-      coin: new FormControl(crypto?.coin || "", Validators.required),
-      network: new FormControl(crypto?.network || "", Validators.required),
-      wallet: new FormControl(crypto?.wallet || ""),
-    });
-  }
-
-  private createWorkExperienceGroup(work?: WorkExperience): FormGroup {
-    return new FormGroup({
-      _id: new FormControl(work?._id || uuidv4()),
-      jobTitle: new FormControl(work?.jobTitle || "", Validators.required),
-      employer: new FormControl(work?.employer || "", Validators.required),
-      projects: new FormArray(
-        work?.projects?.map((p) => this.createProjectGroup(p)) || [
-          this.createProjectGroup(),
-        ],
+      _id: new FormControl(action?._id || uuidv4()),
+      directionOfSA: new FormControl(action?.directionOfSA || ""),
+      typeOfFunds: new FormControl(action?.typeOfFunds || ""),
+      typeOfFundsOther: new FormControl(action?.typeOfFundsOther || ""),
+      amount: new FormControl(action?.amount || null),
+      currency: new FormControl(action?.currency || ""),
+      fiuNo: new FormControl(action?.fiuNo || ""),
+      branch: new FormControl(action?.branch || ""),
+      account: new FormControl(action?.account || ""),
+      accountType: new FormControl(action?.accountType || ""),
+      accountTypeOther: new FormControl(action?.accountTypeOther || ""),
+      accountOpen: new FormControl(action?.accountOpen || ""),
+      accountClose: new FormControl(action?.accountClose || ""),
+      accountStatus: new FormControl(action?.accountStatus || ""),
+      howFundsObtained: new FormControl(action?.howFundsObtained || ""),
+      accountCurrency: new FormControl(action?.accountCurrency || ""),
+      accountHolders: new FormArray(
+        action?.accountHolders?.map((holder) =>
+          this.createAccountHolderGroup(holder),
+        ) || (createEmptyArrays ? [this.createAccountHolderGroup()] : []),
+      ),
+      wasSofInfoObtained: new FormControl(action?.wasSofInfoObtained || false),
+      sourceOfFunds: new FormArray(
+        action?.sourceOfFunds?.map((source) =>
+          this.createSourceOfFundsGroup(source),
+        ) || (createEmptyArrays ? [this.createSourceOfFundsGroup()] : []),
+      ),
+      wasCondInfoObtained: new FormControl(
+        action?.wasCondInfoObtained || false,
+      ),
+      conductors: new FormArray(
+        action?.conductors?.map((conductor) =>
+          this.createConductorGroup({ conductor }),
+        ) ||
+          (createEmptyArrays
+            ? [this.createConductorGroup({ createEmptyArrays })]
+            : []),
       ),
     });
   }
 
-  private createProjectGroup(project?: Project): FormGroup {
+  private createCompletingActionGroup({
+    action,
+    createEmptyArrays = false,
+  }: {
+    action?: CompletingAction;
+    createEmptyArrays?: boolean;
+  } = {}): FormGroup {
     return new FormGroup({
-      _id: new FormControl(project?._id || uuidv4()),
-      name: new FormControl(project?.name || "", Validators.required),
-      description: new FormControl(project?.description || ""),
-      technologies: new FormArray(
-        project?.technologies?.map((t) => this.createTechnologyGroup(t)) || [
-          this.createTechnologyGroup(),
-        ],
+      _id: new FormControl(action?._id || uuidv4()),
+      detailsOfDispo: new FormControl(action?.detailsOfDispo || ""),
+      detailsOfDispoOther: new FormControl(action?.detailsOfDispoOther || ""),
+      amount: new FormControl(action?.amount || null),
+      currency: new FormControl(action?.currency || ""),
+      exchangeRate: new FormControl(action?.exchangeRate || null),
+      valueInCad: new FormControl(action?.valueInCad || null),
+      fiuNo: new FormControl(action?.fiuNo || ""),
+      branch: new FormControl(action?.branch || ""),
+      account: new FormControl(action?.account || ""),
+      accountType: new FormControl(action?.accountType || ""),
+      accountTypeOther: new FormControl(action?.accountTypeOther || ""),
+      accountCurrency: new FormControl(action?.accountCurrency || ""),
+      accountOpen: new FormControl(action?.accountOpen || ""),
+      accountClose: new FormControl(action?.accountClose || ""),
+      accountStatus: new FormControl(action?.accountStatus || ""),
+      accountHolders: new FormArray(
+        action?.accountHolders?.map((holder) =>
+          this.createAccountHolderGroup(holder),
+        ) || (createEmptyArrays ? [this.createAccountHolderGroup()] : []),
       ),
-      teamMembers: new FormArray(
-        project?.teamMembers?.map((tm) => this.createTeamMemberGroup(tm)) || [
-          this.createTeamMemberGroup(),
-        ],
+      wasAnyOtherSubInvolved: new FormControl(
+        action?.wasAnyOtherSubInvolved || false,
+      ),
+      involvedIn: new FormArray(
+        action?.involvedIn?.map((inv) => this.createInvolvedInGroup(inv)) ||
+          (createEmptyArrays ? [this.createInvolvedInGroup()] : []),
+      ),
+      wasBenInfoObtained: new FormControl(action?.wasBenInfoObtained || false),
+      beneficiaries: new FormArray(
+        action?.beneficiaries?.map((ben) => this.createBeneficiaryGroup(ben)) ||
+          (createEmptyArrays ? [this.createBeneficiaryGroup()] : []),
       ),
     });
   }
 
-  newTechControl = this.createTechnologyGroup();
-
-  private createTechnologyGroup(tech?: Technology): FormGroup {
+  private createAccountHolderGroup(holder?: AccountHolder): FormGroup {
     return new FormGroup({
-      _id: new FormControl(tech?._id || uuidv4()),
-      technology: new FormControl(tech?.technology || ""),
+      _id: new FormControl(holder?._id || uuidv4()),
+      linkToSub: new FormControl(holder?.linkToSub || ""),
     });
   }
 
-  private createTeamMemberGroup(member?: TeamMember): FormGroup {
+  private createSourceOfFundsGroup(source?: SourceOfFunds): FormGroup {
     return new FormGroup({
-      _id: new FormControl(member?._id || uuidv4()),
-      name: new FormControl(member?.name || "", Validators.required),
-      role: new FormControl(member?.role || "", Validators.required),
+      _id: new FormControl(source?._id || uuidv4()),
+      linkToSub: new FormControl(source?.linkToSub || ""),
+      accountNumber: new FormControl(source?.accountNumber || ""),
+      policyNumber: new FormControl(source?.policyNumber || ""),
+      identifyingNumber: new FormControl(source?.identifyingNumber || ""),
+    });
+  }
+
+  private createConductorGroup({
+    conductor,
+    createEmptyArrays = false,
+  }: { conductor?: Conductor; createEmptyArrays?: boolean } = {}): FormGroup {
+    return new FormGroup({
+      _id: new FormControl(conductor?._id || uuidv4()),
+      linkToSub: new FormControl(conductor?.linkToSub || ""),
+      clientNo: new FormControl(conductor?.clientNo || ""),
+      email: new FormControl(conductor?.email || ""),
+      url: new FormControl(conductor?.url || ""),
+      wasConductedOnBehalf: new FormControl(
+        conductor?.wasConductedOnBehalf || false,
+      ),
+      onBehalfOf: new FormArray(
+        conductor?.onBehalfOf?.map((behalf) =>
+          this.createOnBehalfOfGroup(behalf),
+        ) || (createEmptyArrays ? [this.createOnBehalfOfGroup()] : []),
+      ),
+    });
+  }
+
+  private createOnBehalfOfGroup(behalf?: OnBehalfOf): FormGroup {
+    return new FormGroup({
+      linkToSub: new FormControl(behalf?.linkToSub || ""),
+      clientNo: new FormControl(behalf?.clientNo || ""),
+      email: new FormControl(behalf?.email || ""),
+      url: new FormControl(behalf?.url || ""),
+      relationToCond: new FormControl(behalf?.relationToCond || ""),
+      relationToCondOther: new FormControl(behalf?.relationToCondOther || ""),
+    });
+  }
+
+  private createInvolvedInGroup(involved?: InvolvedIn): FormGroup {
+    return new FormGroup({
+      _id: new FormControl(involved?._id || uuidv4()),
+      linkToSub: new FormControl(involved?.linkToSub || ""),
+      accountNumber: new FormControl(involved?.accountNumber || ""),
+      policyNumber: new FormControl(involved?.policyNumber || ""),
+      identifyingNumber: new FormControl(involved?.identifyingNumber || ""),
+    });
+  }
+
+  private createBeneficiaryGroup(beneficiary?: Beneficiary): FormGroup {
+    return new FormGroup({
+      _id: new FormControl(beneficiary?._id || uuidv4()),
+      linkToSub: new FormControl(beneficiary?.linkToSub || ""),
+      clientNo: new FormControl(beneficiary?.clientNo || null),
+      email: new FormControl(beneficiary?.email || ""),
+      url: new FormControl(beneficiary?.url || ""),
     });
   }
 
   // ----------------------
   // Array Management
   // ----------------------
-  addAddress(): void {
-    this.userForm.controls.address.push(this.createAddressGroup());
-  }
-
-  removeAddress(index: number): void {
-    this.userForm.controls.address.removeAt(index);
-  }
-
-  addBank(): void {
-    this.userForm.controls.bank.push(this.createBankGroup());
-  }
-
-  removeBank(index: number): void {
-    this.userForm.controls.bank.removeAt(index);
-  }
-
-  addCompany(): void {
-    this.userForm.controls.company.push(this.createCompanyGroup());
-  }
-
-  removeCompany(index: number): void {
-    this.userForm.controls.company.removeAt(index);
-  }
-  addCrypto(): void {
-    this.userForm.controls.crypto.push(this.createCryptoGroup());
-  }
-
-  removeCrypto(index: number): void {
-    this.userForm.controls.crypto.removeAt(index);
-  }
-
-  addWorkExperience(): void {
-    this.userForm.controls.workExperience.push(
-      this.createWorkExperienceGroup(),
+  // Starting Actions
+  addStartingAction(): void {
+    this.strTxnForm.controls.startingActions.push(
+      this.createStartingActionGroup(),
     );
   }
 
-  removeWorkExperience(index: number): void {
-    this.userForm.controls.workExperience.removeAt(index);
-  }
-  addProject(workIndex: number): void {
-    this.userForm.controls.workExperience
-      .at(workIndex)
-      .controls.projects.push(this.createProjectGroup());
+  removeStartingAction(index: number): void {
+    this.strTxnForm.controls.startingActions.removeAt(index);
   }
 
-  removeProject(workIndex: number, projectIndex: number): void {
-    this.userForm.controls.workExperience
-      .at(workIndex)
-      .controls.projects.removeAt(projectIndex);
+  // Completing Actions
+  addCompletingAction(): void {
+    this.strTxnForm.controls.completingActions.push(
+      this.createCompletingActionGroup(),
+    );
   }
 
-  addTechnology(workIndex: number, projectIndex: number): void {
-    const techValue = this.newTechControl.get("technology")?.value?.trim();
-    this.userForm.controls.workExperience
-      .at(workIndex)
-      .controls.projects.at(projectIndex)
-      .controls.technologies.push(
-        this.createTechnologyGroup({ _id: "", technology: techValue || "" }),
-      );
-    this.newTechControl.reset();
+  removeCompletingAction(index: number): void {
+    this.strTxnForm.controls.completingActions.removeAt(index);
   }
 
-  removeTechnology(
-    workIndex: number,
-    projectIndex: number,
-    techIndex: number,
+  /**
+   * Account Holders (within StartingAction/CompletingAction)
+   *
+   * @param {keyof StrTxn} actionControlName
+   * @param {number} actionIndex
+   */
+  addAccountHolder(actionControlName: keyof StrTxn, actionIndex: number): void {
+    const actionArray = this.strTxnForm.get(actionControlName) as any as
+      | FormArray<FormGroup<TypedForm<StartingAction>>>
+      | FormArray<FormGroup<TypedForm<CompletingAction>>>;
+    const actionGroup = actionArray.at(actionIndex);
+    actionGroup.controls.accountHolders!.push(this.createAccountHolderGroup());
+  }
+
+  removeAccountHolder(
+    actionControlName: keyof StrTxn,
+    actionIndex: number,
+    index: number,
   ): void {
-    this.userForm.controls.workExperience
-      .at(workIndex)
-      .controls.projects.at(projectIndex)
-      .controls.technologies.removeAt(techIndex);
+    const actionArray = this.strTxnForm.get(actionControlName) as any as
+      | FormArray<FormGroup<TypedForm<StartingAction>>>
+      | FormArray<FormGroup<TypedForm<CompletingAction>>>;
+    const actionGroup = actionArray.at(actionIndex);
+    actionGroup.controls.accountHolders!.removeAt(index);
   }
 
-  addTeamMember(workIndex: number, projectIndex: number): void {
-    this.userForm.controls.workExperience
-      .at(workIndex)
-      .controls.projects.at(projectIndex)
-      .controls.teamMembers.push(this.createTeamMemberGroup());
+  // Source of Funds
+  addSourceOfFunds(saIndex: number): void {
+    const sourceOfFunds =
+      this.strTxnForm.controls.startingActions.at(saIndex).controls
+        .sourceOfFunds;
+
+    if (sourceOfFunds.disabled) return;
+    sourceOfFunds.push(this.createSourceOfFundsGroup());
   }
 
-  removeTeamMember(
-    workIndex: number,
-    projectIndex: number,
-    teamMemberIndex: number,
+  removeSourceOfFunds(saIndex: number, index: number): void {
+    const sourceOfFunds =
+      this.strTxnForm.controls.startingActions.at(saIndex).controls
+        .sourceOfFunds;
+
+    if (sourceOfFunds.disabled) return;
+    sourceOfFunds.removeAt(index);
+  }
+
+  // Conductors
+  addConductor(saIndex: number): void {
+    const conductors =
+      this.strTxnForm.controls.startingActions.at(saIndex).controls.conductors;
+
+    if (conductors.disabled) return;
+    conductors.push(this.createConductorGroup());
+  }
+
+  removeConductor(saIndex: number, index: number): void {
+    const conductors =
+      this.strTxnForm.controls.startingActions.at(saIndex).controls.conductors;
+
+    if (conductors.disabled) return;
+    conductors.removeAt(index);
+  }
+
+  // On Behalf Of
+  addOnBehalfOf(saIndex: number, conductorIndex: number): void {
+    const onBehalfOf = this.strTxnForm.controls.startingActions
+      .at(saIndex)
+      .controls.conductors.at(conductorIndex).controls.onBehalfOf;
+
+    if (onBehalfOf.disabled) return;
+    onBehalfOf.push(this.createOnBehalfOfGroup());
+  }
+
+  removeOnBehalfOf(
+    saIndex: number,
+    conductorIndex: number,
+    index: number,
   ): void {
-    this.userForm.controls.workExperience
-      .at(workIndex)
-      .controls.projects.at(projectIndex)
-      .controls.teamMembers.removeAt(teamMemberIndex);
+    const onBehalfOf = this.strTxnForm.controls.startingActions
+      .at(saIndex)
+      .controls.conductors.at(conductorIndex).controls.onBehalfOf;
+
+    if (onBehalfOf.disabled) return;
+    onBehalfOf.removeAt(index);
+  }
+
+  // Involved In (Completing Action)
+  addInvolvedIn(caIndex: number): void {
+    const involvedIn =
+      this.strTxnForm.controls.completingActions.at(caIndex).controls
+        .involvedIn!;
+
+    if (involvedIn.disabled) return;
+    involvedIn.push(this.createInvolvedInGroup());
+  }
+
+  removeInvolvedIn(caIndex: number, index: number): void {
+    const involvedIn =
+      this.strTxnForm.controls.completingActions.at(caIndex).controls
+        .involvedIn!;
+
+    if (involvedIn.disabled) return;
+    involvedIn.removeAt(index);
+  }
+
+  // Beneficiaries
+  addBeneficiary(caIndex: number): void {
+    const beneficiaries =
+      this.strTxnForm.controls.completingActions.at(caIndex).controls
+        .beneficiaries!;
+
+    if (beneficiaries.disabled) return;
+    beneficiaries.push(this.createBeneficiaryGroup());
+  }
+
+  removeBeneficiary(caIndex: number, index: number): void {
+    const beneficiaries =
+      this.strTxnForm.controls.completingActions.at(caIndex).controls
+        .beneficiaries!;
+
+    if (beneficiaries.disabled) return;
+    beneficiaries.removeAt(index);
   }
 
   // ----------------------
@@ -2453,47 +1669,26 @@ export class EditFormComponent implements OnInit, OnDestroy {
   onSubmit(): void {
     console.log(
       "🚀 ~ EditFormComponent ~ onSubmit ~ this.userForm!.value:",
-      this.userForm!.value,
+      this.strTxnForm!.value,
     );
-    if (!this.userForm!.valid) return;
+    // debugger;
+    if (!this.strTxnForm!.valid) return;
     const changes: ChangeLog[] = [];
     this.changeLogService.compareProperties(
-      this.userBeforeEdit,
-      this.userForm!.value,
+      this.strTxnBeforeEdit,
+      this.strTxnForm!.value,
       changes,
     );
     this.crossTabEditService.saveEditResponseToLocalStorage(
       this.sessionId,
-      this.userBeforeEdit?._id!,
+      this.strTxnBeforeEdit?._mongoid!,
       changes,
     );
-    this.userBeforeEdit = this.userForm.value as any as WithVersion<User>;
-  }
-
-  formatPhoneNumber(): void {
-    const phoneControl = this.userForm.get("phone");
-    if (!phoneControl) return;
-
-    let phoneValue = phoneControl.value;
-    if (phoneValue) {
-      phoneValue = phoneValue.replace(/\D/g, "");
-      if (phoneValue.length > 3 && phoneValue.length <= 6) {
-        phoneValue = `(${phoneValue.substring(0, 3)}) ${phoneValue.substring(
-          3,
-        )}`;
-      } else if (phoneValue.length > 6) {
-        phoneValue = `(${phoneValue.substring(0, 3)}) ${phoneValue.substring(
-          3,
-          6,
-        )}-${phoneValue.substring(6, 10)}`;
-      }
-      phoneControl.setValue(phoneValue, { emitEvent: false });
-    }
+    this.strTxnBeforeEdit = this.strTxnForm.value as any as WithVersion<StrTxn>;
   }
 }
-
 type TypedForm<T> = {
-  [K in keyof T]: T[K] extends Array<infer U>
+  [K in keyof T]: Exclude<T[K], undefined> extends Array<infer U>
     ? FormArray<
         U extends object ? FormGroup<TypedForm<U>> : FormControl<U | null>
       >
@@ -2502,4 +1697,4 @@ type TypedForm<T> = {
       : FormControl<T[K] | null>;
 };
 
-type UserFormType = FormGroup<TypedForm<WithVersion<User>>>;
+type StrTxnFormType = FormGroup<TypedForm<WithVersion<StrTxn>>>;

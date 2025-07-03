@@ -1,19 +1,18 @@
 import { Injectable } from "@angular/core";
-import { BehaviorSubject } from "rxjs/internal/BehaviorSubject";
 import { ChangeLogWithoutVersion, WithVersion } from "./change-log.service";
 import { filter, map } from "rxjs/operators";
-import { fromEvent, Observable } from "rxjs";
-import { UserChangeLog } from "./session-data.service";
-import { User } from "./table/table.component";
+import { fromEvent, Observable, Subject } from "rxjs";
+import { StrTxnChangeLog } from "./session-data.service";
+import { StrTxn } from "./table/table.component";
 
 @Injectable({
   providedIn: "root",
 })
 export class CrossTabEditService {
-  private editResponseSubject = new BehaviorSubject<Extract<
+  private editResponseSubject = new Subject<Extract<
     EditSession,
     { type: "EDIT_RESULT" }
-  > | null>(null);
+  > | null>();
   editResponse$ = this.editResponseSubject.asObservable();
 
   constructor() {
@@ -59,8 +58,8 @@ export class CrossTabEditService {
 
   openEditFormTab(
     req:
-      | { user: WithVersion<User>; editType: "EDIT_REQUEST" }
-      | { users: WithVersion<User>[]; editType: "BULK_EDIT_REQUEST" },
+      | { strTxn: WithVersion<StrTxn>; editType: "EDIT_REQUEST" }
+      | { strTxns: WithVersion<StrTxn>[]; editType: "BULK_EDIT_REQUEST" },
   ) {
     const sessionId = `edit-session-${Date.now()}`;
 
@@ -68,11 +67,11 @@ export class CrossTabEditService {
     if (req.editType === "EDIT_REQUEST") {
       payload = {
         type: req.editType,
-        payload: req.user,
+        payload: req.strTxn,
       };
     }
     if (req.editType === "BULK_EDIT_REQUEST") {
-      payload = { type: req.editType, payload: req.users };
+      payload = { type: req.editType, payload: req.strTxns };
     }
 
     console.assert(payload != null);
@@ -83,12 +82,12 @@ export class CrossTabEditService {
 
   saveEditResponseToLocalStorage(
     sessionId: string,
-    userId: string,
+    strTxnId: string,
     changeLogs: ChangeLogWithoutVersion[],
   ) {
     const payload: EditSession = {
       type: "EDIT_RESULT",
-      payload: { userId, changeLogs },
+      payload: { strTxnId, changeLogs },
     };
     localStorage.setItem(sessionId, JSON.stringify(payload));
     // window.close();
@@ -98,15 +97,15 @@ export class CrossTabEditService {
 export type EditSession =
   | {
       type: "EDIT_REQUEST";
-      payload: WithVersion<User>;
+      payload: WithVersion<StrTxn>;
     }
   | {
       type: "EDIT_RESULT";
-      payload: Omit<UserChangeLog, "changeLogs"> & {
+      payload: Omit<StrTxnChangeLog, "changeLogs"> & {
         changeLogs: ChangeLogWithoutVersion[];
       };
     }
   | {
       type: "BULK_EDIT_REQUEST";
-      payload: WithVersion<User>[];
+      payload: WithVersion<StrTxn>[];
     };

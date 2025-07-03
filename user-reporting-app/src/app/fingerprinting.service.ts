@@ -4,10 +4,8 @@ import { from, shareReplay } from "rxjs";
 @Injectable({
   providedIn: "root",
 })
-export class FingerprintingService {
-  browserFingerPrint$ = from(this.generateBrowserFingerprint()).pipe(
-    shareReplay(1),
-  );
+export class AuthService {
+  userAuthId$ = from(this.generateBrowserFingerprint()).pipe(shareReplay(1));
 
   private async generateBrowserFingerprint(): Promise<string> {
     const fingerprintData = {

@@ -46,11 +46,16 @@ if (app.Environment.IsDevelopment())
     app.UseCors("AllowAll");
 }
 
-app.MapGet("/api/users", async (IMongoDatabase db) =>
+app.MapGet("/api/strTxns", async (IMongoDatabase db, int? limit) =>
 {
-    var collection = db.GetCollection<UserRecord>("users");
-    var sortDefinition = Builders<UserRecord>.Sort.Ascending("id");
-    var documents = await collection.Find(FilterDefinition<UserRecord>.Empty).Sort(sortDefinition).ToListAsync();
+    var collection = db.GetCollection<StrTxnRecord>("strTxns");
+    var sortDefinition = Builders<StrTxnRecord>.Sort.Ascending("dateOfTxn");
+    var findFluent = collection.Find(FilterDefinition<StrTxnRecord>.Empty).Sort(sortDefinition);
+    if (limit.HasValue && limit.Value > 0)
+    {
+        findFluent = findFluent.Limit(limit.Value);
+    }
+    var documents = await findFluent.ToListAsync();
 
     var result = documents.Select(document =>
         {
@@ -60,7 +65,7 @@ app.MapGet("/api/users", async (IMongoDatabase db) =>
                 elem => BsonTypeMapper.MapToDotNetValue(elem.Value));
 
             // Add the Id as a string (for JSON serialization)
-            dict["_id"] = document.UserId.ToString();
+            dict["_mongoid"] = document.Id.ToString();
 
             return dict;
         }).ToList();
@@ -68,10 +73,15 @@ app.MapGet("/api/users", async (IMongoDatabase db) =>
     return Results.Ok(result);
 });
 
-app.MapGet("/api/sessions/{userId}", static async (IMongoDatabase db, string userId) =>
+app.MapGet("/api/sessions/{sessionId}", static async (IMongoDatabase db, string sessionId) =>
 {
+    if (!ObjectId.TryParse(sessionId, out ObjectId sessionObjectId))
+    {
+        return Results.BadRequest(new { Title = "Invalid session ID format", SessionId = sessionId });
+    }
+
     var collection = db.GetCollection<Session>("sessions");
-    var filter = Builders<Session>.Filter.Eq(x => x.UserId, userId);
+    var filter = Builders<Session>.Filter.Eq(x => x.Id, sessionObjectId);
     Session? document = await collection.Find(filter).FirstOrDefaultAsync();
 
     if (document is null)
@@ -79,7 +89,7 @@ app.MapGet("/api/sessions/{userId}", static async (IMongoDatabase db, string use
         return Results.NotFound(new
         {
             Title = "Session not found",
-            UserId = userId
+            SessionId = sessionId
         });
     }
 
@@ -108,15 +118,23 @@ app.MapPost("/api/sessions", async (IMongoDatabase db, CreateSessionRequest requ
     };
 
     await collection.InsertOneAsync(session);
-    return Results.Created($"/api/sessions/{session.UserId}", new CreateSessionResponse(session.UserId, session.Version, session.CreatedAt));
+    return Results.Created($"/api/sessions/{session.Id}", new CreateSessionResponse(
+        session.Id.ToString(),
+        session.UserId,
+        session.Version,
+        session.CreatedAt));
 });
 
-app.MapPut("/api/sessions/{userId}", async (IMongoDatabase db, string userId, UpdateSessionRequest request) =>
+app.MapPut("/api/sessions/{sessionId}", async (IMongoDatabase db, string sessionId, UpdateSessionRequest request) =>
 {
+    if (!ObjectId.TryParse(sessionId, out ObjectId sessionObjectId))
+    {
+        return Results.BadRequest(new { Title = "Invalid session ID format", SessionId = sessionId });
+    }
     var collection = db.GetCollection<Session>("sessions");
 
     var filter = Builders<Session>.Filter.And(
-        Builders<Session>.Filter.Eq(x => x.UserId, userId),
+        Builders<Session>.Filter.Eq(x => x.Id, sessionObjectId),
         Builders<Session>.Filter.Eq(x => x.Version, request.CurrentVersion)
     );
 
@@ -136,11 +154,30 @@ app.MapPut("/api/sessions/{userId}", async (IMongoDatabase db, string userId, Up
 
     // Return minimal success response
     return Results.Ok(new UpdateSessionResponse(
-        userId,
+        sessionId,
         newVersion,
         updatedTime
     ));
 });
+
+const string TestSessionIdString = "64a7f8c9e3a5b1d2f3c4e5a6";
+var testSessionId = ObjectId.Parse(TestSessionIdString);
+var sessionsCollection = app.Services.GetRequiredService<IMongoDatabase>().GetCollection<Session>("sessions");
+
+var existingTestSession = await sessionsCollection.Find(s => s.Id == testSessionId).FirstOrDefaultAsync();
+if (existingTestSession == null)
+{
+    var testSession = new Session
+    {
+        Id = testSessionId,
+        Version = 0,
+        CreatedAt = DateTime.UtcNow,
+        UserId = "test-user",
+        Data = new BsonDocument { { "testKey", "testValue" } }
+    };
+    await sessionsCollection.InsertOneAsync(testSession);
+}
+
 
 app.Run();
 
