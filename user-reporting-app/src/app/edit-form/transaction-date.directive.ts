@@ -48,6 +48,10 @@ export class TransactionDateDirective implements ControlValueAccessor {
     this.datepickerInput.registerOnTouched(fn);
   }
 
+  setDisabledState(isDisabled: boolean): void {
+    this.datepickerInput.disabled = isDisabled;
+  }
+
   static parse = parse(new Date(), "yyyy/MM/dd");
   static formatSession = format("yyyy/MM/dd");
 }

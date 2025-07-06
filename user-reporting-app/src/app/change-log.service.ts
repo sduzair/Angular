@@ -1,4 +1,5 @@
 import { Injectable } from "@angular/core";
+import { SPECIAL_EMPTY_VALUE } from "./edit-form/clear-field.directive";
 
 type DiscriminatorType = "_id" | "index";
 
@@ -52,6 +53,7 @@ export class ChangeLogService<T extends object> {
       originalItem
         ? this.compareProperties(originalItem, updatedItem, changes, {
             path: itemPath,
+            discriminator: "_id",
           })
         : changes.push({ path, oldValue: undefined, newValue: updatedItem });
     });
@@ -75,7 +77,8 @@ export class ChangeLogService<T extends object> {
     changes: ChangeLogWithoutVersion[],
     path: string,
   ) {
-    const maxLength = Math.max(arr1.length, arr2.length);
+    // const maxLength = Math.max(arr1.length, arr2.length);
+    const maxLength = arr1.length;
 
     Array.from({ length: maxLength }).forEach((_, i) => {
       const itemPath = `${path}.$idx=${i}`;
@@ -85,6 +88,7 @@ export class ChangeLogService<T extends object> {
       if (i < arr1.length && i < arr2.length) {
         this.compareProperties(originalItem, updatedItem, changes, {
           path: itemPath,
+          discriminator: "index",
         });
       } else if (i < arr1.length) {
         changes.push({
@@ -100,7 +104,9 @@ export class ChangeLogService<T extends object> {
 
   // Main applyChanges function using path traversal closure
   applyChanges(original: T, changes: ChangeLog[]): WithVersion<T> {
-    const result = structuredClone(original) as WithVersion<T>;
+    if (changes.length === 0) return original as any;
+    // const result = structuredClone(original) as WithVersion<T>; // breaks table selection model refs
+    const result = original as WithVersion<T>;
 
     changes.forEach((change) => {
       const pathParts = change.path.split(".");
@@ -130,7 +136,10 @@ export class ChangeLogService<T extends object> {
 
           parent = current;
           current = current[targetIndex];
-          if (!isLastSegment) return;
+          if (!isLastSegment) {
+            targetIndex = null;
+            return;
+          }
         }
 
         // Apply changes at terminal node
@@ -163,7 +172,16 @@ export class ChangeLogService<T extends object> {
       targetIndex !== null
     ) {
       parent.splice(targetIndex, 1);
-    } else if (change.oldValue === undefined && Array.isArray(current[part])) {
+    } else if (
+      typeof current[part] === "undefined" &&
+      !Array.isArray(change.newValue) &&
+      typeof change.newValue === "object" &&
+      change.newValue !== null
+    ) {
+      throw new Error("add new array item when current has no array");
+    } else if (Array.isArray(current[part]) && Array.isArray(change.newValue)) {
+      throw new Error("entire array addition when current is already array");
+    } else if (Array.isArray(current[part]) && change.newValue !== undefined) {
       current[part].push(change.newValue);
     } else {
       current[part] = change.newValue;
@@ -196,31 +214,161 @@ export class ChangeLogService<T extends object> {
         const val1 = obj1?.[key];
         const val2 = obj2?.[key];
 
+        if (isIgnoredChange(val1, val2)) {
+          return;
+        }
+        if (typeof val2 === "object" && val2 !== null && !Array.isArray(val2)) {
+          this.compareProperties(val1 ?? {}, val2, changes, {
+            path: currentPath,
+            discriminator,
+          });
+          return;
+        }
         if (!val1 && Array.isArray(val2) && val2.length !== 0) {
           changes.push({
             path: currentPath,
             oldValue: undefined,
             newValue: val2,
           });
-        } else if (Array.isArray(val1) && Array.isArray(val2)) {
-          compareArrays(val1, val2, changes, currentPath);
-        } else if (typeof val2 === "object" && val2 !== null) {
-          this.compareProperties(val1 ?? {}, val2, changes, {
-            path: currentPath,
-            discriminator,
-          });
-        } else if (
-          val1 !== val2 &&
-          !(val1 === "" && val2 == null) &&
-          !(val1 == null && val2 === "") &&
-          !(val1 == null && val2 == null) &&
-          !(val1 == null && Array.isArray(val2) && val2.length === 0) &&
-          !(Array.isArray(val1) && val1.length === 0 && val2 == null) &&
-          !(val1 == null && typeof val2 === "boolean" && val2 === false)
+          return;
+        }
+        if (discriminator === "index" && ["_mongoid", "_id"].includes(key)) {
+          return;
+        }
+        // clear props that are not marked for clear
+        if (
+          discriminator === "index" &&
+          typeof val2 !== "boolean" &&
+          !val2 &&
+          !this.isDepProp(key)
         ) {
+          return;
+        }
+        if (
+          discriminator === "index" &&
+          this.isDepProp(key) &&
+          obj2[ChangeLogService.depPropToToggleMap[key]] == null
+        ) {
+          return;
+        }
+        if (
+          discriminator === "index" &&
+          this.isDepProp(key) &&
+          obj2[ChangeLogService.depPropToToggleMap[key]] === true
+        ) {
+          // replace
+          if (!isIgnoredChange(val1, undefined)) {
+            changes.push({
+              path: currentPath,
+              oldValue: val1,
+              newValue: undefined,
+            });
+          }
+
+          if (!isIgnoredChange(undefined, val2)) {
+            changes.push({
+              path: currentPath,
+              oldValue: undefined,
+              newValue: val2,
+            });
+          }
+          return;
+        }
+        if (
+          discriminator === "index" &&
+          this.isDepProp(key) &&
+          obj2[ChangeLogService.depPropToToggleMap[key]] === false
+        ) {
+          if (isIgnoredChange(val1, undefined)) {
+            return;
+          }
+          // clear
+          changes.push({
+            path: currentPath,
+            oldValue: val1,
+            newValue: undefined,
+          });
+          return;
+        }
+        if (discriminator === "index" && val2 === SPECIAL_EMPTY_VALUE) {
+          if (isIgnoredChange(val1, undefined)) {
+            return;
+          }
+          changes.push({
+            path: currentPath,
+            oldValue: val1,
+            newValue: undefined,
+          });
+          return;
+        }
+        if (Array.isArray(val2)) {
+          compareArrays(val1, val2, changes, currentPath);
+          return;
+        }
+        if (val1 !== val2) {
           changes.push({ path: currentPath, oldValue: val1, newValue: val2 });
         }
       });
+
+    function isIgnoredChange(val1: any, val2: any) {
+      return (
+        (val1 === "" && val2 == null) ||
+        (val1 == null && val2 === "") ||
+        (val1 == null && val2 == null) ||
+        (val1 == null && Array.isArray(val2) && val2.length === 0) ||
+        (val2 == null && Array.isArray(val1) && val1.length === 0) ||
+        // (val1 == null && typeof val2 === "boolean" && val2 === false) || // used by dep prop toggles
+        (val2 == null && typeof val1 === "boolean" && val1 === false)
+      );
+    }
+  }
+
+  static depPropToToggleMap = {
+    accountHolders: "hasAccountHolders" as const,
+    sourceOfFunds: "wasSofInfoObtained" as const,
+    conductors: "wasCondInfoObtained" as const,
+    involvedIn: "wasAnyOtherSubInvolved" as const,
+    beneficiaries: "wasBenInfoObtained" as const,
+    wasTxnAttemptedReason: "wasTxnAttempted" as const,
+    dateOfPosting: "hasPostingDate" as const,
+    timeOfPosting: "hasPostingDate" as const,
+  };
+
+  isDepProp(
+    key: string,
+  ): key is keyof typeof ChangeLogService.depPropToToggleMap {
+    return Object.keys(ChangeLogService.depPropToToggleMap).includes(key);
+  }
+
+  isDepPropToggle(
+    key: string,
+  ): key is (typeof ChangeLogService.depPropToToggleMap)[keyof typeof ChangeLogService.depPropToToggleMap] {
+    return Object.values(ChangeLogService.depPropToToggleMap).includes(
+      key as any,
+    );
+  }
+
+  getInitValForDepPropToggle(
+    key:
+      | (typeof ChangeLogService.depPropToToggleMap)[keyof typeof ChangeLogService.depPropToToggleMap]
+      | string,
+    val: unknown,
+    isBulkEdit: boolean,
+  ): any {
+    const toggleKey = this.isDepPropToggle(key);
+
+    // If no toggle mapped, just return current
+    if (!toggleKey) {
+      return val as string | null | undefined;
+    }
+
+    if (typeof val === "boolean") {
+      return val;
+    }
+
+    if (isBulkEdit) return null;
+
+    return true;
   }
 }
 
@@ -228,8 +376,8 @@ export type ChangeLogWithoutVersion = Omit<ChangeLog, "version">;
 
 export interface ChangeLog {
   path: string; // Format: "arrayName.$id=ID.property" or "arrayName"
-  oldValue: any;
-  newValue: any;
+  oldValue?: any;
+  newValue?: any;
   version: number;
 }
 

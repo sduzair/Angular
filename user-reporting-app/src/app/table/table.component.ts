@@ -36,7 +36,10 @@ import {
   takeWhile,
   throwError,
 } from "rxjs";
-import { type SessionState, SessionDataService } from "../session-data.service";
+import {
+  type SessionStateLocal,
+  SessionDataService,
+} from "../session-data.service";
 import { AuthService } from "../fingerprinting.service";
 import { RecordService } from "../record.service";
 import { SelectionModel } from "@angular/cdk/collections";
@@ -105,7 +108,7 @@ import { MatChipsModule } from "@angular/material/chips";
             [disabled]="this.isSingleOrBulkEditTabOpen"
           >
             <mat-icon>edit</mat-icon>
-            Bulk Edit
+            Bulk Edit ({{ this.selection.selected.length }})
           </button>
           <button mat-raised-button (click)="drawer.toggle()">
             <mat-icon>filter_list</mat-icon>
@@ -289,7 +292,7 @@ import { MatChipsModule } from "@angular/material/chips";
               ></tr>
               <tr
                 mat-row
-                *matRowDef="let row; columns: this.displayedColumns.values"
+                *matRowDef="let row; columns: this.displayedColumns.values;"
                 [class.recentOpenHighlight]="
                   this.recentOpenRows.includes(row._mongoid)
                 "
@@ -299,7 +302,8 @@ import { MatChipsModule } from "@angular/material/chips";
         </mat-drawer-content>
       </mat-drawer-container>
       <mat-paginator
-        [pageSizeOptions]="[5, 10, 20]"
+        [pageSizeOptions]="pageSizeOptions"
+        [pageSize]="pageSize"
         showFirstLastButtons
         aria-label="Select page of periodic elements"
       >
@@ -318,6 +322,22 @@ import { MatChipsModule } from "@angular/material/chips";
   ],
 })
 export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
+  pageSizeOptions: number[] = [5, 10, 20];
+  pageSize: number = this.pageSizeOptions[this.pageSizeOptions.length - 1];
+
+  updatePageSizeOptions(dataLength: number) {
+    const options = [5, 10, 20, 50, 100, 200, 300, 400, 500];
+    this.pageSizeOptions = options.filter((size) => size <= dataLength);
+
+    // Set pageSize to max option available limit to 300
+    const maxOption = this.pageSizeOptions[this.pageSizeOptions.length - 1];
+    this.pageSize = maxOption > 300 ? 300 : maxOption;
+
+    if (this.paginator) {
+      this.paginator.pageSize = this.pageSize;
+      this.paginator._changePageSize(this.pageSize);
+    }
+  }
   isAllSelected(): unknown {
     const numSelected = this.selection.selected.length;
     const numRows = this.dataSource.filteredData.length;
@@ -710,36 +730,39 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
           ]),
         ),
         scan((acc, [strTxns, sessionState]) => {
-          const { data: sessionStateData, recentEditFromEditForm } =
-            sessionState;
+          const {
+            data: { strTxnChangeLogs },
+            editTabResVersioned,
+          } = sessionState;
 
-          if (recentEditFromEditForm != null) {
+          // apply edit tab res change logs and return
+          if (editTabResVersioned != null) {
             console.assert(acc.length > 0);
-            return acc.map((user) => {
-              if (recentEditFromEditForm.strTxnId !== user._mongoid)
-                return user;
-              return this.changeLogService.applyChanges(
-                user,
-                recentEditFromEditForm.changeLogs,
-              );
+            return acc.map((strTxn) => {
+              const { changeLogs } =
+                editTabResVersioned.find(
+                  (res) => res.strTxnId === strTxn._mongoid,
+                ) || {};
+
+              if (!changeLogs) return strTxn;
+
+              return this.changeLogService.applyChanges(strTxn, changeLogs);
             });
           }
 
-          const strTxnsResult = strTxns.map((strTxn) => {
-            const userChanges = sessionStateData?.editedStrTxns?.find(
-              (editedUser) => editedUser.strTxnId === strTxn._mongoid,
-            );
-            return this.changeLogService.applyChanges(
-              strTxn,
-              userChanges?.changeLogs || [],
-            );
+          return strTxns.map((strTxn) => {
+            const { changeLogs } =
+              strTxnChangeLogs?.find(
+                (editedUser) => editedUser.strTxnId === strTxn._mongoid,
+              ) || {};
+            return this.changeLogService.applyChanges(strTxn, changeLogs || []);
           });
-          return strTxnsResult;
         }, [] as WithVersion<StrTxn>[]),
         takeUntil(this.destroy$),
       )
-      .subscribe((users) => {
-        this.dataSource.data = users;
+      .subscribe((strTxns) => {
+        this.dataSource.data = strTxns;
+        this.updatePageSizeOptions(strTxns.length);
       });
   }
 
@@ -875,6 +898,7 @@ export interface CompletingAction {
   accountOpen: string;
   accountClose: string;
   accountStatus: string;
+  hasAccountHolders: boolean;
   accountHolders?: AccountHolder[];
   wasAnyOtherSubInvolved: boolean;
   involvedIn?: InvolvedIn[];
@@ -920,6 +944,7 @@ export interface StartingAction {
   accountStatus: string;
   howFundsObtained: string;
   accountCurrency: string;
+  hasAccountHolders: boolean;
   accountHolders?: AccountHolder[];
   wasSofInfoObtained: boolean;
   sourceOfFunds: SourceOfFunds[];
@@ -979,7 +1004,7 @@ type AddPrefixToObject<T, P extends string> = {
 
 export interface SessionDataReqBody {
   userId: string;
-  data: SessionState;
+  data: SessionStateLocal;
 }
 
 type ColumnHeaderKeys =

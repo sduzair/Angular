@@ -179,6 +179,10 @@ mat-toolbar-row {
   gap: 0.5em;
 }
 
+mat-toolbar {
+  min-height: calc(var(--mat-toolbar-standard-height, 64px) * 2);
+}
+
 .mat-column-select {
   text-align: center;
 }

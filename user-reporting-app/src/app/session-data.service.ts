@@ -1,16 +1,19 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, catchError, map, Observable, Subject } from "rxjs";
-import { ChangeLog } from "./change-log.service";
-import { CrossTabEditService, EditSession } from "./cross-tab-edit.service";
-import { switchMap, tap, withLatestFrom } from "rxjs/operators";
+import { BehaviorSubject, map, Observable } from "rxjs";
+import { ChangeLog, ChangeLogWithoutVersion } from "./change-log.service";
+import {
+  CrossTabEditService,
+  EditTabReqResType,
+} from "./cross-tab-edit.service";
+import { switchMap, withLatestFrom } from "rxjs/operators";
 import { AuthService } from "./fingerprinting.service";
 
 @Injectable({
   providedIn: "root",
 })
 export class SessionDataService {
-  private sessionState = new BehaviorSubject<SessionState>(null!);
+  private sessionState = new BehaviorSubject<SessionStateLocal>(null!);
   sessionState$ = this.sessionState.asObservable();
   latestSessionVersion$ = this.sessionState$.pipe(
     map((sessionState) => sessionState?.version),
@@ -25,6 +28,12 @@ export class SessionDataService {
       .pipe(
         withLatestFrom(this.sessionState$),
         switchMap(([recentEdit, sessionStateCurrent]) => {
+          if (
+            recentEdit?.type !== "EDIT_RESULT" &&
+            recentEdit?.type !== "BULK_EDIT_RESULT"
+          )
+            throw new Error("Expected edit result");
+
           return this.update(
             sessionStateCurrent.sessionId,
             sessionStateCurrent,
@@ -38,24 +47,28 @@ export class SessionDataService {
   fetchSession(sessionId: string) {
     return this.http.get<GetSessionResponse>(`/api/sessions/${sessionId}`).pipe(
       map((res) => {
-        const remoteSess = {
+        this.sessionState.next({
+          sessionId,
+          version: res.version,
+          data: res.data,
+          editTabResVersioned: null,
+        });
+        return {
           sessionId,
           version: res.version,
           data: res.data,
           recentEditFromEditForm: null,
         };
-        this.sessionState.next(remoteSess);
-        return remoteSess;
       }),
     );
   }
 
-  initialize(fingerprint: string): Observable<SessionState> {
-    const newSession: SessionState = {
+  initialize(fingerprint: string): Observable<SessionStateLocal> {
+    const newSession: SessionStateLocal = {
       sessionId: null!,
       version: 0,
-      data: { editedStrTxns: [] },
-      recentEditFromEditForm: null,
+      data: { strTxnChangeLogs: [] },
+      editTabResVersioned: null,
     };
     const payload: CreateSessionRequest = {
       userId: fingerprint,
@@ -73,48 +86,56 @@ export class SessionDataService {
 
   private update(
     sessionId: string,
-    sessionStateCurrent: SessionState,
-    recentEdit: Extract<EditSession, { type: "EDIT_RESULT" }>,
-  ): Observable<SessionState> {
-    const newSessionData = structuredClone(sessionStateCurrent.data);
-    const txn = newSessionData.editedStrTxns?.find(
-      (user) => user.strTxnId === recentEdit?.payload.strTxnId,
-    );
+    sessionStateCurrent: SessionStateLocal,
+    recentEdit: Extract<
+      EditTabReqResType,
+      { type: "EDIT_RESULT" | "BULK_EDIT_RESULT" }
+    >,
+  ): Observable<SessionStateLocal> {
+    const { strTxnChangeLogs = [] } = structuredClone(sessionStateCurrent.data);
 
-    const changeLogsVersioned = recentEdit!.payload.changeLogs.map(
-      (changeLog) => ({
-        ...changeLog,
-        version: sessionStateCurrent.version + 1,
-      }),
-    );
+    let editTabRes: EditTabChangeLogsRes[] = null!;
+    if (recentEdit.type === "EDIT_RESULT") editTabRes = [recentEdit.payload];
+    if (recentEdit.type === "BULK_EDIT_RESULT") editTabRes = recentEdit.payload;
 
-    if (!txn) {
-      if (!newSessionData.editedStrTxns) newSessionData.editedStrTxns = [];
-      newSessionData.editedStrTxns.push({
-        strTxnId: recentEdit!.payload.strTxnId,
-        changeLogs: changeLogsVersioned,
-      });
-    } else {
-      txn.changeLogs.push(...changeLogsVersioned);
-    }
+    const editTabResVersioned: StrTxnChangeLog[] = editTabRes.map(
+      ({ strTxnId, changeLogs }) => {
+        const changeLogsVersioned = changeLogs.map((changeLog) => ({
+          ...changeLog,
+          version: sessionStateCurrent.version + 1,
+        }));
+
+        const txn = strTxnChangeLogs?.find(
+          (strTxn) => strTxn.strTxnId === strTxnId,
+        );
+
+        if (!txn) {
+          strTxnChangeLogs.push({
+            strTxnId: strTxnId,
+            changeLogs: changeLogsVersioned,
+          });
+        } else {
+          txn.changeLogs.push(...changeLogsVersioned);
+        }
+
+        return { strTxnId, changeLogs: changeLogsVersioned };
+      },
+    );
 
     const payload: UpdateSessionRequest = {
       currentVersion: sessionStateCurrent.version,
-      data: newSessionData,
+      data: { strTxnChangeLogs },
     };
     return this.http
       .put<UpdateSessionResponse>(`/api/sessions/${sessionId}`, payload)
       .pipe(
         map((res) => {
           console.assert(res.newVersion === payload.currentVersion + 1);
-          const newSessionState: SessionState = {
+          const newSessionState: SessionStateLocal = {
             sessionId,
             version: res.newVersion,
-            data: newSessionData,
-            recentEditFromEditForm: {
-              strTxnId: recentEdit!.payload.strTxnId,
-              changeLogs: changeLogsVersioned,
-            },
+            data: { strTxnChangeLogs },
+            editTabResVersioned: editTabResVersioned,
           };
           this.sessionState.next(newSessionState);
           return newSessionState;
@@ -123,15 +144,23 @@ export class SessionDataService {
   }
 }
 
-export interface SessionState {
-  sessionId: string;
-  version: number;
-  data: SessionData;
-  recentEditFromEditForm: StrTxnChangeLog | null;
+export interface EditTabChangeLogsRes {
+  strTxnId: string;
+  changeLogs: ChangeLogWithoutVersion[];
 }
 
-export interface SessionData {
-  editedStrTxns?: StrTxnChangeLog[];
+export interface EditTabChangeLogsResVersioned {
+  strTxnId: string;
+  changeLogs: ChangeLog[];
+}
+
+export interface SessionStateLocal {
+  sessionId: string;
+  version: number;
+  data: {
+    strTxnChangeLogs?: StrTxnChangeLog[];
+  };
+  editTabResVersioned: StrTxnChangeLog[] | null;
 }
 
 export interface StrTxnChangeLog {
@@ -144,12 +173,16 @@ interface GetSessionResponse {
   createdAt: unknown;
   updatedAt: unknown;
   userId: string;
-  data: SessionData;
+  data: {
+    strTxnChangeLogs?: StrTxnChangeLog[];
+  };
 }
 
 interface CreateSessionRequest {
   userId: string;
-  data: SessionData;
+  data: {
+    strTxnChangeLogs?: StrTxnChangeLog[];
+  };
 }
 
 interface CreateSessionResponse {
@@ -161,7 +194,9 @@ interface CreateSessionResponse {
 
 interface UpdateSessionRequest {
   currentVersion: number;
-  data: SessionData;
+  data: {
+    strTxnChangeLogs?: StrTxnChangeLog[];
+  };
 }
 
 interface UpdateSessionResponse {

@@ -5,6 +5,7 @@ import {
   FormControl,
   FormGroup,
   ReactiveFormsModule,
+  Validators,
 } from "@angular/forms";
 import { map, Subject, switchMap, takeUntil, tap } from "rxjs";
 import { v4 as uuidv4 } from "uuid";
@@ -26,12 +27,13 @@ import { CrossTabEditService } from "../cross-tab-edit.service";
 import {
   ChangeLog,
   ChangeLogService,
+  ChangeLogWithoutVersion,
   WithVersion,
 } from "../change-log.service";
 import { ActivatedRoute } from "@angular/router";
 import { removePageFromOpenTabs } from "../single-tab.guard";
 import { ClearFieldDirective } from "./clear-field.directive";
-import { ResetFieldDirective } from "./reset-field.directive";
+import { ToggleEditFieldDirective } from "./toggle-edit-field.directive";
 import {
   AccountHolder,
   Beneficiary,
@@ -64,8 +66,8 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
     MatIconModule,
     MatChipsModule,
     MatButtonModule,
+    ToggleEditFieldDirective,
     ClearFieldDirective,
-    ResetFieldDirective,
     MatCheckboxModule,
     ControlToggleDirective,
     MatToolbarModule,
@@ -110,15 +112,23 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
         <!-- Main Tabs -->
         <mat-tab-group>
           <!-- Transaction Details Tab -->
-          <mat-tab label="Transaction Details">
+          <mat-tab>
+            <ng-template mat-tab-label>
+              <span>Transaction Details</span>
+              <mat-icon
+                *ngIf="!this.strTxnForm.valid && this.strTxnForm.dirty"
+                color="error"
+                >error_outline</mat-icon
+              >
+            </ng-template>
             <div>
               <mat-card>
                 <mat-card-header>
                   <mat-card-title>Transaction Information</mat-card-title>
                 </mat-card-header>
                 <mat-card-content class="mt-5">
-                  <div class="row row-cols-md-4">
-                    <mat-form-field class="col">
+                  <div class="row row-cols-1 row-cols-md-2">
+                    <mat-form-field class="col-xl-4">
                       <mat-label>Date of Transaction</mat-label>
                       <input
                         matInput
@@ -131,9 +141,27 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         [for]="dateOfTxnPicker"
                       ></mat-datepicker-toggle>
                       <mat-datepicker #dateOfTxnPicker />
+                      <button
+                        [disabled]="!this.strTxnsBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>backspace</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.strTxnsBeforeBulkEdit"
+                        type="button"
+                        appToggleEditField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>edit</mat-icon>
+                      </button>
                     </mat-form-field>
 
-                    <mat-form-field class="col">
+                    <mat-form-field class="col-xl-4">
                       <mat-label>Time of Transaction</mat-label>
                       <input
                         matInput
@@ -142,14 +170,47 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         step="1"
                         appTransactionTime
                       />
+                      <button
+                        [disabled]="!this.strTxnsBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>backspace</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.strTxnsBeforeBulkEdit"
+                        type="button"
+                        appToggleEditField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>edit</mat-icon>
+                      </button>
                     </mat-form-field>
 
-                    <mat-checkbox formControlName="hasPostingDate" class="col">
-                      Has Posting Date?
-                    </mat-checkbox>
+                    <div class="col-xl-4 d-flex">
+                      <mat-checkbox
+                        formControlName="hasPostingDate"
+                        class="col-auto"
+                      >
+                        Has Posting Date?
+                      </mat-checkbox>
+                      <button
+                        [disabled]="!this.strTxnsBeforeBulkEdit"
+                        type="button"
+                        appToggleEditField="hasPostingDate"
+                        mat-icon-button
+                        matSuffix
+                        class="col-auto"
+                      >
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                    </div>
                   </div>
 
-                  <div class="row row-cols-md-4">
+                  <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
                     <mat-form-field class="col">
                       <mat-label>Date of Posting</mat-label>
                       <input
@@ -157,7 +218,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         formControlName="dateOfPosting"
                         [matDatepicker]="dateOfPostingPicker"
                         appTransactionDate
-                        [appControlToggle]="'hasPostingDate'"
+                        appControlToggle="hasPostingDate"
                       />
                       <mat-datepicker-toggle
                         matIconSuffix
@@ -174,13 +235,13 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         type="time"
                         step="1"
                         appTransactionTime
-                        [appControlToggle]="'hasPostingDate'"
+                        appControlToggle="hasPostingDate"
                       />
                     </mat-form-field>
                   </div>
 
-                  <div class="row">
-                    <mat-form-field class="col-md-3">
+                  <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
+                    <mat-form-field class="col">
                       <mat-label>Method of Transaction</mat-label>
                       <select matNativeControl formControlName="methodOfTxn">
                         <option value="ABM">ABM</option>
@@ -188,46 +249,95 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <option value="Online">Online</option>
                         <option value="Other">Other</option>
                       </select>
+                      <button
+                        [disabled]="!this.strTxnsBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>backspace</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.strTxnsBeforeBulkEdit"
+                        type="button"
+                        appToggleEditField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>edit</mat-icon>
+                      </button>
                     </mat-form-field>
 
-                    <mat-form-field class="col-md-9">
-                      <mat-label>Specify Method of Transaction</mat-label>
+                    <mat-form-field class="col">
+                      <mat-label>Other Method of Transaction</mat-label>
                       <input
                         matInput
                         formControlName="methodOfTxnOther"
-                        [appControlToggle]="'methodOfTxn'"
-                        [appControlToggleValue]="'Other'"
+                        appControlToggle="methodOfTxn"
+                        appControlToggleValue="Other"
                       />
                     </mat-form-field>
                   </div>
 
-                  <div class="row">
-                    <mat-checkbox
-                      formControlName="wasTxnAttempted"
-                      class="col-md-2"
-                    >
-                      Was Transaction Attempted?
-                    </mat-checkbox>
+                  <div class="row row-cols-1">
+                    <div class="col-12 col-xl-4 d-flex">
+                      <mat-checkbox
+                        formControlName="wasTxnAttempted"
+                        class="col-auto"
+                      >
+                        Was Transaction Attempted?
+                      </mat-checkbox>
+                      <button
+                        [disabled]="!this.strTxnsBeforeBulkEdit"
+                        type="button"
+                        appToggleEditField="wasTxnAttempted"
+                        mat-icon-button
+                        matSuffix
+                        class="col-auto"
+                      >
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                    </div>
 
-                    <mat-form-field class="col-md-10">
+                    <mat-form-field class="col-12 col-xl-8">
                       <mat-label
                         >Reason transaction was not completed</mat-label
                       >
                       <input
                         matInput
                         formControlName="wasTxnAttemptedReason"
-                        [appControlToggle]="'wasTxnAttempted'"
+                        appControlToggle="wasTxnAttempted"
                       />
                     </mat-form-field>
                   </div>
 
-                  <div class="row row-cols-md-1">
-                    <mat-form-field class="col">
+                  <div class="row row-cols-md-3">
+                    <mat-form-field class="col-md-8">
                       <mat-label>Purpose of Transaction</mat-label>
                       <input matInput formControlName="purposeOfTxn" />
+                      <button
+                        [disabled]="!this.strTxnsBeforeBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>backspace</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="!this.strTxnsBeforeBulkEdit"
+                        type="button"
+                        appToggleEditField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>edit</mat-icon>
+                      </button>
                     </mat-form-field>
-
-                    <mat-form-field class="col">
+                  </div>
+                  <div class="row row-cols-md-3">
+                    <mat-form-field class="col-md-8">
                       <mat-label>Reporting Entity Ref No</mat-label>
                       <input
                         matInput
@@ -242,13 +352,24 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
           </mat-tab>
 
           <!-- Starting Actions Tab -->
-          <mat-tab label="Starting Actions">
+          <mat-tab>
+            <ng-template mat-tab-label>
+              <span>Starting Actions</span>
+              <mat-icon
+                *ngIf="
+                  !this.strTxnForm.controls.startingActions.valid &&
+                  this.strTxnForm.controls.startingActions.dirty
+                "
+                color="error"
+                >error_outline</mat-icon
+              >
+            </ng-template>
             <div class="d-flex flex-column align-items-end">
               <button
                 type="button"
                 mat-raised-button
                 color="primary"
-                (click)="addStartingAction()"
+                (click)="addStartingAction(!!this.strTxnsBeforeBulkEdit)"
                 class="m-2"
               >
                 <mat-icon>add</mat-icon> Add Starting Action
@@ -280,7 +401,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                       </mat-panel-title>
                     </mat-expansion-panel-header>
 
-                    <div class="row row-cols-4">
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
                       <mat-form-field class="col">
                         <mat-label>Direction</mat-label>
                         <select
@@ -291,6 +412,24 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           <option value="Out">Out</option>
                           <!-- Options here -->
                         </select>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <mat-form-field class="col">
@@ -310,22 +449,41 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           <option value="Other">Other</option>
                           <!-- Options here -->
                         </select>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <mat-form-field class="col">
-                        <mat-label>Specify Other</mat-label>
+                        <mat-label>Other Type of Funds</mat-label>
                         <input
                           matInput
                           formControlName="typeOfFundsOther"
                           [appControlToggle]="
                             'startingActions.' + saIndex + '.typeOfFunds'
                           "
-                          [appControlToggleValue]="'Other'"
+                          appControlToggleValue="Other"
                         />
                       </mat-form-field>
                     </div>
 
-                    <div class="row row-cols-4">
+                    <!-- Amount Section -->
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
                       <mat-form-field class="col">
                         <mat-label>Amount</mat-label>
                         <input
@@ -333,6 +491,24 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           type="number"
                           formControlName="amount"
                         />
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
                       <mat-form-field class="col">
                         <mat-label>Currency</mat-label>
@@ -341,25 +517,99 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           <option value="CAD">CAD</option>
                           <option value="USD">USD</option>
                         </select>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
                     </div>
 
-                    <div class="row row-cols-4">
+                    <!-- Account Information -->
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
                       <mat-form-field class="col">
                         <mat-label>FIU Number</mat-label>
                         <input matInput formControlName="fiuNo" />
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
                       <mat-form-field class="col">
                         <mat-label>Branch</mat-label>
                         <input matInput formControlName="branch" />
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
                       <mat-form-field class="col">
                         <mat-label>Account Number</mat-label>
                         <input matInput formControlName="account" />
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
                     </div>
 
-                    <div class="row row-cols-4">
+                    <!-- Account Information -->
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
                       <mat-form-field class="col">
                         <mat-label>Account Type</mat-label>
                         <select matNativeControl formControlName="accountType">
@@ -369,17 +619,35 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           <option value="Personal">Personal</option>
                           <option value="Other">Other</option>
                         </select>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <mat-form-field class="col">
-                        <mat-label>Specify Other</mat-label>
+                        <mat-label>Other Account Type</mat-label>
                         <input
                           matInput
                           formControlName="accountTypeOther"
                           [appControlToggle]="
                             'startingActions.' + saIndex + '.accountType'
                           "
-                          [appControlToggleValue]="'Other'"
+                          appControlToggleValue="Other"
                         />
                       </mat-form-field>
 
@@ -393,6 +661,24 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           <option value="CAD">CAD</option>
                           <option value="USD">USD</option>
                         </select>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <mat-form-field class="col">
@@ -407,10 +693,29 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           <option value="Inactive">Inactive</option>
                           <option value="Dorment">Dorment</option>
                         </select>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
                     </div>
 
-                    <div class="row row-cols-4">
+                    <!-- Account Open/Close -->
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-3">
                       <mat-form-field class="col">
                         <mat-label>Account Open Date</mat-label>
                         <input
@@ -424,6 +729,24 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           [for]="accountOpenPicker"
                         ></mat-datepicker-toggle>
                         <mat-datepicker #accountOpenPicker />
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
                       <mat-form-field class="col">
                         <mat-label>Account Close Date</mat-label>
@@ -439,6 +762,24 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           [for]="accountClosePicker"
                         ></mat-datepicker-toggle>
                         <mat-datepicker #accountClosePicker />
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
                     </div>
 
@@ -450,17 +791,57 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           formControlName="howFundsObtained"
                           rows="2"
                         ></textarea>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
                     </div>
 
                     <!-- Account Holders Section -->
                     <h2>Account Holders</h2>
+                    <div class="row">
+                      <mat-checkbox
+                        class="col"
+                        formControlName="hasAccountHolders"
+                      >
+                        Has account holders?
+                      </mat-checkbox>
+                      <button
+                        [disabled]="!this.strTxnsBeforeBulkEdit"
+                        type="button"
+                        appToggleEditField="hasAccountHolders"
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                    </div>
+
                     <div
                       formArrayName="accountHolders"
                       class="d-flex flex-column align-items-end"
+                      [appControlToggle]="
+                        'startingActions.' + saIndex + '.hasAccountHolders'
+                      "
+                      (addControlGroup)="addAccountHolder('startingActions', saIndex)"
                     >
                       <mat-card class="w-100 border-0">
-                        <div class="row row-cols-2">
+                        <div class="row row-cols-1 row-md-cols-2">
                           <div
                             *ngFor="
                               let holder of saAction.controls.accountHolders
@@ -468,7 +849,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                               let holderIndex = index
                             "
                             [formGroupName]="holderIndex"
-                            class="col my-2"
+                            class="col-md-6 my-2"
                           >
                             <div class="row">
                               <mat-form-field class="col">
@@ -513,6 +894,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                       >
                         Was Source of Funds Info Obtained?
                       </mat-checkbox>
+                      <button
+                        [disabled]="!this.strTxnsBeforeBulkEdit"
+                        type="button"
+                        appToggleEditField="wasSofInfoObtained"
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>edit</mat-icon>
+                      </button>
                     </div>
 
                     <div
@@ -521,6 +911,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                       [appControlToggle]="
                         'startingActions.' + saIndex + '.wasSofInfoObtained'
                       "
+                      (addControlGroup)="addSourceOfFunds(saIndex)"
                     >
                       <div
                         *ngFor="
@@ -592,6 +983,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                       >
                         Was Conductor Info Obtained?
                       </mat-checkbox>
+                      <button
+                        [disabled]="!this.strTxnsBeforeBulkEdit"
+                        type="button"
+                        appToggleEditField="wasCondInfoObtained"
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>edit</mat-icon>
+                      </button>
                     </div>
 
                     <div
@@ -599,7 +999,8 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                       class="d-flex flex-column align-items-end gap-3"
                       [appControlToggle]="
                         'startingActions.' + saIndex + '.wasCondInfoObtained'
-                      "
+                      "  
+                      (addControlGroup)="addConductor(saIndex)"
                     >
                       <div
                         *ngFor="
@@ -675,6 +1076,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                               condIndex +
                               '.wasConductedOnBehalf'
                             "
+                            (addControlGroup)="addOnBehalfOf(saIndex, condIndex)"
                           >
                             <div
                               *ngFor="
@@ -764,9 +1166,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                                   </mat-form-field>
 
                                   <mat-form-field class="col">
-                                    <mat-label
-                                      >Specify Other Relation</mat-label
-                                    >
+                                    <mat-label>Other Relation</mat-label>
                                     <input
                                       matInput
                                       formControlName="relationToCondOther"
@@ -779,7 +1179,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                                         behalfIndex +
                                         '.relationToCond'
                                       "
-                                      [appControlToggleValue]="'Other'"
+                                      appControlToggleValue="Other"
                                     />
                                   </mat-form-field>
                                 </div>
@@ -812,13 +1212,24 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
           </mat-tab>
 
           <!-- Completing Actions Tab -->
-          <mat-tab label="Completing Actions">
+          <mat-tab>
+            <ng-template mat-tab-label>
+              <span>Completing Actions</span>
+              <mat-icon
+                *ngIf="
+                  !this.strTxnForm.controls.completingActions.valid &&
+                  this.strTxnForm.controls.completingActions.dirty
+                "
+                color="error"
+                >error_outline</mat-icon
+              >
+            </ng-template>
             <div class="d-flex flex-column align-items-end">
               <button
                 type="button"
                 mat-raised-button
                 color="primary"
-                (click)="addCompletingAction()"
+                (click)="addCompletingAction(!!this.strTxnsBeforeBulkEdit)"
                 class="m-2"
               >
                 <mat-icon>add</mat-icon> Add Completing Action
@@ -851,7 +1262,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                     </mat-expansion-panel-header>
 
                     <!-- Disposition Details -->
-                    <div class="row row-cols-4">
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
                       <mat-form-field class="col">
                         <mat-label>Details of Disposition</mat-label>
                         <select
@@ -870,23 +1281,41 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           </option>
                           <option value="Other">Other</option>
                         </select>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <mat-form-field class="col">
-                        <mat-label>Specify Other</mat-label>
+                        <mat-label>Other Details of Disposition</mat-label>
                         <input
                           matInput
                           formControlName="detailsOfDispoOther"
                           [appControlToggle]="
                             'completingActions.' + caIndex + '.detailsOfDispo'
                           "
-                          [appControlToggleValue]="'Other'"
+                          appControlToggleValue="Other"
                         />
                       </mat-form-field>
                     </div>
 
                     <!-- Amount Section -->
-                    <div class="row row-cols-4">
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
                       <mat-form-field class="col">
                         <mat-label>Amount</mat-label>
                         <input
@@ -894,6 +1323,24 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           type="number"
                           formControlName="amount"
                         />
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <mat-form-field class="col">
@@ -904,6 +1351,24 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           <option value="USD">USD</option>
                           <!-- Add other currencies -->
                         </select>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <mat-form-field class="col">
@@ -913,6 +1378,24 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           type="number"
                           formControlName="exchangeRate"
                         />
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <mat-form-field class="col">
@@ -922,26 +1405,99 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           type="number"
                           formControlName="valueInCad"
                         />
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
                     </div>
 
                     <!-- Account Information -->
-                    <div class="row row-cols-4">
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
                       <mat-form-field class="col">
                         <mat-label>FIU Number</mat-label>
                         <input matInput formControlName="fiuNo" />
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
                       <mat-form-field class="col">
                         <mat-label>Branch</mat-label>
                         <input matInput formControlName="branch" />
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
                       <mat-form-field class="col">
                         <mat-label>Account Number</mat-label>
                         <input matInput formControlName="account" />
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
                     </div>
 
-                    <div class="row row-cols-4">
+                    <!-- Account Information -->
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
                       <mat-form-field class="col">
                         <mat-label>Account Type</mat-label>
                         <select matNativeControl formControlName="accountType">
@@ -951,17 +1507,35 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           <option value="Personal">Personal</option>
                           <option value="Other">Other</option>
                         </select>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <mat-form-field class="col">
-                        <mat-label>Specify Other</mat-label>
+                        <mat-label>Other Account Type</mat-label>
                         <input
                           matInput
                           formControlName="accountTypeOther"
                           [appControlToggle]="
                             'completingActions.' + caIndex + '.accountType'
                           "
-                          [appControlToggleValue]="'Other'"
+                          appControlToggleValue="Other"
                         />
                       </mat-form-field>
 
@@ -975,6 +1549,24 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           <option value="CAD">CAD</option>
                           <option value="USD">USD</option>
                         </select>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <mat-form-field class="col">
@@ -989,10 +1581,29 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           <option value="Inactive">Inactive</option>
                           <option value="Dormant">Dormant</option>
                         </select>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
                     </div>
 
-                    <div class="row row-cols-4">
+                    <!-- Account Open/Close -->
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-3">
                       <mat-form-field class="col">
                         <mat-label>Account Open Date</mat-label>
                         <input
@@ -1007,6 +1618,24 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           [for]="accountOpenPicker"
                         ></mat-datepicker-toggle>
                         <mat-datepicker #accountOpenPicker />
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
                       <mat-form-field class="col">
                         <mat-label>Account Close Date</mat-label>
@@ -1022,17 +1651,57 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           [for]="accountClosePicker"
                         ></mat-datepicker-toggle>
                         <mat-datepicker #accountClosePicker />
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.strTxnsBeforeBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
                       </mat-form-field>
                     </div>
 
                     <!-- Account Holders Section -->
                     <h2>Account Holders</h2>
+                    <div class="row">
+                      <mat-checkbox
+                        class="col"
+                        formControlName="hasAccountHolders"
+                      >
+                        Has account holders?
+                      </mat-checkbox>
+                      <button
+                        [disabled]="!this.strTxnsBeforeBulkEdit"
+                        type="button"
+                        appToggleEditField="hasAccountHolders"
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                    </div>
+
                     <div
                       formArrayName="accountHolders"
                       class="d-flex flex-column align-items-end"
+                      [appControlToggle]="
+                        'completingActions.' + caIndex + '.hasAccountHolders'
+                      "
+                      (addControlGroup)="addAccountHolder('completingActions', caIndex)"
                     >
                       <mat-card class="w-100 border-0">
-                        <div class="row row-cols-2">
+                        <div class="row row-cols-1 row-md-cols-2">
                           <div
                             *ngFor="
                               let holder of caAction.controls.accountHolders
@@ -1040,7 +1709,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                               let holderIndex = index
                             "
                             [formGroupName]="holderIndex"
-                            class="col my-2"
+                            class="col-md-6 my-2"
                           >
                             <div class="row">
                               <mat-form-field class="col">
@@ -1085,6 +1754,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                       >
                         Was any other subject involved?
                       </mat-checkbox>
+                      <button
+                        [disabled]="!this.strTxnsBeforeBulkEdit"
+                        type="button"
+                        appToggleEditField="wasAnyOtherSubInvolved"
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>edit</mat-icon>
+                      </button>
                     </div>
 
                     <div
@@ -1095,6 +1773,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         caIndex +
                         '.wasAnyOtherSubInvolved'
                       "
+                      (addControlGroup)="addInvolvedIn(caIndex)"
                     >
                       <div
                         *ngFor="
@@ -1164,6 +1843,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                       >
                         Was Beneficiary Info Obtained?
                       </mat-checkbox>
+                      <button
+                        [disabled]="!this.strTxnsBeforeBulkEdit"
+                        type="button"
+                        appToggleEditField="wasBenInfoObtained"
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>edit</mat-icon>
+                      </button>
                     </div>
 
                     <div
@@ -1172,6 +1860,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                       [appControlToggle]="
                         'completingActions.' + caIndex + '.wasBenInfoObtained'
                       "
+                      (addControlGroup)="addBeneficiary(caIndex)"
                     >
                       <div
                         *ngFor="
@@ -1296,6 +1985,7 @@ export class EditFormComponent implements OnInit, OnDestroy {
           this.strTxnsBeforeBulkEdit = payload;
           this.createStrTxnForm({ createEmptyArrays: true });
         }
+        this.strTxnForm.markAllAsTouched();
       });
   }
   private readonly destroy$ = new Subject<void>();
@@ -1318,21 +2008,46 @@ export class EditFormComponent implements OnInit, OnDestroy {
     this.strTxnForm = new FormGroup({
       _version: new FormControl<number>(txn?._version || 0),
       _mongoid: new FormControl(txn?._mongoid || `mtxn-${uuidv4()}`),
-      wasTxnAttempted: new FormControl(txn?.wasTxnAttempted || false),
-      wasTxnAttemptedReason: new FormControl(txn?.wasTxnAttemptedReason || ""),
-      dateOfTxn: new FormControl(txn?.dateOfTxn || ""),
-      timeOfTxn: new FormControl(txn?.timeOfTxn || ""),
-      hasPostingDate: new FormControl(txn?.hasPostingDate || false),
-      dateOfPosting: new FormControl(txn?.dateOfPosting || ""),
-      timeOfPosting: new FormControl(txn?.timeOfPosting || ""),
-      methodOfTxn: new FormControl(txn?.methodOfTxn || ""),
-      methodOfTxnOther: new FormControl(txn?.methodOfTxnOther || ""),
+      wasTxnAttempted: new FormControl(
+        this.changeLogService.getInitValForDepPropToggle(
+          "wasTxnAttempted",
+          txn?.wasTxnAttempted,
+          !!this.strTxnsBeforeBulkEdit,
+        ),
+      ),
+      wasTxnAttemptedReason: new FormControl(
+        txn?.wasTxnAttemptedReason || "",
+        Validators.required,
+      ),
+      dateOfTxn: new FormControl(txn?.dateOfTxn || "", Validators.required),
+      timeOfTxn: new FormControl(txn?.timeOfTxn || "", Validators.required),
+      hasPostingDate: new FormControl(
+        this.changeLogService.getInitValForDepPropToggle(
+          "hasPostingDate",
+          txn?.hasPostingDate,
+          !!this.strTxnsBeforeBulkEdit,
+        ),
+      ),
+      dateOfPosting: new FormControl(
+        txn?.dateOfPosting || "",
+        Validators.required,
+      ),
+      timeOfPosting: new FormControl(
+        txn?.timeOfPosting || "",
+        Validators.required,
+      ),
+      methodOfTxn: new FormControl(txn?.methodOfTxn || "", Validators.required),
+      methodOfTxnOther: new FormControl(
+        txn?.methodOfTxnOther || "",
+        Validators.required,
+      ),
       reportingEntityTxnRefNo: new FormControl(
         txn?.reportingEntityTxnRefNo || "",
       ),
       purposeOfTxn: new FormControl(txn?.purposeOfTxn || ""),
       reportingEntityLocationNo: new FormControl(
         txn?.reportingEntityLocationNo || "",
+        [Validators.required, Validators.minLength(5), Validators.maxLength(5)],
       ),
       startingActions: new FormArray(
         txn?.startingActions?.map((action) =>
@@ -1351,6 +2066,10 @@ export class EditFormComponent implements OnInit, OnDestroy {
             : []),
       ),
     });
+
+    if (createEmptyArrays) {
+      this.strTxnForm.disable();
+    }
   }
 
   // --------------------------
@@ -1360,44 +2079,67 @@ export class EditFormComponent implements OnInit, OnDestroy {
     action,
     createEmptyArrays = false,
   }: { action?: StartingAction; createEmptyArrays?: boolean } = {}): FormGroup {
+    if (action?.accountHolders)
+      action.hasAccountHolders = action.accountHolders.length > 0;
+
     return new FormGroup({
       _id: new FormControl(action?._id || uuidv4()),
       directionOfSA: new FormControl(action?.directionOfSA || ""),
       typeOfFunds: new FormControl(action?.typeOfFunds || ""),
-      typeOfFundsOther: new FormControl(action?.typeOfFundsOther || ""),
+      typeOfFundsOther: new FormControl(
+        action?.typeOfFundsOther || "",
+        Validators.required,
+      ),
       amount: new FormControl(action?.amount || null),
       currency: new FormControl(action?.currency || ""),
       fiuNo: new FormControl(action?.fiuNo || ""),
       branch: new FormControl(action?.branch || ""),
       account: new FormControl(action?.account || ""),
       accountType: new FormControl(action?.accountType || ""),
-      accountTypeOther: new FormControl(action?.accountTypeOther || ""),
+      accountTypeOther: new FormControl(
+        action?.accountTypeOther || "",
+        Validators.required,
+      ),
       accountOpen: new FormControl(action?.accountOpen || ""),
       accountClose: new FormControl(action?.accountClose || ""),
       accountStatus: new FormControl(action?.accountStatus || ""),
       howFundsObtained: new FormControl(action?.howFundsObtained || ""),
       accountCurrency: new FormControl(action?.accountCurrency || ""),
+      hasAccountHolders: new FormControl(
+        this.changeLogService.getInitValForDepPropToggle(
+          "hasAccountHolders",
+          action?.hasAccountHolders,
+          !!this.strTxnsBeforeBulkEdit,
+        ),
+      ),
       accountHolders: new FormArray(
         action?.accountHolders?.map((holder) =>
           this.createAccountHolderGroup(holder),
         ) || (createEmptyArrays ? [this.createAccountHolderGroup()] : []),
       ),
-      wasSofInfoObtained: new FormControl(action?.wasSofInfoObtained || false),
+      wasSofInfoObtained: new FormControl(
+        this.changeLogService.getInitValForDepPropToggle(
+          "wasSofInfoObtained",
+          action?.wasSofInfoObtained,
+          !!this.strTxnsBeforeBulkEdit,
+        ),
+      ),
       sourceOfFunds: new FormArray(
         action?.sourceOfFunds?.map((source) =>
           this.createSourceOfFundsGroup(source),
         ) || (createEmptyArrays ? [this.createSourceOfFundsGroup()] : []),
       ),
       wasCondInfoObtained: new FormControl(
-        action?.wasCondInfoObtained || false,
+        this.changeLogService.getInitValForDepPropToggle(
+          "wasCondInfoObtained",
+          action?.wasCondInfoObtained,
+          !!this.strTxnsBeforeBulkEdit,
+        ),
       ),
       conductors: new FormArray(
         action?.conductors?.map((conductor) =>
           this.createConductorGroup({ conductor }),
-        ) ||
-          (createEmptyArrays
-            ? [this.createConductorGroup({ createEmptyArrays })]
-            : []),
+        ) || (createEmptyArrays ? [this.createConductorGroup()] : []),
       ),
     });
   }
@@ -1409,10 +2151,16 @@ export class EditFormComponent implements OnInit, OnDestroy {
     action?: CompletingAction;
     createEmptyArrays?: boolean;
   } = {}): FormGroup {
+    if (action?.accountHolders)
+      action.hasAccountHolders = action.accountHolders.length > 0;
+
     return new FormGroup({
       _id: new FormControl(action?._id || uuidv4()),
       detailsOfDispo: new FormControl(action?.detailsOfDispo || ""),
-      detailsOfDispoOther: new FormControl(action?.detailsOfDispoOther || ""),
+      detailsOfDispoOther: new FormControl(
+        action?.detailsOfDispoOther || "",
+        Validators.required,
+      ),
       amount: new FormControl(action?.amount || null),
       currency: new FormControl(action?.currency || ""),
       exchangeRate: new FormControl(action?.exchangeRate || null),
@@ -1421,24 +2169,38 @@ export class EditFormComponent implements OnInit, OnDestroy {
       branch: new FormControl(action?.branch || ""),
       account: new FormControl(action?.account || ""),
       accountType: new FormControl(action?.accountType || ""),
-      accountTypeOther: new FormControl(action?.accountTypeOther || ""),
+      accountTypeOther: new FormControl(
+        action?.accountTypeOther || "",
+        Validators.required,
+      ),
       accountCurrency: new FormControl(action?.accountCurrency || ""),
       accountOpen: new FormControl(action?.accountOpen || ""),
       accountClose: new FormControl(action?.accountClose || ""),
       accountStatus: new FormControl(action?.accountStatus || ""),
+      hasAccountHolders: new FormControl(action?.hasAccountHolders || null),
       accountHolders: new FormArray(
         action?.accountHolders?.map((holder) =>
           this.createAccountHolderGroup(holder),
         ) || (createEmptyArrays ? [this.createAccountHolderGroup()] : []),
       ),
       wasAnyOtherSubInvolved: new FormControl(
-        action?.wasAnyOtherSubInvolved || false,
+        this.changeLogService.getInitValForDepPropToggle(
+          "wasAnyOtherSubInvolved",
+          action?.wasAnyOtherSubInvolved,
+          !!this.strTxnsBeforeBulkEdit,
+        ),
       ),
       involvedIn: new FormArray(
         action?.involvedIn?.map((inv) => this.createInvolvedInGroup(inv)) ||
           (createEmptyArrays ? [this.createInvolvedInGroup()] : []),
       ),
-      wasBenInfoObtained: new FormControl(action?.wasBenInfoObtained || false),
+      wasBenInfoObtained: new FormControl(
+        this.changeLogService.getInitValForDepPropToggle(
+          "wasBenInfoObtained",
+          action?.wasBenInfoObtained,
+          !!this.strTxnsBeforeBulkEdit,
+        ),
+      ),
       beneficiaries: new FormArray(
         action?.beneficiaries?.map((ben) => this.createBeneficiaryGroup(ben)) ||
           (createEmptyArrays ? [this.createBeneficiaryGroup()] : []),
@@ -1449,14 +2211,14 @@ export class EditFormComponent implements OnInit, OnDestroy {
   private createAccountHolderGroup(holder?: AccountHolder): FormGroup {
     return new FormGroup({
       _id: new FormControl(holder?._id || uuidv4()),
-      linkToSub: new FormControl(holder?.linkToSub || ""),
+      linkToSub: new FormControl(holder?.linkToSub || "", Validators.required),
     });
   }
 
   private createSourceOfFundsGroup(source?: SourceOfFunds): FormGroup {
     return new FormGroup({
       _id: new FormControl(source?._id || uuidv4()),
-      linkToSub: new FormControl(source?.linkToSub || ""),
+      linkToSub: new FormControl(source?.linkToSub || "", Validators.required),
       accountNumber: new FormControl(source?.accountNumber || ""),
       policyNumber: new FormControl(source?.policyNumber || ""),
       identifyingNumber: new FormControl(source?.identifyingNumber || ""),
@@ -1465,40 +2227,52 @@ export class EditFormComponent implements OnInit, OnDestroy {
 
   private createConductorGroup({
     conductor,
-    createEmptyArrays = false,
-  }: { conductor?: Conductor; createEmptyArrays?: boolean } = {}): FormGroup {
+  }: { conductor?: Conductor } = {}): FormGroup {
     return new FormGroup({
       _id: new FormControl(conductor?._id || uuidv4()),
-      linkToSub: new FormControl(conductor?.linkToSub || ""),
+      linkToSub: new FormControl(
+        conductor?.linkToSub || "",
+        Validators.required,
+      ),
       clientNo: new FormControl(conductor?.clientNo || ""),
       email: new FormControl(conductor?.email || ""),
       url: new FormControl(conductor?.url || ""),
       wasConductedOnBehalf: new FormControl(
-        conductor?.wasConductedOnBehalf || false,
+        this.changeLogService.getInitValForDepPropToggle(
+          "wasConductedOnBehalf",
+          conductor?.wasConductedOnBehalf,
+          !!this.strTxnsBeforeBulkEdit,
+        ),
       ),
       onBehalfOf: new FormArray(
         conductor?.onBehalfOf?.map((behalf) =>
           this.createOnBehalfOfGroup(behalf),
-        ) || (createEmptyArrays ? [this.createOnBehalfOfGroup()] : []),
+        ) || [],
       ),
     });
   }
 
   private createOnBehalfOfGroup(behalf?: OnBehalfOf): FormGroup {
     return new FormGroup({
-      linkToSub: new FormControl(behalf?.linkToSub || ""),
+      linkToSub: new FormControl(behalf?.linkToSub || "", Validators.required),
       clientNo: new FormControl(behalf?.clientNo || ""),
       email: new FormControl(behalf?.email || ""),
       url: new FormControl(behalf?.url || ""),
       relationToCond: new FormControl(behalf?.relationToCond || ""),
-      relationToCondOther: new FormControl(behalf?.relationToCondOther || ""),
+      relationToCondOther: new FormControl(
+        behalf?.relationToCondOther || "",
+        Validators.required,
+      ),
     });
   }
 
   private createInvolvedInGroup(involved?: InvolvedIn): FormGroup {
     return new FormGroup({
       _id: new FormControl(involved?._id || uuidv4()),
-      linkToSub: new FormControl(involved?.linkToSub || ""),
+      linkToSub: new FormControl(
+        involved?.linkToSub || "",
+        Validators.required,
+      ),
       accountNumber: new FormControl(involved?.accountNumber || ""),
       policyNumber: new FormControl(involved?.policyNumber || ""),
       identifyingNumber: new FormControl(involved?.identifyingNumber || ""),
@@ -1508,7 +2282,10 @@ export class EditFormComponent implements OnInit, OnDestroy {
   private createBeneficiaryGroup(beneficiary?: Beneficiary): FormGroup {
     return new FormGroup({
       _id: new FormControl(beneficiary?._id || uuidv4()),
-      linkToSub: new FormControl(beneficiary?.linkToSub || ""),
+      linkToSub: new FormControl(
+        beneficiary?.linkToSub || "",
+        Validators.required,
+      ),
       clientNo: new FormControl(beneficiary?.clientNo || null),
       email: new FormControl(beneficiary?.email || ""),
       url: new FormControl(beneficiary?.url || ""),
@@ -1519,10 +2296,14 @@ export class EditFormComponent implements OnInit, OnDestroy {
   // Array Management
   // ----------------------
   // Starting Actions
-  addStartingAction(): void {
-    this.strTxnForm.controls.startingActions.push(
-      this.createStartingActionGroup(),
-    );
+  addStartingAction(isBulk: boolean): void {
+    const newSaGroup = this.createStartingActionGroup({
+      createEmptyArrays: isBulk,
+    });
+    this.strTxnForm.controls.startingActions.push(newSaGroup);
+    this.strTxnForm.controls.startingActions.markAllAsTouched();
+
+    if (isBulk) newSaGroup.disable();
   }
 
   removeStartingAction(index: number): void {
@@ -1530,10 +2311,14 @@ export class EditFormComponent implements OnInit, OnDestroy {
   }
 
   // Completing Actions
-  addCompletingAction(): void {
-    this.strTxnForm.controls.completingActions.push(
-      this.createCompletingActionGroup(),
-    );
+  addCompletingAction(isBulk: boolean): void {
+    const newCaGroup = this.createCompletingActionGroup({
+      createEmptyArrays: isBulk,
+    });
+    this.strTxnForm.controls.completingActions.push(newCaGroup);
+    this.strTxnForm.controls.completingActions.markAllAsTouched();
+
+    if (isBulk) newCaGroup.disable();
   }
 
   removeCompletingAction(index: number): void {
@@ -1547,11 +2332,17 @@ export class EditFormComponent implements OnInit, OnDestroy {
    * @param {number} actionIndex
    */
   addAccountHolder(actionControlName: keyof StrTxn, actionIndex: number): void {
-    const actionArray = this.strTxnForm.get(actionControlName) as any as
-      | FormArray<FormGroup<TypedForm<StartingAction>>>
-      | FormArray<FormGroup<TypedForm<CompletingAction>>>;
-    const actionGroup = actionArray.at(actionIndex);
-    actionGroup.controls.accountHolders!.push(this.createAccountHolderGroup());
+    const action = (
+      this.strTxnForm.get(actionControlName) as any as
+        | FormArray<FormGroup<TypedForm<StartingAction>>>
+        | FormArray<FormGroup<TypedForm<CompletingAction>>>
+    ).at(actionIndex);
+
+    if (action.controls.accountHolders!.disabled) return;
+    if (!action.controls.hasAccountHolders.value) return;
+
+    action.controls.accountHolders!.push(this.createAccountHolderGroup());
+    action.controls.accountHolders!.markAllAsTouched();
   }
 
   removeAccountHolder(
@@ -1559,57 +2350,75 @@ export class EditFormComponent implements OnInit, OnDestroy {
     actionIndex: number,
     index: number,
   ): void {
-    const actionArray = this.strTxnForm.get(actionControlName) as any as
-      | FormArray<FormGroup<TypedForm<StartingAction>>>
-      | FormArray<FormGroup<TypedForm<CompletingAction>>>;
-    const actionGroup = actionArray.at(actionIndex);
-    actionGroup.controls.accountHolders!.removeAt(index);
+    const action = (
+      this.strTxnForm.get(actionControlName) as any as
+        | FormArray<FormGroup<TypedForm<StartingAction>>>
+        | FormArray<FormGroup<TypedForm<CompletingAction>>>
+    ).at(actionIndex);
+
+    if (action.controls.accountHolders!.disabled) return;
+
+    action.controls.accountHolders!.removeAt(index);
   }
 
   // Source of Funds
   addSourceOfFunds(saIndex: number): void {
-    const sourceOfFunds =
-      this.strTxnForm.controls.startingActions.at(saIndex).controls
-        .sourceOfFunds;
+    const startingAction = this.strTxnForm.controls.startingActions.at(saIndex);
 
-    if (sourceOfFunds.disabled) return;
-    sourceOfFunds.push(this.createSourceOfFundsGroup());
+    if (startingAction.controls.sourceOfFunds.disabled) return;
+    if (!startingAction.controls.wasSofInfoObtained.value) return;
+
+    startingAction.controls.sourceOfFunds.push(this.createSourceOfFundsGroup());
+    startingAction.controls.sourceOfFunds.markAllAsTouched();
   }
 
   removeSourceOfFunds(saIndex: number, index: number): void {
-    const sourceOfFunds =
-      this.strTxnForm.controls.startingActions.at(saIndex).controls
-        .sourceOfFunds;
+    const startingAction = this.strTxnForm.controls.startingActions.at(saIndex);
 
-    if (sourceOfFunds.disabled) return;
-    sourceOfFunds.removeAt(index);
+    if (startingAction.controls.sourceOfFunds.disabled) return;
+
+    startingAction.controls.sourceOfFunds.removeAt(index);
   }
 
   // Conductors
   addConductor(saIndex: number): void {
-    const conductors =
-      this.strTxnForm.controls.startingActions.at(saIndex).controls.conductors;
+    const startingAction = this.strTxnForm.controls.startingActions.at(saIndex);
 
-    if (conductors.disabled) return;
-    conductors.push(this.createConductorGroup());
+    if (startingAction.controls.conductors.disabled) return;
+    if (!startingAction.controls.wasCondInfoObtained.value) return;
+
+    startingAction.controls.conductors.push(this.createConductorGroup());
+    startingAction.controls.conductors.markAllAsTouched();
   }
 
   removeConductor(saIndex: number, index: number): void {
-    const conductors =
-      this.strTxnForm.controls.startingActions.at(saIndex).controls.conductors;
+    const startingAction = this.strTxnForm.controls.startingActions.at(saIndex);
+    if (startingAction.controls.conductors.disabled) return;
 
-    if (conductors.disabled) return;
-    conductors.removeAt(index);
+    startingAction.controls.conductors.removeAt(index);
   }
 
   // On Behalf Of
   addOnBehalfOf(saIndex: number, conductorIndex: number): void {
-    const onBehalfOf = this.strTxnForm.controls.startingActions
-      .at(saIndex)
-      .controls.conductors.at(conductorIndex).controls.onBehalfOf;
+    const startingAction = this.strTxnForm.controls.startingActions.at(saIndex);
 
-    if (onBehalfOf.disabled) return;
-    onBehalfOf.push(this.createOnBehalfOfGroup());
+    if (
+      startingAction.controls.conductors.at(conductorIndex).controls.onBehalfOf
+        .disabled
+    )
+      return;
+    if (
+      !startingAction.controls.conductors.at(conductorIndex).controls
+        .wasConductedOnBehalf.value
+    )
+      return;
+
+    startingAction.controls.conductors
+      .at(conductorIndex)
+      .controls.onBehalfOf.push(this.createOnBehalfOfGroup());
+    startingAction.controls.conductors
+      .at(conductorIndex)
+      .controls.onBehalfOf.markAllAsTouched();
   }
 
   removeOnBehalfOf(
@@ -1617,50 +2426,61 @@ export class EditFormComponent implements OnInit, OnDestroy {
     conductorIndex: number,
     index: number,
   ): void {
-    const onBehalfOf = this.strTxnForm.controls.startingActions
-      .at(saIndex)
-      .controls.conductors.at(conductorIndex).controls.onBehalfOf;
+    const startingAction = this.strTxnForm.controls.startingActions.at(saIndex);
 
-    if (onBehalfOf.disabled) return;
-    onBehalfOf.removeAt(index);
+    if (
+      startingAction.controls.conductors.at(conductorIndex).controls.onBehalfOf
+        .disabled
+    )
+      return;
+
+    startingAction.controls.conductors
+      .at(conductorIndex)
+      .controls.onBehalfOf.removeAt(index);
   }
 
   // Involved In (Completing Action)
   addInvolvedIn(caIndex: number): void {
-    const involvedIn =
-      this.strTxnForm.controls.completingActions.at(caIndex).controls
-        .involvedIn!;
+    const completingAction =
+      this.strTxnForm.controls.completingActions.at(caIndex);
 
-    if (involvedIn.disabled) return;
-    involvedIn.push(this.createInvolvedInGroup());
+    if (completingAction.controls.involvedIn!.disabled) return;
+    if (!completingAction.controls.wasAnyOtherSubInvolved.value) return;
+
+    completingAction.controls.involvedIn!.push(this.createInvolvedInGroup());
+    completingAction.controls.involvedIn!.markAllAsTouched();
   }
 
   removeInvolvedIn(caIndex: number, index: number): void {
-    const involvedIn =
-      this.strTxnForm.controls.completingActions.at(caIndex).controls
-        .involvedIn!;
+    const completingAction =
+      this.strTxnForm.controls.completingActions.at(caIndex);
 
-    if (involvedIn.disabled) return;
-    involvedIn.removeAt(index);
+    if (completingAction.controls.involvedIn!.disabled) return;
+
+    completingAction.controls.involvedIn!.removeAt(index);
   }
 
   // Beneficiaries
   addBeneficiary(caIndex: number): void {
-    const beneficiaries =
-      this.strTxnForm.controls.completingActions.at(caIndex).controls
-        .beneficiaries!;
+    const completingAction =
+      this.strTxnForm.controls.completingActions.at(caIndex);
 
-    if (beneficiaries.disabled) return;
-    beneficiaries.push(this.createBeneficiaryGroup());
+    if (completingAction.controls.beneficiaries!.disabled) return;
+    if (!completingAction.controls.wasBenInfoObtained.value) return;
+
+    completingAction.controls.beneficiaries!.push(
+      this.createBeneficiaryGroup(),
+    );
+    completingAction.controls.beneficiaries!.markAllAsTouched();
   }
 
   removeBeneficiary(caIndex: number, index: number): void {
-    const beneficiaries =
-      this.strTxnForm.controls.completingActions.at(caIndex).controls
-        .beneficiaries!;
+    const completingAction =
+      this.strTxnForm.controls.completingActions.at(caIndex);
 
-    if (beneficiaries.disabled) return;
-    beneficiaries.removeAt(index);
+    if (completingAction.controls.beneficiaries!.disabled) return;
+
+    completingAction.controls.beneficiaries!.removeAt(index);
   }
 
   // ----------------------
@@ -1671,20 +2491,36 @@ export class EditFormComponent implements OnInit, OnDestroy {
       "🚀 ~ EditFormComponent ~ onSubmit ~ this.userForm!.value:",
       this.strTxnForm!.value,
     );
-    // debugger;
-    if (!this.strTxnForm!.valid) return;
-    const changes: ChangeLog[] = [];
+    // if (!this.strTxnForm!.valid) return;
+
+    if (this.strTxnsBeforeBulkEdit) {
+      this.crossTabEditService.saveEditResponseToLocalStorage(this.sessionId, {
+        type: "BULK_EDIT_RESULT",
+        payload: this.strTxnsBeforeBulkEdit.map((txnBefore) => {
+          const changes: ChangeLogWithoutVersion[] = [];
+          this.changeLogService.compareProperties(
+            txnBefore,
+            this.strTxnForm.getRawValue(),
+            changes,
+            { discriminator: "index" },
+          );
+          return { changeLogs: changes, strTxnId: txnBefore._mongoid };
+        }),
+      });
+      return;
+    }
+    const changes: ChangeLogWithoutVersion[] = [];
     this.changeLogService.compareProperties(
       this.strTxnBeforeEdit,
       this.strTxnForm!.value,
       changes,
     );
-    this.crossTabEditService.saveEditResponseToLocalStorage(
-      this.sessionId,
-      this.strTxnBeforeEdit?._mongoid!,
-      changes,
-    );
-    this.strTxnBeforeEdit = this.strTxnForm.value as any as WithVersion<StrTxn>;
+    // this.crossTabEditService.saveEditResponseToLocalStorage(
+    //   this.sessionId,
+    //   this.strTxnBeforeEdit?._mongoid!,
+    //   changes,
+    // );
+    // this.strTxnBeforeEdit = this.strTxnForm.value as any as WithVersion<StrTxn>;
   }
 }
 type TypedForm<T> = {
