@@ -81,7 +81,7 @@ mat-drawer-content {
   }
 }
 
-.mat-column-id {
+.mat-column-_hiddenValidation {
   position: sticky;
   z-index: 1;
   left: 125px; // Match actions + select column width
@@ -171,15 +171,16 @@ mat-hint {
 
 /* Optional: Add elevation to header */
 .filter-header {
-  @include mat.button-density(-5);
+  // @include mat.button-density(-5);
   @include mat.form-field-density(-5);
 }
 
 mat-toolbar-row {
   gap: 0.5em;
+  justify-content: space-between;
 }
 
-mat-toolbar {
+.table-system > mat-toolbar {
   min-height: calc(var(--mat-toolbar-standard-height, 64px) * 2);
 }
 
@@ -214,4 +215,25 @@ mat-chip-set.mat-mdc-chip-set.mdc-evolution-chip-set.filter-chips {
 
 .table-filter-container mat-toolbar-row.mat-toolbar-row {
   justify-content: end;
+}
+
+.mat-column-_hiddenValidation span {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: white;
+  font-weight: bold;
+  font-size: 15px;
+  font-family: var(--mat-sys-body-medium-font, Roboto, sans-serif);
+  user-select: none;
+  margin-right: 4px; /* spacing between circles */
+}
+
+::ng-deep .last-updated-chip .mdc-evolution-chip__text-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
 }

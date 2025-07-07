@@ -1,5 +1,11 @@
 import { CommonModule } from "@angular/common";
-import { Component, HostListener, OnDestroy, OnInit } from "@angular/core";
+import {
+  Component,
+  HostListener,
+  inject,
+  OnDestroy,
+  OnInit,
+} from "@angular/core";
 import {
   FormArray,
   FormControl,
@@ -50,6 +56,7 @@ import { ControlToggleDirective } from "./control-toggle.directive";
 import { MatToolbarModule } from "@angular/material/toolbar";
 import { TransactionDateDirective } from "./transaction-date.directive";
 import { TransactionTimeDirective } from "./transaction-time.directive";
+import { MatSnackBar } from "@angular/material/snack-bar";
 
 @Component({
   selector: "app-edit-form",
@@ -2483,17 +2490,44 @@ export class EditFormComponent implements OnInit, OnDestroy {
     completingAction.controls.beneficiaries!.removeAt(index);
   }
 
+  snackBar = inject(MatSnackBar);
+
   // ----------------------
   // Form Submission
   // ----------------------
+  isSubmitted = false;
   onSubmit(): void {
     console.log(
       "🚀 ~ EditFormComponent ~ onSubmit ~ this.userForm!.value:",
       this.strTxnForm!.value,
     );
-    // if (!this.strTxnForm!.valid) return;
-
-    if (this.strTxnsBeforeBulkEdit) {
+    if (this.isSubmitted && !!this.strTxnsBeforeBulkEdit) {
+      this.snackBar.open(
+        "Edits already saved please close this tab!",
+        "Dismiss",
+        {
+          duration: 5000,
+        },
+      );
+      return;
+    }
+    if (!this.strTxnsBeforeBulkEdit) {
+      const changes: ChangeLogWithoutVersion[] = [];
+      this.changeLogService.compareProperties(
+        this.strTxnBeforeEdit,
+        this.strTxnForm!.value,
+        changes,
+      );
+      this.crossTabEditService.saveEditResponseToLocalStorage(this.sessionId, {
+        type: "EDIT_RESULT",
+        payload: {
+          strTxnId: this.strTxnBeforeEdit!._mongoid,
+          changeLogs: changes,
+        },
+      });
+      this.strTxnBeforeEdit = this.strTxnForm
+        .value as any as WithVersion<StrTxn>;
+    } else {
       this.crossTabEditService.saveEditResponseToLocalStorage(this.sessionId, {
         type: "BULK_EDIT_RESULT",
         payload: this.strTxnsBeforeBulkEdit.map((txnBefore) => {
@@ -2507,20 +2541,11 @@ export class EditFormComponent implements OnInit, OnDestroy {
           return { changeLogs: changes, strTxnId: txnBefore._mongoid };
         }),
       });
-      return;
     }
-    const changes: ChangeLogWithoutVersion[] = [];
-    this.changeLogService.compareProperties(
-      this.strTxnBeforeEdit,
-      this.strTxnForm!.value,
-      changes,
-    );
-    // this.crossTabEditService.saveEditResponseToLocalStorage(
-    //   this.sessionId,
-    //   this.strTxnBeforeEdit?._mongoid!,
-    //   changes,
-    // );
-    // this.strTxnBeforeEdit = this.strTxnForm.value as any as WithVersion<StrTxn>;
+    this.snackBar.open("Edits saved!", "Dismiss", {
+      duration: 5000,
+    });
+    this.isSubmitted = true;
   }
 }
 type TypedForm<T> = {

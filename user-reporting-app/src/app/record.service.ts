@@ -8,6 +8,6 @@ import { StrTxn } from "./table/table.component";
 export class RecordService {
   constructor(private httpClient: HttpClient) {}
   getStrTxns() {
-    return this.httpClient.get<StrTxn[]>("/api/strTxns?limit=200");
+    return this.httpClient.get<StrTxn[]>("/api/strTxns");
   }
 }

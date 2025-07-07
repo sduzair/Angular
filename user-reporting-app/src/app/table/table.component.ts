@@ -3,6 +3,7 @@ import {
   type AfterViewInit,
   Component,
   HostListener,
+  inject,
   OnDestroy,
   type OnInit,
   ViewChild,
@@ -52,6 +53,7 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
 import { format, isAfter, isBefore, startOfDay } from "date-fns";
 import { PadZeroPipe } from "./pad-zero.pipe";
 import { MatChipsModule } from "@angular/material/chips";
+import { MatSnackBar } from "@angular/material/snack-bar";
 
 @Component({
   selector: "app-table",
@@ -81,6 +83,15 @@ import { MatChipsModule } from "@angular/material/chips";
       <mat-toolbar>
         <mat-toolbar-row>
           <h1>Reporting UI</h1>
+          <mat-chip
+      *ngIf="lastUpdated"
+      color="primary"
+      selected="true"
+      class="last-updated-chip"
+    >
+      <mat-icon>update</mat-icon>
+      Last Updated: {{ lastUpdated | date: 'short' }}
+    </mat-chip>
         </mat-toolbar-row>
         <mat-toolbar-row>
           <!-- Active Filter Chips -->
@@ -118,15 +129,28 @@ import { MatChipsModule } from "@angular/material/chips";
       </mat-toolbar>
       <mat-drawer-container class="table-filter-container" hasBackdrop="false">
         <mat-drawer position="end" #drawer>
-          <mat-toolbar>
-            <mat-toolbar-row>
-              <button mat-icon-button (click)="drawer.toggle()">
-                <mat-icon>close</mat-icon>
-              </button>
-            </mat-toolbar-row>
-          </mat-toolbar>
           <form [formGroup]="filterForm.formGroup" class="filter-header">
-            <ng-container *ngFor="let key of filterKeys">
+            <mat-toolbar>
+              <mat-toolbar-row>
+                <button mat-raised-button color="primary" type="submit">
+                  Apply
+                </button>
+                <button
+                  mat-button
+                  color="warn"
+                  type="button"
+                  (click)="filterForm.formGroup.reset()"
+                  [disabled]="filterForm.formGroup.pristine"
+                >
+                  Reset Filters
+                </button>
+                <div class="flex-fill"></div>
+                <button mat-icon-button (click)="drawer.toggle()">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </mat-toolbar-row>
+            </mat-toolbar>
+            <ng-container *ngFor="let key of filterKeys; trackBy:filterForm.trackBy">
               <!-- Text Filter -->
               <mat-form-field *ngIf="isTextFilterKey(key)">
                 <mat-label
@@ -254,19 +278,32 @@ import { MatChipsModule } from "@angular/material/chips";
                   [mat-sort-header]="column"
                 >
                   <div [class.sticky-cell]="isStickyColumn(column)">
-                    {{ this.displayedColumns.transform(column) }}
+                    {{
+                      column !== "_hiddenValidation"
+                        ? this.displayedColumns.transform(column)
+                        : ""
+                    }}
                   </div>
                 </th>
                 <td mat-cell *matCellDef="let row">
                   <div [class.sticky-cell]="isStickyColumn(column)">
+                    <ng-container *ngIf="column === '_hiddenValidation'">
+                      <ng-container *ngFor="let ch of row._hiddenValidation">
+                        <span
+                          [style.background-color]="getColorForValidation(ch)"
+                          >{{ ch[0].toUpperCase() }}</span
+                        >
+                      </ng-container>
+                    </ng-container>
                     <ng-container
                       *ngIf="this.dateFilters.valuesTime.includes(column)"
                     >
                       {{
                         this.dataColumns.getValueByPath(row, column)
                           | appPadZero : 5
-                      }} </ng-container
-                    ><ng-container
+                      }}
+                    </ng-container>
+                    <ng-container
                       *ngIf="this.dateFilters.values.includes(column)"
                     >
                       {{
@@ -277,7 +314,8 @@ import { MatChipsModule } from "@angular/material/chips";
                     <ng-container
                       *ngIf="
                         !this.dateFilters.values.includes(column) &&
-                        !this.dateFilters.valuesIgnore.includes(column)
+                        !this.dateFilters.valuesIgnore.includes(column) &&
+                        column !== '_hiddenValidation'
                       "
                     >
                       {{ this.dataColumns.getValueByPath(row, column) }}
@@ -292,7 +330,7 @@ import { MatChipsModule } from "@angular/material/chips";
               ></tr>
               <tr
                 mat-row
-                *matRowDef="let row; columns: this.displayedColumns.values;"
+                *matRowDef="let row; columns: this.displayedColumns.values"
                 [class.recentOpenHighlight]="
                   this.recentOpenRows.includes(row._mongoid)
                 "
@@ -355,6 +393,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
   }
   static readonly dataColumns = {
     values: [
+      "_hiddenValidation",
       "dateOfTxn",
       "timeOfTxn",
       "dateOfPosting",
@@ -448,6 +487,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
           value as DataColumnsType
         ]!;
       }
+      if (value.startsWith("_hidden")) return "";
       if (TableComponent.isTextFilterKey(value))
         return TableComponent.displayedColumns.columnHeaderMap[
           value as DataColumnsType
@@ -485,13 +525,18 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
         "completingActions.0.accountClose": "Credit Account Close",
         "completingActions.0.accountCurrency": "Credit Account Currency",
         reportingEntityTxnRefNo: "Transaction Reference No",
+        _hiddenValidation: "Validation Errors",
       };
     },
   };
   get stickyColumns() {
     return TableComponent.stickyColumns;
   }
-  private static stickyColumns: DisplayedColumnType[] = ["actions", "_mongoid"];
+  private static stickyColumns: DisplayedColumnType[] = [
+    "actions",
+    "_mongoid",
+    "_hiddenValidation",
+  ];
   get selectFilters() {
     return TableComponent.selectFilters;
   }
@@ -502,6 +547,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     isSelectFilterKey: (key: string) => boolean;
   } = {
     values: [
+      "_hiddenValidation",
       "methodOfTxn",
       "reportingEntityLocationNo",
       "startingActions.0.directionOfSA",
@@ -616,11 +662,11 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
   static filterForm = {
     filterFormKeySanitize: (value: string): string => {
       // Replace all dots with underscores to make keys safe for FormGroup
-      return value.replace(/\./g, "_");
+      return value.replace(/\./g, "--");
     },
     filterFormKeyDesanitize: (value: string): string => {
       // Replace all underscores back to dots for filter predicate
-      return value.replace(/_/g, ".");
+      return value.replace(/--/g, ".");
     },
     _formGroup: null as FormGroup | null,
     get formGroup() {
@@ -636,7 +682,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
             [key in FilterKeysType]: FormControl;
           },
         ),
-        { updateOn: "blur" },
+        { updateOn: "submit" },
       );
       return this._formGroup;
     },
@@ -710,6 +756,8 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     this.dataSource.sort = this.sort!;
   }
 
+  lastUpdated?: string;
+  snackBar = inject(MatSnackBar);
   setupTableDataSource() {
     this.authService.userAuthId$
       .pipe(
@@ -733,30 +781,49 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
           const {
             data: { strTxnChangeLogs },
             editTabResVersioned,
+            lastUpdated,
+            conflictError,
           } = sessionState;
+
+          if (conflictError) {
+            this.editFormTab?.close();
+            this.bulkEditFormTab?.close();
+
+            this.snackBar.open(conflictError, "Dismiss", {
+              duration: 10000,
+            });
+          }
+          this.lastUpdated = lastUpdated;
 
           // apply edit tab res change logs and return
           if (editTabResVersioned != null) {
             console.assert(acc.length > 0);
-            return acc.map((strTxn) => {
-              const { changeLogs } =
-                editTabResVersioned.find(
-                  (res) => res.strTxnId === strTxn._mongoid,
-                ) || {};
+            return acc
+              .map((strTxn) => {
+                const { changeLogs } =
+                  editTabResVersioned.find(
+                    (res) => res.strTxnId === strTxn._mongoid,
+                  ) || {};
 
-              if (!changeLogs) return strTxn;
+                if (!changeLogs) return strTxn;
 
-              return this.changeLogService.applyChanges(strTxn, changeLogs);
-            });
+                return this.changeLogService.applyChanges(strTxn, changeLogs);
+              })
+              .map(TableComponent.addValidationInfo);
           }
 
-          return strTxns.map((strTxn) => {
-            const { changeLogs } =
-              strTxnChangeLogs?.find(
-                (editedUser) => editedUser.strTxnId === strTxn._mongoid,
-              ) || {};
-            return this.changeLogService.applyChanges(strTxn, changeLogs || []);
-          });
+          return strTxns
+            .map((strTxn) => {
+              const { changeLogs } =
+                strTxnChangeLogs?.find(
+                  (editedUser) => editedUser.strTxnId === strTxn._mongoid,
+                ) || {};
+              return this.changeLogService.applyChanges(
+                strTxn,
+                changeLogs || [],
+              );
+            })
+            .map(TableComponent.addValidationInfo);
         }, [] as WithVersion<StrTxn>[]),
         takeUntil(this.destroy$),
       )
@@ -773,6 +840,10 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
       return Object.keys(searchTerms).every((searchTermKey) => {
         const desanitizedKey =
           this.filterForm.filterFormKeyDesanitize(searchTermKey);
+        console.log(
+          "🚀 ~ TableComponent ~ returnObject.keys ~ desanitizedKey:",
+          desanitizedKey,
+        );
 
         if (this.dateFilters.isDateFilterKey(desanitizedKey)) {
           const keyPath = this.dateFilters.parseFilterKey(desanitizedKey);
@@ -794,6 +865,8 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
           if (!searchTerms[searchTermKey]) return true;
           const keyPath = this.selectFilters.parseFilterKey(desanitizedKey);
           const recordVal = this.dataColumns.getValueByPath(record, keyPath);
+          if (keyPath === "_hiddenValidation")
+            return recordVal.includes(searchTerms[searchTermKey]);
           return searchTerms[searchTermKey] === recordVal;
         }
 
@@ -814,12 +887,16 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
   getUniqueColumnValuesForSelectFilter(key: string) {
     const uniques = new Set([""]);
     return this.dataSource.data.reduce((acc, txn) => {
-      return acc.add(
-        this.dataColumns.getValueByPath(
-          txn,
-          this.selectFilters.parseFilterKey(key),
-        ) ?? "",
+      const value = this.dataColumns.getValueByPath(
+        txn,
+        this.selectFilters.parseFilterKey(key),
       );
+      if (Array.isArray(value)) {
+        value.forEach((v) => acc.add(v ?? ""));
+      } else {
+        acc.add((value as string) ?? "");
+      }
+      return acc;
     }, uniques);
   }
 
@@ -861,9 +938,70 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
         },
       });
   }
+  static missingConductors(sa: StartingAction) {
+    if (!sa.wasCondInfoObtained) return false;
+
+    if (sa.conductors.length === 0) return true;
+    if (sa.conductors.some((cond) => !cond.linkToSub)) return true;
+
+    return false;
+  }
+
+  private static missingCibcInfo(action: StartingAction | CompletingAction) {
+    if (action.fiuNo !== "010") return false;
+
+    if (
+      !action.branch ||
+      !action.account ||
+      !action.accountType ||
+      (action.accountType === "Other" && !action.accountTypeOther) ||
+      !action.accountCurrency ||
+      !action.accountStatus ||
+      !action.accountOpen ||
+      (action.accountStatus === "Closed" && !action.accountClose)
+    )
+      return true;
+
+    return false;
+  }
+
+  static addValidationInfo(patchedStrTxn: WithVersion<StrTxn>) {
+    const errors: _hiddenValidationType[] = [];
+    if (patchedStrTxn._version && patchedStrTxn._version > 0)
+      errors.push("Edited Txn");
+    if (patchedStrTxn.startingActions.some(TableComponent.missingConductors))
+      errors.push("Conductor Missing");
+    if (
+      patchedStrTxn.startingActions.some(TableComponent.missingCibcInfo) ||
+      patchedStrTxn.completingActions.some(TableComponent.missingCibcInfo)
+    )
+      errors.push("Bank Info Missing");
+
+    patchedStrTxn._hiddenValidation = errors;
+    return patchedStrTxn;
+  }
+
+  get getColorForValidation() {
+    return TableComponent.getColorForValidation;
+  }
+  static getColorForValidation(error: _hiddenValidationType): string {
+    const colors: Record<_hiddenValidationType, string> = {
+      "Conductor Missing": "#dc3545",
+      "Bank Info Missing": "#ba005c",
+      "Edited Txn": "#0d6efd",
+    };
+    if (!error) return "#007bff"; // fallback color
+    return colors[error];
+  }
 }
 
+type _hiddenValidationType =
+  | "Edited Txn"
+  | "Conductor Missing"
+  | "Bank Info Missing";
+
 export interface StrTxn {
+  _hiddenValidation?: _hiddenValidationType[];
   _mongoid: string;
   wasTxnAttempted: boolean;
   wasTxnAttemptedReason: string;

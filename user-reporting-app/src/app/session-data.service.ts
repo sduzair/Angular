@@ -1,12 +1,12 @@
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpErrorResponse } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, map, Observable } from "rxjs";
+import { BehaviorSubject, EMPTY, map, Observable, throwError } from "rxjs";
 import { ChangeLog, ChangeLogWithoutVersion } from "./change-log.service";
 import {
   CrossTabEditService,
   EditTabReqResType,
 } from "./cross-tab-edit.service";
-import { switchMap, withLatestFrom } from "rxjs/operators";
+import { catchError, switchMap, withLatestFrom } from "rxjs/operators";
 import { AuthService } from "./fingerprinting.service";
 
 @Injectable({
@@ -44,19 +44,23 @@ export class SessionDataService {
       .subscribe();
   }
 
-  fetchSession(sessionId: string) {
+  fetchSession(sessionId: string, { onVersionConflict = false } = {}) {
     return this.http.get<GetSessionResponse>(`/api/sessions/${sessionId}`).pipe(
-      map((res) => {
+      map(({ version, data, updatedAt }) => {
         this.sessionState.next({
           sessionId,
-          version: res.version,
-          data: res.data,
+          version,
+          data,
           editTabResVersioned: null,
+          lastUpdated: updatedAt,
+          conflictError: onVersionConflict
+            ? "Table reloaded on version conflict"
+            : undefined,
         });
         return {
           sessionId,
-          version: res.version,
-          data: res.data,
+          version: version,
+          data: data,
           recentEditFromEditForm: null,
         };
       }),
@@ -92,7 +96,10 @@ export class SessionDataService {
       { type: "EDIT_RESULT" | "BULK_EDIT_RESULT" }
     >,
   ): Observable<SessionStateLocal> {
-    const { strTxnChangeLogs = [] } = structuredClone(sessionStateCurrent.data);
+    const {
+      data: { strTxnChangeLogs = [] },
+      version: currentVersion,
+    } = structuredClone(sessionStateCurrent);
 
     let editTabRes: EditTabChangeLogsRes[] = null!;
     if (recentEdit.type === "EDIT_RESULT") editTabRes = [recentEdit.payload];
@@ -102,7 +109,7 @@ export class SessionDataService {
       ({ strTxnId, changeLogs }) => {
         const changeLogsVersioned = changeLogs.map((changeLog) => ({
           ...changeLog,
-          version: sessionStateCurrent.version + 1,
+          version: currentVersion + 1,
         }));
 
         const txn = strTxnChangeLogs?.find(
@@ -123,19 +130,29 @@ export class SessionDataService {
     );
 
     const payload: UpdateSessionRequest = {
-      currentVersion: sessionStateCurrent.version,
+      currentVersion,
       data: { strTxnChangeLogs },
     };
     return this.http
       .put<UpdateSessionResponse>(`/api/sessions/${sessionId}`, payload)
       .pipe(
-        map((res) => {
-          console.assert(res.newVersion === payload.currentVersion + 1);
+        catchError((error: HttpErrorResponse) => {
+          if (error.status === 409) {
+            this.fetchSession(sessionId, {
+              onVersionConflict: true,
+            }).subscribe();
+            return EMPTY;
+          }
+          return throwError(() => error);
+        }),
+        map(({ newVersion, updatedAt }) => {
+          console.assert(newVersion === payload.currentVersion + 1);
           const newSessionState: SessionStateLocal = {
             sessionId,
-            version: res.newVersion,
+            version: newVersion,
             data: { strTxnChangeLogs },
-            editTabResVersioned: editTabResVersioned,
+            editTabResVersioned,
+            lastUpdated: updatedAt,
           };
           this.sessionState.next(newSessionState);
           return newSessionState;
@@ -161,6 +178,8 @@ export interface SessionStateLocal {
     strTxnChangeLogs?: StrTxnChangeLog[];
   };
   editTabResVersioned: StrTxnChangeLog[] | null;
+  lastUpdated?: string;
+  conflictError?: string;
 }
 
 export interface StrTxnChangeLog {
@@ -170,8 +189,8 @@ export interface StrTxnChangeLog {
 
 interface GetSessionResponse {
   version: number;
-  createdAt: unknown;
-  updatedAt: unknown;
+  createdAt: string;
+  updatedAt: string;
   userId: string;
   data: {
     strTxnChangeLogs?: StrTxnChangeLog[];
