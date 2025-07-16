@@ -1,6 +1,15 @@
-# User Reporting API - .NET Core Minimal API with MongoDB
+# STR Txn Reporting API - .NET Core Minimal API with MongoDB
 
 A lightweight user reporting API built with .NET Core Minimal API and MongoDB for data storage.
+
+- [STR Txn Reporting API - .NET Core Minimal API with MongoDB](#str-txn-reporting-api---net-core-minimal-api-with-mongodb)
+  - [Features](#features)
+  - [Prerequisites](#prerequisites)
+  - [Dev Setup Instructions](#dev-setup-instructions)
+  - [Database Structure](#database-structure)
+  - [Tests](#tests)
+  - [Troubleshooting](#troubleshooting)
+  - [License](#license)
 
 ## Features
 
@@ -12,9 +21,9 @@ A lightweight user reporting API built with .NET Core Minimal API and MongoDB fo
 
 ## Prerequisites
 
-- [MongoDB Community Server](https://www.mongodb.com/try/download/community) running locally
+- [MongoDB Community Server](https://www.mongodb.com/try/download/community) running locally (see root readme)
 
-## Setup Instructions
+## Dev Setup Instructions
 
 1. **Clone the repository**
 
@@ -23,16 +32,22 @@ A lightweight user reporting API built with .NET Core Minimal API and MongoDB fo
    cd <project-directory>
    ```
 
-2. **Set up environment variables**
+2. **Ensure empty wwwroot dir exists**
+
+   ```bash
+   mkdir wwwroot
+   ```
+
+3. **Set up environment variables (optional)**
 
    In PowerShell (Windows):
 
    ```powershell
    $env:MongoDB__ConnectionString = "mongodb://localhost:27017"
-   $env:MongoDB__DatabaseName = "userAppDB"
+   $env:MongoDB__DatabaseName = "strTxnDB"
    ```
 
-3. **Run the application**
+4. **Run the application**
 
    ```bash
    dotnet run
@@ -42,7 +57,7 @@ A lightweight user reporting API built with .NET Core Minimal API and MongoDB fo
 
 The API expects the following collections in MongoDB:
 
-- `users` - Stores user information
+- `strTxns` - Stores str txn information
 - `sessions` - Stores session data with version tracking
 
 ## Tests
@@ -60,7 +75,7 @@ reportgenerator -reports:.\TestResults\<guid>\coverage.cobertura.xml -targetdir:
 If you encounter connection issues:
 
 1. Verify MongoDB is running locally
-2. Check the connection string in your environment variables
+2. Check the connection string
 3. Review application logs for detailed error information
 
 ## License

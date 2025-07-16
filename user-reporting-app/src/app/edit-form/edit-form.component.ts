@@ -1938,9 +1938,9 @@ import { MatSnackBar } from "@angular/material/snack-bar";
             </div>
           </mat-tab>
         </mat-tab-group>
-        <pre class="overlay-pre">
+        <!-- <pre class="overlay-pre">
 Form values: {{ strTxnForm.value | json }}</pre
-        >
+        > -->
       </form>
     </div>
   `,
