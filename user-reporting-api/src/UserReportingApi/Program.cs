@@ -2,6 +2,7 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddEnvironmentVariables();
 
 builder.Services.AddSingleton<IMongoDatabase>(sp =>
 {
@@ -20,6 +21,8 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
     {
         var client = new MongoClient(connectionString);
         var database = client.GetDatabase(databaseName);
+        // Force connection and server check
+        database.RunCommandAsync((Command<BsonDocument>)"{ping:1}").Wait();
         logger.LogInformation("Successfully connected to MongoDB");
         return database;
     }
@@ -41,9 +44,16 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+app.UseRouting();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseCors("AllowAll");
+}
+
+if (app.Environment.IsProduction())
+{
+    app.UseStaticFiles();
 }
 
 app.MapGet("/api/strTxns", async (IMongoDatabase db, int? limit) =>
@@ -159,6 +169,8 @@ app.MapPut("/api/sessions/{sessionId}", async (IMongoDatabase db, string session
         updatedTime
     ));
 });
+
+app.MapFallbackToFile("index.html");
 
 const string TestSessionIdString = "64a7f8c9e3a5b1d2f3c4e5a6";
 var testSessionId = ObjectId.Parse(TestSessionIdString);
