@@ -1,0 +1,25 @@
+:host {
+  display: block;
+}
+
+.not-found-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 80dvh;
+  height: 80vh;
+}
+
+mat-card {
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+}
+
+mat-card-header.mat-mdc-card-header {
+  gap: 0.5em;
+}
+
+mat-card.mat-mdc-card.mdc-card {
+  gap: 1em;
+}

@@ -1,0 +1,32 @@
+services:
+  dotnetapi:
+    container_name: dotnetapi
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5110:5110"
+    depends_on:
+      - mongodb
+    environment:
+      - MongoDB__ConnectionString=${MONGO_CONNECTION_STRING}
+      - MongoDB__DatabaseName=${MONGO_DATABASE}
+
+  mongodb:
+    container_name: mongodb
+    build:
+      context: .
+      dockerfile: Dockerfile.mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
+    ports:
+      - "27018:27017"
+    volumes:
+      - ./data:/docker-entrypoint-initdb.d:ro
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:

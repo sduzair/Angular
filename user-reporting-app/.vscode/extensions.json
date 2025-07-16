@@ -1,0 +1,17 @@
+{
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=827846
+  "recommendations": [
+    "angular.ng-template",
+    "yzhang.markdown-all-in-one",
+    "chakrounanas.turbo-console-log",
+    "nicoespeon.abracadabra",
+    "cyrilletuzi.angular-schematics",
+    "obenjiro.arrr",
+    "aaron-bond.better-comments",
+    "biomejs.biome",
+    "pucelle.vscode-css-navigation",
+    "ecmel.vscode-html-css",
+    "mariusalchimavicius.json-to-ts",
+    "esbenp.prettier-vscode"
+  ]
+}

@@ -1,0 +1,87 @@
+@use "@angular/material" as mat;
+
+html {
+  @include mat.theme(
+    (
+      color: mat.$rose-palette,
+      typography: Roboto,
+    )
+  );
+}
+
+// Include Angular Material core styles and typography
+// @include mat.core();
+$my-typography: mat.m2-define-typography-config();
+@include mat.typography-hierarchy($my-typography);
+
+.mat-success {
+  @include mat.icon-overrides(
+    (
+      color: #4caf50,
+    )
+  );
+}
+
+.mat-info {
+  @include mat.icon-overrides(
+    (
+      color: #2196f3,
+    )
+  );
+}
+
+.mat-warning {
+  @include mat.icon-overrides(
+    (
+      color: #ff9800,
+    )
+  );
+}
+
+.mat-disabled {
+  @include mat.icon-overrides(
+    (
+      color: #9e9e9e,
+    )
+  );
+}
+
+.mat-warn {
+  @include mat.icon-overrides(
+    (
+      color: #f44336,
+    )
+  );
+}
+
+.mat-error {
+  @include mat.icon-overrides(
+    (
+      color: var(--mat-sys-error),
+    )
+  );
+}
+
+mat-toolbar {
+  --mat-toolbar-standard-height: 64px;
+}
+
+html,
+body {
+  height: 100%;
+}
+body {
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+}
+
+body {
+  background-color: var(--mat-sys-surface-container-low);
+  color: var(--mat-sys-on-background);
+}
+
+html {
+  scrollbar-color: var(--mat-sys-outline-variant)
+    var(--mat-sys-surface-container-low);
+  scrollbar-width: thin;
+}
