@@ -1,2 +1,9 @@
 # dotenv files
 .env
+.env.prod
+.env*
+
+# Ignore certificate and private key files
+certs/*.pem
+certs/*.key
+certs/*.crt

@@ -3,7 +3,7 @@ services:
     container_name: dotnetapi
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     ports:
       - "5110:5110"
     depends_on:
@@ -11,7 +11,10 @@ services:
     environment:
       - MongoDB__ConnectionString=${MONGO_CONNECTION_STRING}
       - MongoDB__DatabaseName=${MONGO_DATABASE}
-      - ASPNETCORE_ENVIRONMENT=Development
+      - MongoDB__CLIENT_CERT_PATH=/etc/ssl/client.pem
+      - ASPNETCORE_ENVIRONMENT=Production
+    volumes:
+      - ./certs/client.pem:/etc/ssl/client.pem:ro
 
   mongodb:
     container_name: mongodb
@@ -28,5 +31,13 @@ services:
     volumes:
       - ./data:/docker-entrypoint-initdb.d:ro
       - mongo-data:/data/db
+      - ./certs/mongodb.pem:/etc/ssl/mongodb.pem:ro
+      - ./certs/ca.pem:/etc/ssl/ca.pem:ro
+    command: >
+      mongod
+        --bind_ip_all
+        --tlsMode requireTLS
+        --tlsCertificateKeyFile /etc/ssl/mongodb.pem
+        --tlsCAFile /etc/ssl/ca.pem
 volumes:
   mongo-data:

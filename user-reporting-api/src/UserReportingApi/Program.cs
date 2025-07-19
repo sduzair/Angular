@@ -1,3 +1,4 @@
+using System.Security.Cryptography.X509Certificates;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -7,6 +8,7 @@ builder.Configuration.AddEnvironmentVariables();
 builder.Services.AddSingleton<IMongoDatabase>(sp =>
 {
     var config = sp.GetRequiredService<IConfiguration>();
+    var env = sp.GetRequiredService<IHostEnvironment>();
     var logger = sp.GetRequiredService<ILogger<Program>>();
 
     var connectionString = config["MongoDB:ConnectionString"]
@@ -15,11 +17,30 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
         ?? throw new InvalidOperationException("MongoDB database name missing");
 
     logger.LogInformation("Connecting to MongoDB at {ConnectionString}", connectionString);
+    logger.LogInformation("Using database: {DatabaseName}", databaseName);
+
+    var mongoSettings = MongoClientSettings.FromConnectionString(connectionString);
+
+    if (env.IsProduction())
+    {
+        var clientCertPath = config["MongoDB:CLIENT_CERT_PATH"]
+            ?? throw new InvalidOperationException("MongoDB client cert path missing");
+        var clientCert = X509Certificate2.CreateFromPemFile(clientCertPath);
+        mongoSettings.UseTls = true;
+        mongoSettings.SslSettings = new SslSettings { ClientCertificates = [clientCert] };
+        logger.LogInformation("TLS authentication enabled for MongoDB (Production)");
+    }
+    else
+    {
+        logger.LogInformation("TLS authentication is NOT enabled for MongoDB (Non-production)");
+    }
+
+    logger.LogDebug("Connecting to MongoDB at {ConnectionString}", connectionString);
     logger.LogDebug("Using database: {DatabaseName}", databaseName);
 
     try
     {
-        var client = new MongoClient(connectionString);
+        var client = new MongoClient(mongoSettings);
         var database = client.GetDatabase(databaseName);
         // Force connection and server check
         database.RunCommandAsync((Command<BsonDocument>)"{ping:1}").Wait();
