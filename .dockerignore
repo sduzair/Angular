@@ -33,3 +33,7 @@
 **/dist
 LICENSE
 README.md
+
+**/.key
+**/.pem
+**/.base64
