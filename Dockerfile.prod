@@ -56,6 +56,12 @@ COPY --from=angular-build /app/dist/browser /app/wwwroot
 COPY ./certs/ca.pem /usr/local/share/ca-certificates/mongodbCA.crt
 RUN update-ca-certificates
 
+RUN mkdir -p /etc/ssl \
+    && touch /etc/ssl/client.pem \
+    && chown app /etc/ssl/client.pem
+COPY entrypoint.sh entrypoint.sh
+RUN chmod +x entrypoint.sh
+
 USER app
 
-ENTRYPOINT ["dotnet", "UserReportingApi.dll"]
+ENTRYPOINT ["./entrypoint.sh"]

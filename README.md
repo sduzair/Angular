@@ -18,7 +18,8 @@
     - [TLS Certificate Setup](#tls-certificate-setup)
     - [Certificate Authority Setup (Self-Signed)](#certificate-authority-setup-self-signed)
     - [Build and run Docker containers](#build-and-run-docker-containers)
-      - [Manual Test Connection to MongoDB Container with TLS](#manual-test-connection-to-mongodb-container-with-tls)
+      - [Manual Test Connection to Local MongoDB Container with TLS](#manual-test-connection-to-local-mongodb-container-with-tls)
+    - [Render Dotnetapi Web Service](#render-dotnetapi-web-service)
   - [Key Features](#key-features)
     - [Custom Directives (Angular)](#custom-directives-angular)
 
@@ -156,7 +157,7 @@ Use Docker Compose to build and deploy the full stack:
 docker-compose -f docker-compose.prod.yml up --build -d
 ```
 
-#### Manual Test Connection to MongoDB Container with TLS
+#### Manual Test Connection to Local MongoDB Container with TLS
 
 You can manually verify the MongoDB TLS setup using mongosh:
 
@@ -168,6 +169,28 @@ mongosh strTxnDB --tls \
 -u root -p examplepassword \
 --authenticationDatabase admin
 ```
+
+### Render Dotnetapi Web Service
+
+- ENV Variables
+
+    ```bash
+    MONGO_ROOT_USERNAME=sandbox.tuank.mongodb.net
+    MONGO_DATABASE=strTxnDB
+    MONGO_CONNECTION_STRING=mongodb+srv://${MONGO_ROOT_USERNAME}/${MONGO_DATABASE}?authSource=%24external&authMechanism=MONGODB-X509
+    CLIENT_PEM_BASE64=asdf=
+    ```
+
+- Pass your client PEM certificate as a base64-encoded environment variable (CLIENT_PEM_BASE64) into the Docker container.
+
+    ```bash
+    base64 certs/client.pem | tr -d '\n' > certs/client.pem.base64
+    ```
+
+- The container's entrypoint.sh script will:
+  - Decode the base64 string.
+  - Write the PEM file to /etc/ssl/client.pem during container startup.
+  - Apply strict file permissions (chmod 600) to enhance security.
 
 ## Key Features
 

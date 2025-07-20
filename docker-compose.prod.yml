@@ -13,8 +13,7 @@ services:
       - MongoDB__DatabaseName=${MONGO_DATABASE}
       - MongoDB__CLIENT_CERT_PATH=/etc/ssl/client.pem
       - ASPNETCORE_ENVIRONMENT=Production
-    volumes:
-      - ./certs/client.pem:/etc/ssl/client.pem:ro
+      - CLIENT_PEM_BASE64=${CLIENT_PEM_BASE64}
 
   mongodb:
     container_name: mongodb
