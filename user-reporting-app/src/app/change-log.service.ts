@@ -105,8 +105,8 @@ export class ChangeLogService<T extends object> {
   // Main applyChanges function using path traversal closure
   applyChanges(original: T, changes: ChangeLog[]): WithVersion<T> {
     if (changes.length === 0) return original as any;
-    // const result = structuredClone(original) as WithVersion<T>; // breaks table selection model refs
-    const result = original as WithVersion<T>;
+    // Enforce immutability on record data to synchronize UI features like highlights
+    const result = structuredClone(original) as WithVersion<T>; // todo breaks table selection model refs
 
     changes.forEach((change) => {
       const pathParts = change.path.split(".");

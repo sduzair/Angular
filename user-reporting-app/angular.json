@@ -12,7 +12,8 @@
       "schematics": {
         "@schematics/angular:component": {
           "inlineTemplate": true,
-          "style": "scss"
+          "style": "scss",
+          "changeDetection": "OnPush"
         }
       },
       "root": "",

@@ -62,6 +62,14 @@ $my-typography: mat.m2-define-typography-config();
   );
 }
 
+.mat-accent {
+  @include mat.icon-overrides(
+    (
+      color: var(--mat-sys-primary),
+    )
+  );
+}
+
 mat-toolbar {
   --mat-toolbar-standard-height: 64px;
 }

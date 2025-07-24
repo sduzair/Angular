@@ -1,6 +1,7 @@
 import { CommonModule, DatePipe } from "@angular/common";
 import {
   type AfterViewInit,
+  ChangeDetectionStrategy,
   Component,
   HostListener,
   inject,
@@ -24,21 +25,31 @@ import { MatInputModule } from "@angular/material/input";
 import { MatPaginator, MatPaginatorModule } from "@angular/material/paginator";
 import { MatSort, MatSortModule } from "@angular/material/sort";
 import { MatTableDataSource, MatTableModule } from "@angular/material/table";
-import { ChangeLogService, WithVersion } from "../change-log.service";
+import {
+  ChangeLog,
+  ChangeLogService,
+  ChangeLogWithoutVersion,
+  WithVersion,
+} from "../change-log.service";
 import { CrossTabEditService } from "../cross-tab-edit.service";
 import {
+  BehaviorSubject,
   catchError,
   combineLatest,
   interval,
+  map,
   scan,
   Subject,
   switchMap,
+  take,
   takeUntil,
   takeWhile,
+  tap,
   throwError,
 } from "rxjs";
 import {
   type SessionStateLocal,
+  EditTabChangeLogsRes,
   SessionDataService,
 } from "../session-data.service";
 import { AuthService } from "../fingerprinting.service";
@@ -54,6 +65,8 @@ import { format, isAfter, isBefore, startOfDay } from "date-fns";
 import { PadZeroPipe } from "./pad-zero.pipe";
 import { MatChipsModule } from "@angular/material/chips";
 import { MatSnackBar } from "@angular/material/snack-bar";
+import { ClickOutsideDirective } from "./click-outside.directive";
+import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 
 @Component({
   selector: "app-table",
@@ -77,6 +90,8 @@ import { MatSnackBar } from "@angular/material/snack-bar";
     MatInputModule,
     PadZeroPipe,
     MatChipsModule,
+    ClickOutsideDirective,
+    MatProgressSpinnerModule,
   ],
   template: `
     <div class="table-system">
@@ -84,14 +99,26 @@ import { MatSnackBar } from "@angular/material/snack-bar";
         <mat-toolbar-row>
           <h1>Reporting UI</h1>
           <mat-chip
-      *ngIf="lastUpdated"
-      color="primary"
-      selected="true"
-      class="last-updated-chip"
-    >
-      <mat-icon>update</mat-icon>
-      Last Updated: {{ lastUpdated | date: 'short' }}
-    </mat-chip>
+            *ngIf="lastUpdated"
+            selected="true"
+            class="last-updated-chip"
+          >
+            <ng-container
+              *ngIf="sessionDataService.saving$ | async; else updateIcon"
+            >
+              <mat-progress-spinner
+                diameter="20"
+                mode="indeterminate"
+                class="last-updated-chip-spinner"
+              ></mat-progress-spinner>
+            </ng-container>
+            <ng-template #updateIcon>
+              <mat-icon class="mat-accent last-updated-chip-spinner"
+                >update</mat-icon
+              >
+            </ng-template>
+            Last Updated: {{ lastUpdated | date : "short" }}
+          </mat-chip>
         </mat-toolbar-row>
         <mat-toolbar-row>
           <!-- Active Filter Chips -->
@@ -112,11 +139,28 @@ import { MatSnackBar } from "@angular/material/snack-bar";
               </button>
             </mat-chip>
           </mat-chip-set>
+          <mat-chip-set class="color-pallette">
+            <mat-chip
+              *ngFor="let color of colorPalette"
+              [style.backgroundColor]="color"
+              (click)="selectedColor = color"
+              [highlighted]="selectedColor === color"
+            >
+              <span class="invisible-text">1</span>
+            </mat-chip>
+            <mat-chip
+              (click)="selectedColor = null"
+              [highlighted]="selectedColor === null"
+            >
+              <mat-icon>cancel</mat-icon>
+            </mat-chip>
+          </mat-chip-set>
+
           <button
             (click)="openBulkEditFormTab()"
             *ngIf="!this.selection.isEmpty()"
             mat-flat-button
-            [disabled]="this.isSingleOrBulkEditTabOpen"
+            [disabled]="this.isSingleOrBulkEditTabOpen$ | async"
           >
             <mat-icon>edit</mat-icon>
             Bulk Edit ({{ this.selection.selected.length }})
@@ -150,7 +194,9 @@ import { MatSnackBar } from "@angular/material/snack-bar";
                 </button>
               </mat-toolbar-row>
             </mat-toolbar>
-            <ng-container *ngFor="let key of filterKeys; trackBy:filterForm.trackBy">
+            <ng-container
+              *ngFor="let key of filterKeys; trackBy: filterForm.trackBy"
+            >
               <!-- Text Filter -->
               <mat-form-field *ngIf="isTextFilterKey(key)">
                 <mat-label
@@ -213,7 +259,8 @@ import { MatSnackBar } from "@angular/material/snack-bar";
                   >
                     <option
                       *ngFor="
-                        let option of getUniqueColumnValuesForSelectFilter(key)
+                        let option of selectFilters.columnFilterOptionsMap[key];
+                        trackBy: selectFilters.trackByOption
                       "
                       [value]="option"
                     >
@@ -227,17 +274,26 @@ import { MatSnackBar } from "@angular/material/snack-bar";
         </mat-drawer>
 
         <mat-drawer-content>
-          <div class="table-container">
+          <div
+            class="table-container"
+            (appClickOutside)="selectedColor = undefined"
+          >
             <table mat-table [dataSource]="dataSource" matSort>
               <!-- Action Column -->
               <ng-container matColumnDef="actions">
                 <th mat-header-cell *matHeaderCellDef>
                   <div [class.sticky-cell]="true">Actions</div>
                 </th>
-                <td mat-cell *matCellDef="let row">
+                <td
+                  mat-cell
+                  *matCellDef="let row"
+                  [ngStyle]="{
+                    backgroundColor: row.highlightColor || ''
+                  }"
+                >
                   <div [class.sticky-cell]="true">
                     <button
-                      [disabled]="this.isSingleOrBulkEditTabOpen"
+                      [disabled]="this.isSingleOrBulkEditTabOpen$ | async"
                       mat-icon-button
                       (click)="openEditFormTab(row)"
                     >
@@ -253,7 +309,7 @@ import { MatSnackBar } from "@angular/material/snack-bar";
                     (change)="$event ? toggleAllRows() : null"
                     [checked]="selection.hasValue() && isAllSelected()"
                     [indeterminate]="selection.hasValue() && !isAllSelected()"
-                    [disabled]="this.isSingleOrBulkEditTabOpen"
+                    [disabled]="this.isSingleOrBulkEditTabOpen$ | async"
                   >
                   </mat-checkbox>
                 </th>
@@ -262,7 +318,7 @@ import { MatSnackBar } from "@angular/material/snack-bar";
                     (click)="$event.stopPropagation()"
                     (change)="$event ? selection.toggle(row) : null"
                     [checked]="selection.isSelected(row)"
-                    [disabled]="this.isSingleOrBulkEditTabOpen"
+                    [disabled]="this.isSingleOrBulkEditTabOpen$ | async"
                   >
                   </mat-checkbox>
                 </td>
@@ -334,6 +390,8 @@ import { MatSnackBar } from "@angular/material/snack-bar";
                 [class.recentOpenHighlight]="
                   this.recentOpenRows.includes(row._mongoid)
                 "
+                (click)="assignSelectedColorToRow(row, $event)"
+                [style.cursor]="selectedColor !== undefined ? 'pointer' : 'default'"
               ></tr>
             </table>
           </div>
@@ -358,8 +416,59 @@ import { MatSnackBar } from "@angular/material/snack-bar";
       } as MatFormFieldDefaultOptions,
     },
   ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
+  colorPalette: string[] = [
+    "#FFC107",
+    "#8BC34A",
+    "#03A9F4",
+    "#E91E63",
+    "#FF5722",
+    "#9E9E9E",
+  ];
+  selectedColor?: string | null = undefined;
+  assignSelectedColorToRow(row: StrTxn, event: MouseEvent) {
+    if (typeof this.selectedColor === "undefined") return;
+
+    let beforeRows: StrTxn[] = [];
+    if (event.ctrlKey) {
+      beforeRows = this.dataSource.filteredData;
+    } else {
+      beforeRows = [row];
+    }
+    // Apply selectedColor to rows
+    const payload: EditTabChangeLogsRes[] = beforeRows
+      .map((row) => {
+        // make optimistic highlight
+        const oldTxnHighlight: Pick<StrTxn, "highlightColor"> = {
+          highlightColor: row.highlightColor,
+        };
+        const newTxnHighlight: Pick<StrTxn, "highlightColor"> = {
+          highlightColor: this.selectedColor,
+        };
+        row.highlightColor = this.selectedColor;
+        const changes: ChangeLogWithoutVersion[] = [];
+        this.changeLogService.compareProperties(
+          oldTxnHighlight,
+          newTxnHighlight,
+          changes,
+        );
+        return changes.length > 0
+          ? { strTxnId: row._mongoid, changeLogs: changes }
+          : null;
+      })
+      .filter(
+        (editTabChangeLog): editTabChangeLog is EditTabChangeLogsRes =>
+          !!editTabChangeLog,
+      );
+    this.sessionDataService.updateHighlights({
+      type: "BULK_EDIT_RESULT",
+      payload,
+    });
+    return;
+  }
+
   pageSizeOptions: number[] = [5, 10, 20];
   pageSize: number = this.pageSizeOptions[this.pageSizeOptions.length - 1];
 
@@ -545,6 +654,9 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     generateFilterKey: (col: string) => `select${string}`;
     parseFilterKey: (key: string) => DataColumnsType;
     isSelectFilterKey: (key: string) => boolean;
+    trackByOption: (_index: number, option: string) => string;
+    columnFilterOptionsMap: Record<string, string[]>;
+    computeUniqueFilterOptions: (strTxns: WithVersion<StrTxn>[]) => void;
   } = {
     values: [
       "_hiddenValidation",
@@ -583,6 +695,34 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
           (col) => col === TableComponent.selectFilters.parseFilterKey(key),
         )
       );
+    },
+    trackByOption(_index: number, option: string): string {
+      return option;
+    },
+    columnFilterOptionsMap: {},
+    computeUniqueFilterOptions(data: WithVersion<StrTxn>[]): void {
+      const filterKeys = TableComponent.filterKeys.filter(
+        TableComponent.selectFilters.isSelectFilterKey,
+      );
+
+      this.columnFilterOptionsMap = {};
+
+      for (const key of filterKeys) {
+        const valueSet = new Set<string>([""]);
+        for (const txn of data) {
+          const value = TableComponent.dataColumns.getValueByPath(
+            txn,
+            TableComponent.selectFilters.parseFilterKey(key),
+          );
+          if (Array.isArray(value)) {
+            value.forEach((v) => valueSet.add(v ?? ""));
+          } else {
+            valueSet.add((value as string) ?? "");
+          }
+        }
+
+        this.columnFilterOptionsMap[key] = Array.from(valueSet).sort();
+      }
     },
   };
   get dateFilters() {
@@ -722,7 +862,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     private changeLogService: ChangeLogService<StrTxn>,
     private crossTabEditService: CrossTabEditService,
     private authService: AuthService,
-    private sessionDataService: SessionDataService,
+    protected sessionDataService: SessionDataService,
     private recordService: RecordService,
     private route: ActivatedRoute,
   ) {}
@@ -730,7 +870,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
   @HostListener("window:beforeunload", ["$event"])
-  ngOnDestroy = (($event: Event) => {
+  ngOnDestroy = ((_$event: Event) => {
     this.destroy$.next();
     this.destroy$.complete();
 
@@ -777,11 +917,13 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
             this.sessionDataService.sessionState$,
           ]),
         ),
+        tap(([_, { lastUpdated }]) => {
+          this.lastUpdated = lastUpdated;
+        }),
         scan((acc, [strTxns, sessionState]) => {
           const {
             data: { strTxnChangeLogs },
-            editTabResVersioned,
-            lastUpdated,
+            editTabPartialChangeLogsResponse,
             conflictError,
           } = sessionState;
 
@@ -793,46 +935,79 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
               duration: 10000,
             });
           }
-          this.lastUpdated = lastUpdated;
 
           // apply edit tab res change logs and return
-          if (editTabResVersioned != null) {
+          if (editTabPartialChangeLogsResponse != null) {
             console.assert(acc.length > 0);
+            console.log(
+              "🚀 ~ TableComponent ~ setupTableDataSource ~ acc:",
+              acc,
+            );
             return acc
-              .map((strTxn) => {
-                const { changeLogs } =
-                  editTabResVersioned.find(
-                    (res) => res.strTxnId === strTxn._mongoid,
-                  ) || {};
+              .map<Parameters<typeof TableComponent.addValidationInfo>[0]>(
+                (strTxn) => {
+                  const { strTxnId, changeLogs: partialChangeLogs = [] } =
+                    editTabPartialChangeLogsResponse.find(
+                      (res) => res.strTxnId === strTxn._mongoid,
+                    ) || {};
 
-                if (!changeLogs) return strTxn;
+                  const { changeLogs: completeChangeLogs = [] } =
+                    strTxnChangeLogs?.find(
+                      (editedUser) => editedUser.strTxnId === strTxn._mongoid,
+                    ) || {};
 
-                return this.changeLogService.applyChanges(strTxn, changeLogs);
-              })
+                  if (!strTxnId) {
+                    return { patchedStrTxn: strTxn, completeChangeLogs };
+                  }
+
+                  return {
+                    patchedStrTxn: this.changeLogService.applyChanges(
+                      strTxn,
+                      partialChangeLogs,
+                    ),
+                    completeChangeLogs,
+                  };
+                },
+              )
               .map(TableComponent.addValidationInfo);
           }
 
           return strTxns
-            .map((strTxn) => {
-              const { changeLogs } =
-                strTxnChangeLogs?.find(
-                  (editedUser) => editedUser.strTxnId === strTxn._mongoid,
-                ) || {};
-              return this.changeLogService.applyChanges(
-                strTxn,
-                changeLogs || [],
-              );
-            })
+            .map<Parameters<typeof TableComponent.addValidationInfo>[0]>(
+              (strTxn) => {
+                const { changeLogs = [] } =
+                  strTxnChangeLogs?.find(
+                    (editedUser) => editedUser.strTxnId === strTxn._mongoid,
+                  ) || {};
+                return {
+                  patchedStrTxn: this.changeLogService.applyChanges(
+                    strTxn,
+                    changeLogs,
+                  ),
+                  completeChangeLogs: changeLogs,
+                };
+              },
+            )
             .map(TableComponent.addValidationInfo);
         }, [] as WithVersion<StrTxn>[]),
+        tap((strTxns) =>
+          this.selectFilters.computeUniqueFilterOptions(strTxns),
+        ),
         takeUntil(this.destroy$),
       )
       .subscribe((strTxns) => {
         this.dataSource.data = strTxns;
-        this.updatePageSizeOptions(strTxns.length);
       });
-  }
 
+    // init page size setup
+    this.recordService
+      .getStrTxns()
+      .pipe(
+        take(1),
+        tap((txns) => this.updatePageSizeOptions(txns.length)),
+      )
+      .subscribe();
+  }
   // todo match empty values
   private createFilterPredicate(): (record: StrTxn, filter: string) => boolean {
     return (record, filter) => {
@@ -840,10 +1015,6 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
       return Object.keys(searchTerms).every((searchTermKey) => {
         const desanitizedKey =
           this.filterForm.filterFormKeyDesanitize(searchTermKey);
-        console.log(
-          "🚀 ~ TableComponent ~ returnObject.keys ~ desanitizedKey:",
-          desanitizedKey,
-        );
 
         if (this.dateFilters.isDateFilterKey(desanitizedKey)) {
           const keyPath = this.dateFilters.parseFilterKey(desanitizedKey);
@@ -884,21 +1055,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     };
   }
 
-  getUniqueColumnValuesForSelectFilter(key: string) {
-    const uniques = new Set([""]);
-    return this.dataSource.data.reduce((acc, txn) => {
-      const value = this.dataColumns.getValueByPath(
-        txn,
-        this.selectFilters.parseFilterKey(key),
-      );
-      if (Array.isArray(value)) {
-        value.forEach((v) => acc.add(v ?? ""));
-      } else {
-        acc.add((value as string) ?? "");
-      }
-      return acc;
-    }, uniques);
-  }
+  columnFilterOptionsMap: Record<string, string[]> = {};
 
   editFormTab: WindowProxy | null = null;
   openEditFormTab(record: WithVersion<StrTxn>) {
@@ -924,9 +1081,9 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  isSingleOrBulkEditTabOpen = false;
+  isSingleOrBulkEditTabOpen$ = new BehaviorSubject(false);
   monitorEditTabOpenStatus({ tabWindow }: { tabWindow: WindowProxy }) {
-    this.isSingleOrBulkEditTabOpen = true;
+    this.isSingleOrBulkEditTabOpen$.next(true);
     interval(500)
       .pipe(
         takeWhile(() => !!tabWindow && !tabWindow.closed),
@@ -934,7 +1091,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
       )
       .subscribe({
         complete: () => {
-          this.isSingleOrBulkEditTabOpen = false;
+          this.isSingleOrBulkEditTabOpen$.next(false);
         },
       });
   }
@@ -965,9 +1122,16 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     return false;
   }
 
-  static addValidationInfo(patchedStrTxn: WithVersion<StrTxn>) {
+  static addValidationInfo({
+    patchedStrTxn,
+    completeChangeLogs,
+  }: { patchedStrTxn: WithVersion<StrTxn>; completeChangeLogs: ChangeLog[] }) {
     const errors: _hiddenValidationType[] = [];
-    if (patchedStrTxn._version && patchedStrTxn._version > 0)
+    if (
+      patchedStrTxn._version &&
+      patchedStrTxn._version > 0 &&
+      !completeChangeLogs.every((log) => log.path === "highlightColor")
+    )
       errors.push("Edited Txn");
     if (patchedStrTxn.startingActions.some(TableComponent.missingConductors))
       errors.push("Conductor Missing");
@@ -978,6 +1142,11 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
       errors.push("Bank Info Missing");
 
     patchedStrTxn._hiddenValidation = errors;
+    console.log(
+      "🚀 ~ TableComponent ~ addValidationInfo ~ patchedStrTxn:",
+      patchedStrTxn,
+    );
+    console.log("🚀 ~ TableComponent ~ addValidationInfo ~ errors:", errors);
     return patchedStrTxn;
   }
 
@@ -1017,6 +1186,7 @@ export interface StrTxn {
   reportingEntityLocationNo: string;
   startingActions: StartingAction[];
   completingActions: CompletingAction[];
+  highlightColor?: string | null;
 }
 
 export interface CompletingAction {

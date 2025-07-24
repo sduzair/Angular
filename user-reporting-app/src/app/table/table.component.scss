@@ -237,3 +237,48 @@ mat-chip-set.mat-mdc-chip-set.mdc-evolution-chip-set.filter-chips {
   align-items: center;
   gap: 0.5em;
 }
+
+.color-pallette {
+  @include mat.chips-overrides(
+    (
+      container-shape-radius: 50%,
+      container-height: 32px,
+      elevated-selected-container-color: var(--mat-sys-surface),
+      outline-color: var(--mat-sys-on-surface),
+      flat-selected-outline-width: 3px,
+    )
+  );
+
+  mat-chip {
+    width: 32px;
+  }
+
+  // ::ng-deep mat-chip.mat-mdc-chip-highlighted {
+  //   outline: 3px solid #333; /* Or use your theme's primary color */
+  //   box-shadow: 0 0 6px 2px rgba(0, 0, 0, 0.2);
+  // }
+
+  ::ng-deep .mat-mdc-standard-chip .mdc-evolution-chip__action--primary {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  ::ng-deep
+    span.mdc-evolution-chip__text-label.mat-mdc-chip-action-label:last-of-type {
+    height: 24px;
+  }
+
+  ::ng-deep .mdc-evolution-chip__cell--primary {
+    justify-content: center;
+  }
+
+  .invisible-text {
+    color: transparent;
+    user-select: none;
+    pointer-events: none;
+  }
+}
+
+.last-updated-chip .last-updated-chip-spinner {
+  min-width: 24px;
+}

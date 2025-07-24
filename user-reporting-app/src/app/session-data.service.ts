@@ -1,13 +1,29 @@
 import { HttpClient, HttpErrorResponse } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, EMPTY, map, Observable, throwError } from "rxjs";
+import {
+  BehaviorSubject,
+  EMPTY,
+  map,
+  Observable,
+  Subject,
+  throwError,
+} from "rxjs";
 import { ChangeLog, ChangeLogWithoutVersion } from "./change-log.service";
 import {
   CrossTabEditService,
   EditTabReqResType,
 } from "./cross-tab-edit.service";
-import { catchError, switchMap, withLatestFrom } from "rxjs/operators";
-import { AuthService } from "./fingerprinting.service";
+import {
+  catchError,
+  concatMap,
+  debounceTime,
+  filter,
+  finalize,
+  switchMap,
+  take,
+  tap,
+  withLatestFrom,
+} from "rxjs/operators";
 
 @Injectable({
   providedIn: "root",
@@ -19,10 +35,19 @@ export class SessionDataService {
     map((sessionState) => sessionState?.version),
   );
 
+  // highligts
+  private highlightEdits$ = new Subject<EditTabChangeLogsRes[]>();
+  private highlightAccumulatorMap = new Map<
+    string,
+    ChangeLogWithoutVersion[]
+  >();
+
+  public savingSubject = new BehaviorSubject<boolean>(false);
+  saving$ = this.savingSubject.asObservable();
+
   constructor(
     private http: HttpClient,
     private crossTabEditService: CrossTabEditService,
-    private authService: AuthService,
   ) {
     this.crossTabEditService.editResponse$
       .pipe(
@@ -42,16 +67,60 @@ export class SessionDataService {
         }),
       )
       .subscribe();
+
+    // Handle highlight updates: debounce + flush + reset
+    this.highlightEdits$
+      .pipe(
+        tap((nextBatch) => {
+          // Manually accumulate into the external Map
+          for (const { strTxnId, changeLogs } of nextBatch) {
+            const existing = this.highlightAccumulatorMap.get(strTxnId) || [];
+            this.highlightAccumulatorMap.set(strTxnId, [
+              ...existing,
+              ...changeLogs,
+            ]);
+          }
+        }),
+        debounceTime(1000),
+
+        filter(() => this.highlightAccumulatorMap.size > 0),
+
+        map(() => {
+          const flushedChanges: EditTabChangeLogsRes[] = Array.from(
+            this.highlightAccumulatorMap.entries(),
+          ).map(([strTxnId, changeLogs]) => ({
+            strTxnId,
+            changeLogs,
+          }));
+
+          this.highlightAccumulatorMap.clear();
+
+          return flushedChanges;
+        }),
+
+        concatMap((batchedEdits) =>
+          this.sessionState$.pipe(
+            take(1),
+            switchMap((sessionState) =>
+              this.update(sessionState.sessionId, sessionState, {
+                type: "BULK_EDIT_RESULT",
+                payload: batchedEdits,
+              }),
+            ),
+          ),
+        ),
+      )
+      .subscribe();
   }
 
   fetchSession(sessionId: string, { onVersionConflict = false } = {}) {
     return this.http.get<GetSessionResponse>(`/api/sessions/${sessionId}`).pipe(
       map(({ version, data, updatedAt }) => {
+        // todo use error handling to display version conflict message
         this.sessionState.next({
           sessionId,
           version,
           data,
-          editTabResVersioned: null,
           lastUpdated: updatedAt,
           conflictError: onVersionConflict
             ? "Table reloaded on version conflict"
@@ -72,7 +141,6 @@ export class SessionDataService {
       sessionId: null!,
       version: 0,
       data: { strTxnChangeLogs: [] },
-      editTabResVersioned: null,
     };
     const payload: CreateSessionRequest = {
       userId: fingerprint,
@@ -88,14 +156,22 @@ export class SessionDataService {
     );
   }
 
+  public updateHighlights(
+    highlightEdit: Extract<
+      EditTabReqResType,
+      {
+        type: "BULK_EDIT_RESULT";
+      }
+    >,
+  ) {
+    this.highlightEdits$.next(highlightEdit.payload);
+  }
+
   private update(
     sessionId: string,
     sessionStateCurrent: SessionStateLocal,
-    recentEdit: Extract<
-      EditTabReqResType,
-      { type: "EDIT_RESULT" | "BULK_EDIT_RESULT" }
-    >,
-  ): Observable<SessionStateLocal> {
+    recentEdit: RecentEditType,
+  ) {
     const {
       data: { strTxnChangeLogs = [] },
       version: currentVersion,
@@ -105,8 +181,9 @@ export class SessionDataService {
     if (recentEdit.type === "EDIT_RESULT") editTabRes = [recentEdit.payload];
     if (recentEdit.type === "BULK_EDIT_RESULT") editTabRes = recentEdit.payload;
 
-    const editTabResVersioned: StrTxnChangeLog[] = editTabRes.map(
-      ({ strTxnId, changeLogs }) => {
+    const editTabPartialChangeLogsResponse: StrTxnChangeLog[] = editTabRes
+      .filter((txnChangeLog) => txnChangeLog.changeLogs.length > 0)
+      .map(({ strTxnId, changeLogs }) => {
         const changeLogsVersioned = changeLogs.map((changeLog) => ({
           ...changeLog,
           version: currentVersion + 1,
@@ -126,23 +203,32 @@ export class SessionDataService {
         }
 
         return { strTxnId, changeLogs: changeLogsVersioned };
-      },
-    );
+      });
+
+    if (editTabPartialChangeLogsResponse.length === 0) {
+      console.debug("Skipping update: no versioned edits present.");
+      return EMPTY;
+    }
 
     const payload: UpdateSessionRequest = {
       currentVersion,
       data: { strTxnChangeLogs },
     };
+    this.savingSubject.next(true);
     return this.http
       .put<UpdateSessionResponse>(`/api/sessions/${sessionId}`, payload)
       .pipe(
         catchError((error: HttpErrorResponse) => {
+          // restore local session state on error
+          this.sessionState.next(sessionStateCurrent);
+
+          // on conflict
           if (error.status === 409) {
             this.fetchSession(sessionId, {
               onVersionConflict: true,
             }).subscribe();
-            return EMPTY;
           }
+
           return throwError(() => error);
         }),
         map(({ newVersion, updatedAt }) => {
@@ -151,15 +237,23 @@ export class SessionDataService {
             sessionId,
             version: newVersion,
             data: { strTxnChangeLogs },
-            editTabResVersioned,
+            editTabPartialChangeLogsResponse,
             lastUpdated: updatedAt,
           };
           this.sessionState.next(newSessionState);
           return newSessionState;
         }),
+        finalize(() => this.savingSubject.next(false)),
       );
   }
 }
+
+type RecentEditType = Extract<
+  EditTabReqResType,
+  {
+    type: "EDIT_RESULT" | "BULK_EDIT_RESULT";
+  }
+>;
 
 export interface EditTabChangeLogsRes {
   strTxnId: string;
@@ -177,7 +271,7 @@ export interface SessionStateLocal {
   data: {
     strTxnChangeLogs?: StrTxnChangeLog[];
   };
-  editTabResVersioned: StrTxnChangeLog[] | null;
+  editTabPartialChangeLogsResponse?: StrTxnChangeLog[] | null;
   lastUpdated?: string;
   conflictError?: string;
 }
