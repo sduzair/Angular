@@ -890,6 +890,13 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     });
 
     this.setupTableDataSource();
+
+    this.sessionDataService.conflict$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.editFormTab?.close();
+        this.bulkEditFormTab?.close();
+      });
   }
   ngAfterViewInit() {
     this.dataSource.paginator = this.paginator!;
@@ -897,7 +904,6 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   lastUpdated?: string;
-  snackBar = inject(MatSnackBar);
   setupTableDataSource() {
     this.authService.userAuthId$
       .pipe(
@@ -920,29 +926,18 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
         tap(([_, { lastUpdated }]) => {
           this.lastUpdated = lastUpdated;
         }),
+        tap(([strTxns, sessionState]) => {
+          console.log(strTxns, sessionState);
+        }),
         scan((acc, [strTxns, sessionState]) => {
           const {
             data: { strTxnChangeLogs },
             editTabPartialChangeLogsResponse,
-            conflictError,
           } = sessionState;
-
-          if (conflictError) {
-            this.editFormTab?.close();
-            this.bulkEditFormTab?.close();
-
-            this.snackBar.open(conflictError, "Dismiss", {
-              duration: 10000,
-            });
-          }
 
           // apply edit tab res change logs and return
           if (editTabPartialChangeLogsResponse != null) {
             console.assert(acc.length > 0);
-            console.log(
-              "🚀 ~ TableComponent ~ setupTableDataSource ~ acc:",
-              acc,
-            );
             return acc
               .map<Parameters<typeof TableComponent.addValidationInfo>[0]>(
                 (strTxn) => {
@@ -1142,11 +1137,6 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
       errors.push("Bank Info Missing");
 
     patchedStrTxn._hiddenValidation = errors;
-    console.log(
-      "🚀 ~ TableComponent ~ addValidationInfo ~ patchedStrTxn:",
-      patchedStrTxn,
-    );
-    console.log("🚀 ~ TableComponent ~ addValidationInfo ~ errors:", errors);
     return patchedStrTxn;
   }
 

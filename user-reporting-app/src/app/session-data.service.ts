@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse } from "@angular/common/http";
-import { Injectable } from "@angular/core";
+import { ErrorHandler, Injectable } from "@angular/core";
 import {
   BehaviorSubject,
   EMPTY,
@@ -31,6 +31,7 @@ import {
 export class SessionDataService {
   private sessionState = new BehaviorSubject<SessionStateLocal>(null!);
   sessionState$ = this.sessionState.asObservable();
+  public conflict$ = new Subject<void>();
   latestSessionVersion$ = this.sessionState$.pipe(
     map((sessionState) => sessionState?.version),
   );
@@ -48,6 +49,7 @@ export class SessionDataService {
   constructor(
     private http: HttpClient,
     private crossTabEditService: CrossTabEditService,
+    private errorHandler: ErrorHandler,
   ) {
     this.crossTabEditService.editResponse$
       .pipe(
@@ -63,6 +65,13 @@ export class SessionDataService {
             sessionStateCurrent.sessionId,
             sessionStateCurrent,
             recentEdit!,
+          ).pipe(
+            catchError((error) => {
+              this.errorHandler.handleError(error);
+
+              // Keep stream alive
+              return EMPTY;
+            }),
           );
         }),
       )
@@ -105,7 +114,14 @@ export class SessionDataService {
               this.update(sessionState.sessionId, sessionState, {
                 type: "BULK_EDIT_RESULT",
                 payload: batchedEdits,
-              }),
+              }).pipe(
+                catchError((error) => {
+                  this.errorHandler.handleError(error);
+
+                  // Keep stream alive
+                  return EMPTY;
+                }),
+              ),
             ),
           ),
         ),
@@ -113,7 +129,7 @@ export class SessionDataService {
       .subscribe();
   }
 
-  fetchSession(sessionId: string, { onVersionConflict = false } = {}) {
+  fetchSession(sessionId: string) {
     return this.http.get<GetSessionResponse>(`/api/sessions/${sessionId}`).pipe(
       map(({ version, data, updatedAt }) => {
         // todo use error handling to display version conflict message
@@ -122,15 +138,11 @@ export class SessionDataService {
           version,
           data,
           lastUpdated: updatedAt,
-          conflictError: onVersionConflict
-            ? "Table reloaded on version conflict"
-            : undefined,
         });
         return {
           sessionId,
           version: version,
           data: data,
-          recentEditFromEditForm: null,
         };
       }),
     );
@@ -218,19 +230,6 @@ export class SessionDataService {
     return this.http
       .put<UpdateSessionResponse>(`/api/sessions/${sessionId}`, payload)
       .pipe(
-        catchError((error: HttpErrorResponse) => {
-          // restore local session state on error
-          this.sessionState.next(sessionStateCurrent);
-
-          // on conflict
-          if (error.status === 409) {
-            this.fetchSession(sessionId, {
-              onVersionConflict: true,
-            }).subscribe();
-          }
-
-          return throwError(() => error);
-        }),
         map(({ newVersion, updatedAt }) => {
           console.assert(newVersion === payload.currentVersion + 1);
           const newSessionState: SessionStateLocal = {
@@ -242,6 +241,20 @@ export class SessionDataService {
           };
           this.sessionState.next(newSessionState);
           return newSessionState;
+        }),
+        catchError((error: HttpErrorResponse) => {
+          // rollback local session state on error
+          this.sessionState.next(sessionStateCurrent);
+
+          // on conflict
+          if (error.status === 409) {
+            this.conflict$.next();
+            return this.fetchSession(sessionId).pipe(
+              switchMap(() => throwError(() => error)),
+            );
+          }
+
+          return throwError(() => error);
         }),
         finalize(() => this.savingSubject.next(false)),
       );
@@ -273,7 +286,6 @@ export interface SessionStateLocal {
   };
   editTabPartialChangeLogsResponse?: StrTxnChangeLog[] | null;
   lastUpdated?: string;
-  conflictError?: string;
 }
 
 export interface StrTxnChangeLog {
