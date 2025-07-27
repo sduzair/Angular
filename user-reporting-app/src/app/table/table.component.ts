@@ -4,7 +4,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   HostListener,
-  inject,
   OnDestroy,
   type OnInit,
   ViewChild,
@@ -37,7 +36,6 @@ import {
   catchError,
   combineLatest,
   interval,
-  map,
   scan,
   Subject,
   switchMap,
@@ -56,6 +54,7 @@ import { AuthService } from "../fingerprinting.service";
 import { RecordService } from "../record.service";
 import { SelectionModel } from "@angular/cdk/collections";
 import { MatCheckboxModule } from "@angular/material/checkbox";
+import { MatSelectModule } from "@angular/material/select";
 import { MatSidenavModule } from "@angular/material/sidenav";
 import { MatToolbarModule } from "@angular/material/toolbar";
 import { MatButtonModule } from "@angular/material/button";
@@ -64,7 +63,6 @@ import { removePageFromOpenTabs } from "../single-tab.guard";
 import { format, isAfter, isBefore, startOfDay } from "date-fns";
 import { PadZeroPipe } from "./pad-zero.pipe";
 import { MatChipsModule } from "@angular/material/chips";
-import { MatSnackBar } from "@angular/material/snack-bar";
 import { ClickOutsideDirective } from "./click-outside.directive";
 import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 
@@ -92,6 +90,7 @@ import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
     MatChipsModule,
     ClickOutsideDirective,
     MatProgressSpinnerModule,
+    MatSelectModule,
   ],
   template: `
     <div class="table-system">
@@ -133,7 +132,23 @@ import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
               disableRipple="true"
               (removed)="filterForm.removeFilter(filter.sanitizedKey)"
             >
-              {{ filter.key }}: {{ filter.value }}
+              {{ filter.key }}:
+              <ng-container
+                *ngIf="
+                  selectFilters.isSelectFilterKey(filter.desanitizedKey) &&
+                    selectFilters.parseFilterKey(filter.desanitizedKey) ===
+                      'highlightColor';
+                  else showValue
+                "
+              >
+                <span
+                  class="color-box-in-chip"
+                  [ngStyle]="{ 'background-color': filter.value }"
+                ></span>
+              </ng-container>
+              <ng-template #showValue>
+                {{ filter.value }}
+              </ng-template>
               <button matChipRemove>
                 <mat-icon>cancel</mat-icon>
               </button>
@@ -246,18 +261,23 @@ import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
               </div>
 
               <!-- Column Filter  -->
-              <div *ngIf="this.selectFilters.isSelectFilterKey(key)">
+              <div
+                *ngIf="
+                  this.selectFilters.isSelectFilterKey(key) &&
+                  this.selectFilters.parseFilterKey(key) !== 'highlightColor'
+                "
+              >
                 <mat-form-field>
                   <mat-label>{{
                     this.displayedColumns.transform(key)
                   }}</mat-label>
-                  <select
+                  <mat-select
                     matNativeControl
                     [formControlName]="
                       this.filterForm.filterFormKeySanitize(key)
                     "
                   >
-                    <option
+                    <mat-option
                       *ngFor="
                         let option of selectFilters.columnFilterOptionsMap[key];
                         trackBy: selectFilters.trackByOption
@@ -265,8 +285,40 @@ import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
                       [value]="option"
                     >
                       {{ option }}
-                    </option>
-                  </select>
+                    </mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+
+              <div
+                *ngIf="
+                  this.selectFilters.isSelectFilterKey(key) &&
+                  this.selectFilters.parseFilterKey(key) === 'highlightColor'
+                "
+              >
+                <mat-form-field>
+                  <mat-label>{{
+                    this.displayedColumns.transform(key)
+                  }}</mat-label>
+                  <mat-select
+                    [formControlName]="
+                      this.filterForm.filterFormKeySanitize(key)
+                    "
+                  >
+                    <mat-option
+                      *ngFor="
+                        let option of selectFilters.columnFilterOptionsMap[key];
+                        trackBy: selectFilters.trackByOption
+                      "
+                      [value]="option"
+                    >
+                      <span
+                        class="color-box"
+                        [ngStyle]="{ 'background-color': option }"
+                      ></span>
+                      {{ selectFilters.selectHighlightMap[option] }}
+                    </mat-option>
+                  </mat-select>
                 </mat-form-field>
               </div>
             </ng-container>
@@ -325,7 +377,7 @@ import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
               </ng-container>
               <!-- Column Definitions  -->
               <ng-container
-                *ngFor="let column of dataColumns.values"
+                *ngFor="let column of dataColumns.displayValues"
                 [matColumnDef]="column"
               >
                 <th
@@ -391,7 +443,9 @@ import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
                   this.recentOpenRows.includes(row._mongoid)
                 "
                 (click)="assignSelectedColorToRow(row, $event)"
-                [style.cursor]="selectedColor !== undefined ? 'pointer' : 'default'"
+                [style.cursor]="
+                  selectedColor !== undefined ? 'pointer' : 'default'
+                "
               ></tr>
             </table>
           </div>
@@ -408,6 +462,7 @@ import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
   `,
   styleUrls: ["./table.component.scss"],
   providers: [
+    SessionDataService,
     {
       provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
       useValue: {
@@ -419,14 +474,17 @@ import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
-  colorPalette: string[] = [
+  get colorPalette() {
+    return TableComponent.colorPalette;
+  }
+  static colorPalette = [
     "#FFC107",
     "#8BC34A",
     "#03A9F4",
     "#E91E63",
     "#FF5722",
     "#9E9E9E",
-  ];
+  ] as const;
   selectedColor?: string | null = undefined;
   assignSelectedColorToRow(row: StrTxn, event: MouseEvent) {
     if (typeof this.selectedColor === "undefined") return;
@@ -502,6 +560,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
   }
   static readonly dataColumns = {
     values: [
+      "highlightColor",
       "_hiddenValidation",
       "dateOfTxn",
       "timeOfTxn",
@@ -547,6 +606,13 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
         return acc[key as keyof StrTxn];
       }, obj);
     },
+    ignoreValues: ["highlightColor"],
+    get displayValues() {
+      const displayCols = this.values.filter(
+        (val) => !this.ignoreValues.includes(val),
+      );
+      return displayCols;
+    },
   };
   get displayedColumns() {
     return TableComponent.displayedColumns;
@@ -555,7 +621,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     values: [
       "actions" as const,
       "select" as const,
-      ...TableComponent.dataColumns.values,
+      ...TableComponent.dataColumns.displayValues,
     ],
     /**
      * Generates names for table headers and filter form input field labels
@@ -606,6 +672,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     },
     get columnHeaderMap(): Partial<Record<ColumnHeaderKeys, string>> {
       return {
+        highlightColor: "Highlight",
         dateOfTxn: "Date of Txn",
         timeOfTxn: "Time of Txn",
         dateOfPosting: "Date of Post",
@@ -657,8 +724,13 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     trackByOption: (_index: number, option: string) => string;
     columnFilterOptionsMap: Record<string, string[]>;
     computeUniqueFilterOptions: (strTxns: WithVersion<StrTxn>[]) => void;
+    selectHighlightMap: Record<
+      (typeof TableComponent.colorPalette)[number] | (string & {}),
+      string
+    >;
   } = {
     values: [
+      "highlightColor",
       "_hiddenValidation",
       "methodOfTxn",
       "reportingEntityLocationNo",
@@ -723,6 +795,14 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
 
         this.columnFilterOptionsMap[key] = Array.from(valueSet).sort();
       }
+    },
+    selectHighlightMap: {
+      "#FFC107": "Amber",
+      "#8BC34A": "Light Green",
+      "#03A9F4": "Light Blue",
+      "#E91E63": "Pink",
+      "#FF5722": "Deep Orange",
+      "#9E9E9E": "Gray",
     },
   };
   get dateFilters() {
@@ -816,7 +896,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
           (acc, item) => ({
             ...acc,
             [TableComponent.filterForm.filterFormKeySanitize(item)]:
-              new FormControl(""),
+              new FormControl(null),
           }),
           {} as {
             [key in FilterKeysType]: FormControl;
@@ -837,9 +917,10 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
             key,
             value: format(value, "MM/dd/yyyy"),
             sanitizedKey,
+            desanitizedKey,
           };
         }
-        return { key, value, sanitizedKey };
+        return { key, value, sanitizedKey, desanitizedKey };
       });
     },
     removeFilter(sanitizedKey: string) {
@@ -926,9 +1007,9 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
         tap(([_, { lastUpdated }]) => {
           this.lastUpdated = lastUpdated;
         }),
-        tap(([strTxns, sessionState]) => {
-          console.log(strTxns, sessionState);
-        }),
+        // tap(([strTxns, sessionState]) => {
+        //   console.log(strTxns, sessionState);
+        // }),
         scan((acc, [strTxns, sessionState]) => {
           const {
             data: { strTxnChangeLogs },
@@ -1120,7 +1201,10 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
   static addValidationInfo({
     patchedStrTxn,
     completeChangeLogs,
-  }: { patchedStrTxn: WithVersion<StrTxn>; completeChangeLogs: ChangeLog[] }) {
+  }: {
+    patchedStrTxn: WithVersion<StrTxn>;
+    completeChangeLogs: ChangeLog[];
+  }) {
     const errors: _hiddenValidationType[] = [];
     if (
       patchedStrTxn._version &&
@@ -1292,7 +1376,8 @@ type FilterKeysType = keyof WithDateRange<StrTxn>;
 export type DataColumnsType =
   | keyof StrTxn
   | keyof AddPrefixToObject<StartingAction, "startingActions.0.">
-  | keyof AddPrefixToObject<CompletingAction, "completingActions.0.">;
+  | keyof AddPrefixToObject<CompletingAction, "completingActions.0.">
+  | (string & {});
 
 type DisplayedColumnType = DataColumnsType | "actions" | "select";
 

@@ -25,9 +25,7 @@ import {
   withLatestFrom,
 } from "rxjs/operators";
 
-@Injectable({
-  providedIn: "root",
-})
+@Injectable()
 export class SessionDataService {
   private sessionState = new BehaviorSubject<SessionStateLocal>(null!);
   sessionState$ = this.sessionState.asObservable();

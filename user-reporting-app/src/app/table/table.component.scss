@@ -282,3 +282,28 @@ mat-chip-set.mat-mdc-chip-set.mdc-evolution-chip-set.filter-chips {
 .last-updated-chip .last-updated-chip-spinner {
   min-width: 24px;
 }
+
+.color-box {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+  margin-right: 8px;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+}
+
+.color-box-in-chip {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+}
+
+::ng-deep .filter-chips .mdc-evolution-chip__text-label {
+  display: flex;
+  gap: 0.5em;
+  align-items: center;
+}
