@@ -353,11 +353,10 @@ export class ChangeLogService<T extends object> {
       | string,
     val: unknown,
     isBulkEdit: boolean,
+    useRaw: boolean,
   ): any {
-    const toggleKey = this.isDepPropToggle(key);
-
     // If no toggle mapped, just return current
-    if (!toggleKey) {
+    if (!this.isDepPropToggle(key) || useRaw) {
       return val as string | null | undefined;
     }
 

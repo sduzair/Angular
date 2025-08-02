@@ -36,6 +36,7 @@ import {
   catchError,
   combineLatest,
   interval,
+  map,
   scan,
   Subject,
   switchMap,
@@ -350,6 +351,13 @@ import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
                       (click)="openEditFormTab(row)"
                     >
                       <mat-icon>edit</mat-icon>
+                    </button>
+                    <button
+                      [disabled]="this.isSingleOrBulkEditTabOpen$ | async"
+                      mat-icon-button
+                      (click)="openAuditFormTab(row)"
+                    >
+                      <mat-icon>history</mat-icon>
                     </button>
                   </div>
                 </td>
@@ -937,6 +945,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
 
   recentOpenRows: string[] = [];
 
+  // todo fix selections identify records by _mongoid
   selection = new SelectionModel<WithVersion<StrTxn>>(true, []);
 
   constructor(
@@ -1155,6 +1164,41 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     this.monitorEditTabOpenStatus({
       tabWindow: this.bulkEditFormTab!,
     });
+  }
+
+  openAuditFormTab(record: WithVersion<StrTxn>) {
+    this.recentOpenRows = [record._mongoid];
+    combineLatest([
+      this.recordService.getStrTxns(),
+      this.sessionDataService.sessionState$,
+    ])
+      .pipe(
+        take(1),
+        map(([txns, sessionStateLocal]) => {
+          const auditTxnv0 = txns.find(
+            (txn) => txn._mongoid === record._mongoid,
+          )!;
+          const auditTxnChangeLogs =
+            sessionStateLocal.data.strTxnChangeLogs!.find(
+              (txnLogs) => txnLogs.strTxnId === record._mongoid,
+            )?.changeLogs || [];
+
+          return [auditTxnv0, auditTxnChangeLogs] as const;
+        }),
+        tap(([auditTxnv0, auditTxnChangeLogs]) => {
+          const auditTxnv0WithVersion: WithVersion<StrTxn> = {
+            ...auditTxnv0,
+            _version: 0,
+          };
+          this.editFormTab = this.crossTabEditService.openEditFormTab({
+            editType: "AUDIT_REQUEST",
+            auditTxnv0WithVersion,
+            auditTxnChangeLogs,
+          });
+          this.monitorEditTabOpenStatus({ tabWindow: this.editFormTab! });
+        }),
+      )
+      .subscribe();
   }
 
   isSingleOrBulkEditTabOpen$ = new BehaviorSubject(false);

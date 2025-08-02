@@ -1,7 +1,7 @@
 import { Injectable } from "@angular/core";
-import { WithVersion } from "./change-log.service";
+import { ChangeLog, WithVersion } from "./change-log.service";
 import { filter, map } from "rxjs/operators";
-import { fromEvent, Observable, Subject } from "rxjs";
+import { fromEvent, Subject } from "rxjs";
 import { EditTabChangeLogsRes } from "./session-data.service";
 import { StrTxn } from "./table/table.component";
 
@@ -40,25 +40,26 @@ export class CrossTabEditService {
       });
   }
 
-  getEditRequestBySessionId(
-    sessionId: string,
-  ): Observable<
-    Extract<EditTabReqResType, { type: "EDIT_REQUEST" | "BULK_EDIT_REQUEST" }>
-  > {
+  getEditRequestBySessionId(sessionId: string) {
     return fromEvent(window, "DOMContentLoaded").pipe(
       map(() => {
         const payload = JSON.parse(
           localStorage.getItem(sessionId)!,
         ) as EditTabReqResType;
-        return payload;
+        return { sessionId, ...payload };
       }),
-    ) as any;
+    );
   }
 
   openEditFormTab(
     req:
       | { strTxn: WithVersion<StrTxn>; editType: "EDIT_REQUEST" }
-      | { strTxns: WithVersion<StrTxn>[]; editType: "BULK_EDIT_REQUEST" },
+      | { strTxns: WithVersion<StrTxn>[]; editType: "BULK_EDIT_REQUEST" }
+      | {
+          auditTxnv0WithVersion: WithVersion<StrTxn>;
+          auditTxnChangeLogs: ChangeLog[];
+          editType: "AUDIT_REQUEST";
+        },
   ) {
     const sessionId = `edit-session-${Date.now()}`;
 
@@ -71,6 +72,15 @@ export class CrossTabEditService {
     }
     if (req.editType === "BULK_EDIT_REQUEST") {
       payload = { type: req.editType, payload: req.strTxns };
+    }
+    if (req.editType === "AUDIT_REQUEST") {
+      payload = {
+        type: req.editType,
+        payload: {
+          auditTxnv0WithVersion: req.auditTxnv0WithVersion,
+          auditTxnChangeLogs: req.auditTxnChangeLogs,
+        },
+      };
     }
 
     console.assert(payload != null);
@@ -104,4 +114,19 @@ export type EditTabReqResType =
   | {
       type: "BULK_EDIT_RESULT";
       payload: EditTabChangeLogsRes[];
+    }
+  | {
+      type: "AUDIT_REQUEST";
+      payload: AuditRequestPayload;
     };
+
+export type EditTabReqResTypeLiterals = EditTabReqResType extends {
+  type: infer U;
+}
+  ? U
+  : never;
+
+export type AuditRequestPayload = {
+  auditTxnv0WithVersion: WithVersion<StrTxn>;
+  auditTxnChangeLogs: ChangeLog[];
+};
