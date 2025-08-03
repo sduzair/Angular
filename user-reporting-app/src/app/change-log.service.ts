@@ -387,5 +387,3 @@ export type WithVersion<T> = T & {
    */
   _version: number | null;
 };
-
-type WithId = { _id: string };

@@ -13,7 +13,7 @@ export class RecordService {
   getStrTxns() {
     if (!this.strTxns$) {
       this.strTxns$ = this.httpClient
-        .get<StrTxn[]>("/api/strTxns")
+        .get<StrTxn[]>("/api/strTxns?limit=200")
         .pipe(shareReplay(1));
     }
     return this.strTxns$;

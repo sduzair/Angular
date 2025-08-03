@@ -574,6 +574,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
       "timeOfTxn",
       "dateOfPosting",
       "timeOfPosting",
+      "_hiddenTxnType",
       "methodOfTxn",
       "reportingEntityLocationNo",
       "startingActions.0.directionOfSA",
@@ -599,7 +600,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
       "completingActions.0.accountCurrency",
       "reportingEntityTxnRefNo",
     ] as Array<DataColumnsType>,
-    getValueByPath(obj: StrTxn, path: string): any {
+    getValueByPath(obj: StrTxnDisplay, path: string): any {
       const keys = path.split(".");
 
       return keys.reduce((acc, key) => {
@@ -611,7 +612,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
           return acc[arrayIndex];
         }
 
-        return acc[key as keyof StrTxn];
+        return acc[key as keyof StrTxnDisplay];
       }, obj);
     },
     ignoreValues: ["highlightColor"],
@@ -710,6 +711,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
         "completingActions.0.accountCurrency": "Credit Account Currency",
         reportingEntityTxnRefNo: "Transaction Reference No",
         _hiddenValidation: "Validation Errors",
+        _hiddenTxnType: "Type of Txn",
       };
     },
   };
@@ -731,7 +733,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     isSelectFilterKey: (key: string) => boolean;
     trackByOption: (_index: number, option: string) => string;
     columnFilterOptionsMap: Record<string, string[]>;
-    computeUniqueFilterOptions: (strTxns: WithVersion<StrTxn>[]) => void;
+    computeUniqueFilterOptions: (strTxns: WithVersion<StrTxnDisplay>[]) => void;
     selectHighlightMap: Record<
       (typeof TableComponent.colorPalette)[number] | (string & {}),
       string
@@ -757,6 +759,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
       "completingActions.0.branch",
       "completingActions.0.account",
       "completingActions.0.accountCurrency",
+      "_hiddenTxnType",
     ] as const,
     generateFilterKey: (column) =>
       `select${column.charAt(0).toUpperCase() + column.slice(1)}` as const,
@@ -780,7 +783,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
       return option;
     },
     columnFilterOptionsMap: {},
-    computeUniqueFilterOptions(data: WithVersion<StrTxn>[]): void {
+    computeUniqueFilterOptions(data: WithVersion<StrTxnDisplay>[]): void {
       const filterKeys = TableComponent.filterKeys.filter(
         TableComponent.selectFilters.isSelectFilterKey,
       );
@@ -938,7 +941,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
       item.sanitizedKey;
     },
   };
-  dataSource = new MatTableDataSource<WithVersion<StrTxn>>();
+  dataSource = new MatTableDataSource<WithVersion<StrTxnDisplay>>();
 
   @ViewChild(MatPaginator) paginator: MatPaginator | undefined;
   @ViewChild(MatSort) sort: MatSort | undefined;
@@ -946,10 +949,15 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
   recentOpenRows: string[] = [];
 
   // todo fix selections identify records by _mongoid
-  selection = new SelectionModel<WithVersion<StrTxn>>(true, []);
+  selection = new SelectionModel<WithVersion<StrTxnDisplay>>(
+    true,
+    [],
+    true,
+    (a, b) => a._mongoid === b._mongoid,
+  );
 
   constructor(
-    private changeLogService: ChangeLogService<StrTxn>,
+    private changeLogService: ChangeLogService<StrTxnDisplay>,
     private crossTabEditService: CrossTabEditService,
     private authService: AuthService,
     protected sessionDataService: SessionDataService,
@@ -1009,7 +1017,9 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
         ),
         switchMap(() =>
           combineLatest([
-            this.recordService.getStrTxns(),
+            this.recordService
+              .getStrTxns()
+              .pipe(map(TableComponent.addDisplayProps)),
             this.sessionDataService.sessionState$,
           ]),
         ),
@@ -1074,7 +1084,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
               },
             )
             .map(TableComponent.addValidationInfo);
-        }, [] as WithVersion<StrTxn>[]),
+        }, [] as WithVersion<StrTxnDisplay>[]),
         tap((strTxns) =>
           this.selectFilters.computeUniqueFilterOptions(strTxns),
         ),
@@ -1094,7 +1104,10 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
       .subscribe();
   }
   // todo match empty values
-  private createFilterPredicate(): (record: StrTxn, filter: string) => boolean {
+  private createFilterPredicate(): (
+    record: StrTxnDisplay,
+    filter: string,
+  ) => boolean {
     return (record, filter) => {
       const searchTerms: { [key: string]: string } = JSON.parse(filter);
       return Object.keys(searchTerms).every((searchTermKey) => {
@@ -1242,11 +1255,19 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     return false;
   }
 
+  static addDisplayProps(txns: StrTxn[]): WithVersion<StrTxnDisplay>[] {
+    return txns.map((txn) => ({
+      ...txn,
+      _hiddenTxnType: txn.reportingEntityTxnRefNo.split("-")[0],
+      _version: 0,
+    }));
+  }
+
   static addValidationInfo({
     patchedStrTxn,
     completeChangeLogs,
   }: {
-    patchedStrTxn: WithVersion<StrTxn>;
+    patchedStrTxn: WithVersion<StrTxnDisplay>;
     completeChangeLogs: ChangeLog[];
   }) {
     const errors: _hiddenValidationType[] = [];
@@ -1306,6 +1327,10 @@ export interface StrTxn {
   completingActions: CompletingAction[];
   highlightColor?: string | null;
 }
+
+type StrTxnDisplay = StrTxn & {
+  _hiddenTxnType: string;
+};
 
 export interface CompletingAction {
   _id: string;
@@ -1415,10 +1440,10 @@ type WithDateRange<T> = T & {
   [K in DateKeys<T> as `${K & string}End`]: string;
 };
 
-type FilterKeysType = keyof WithDateRange<StrTxn>;
+type FilterKeysType = keyof WithDateRange<StrTxnDisplay>;
 
 export type DataColumnsType =
-  | keyof StrTxn
+  | keyof StrTxnDisplay
   | keyof AddPrefixToObject<StartingAction, "startingActions.0.">
   | keyof AddPrefixToObject<CompletingAction, "completingActions.0.">
   | (string & {});
