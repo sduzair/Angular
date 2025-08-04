@@ -127,6 +127,7 @@ import { startWith, takeUntil } from "rxjs/operators";
       [formGroup]="strTxnForm"
       (ngSubmit)="onSubmit()"
       [class.bulk-edit-form]="strTxnsBeforeBulkEdit"
+      class="edit-form"
     >
       <!-- Main Tabs -->
       <mat-tab-group>
@@ -135,17 +136,18 @@ import { startWith, takeUntil } from "rxjs/operators";
           <ng-template mat-tab-label>
             <span>Transaction Details</span>
             <mat-icon
-              *ngIf="!strTxnForm.valid && strTxnForm.dirty"
+              class="error-icon mx-1"
+              [class.error-icon-show]="!strTxnForm.valid && strTxnForm.dirty"
               color="error"
               >error_outline</mat-icon
             >
           </ng-template>
           <div>
             <mat-card>
-              <mat-card-header>
+              <mat-card-header class="mb-3">
                 <mat-card-title>Transaction Information</mat-card-title>
               </mat-card-header>
-              <mat-card-content class="mt-5">
+              <mat-card-content>
                 <div class="row row-cols-1 row-cols-md-2">
                   <mat-form-field class="col-xl-4">
                     <mat-label>Date of Transaction</mat-label>
@@ -380,7 +382,8 @@ import { startWith, takeUntil } from "rxjs/operators";
           <ng-template mat-tab-label>
             <span>Starting Actions</span>
             <mat-icon
-              *ngIf="
+              class="error-icon mx-1"
+              [class.error-icon-show]="
                 !strTxnForm.controls.startingActions.valid &&
                 strTxnForm.controls.startingActions.dirty
               "
@@ -411,7 +414,7 @@ import { startWith, takeUntil } from "rxjs/operators";
                 [formGroupName]="saIndex"
               >
                 <mat-expansion-panel [expanded]="true">
-                  <mat-expansion-panel-header>
+                  <mat-expansion-panel-header class="mb-3">
                     <mat-panel-title class="d-flex align-items-center"
                       ><h1>Starting Action #{{ saIndex + 1 }}</h1>
                       <button
@@ -580,7 +583,15 @@ import { startWith, takeUntil } from "rxjs/operators";
                     </mat-form-field>
                     <mat-form-field class="col">
                       <mat-label>Branch</mat-label>
-                      <input matInput formControlName="branch" />
+                      <input
+                        matInput
+                        formControlName="branch"
+                        [appControlToggle]="
+                          'startingActions.' + saIndex + '.fiuNo'
+                        "
+                        appControlToggleValue="010"
+                        [appControlRequired]="true"
+                      />
                       <button
                         [disabled]="!this.strTxnsBeforeBulkEdit"
                         type="button"
@@ -602,7 +613,15 @@ import { startWith, takeUntil } from "rxjs/operators";
                     </mat-form-field>
                     <mat-form-field class="col">
                       <mat-label>Account Number</mat-label>
-                      <input matInput formControlName="account" />
+                      <input
+                        matInput
+                        formControlName="account"
+                        [appControlToggle]="
+                          'startingActions.' + saIndex + '.fiuNo'
+                        "
+                        appControlToggleValue="010"
+                        [appControlRequired]="true"
+                      />
                       <button
                         [disabled]="!this.strTxnsBeforeBulkEdit"
                         type="button"
@@ -628,7 +647,15 @@ import { startWith, takeUntil } from "rxjs/operators";
                   <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
                     <mat-form-field class="col">
                       <mat-label>Account Type</mat-label>
-                      <select matNativeControl formControlName="accountType">
+                      <select
+                        matNativeControl
+                        formControlName="accountType"
+                        [appControlToggle]="
+                          'startingActions.' + saIndex + '.fiuNo'
+                        "
+                        appControlToggleValue="010"
+                        [appControlRequired]="true"
+                      >
                         <option value=""></option>
                         <option value="Business">Business</option>
                         <option value="Casino">Casino</option>
@@ -672,6 +699,11 @@ import { startWith, takeUntil } from "rxjs/operators";
                       <select
                         matNativeControl
                         formControlName="accountCurrency"
+                        [appControlToggle]="
+                          'startingActions.' + saIndex + '.fiuNo'
+                        "
+                        appControlToggleValue="010"
+                        [appControlRequired]="true"
                       >
                         <option value=""></option>
                         <option value="CAD">CAD</option>
@@ -699,7 +731,15 @@ import { startWith, takeUntil } from "rxjs/operators";
 
                     <mat-form-field class="col">
                       <mat-label>Account Status</mat-label>
-                      <select matNativeControl formControlName="accountStatus">
+                      <select
+                        matNativeControl
+                        formControlName="accountStatus"
+                        [appControlToggle]="
+                          'startingActions.' + saIndex + '.fiuNo'
+                        "
+                        appControlToggleValue="010"
+                        [appControlRequired]="true"
+                      >
                         <option value=""></option>
                         <option value="Active">Active</option>
                         <option value="Closed">Closed</option>
@@ -736,6 +776,11 @@ import { startWith, takeUntil } from "rxjs/operators";
                         formControlName="accountOpen"
                         [matDatepicker]="accountOpenPicker"
                         appTransactionDate
+                        [appControlToggle]="
+                          'startingActions.' + saIndex + '.fiuNo'
+                        "
+                        appControlToggleValue="010"
+                        [appControlRequired]="true"
                       />
                       <mat-datepicker-toggle
                         matIconSuffix
@@ -768,6 +813,11 @@ import { startWith, takeUntil } from "rxjs/operators";
                         formControlName="accountClose"
                         [matDatepicker]="accountClosePicker"
                         appTransactionDate
+                        [appControlToggle]="
+                          'startingActions.' + saIndex + '.accountStatus'
+                        "
+                        appControlToggleValue="Closed"
+                        [appControlRequired]="true"
                       />
 
                       <mat-datepicker-toggle
@@ -1213,7 +1263,8 @@ import { startWith, takeUntil } from "rxjs/operators";
           <ng-template mat-tab-label>
             <span>Completing Actions</span>
             <mat-icon
-              *ngIf="
+              class="error-icon mx-1"
+              [class.error-icon-show]="
                 !strTxnForm.controls.completingActions.valid &&
                 strTxnForm.controls.completingActions.dirty
               "
@@ -1440,7 +1491,15 @@ import { startWith, takeUntil } from "rxjs/operators";
                     </mat-form-field>
                     <mat-form-field class="col">
                       <mat-label>Branch</mat-label>
-                      <input matInput formControlName="branch" />
+                      <input
+                        matInput
+                        formControlName="branch"
+                        [appControlToggle]="
+                          'completingActions.' + caIndex + '.fiuNo'
+                        "
+                        appControlToggleValue="010"
+                        [appControlRequired]="true"
+                      />
                       <button
                         [disabled]="!this.strTxnsBeforeBulkEdit"
                         type="button"
@@ -1462,7 +1521,15 @@ import { startWith, takeUntil } from "rxjs/operators";
                     </mat-form-field>
                     <mat-form-field class="col">
                       <mat-label>Account Number</mat-label>
-                      <input matInput formControlName="account" />
+                      <input
+                        matInput
+                        formControlName="account"
+                        [appControlToggle]="
+                          'completingActions.' + caIndex + '.fiuNo'
+                        "
+                        appControlToggleValue="010"
+                        [appControlRequired]="true"
+                      />
                       <button
                         [disabled]="!this.strTxnsBeforeBulkEdit"
                         type="button"
@@ -1488,7 +1555,15 @@ import { startWith, takeUntil } from "rxjs/operators";
                   <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
                     <mat-form-field class="col">
                       <mat-label>Account Type</mat-label>
-                      <select matNativeControl formControlName="accountType">
+                      <select
+                        matNativeControl
+                        formControlName="accountType"
+                        [appControlToggle]="
+                          'completingActions.' + caIndex + '.fiuNo'
+                        "
+                        appControlToggleValue="010"
+                        [appControlRequired]="true"
+                      >
                         <option value=""></option>
                         <option value="Business">Business</option>
                         <option value="Casino">Casino</option>
@@ -1532,6 +1607,11 @@ import { startWith, takeUntil } from "rxjs/operators";
                       <select
                         matNativeControl
                         formControlName="accountCurrency"
+                        [appControlToggle]="
+                          'completingActions.' + caIndex + '.fiuNo'
+                        "
+                        appControlToggleValue="010"
+                        [appControlRequired]="true"
                       >
                         <option value=""></option>
                         <option value="CAD">CAD</option>
@@ -1559,7 +1639,15 @@ import { startWith, takeUntil } from "rxjs/operators";
 
                     <mat-form-field class="col">
                       <mat-label>Account Status</mat-label>
-                      <select matNativeControl formControlName="accountStatus">
+                      <select
+                        matNativeControl
+                        formControlName="accountStatus"
+                        [appControlToggle]="
+                          'completingActions.' + caIndex + '.fiuNo'
+                        "
+                        appControlToggleValue="010"
+                        [appControlRequired]="true"
+                      >
                         <option value=""></option>
                         <option value="Active">Active</option>
                         <option value="Closed">Closed</option>
@@ -1596,6 +1684,11 @@ import { startWith, takeUntil } from "rxjs/operators";
                         formControlName="accountOpen"
                         [matDatepicker]="accountOpenPicker"
                         appTransactionDate
+                        [appControlToggle]="
+                          'completingActions.' + caIndex + '.fiuNo'
+                        "
+                        appControlToggleValue="010"
+                        [appControlRequired]="true"
                       />
 
                       <mat-datepicker-toggle
@@ -1629,6 +1722,11 @@ import { startWith, takeUntil } from "rxjs/operators";
                         formControlName="accountClose"
                         [matDatepicker]="accountClosePicker"
                         appTransactionDate
+                        [appControlToggle]="
+                          'completingActions.' + caIndex + '.accountStatus'
+                        "
+                        appControlToggleValue="Closed"
+                        [appControlRequired]="true"
                       />
 
                       <mat-datepicker-toggle
@@ -2228,10 +2326,16 @@ export class EditFormTemplateComponent
         { value: action?.typeOfFundsOther || "", disabled },
         Validators.required,
       ),
-      amount: new FormControl({ value: action?.amount || null, disabled }),
+      amount: new FormControl(
+        { value: action?.amount || null, disabled },
+        Validators.required,
+      ),
       currency: new FormControl({ value: action?.currency || "", disabled }),
       fiuNo: new FormControl({ value: action?.fiuNo || "", disabled }),
-      branch: new FormControl({ value: action?.branch || "", disabled }),
+      branch: new FormControl({ value: action?.branch || "", disabled }, [
+        Validators.minLength(5),
+        Validators.maxLength(5),
+      ]),
       account: new FormControl({ value: action?.account || "", disabled }),
       accountType: new FormControl({
         value: action?.accountType || "",
@@ -2337,7 +2441,10 @@ export class EditFormTemplateComponent
         { value: action?.detailsOfDispoOther || "", disabled },
         Validators.required,
       ),
-      amount: new FormControl({ value: action?.amount || null, disabled }),
+      amount: new FormControl(
+        { value: action?.amount || null, disabled },
+        Validators.required,
+      ),
       currency: new FormControl({ value: action?.currency || "", disabled }),
       exchangeRate: new FormControl({
         value: action?.exchangeRate || null,
@@ -2348,7 +2455,10 @@ export class EditFormTemplateComponent
         disabled,
       }),
       fiuNo: new FormControl({ value: action?.fiuNo || "", disabled }),
-      branch: new FormControl({ value: action?.branch || "", disabled }),
+      branch: new FormControl({ value: action?.branch || "", disabled }, [
+        Validators.minLength(5),
+        Validators.maxLength(5),
+      ]),
       account: new FormControl({ value: action?.account || "", disabled }),
       accountType: new FormControl({
         value: action?.accountType || "",
@@ -2817,6 +2927,5 @@ export class EditFormTemplateComponent
   }
 
   auditVersionControl = new FormControl<number>(null!, { nonNullable: true });
-  // todo ignore highlights edits
   auditVersionOptions$: Observable<{ value: number; label: string }[]> = null!;
 }

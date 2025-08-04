@@ -15,6 +15,7 @@ import {
   ControlContainer,
   FormArray,
   ValidatorFn,
+  Validators,
 } from "@angular/forms";
 import { startWith } from "rxjs";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
@@ -26,6 +27,7 @@ import { SPECIAL_EMPTY_VALUE } from "./clear-field.directive";
 export class ControlToggleDirective implements OnInit {
   @Input({ required: true }) appControlToggle!: string;
   @Input({ required: false }) appControlToggleValue?: any;
+  @Input() appControlRequired = false;
   @Output() addControlGroup = new EventEmitter();
 
   @HostBinding("readOnly") get isReadonly(): boolean {
@@ -120,18 +122,47 @@ export class ControlToggleDirective implements OnInit {
         if (
           isControlToToggleAFormControl &&
           this.appControlToggleValue &&
-          this.appControlToggleValue === value
+          this.appControlToggleValue === String(value) &&
+          this.appControlRequired
         ) {
-          this.controlToToggle.enable({ emitEvent: false });
+          // Add required validator dynamically
+          this.controlToToggle.addValidators(Validators.required);
           this.controlToToggle.updateValueAndValidity();
           this.controlToToggle.markAsDirty();
+          this.controlToToggle.markAsTouched();
           return;
         }
 
         if (
           isControlToToggleAFormControl &&
           this.appControlToggleValue &&
-          this.appControlToggleValue !== value
+          this.appControlToggleValue !== String(value) &&
+          this.appControlRequired
+        ) {
+          this.controlToToggle.removeValidators(Validators.required);
+          // this.controlToToggle.reset();
+          this.controlToToggle.updateValueAndValidity();
+          return;
+        }
+
+        if (
+          isControlToToggleAFormControl &&
+          this.appControlToggleValue &&
+          this.appControlToggleValue === String(value) &&
+          !this.appControlRequired
+        ) {
+          this.controlToToggle.enable({ emitEvent: false });
+          this.controlToToggle.updateValueAndValidity();
+          this.controlToToggle.markAsDirty();
+          this.controlToToggle.markAsTouched();
+          return;
+        }
+
+        if (
+          isControlToToggleAFormControl &&
+          this.appControlToggleValue &&
+          this.appControlToggleValue !== String(value) &&
+          !this.appControlRequired
         ) {
           this.controlToToggle.reset();
           this.controlToToggle.disable();
@@ -151,6 +182,7 @@ export class ControlToggleDirective implements OnInit {
           this.controlToToggle.enable({ emitEvent: false });
           this.controlToToggle.updateValueAndValidity();
           this.controlToToggle.markAsDirty();
+          this.controlToToggle.markAsTouched();
           return;
         }
 
@@ -174,8 +206,9 @@ export class ControlToggleDirective implements OnInit {
         }
         if (isControlToToggleAFormArray && toggleHasValue) {
           this.controlToToggle.enable({ emitEvent: false });
-          this.controlToToggle.markAsDirty();
           this.controlToToggle.updateValueAndValidity();
+          this.controlToToggle.markAsDirty();
+          this.controlToToggle.markAsTouched();
 
           if (this.controlToToggle.value.length === 0)
             this.addControlGroup.emit();
