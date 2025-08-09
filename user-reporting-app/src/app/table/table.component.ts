@@ -66,6 +66,7 @@ import { PadZeroPipe } from "./pad-zero.pipe";
 import { MatChipsModule } from "@angular/material/chips";
 import { ClickOutsideDirective } from "./click-outside.directive";
 import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
+import { ImportManualTxnsComponent } from "./import-manual-txns/import-manual-txns.component";
 
 @Component({
   selector: "app-table",
@@ -92,6 +93,7 @@ import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
     ClickOutsideDirective,
     MatProgressSpinnerModule,
     MatSelectModule,
+    ImportManualTxnsComponent,
   ],
   template: `
     <div class="table-system">
@@ -155,6 +157,9 @@ import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
               </button>
             </mat-chip>
           </mat-chip-set>
+          @defer {
+            <app-import-manual-txns />
+          }
           <mat-chip-set class="color-pallette">
             <mat-chip
               *ngFor="let color of colorPalette"
@@ -585,6 +590,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
       "startingActions.0.branch",
       "startingActions.0.account",
       "startingActions.0.accountType",
+      "startingActions.0.conductors.0.email",
       "completingActions.0.detailsOfDispo",
       "completingActions.0.amount",
       "completingActions.0.currency",
@@ -598,6 +604,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
       "completingActions.0.accountOpen",
       "completingActions.0.accountClose",
       "completingActions.0.accountCurrency",
+      "_hiddenAmlId",
       "reportingEntityTxnRefNo",
     ] as Array<DataColumnsType>,
     getValueByPath(obj: StrTxnDisplay, path: string): any {
@@ -642,78 +649,86 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
       if (TableComponent.dateFilters.isDateFilterKeyStart(value)) {
         const parsedKey = TableComponent.dateFilters.parseFilterKey(value);
         return `${TableComponent.displayedColumns.columnHeaderMap[
-          parsedKey
+          parsedKey as keyof typeof TableComponent.displayedColumns.columnHeaderMap
         ]!}  Start`;
       }
       if (TableComponent.dateFilters.isDateFilterKeyEnd(value)) {
         const parsedKey = TableComponent.dateFilters.parseFilterKey(value);
         return `${TableComponent.displayedColumns.columnHeaderMap[
-          parsedKey
+          parsedKey as keyof typeof TableComponent.displayedColumns.columnHeaderMap
         ]!}  End`;
       }
-      if (
-        TableComponent.dateFilters.values.includes(value as DataColumnsType)
-      ) {
+      if (TableComponent.dateFilters.values.includes(value)) {
         return TableComponent.displayedColumns.columnHeaderMap[
-          value as DataColumnsType
+          value as keyof typeof TableComponent.displayedColumns.columnHeaderMap
         ]!;
       }
       if (TableComponent.selectFilters.isSelectFilterKey(value)) {
         const parsedVal = TableComponent.selectFilters.parseFilterKey(value);
         return TableComponent.displayedColumns.columnHeaderMap[
-          parsedVal as ColumnHeaderKeys
+          parsedVal as keyof typeof TableComponent.displayedColumns.columnHeaderMap
         ]!;
       }
-      if (
-        TableComponent.selectFilters.values.includes(value as DataColumnsType)
-      ) {
+      if (TableComponent.selectFilters.values.includes(value)) {
         return TableComponent.displayedColumns.columnHeaderMap[
-          value as DataColumnsType
+          value as keyof typeof TableComponent.displayedColumns.columnHeaderMap
         ]!;
       }
       if (value.startsWith("_hidden")) return "";
       if (TableComponent.isTextFilterKey(value))
         return TableComponent.displayedColumns.columnHeaderMap[
-          value as DataColumnsType
+          value as keyof typeof TableComponent.displayedColumns.columnHeaderMap
         ]!;
 
       throw new Error("Unknown column header");
     },
-    get columnHeaderMap(): Partial<Record<ColumnHeaderKeys, string>> {
-      return {
-        highlightColor: "Highlight",
-        dateOfTxn: "Date of Txn",
-        timeOfTxn: "Time of Txn",
-        dateOfPosting: "Date of Post",
-        timeOfPosting: "Time of Post",
-        methodOfTxn: "Method of Txn",
-        reportingEntityLocationNo: "Reporting Entity",
-        "startingActions.0.directionOfSA": "Direction",
-        "startingActions.0.typeOfFunds": "Type of Funds",
-        "startingActions.0.amount": "Debit",
-        "startingActions.0.currency": "Debit Currency",
-        "startingActions.0.fiuNo": "Debit FIU",
-        "startingActions.0.branch": "Debit Branch",
-        "startingActions.0.account": "Debit Account",
-        "startingActions.0.accountType": "Debit Account Type",
-        "completingActions.0.detailsOfDispo": "Details of Disposition",
-        "completingActions.0.amount": "Credit Amount",
-        "completingActions.0.currency": "Credit Currency",
-        "completingActions.0.fiuNo": "Credit FIU",
-        "completingActions.0.branch": "Credit Branch",
-        "completingActions.0.account": "Credit Account",
-        "completingActions.0.accountType": "Credit Account Type",
-        "startingActions.0.accountOpen": "Debit Account Open",
-        "startingActions.0.accountClose": "Debit Account Close",
-        "startingActions.0.accountCurrency": "Debit Account Currency",
-        "completingActions.0.accountOpen": "Credit Account Open",
-        "completingActions.0.accountClose": "Credit Account Close",
-        "completingActions.0.accountCurrency": "Credit Account Currency",
-        reportingEntityTxnRefNo: "Transaction Reference No",
-        _hiddenValidation: "Validation Errors",
-        _hiddenTxnType: "Type of Txn",
-      };
-    },
+    columnHeaderMap: {
+      highlightColor: "Highlight",
+      wasTxnAttempted: "Was the transaction attempted?",
+      wasTxnAttemptedReason: "Reason transaction was not completed",
+      methodOfTxn: "Method of Txn",
+      purposeOfTxn: "Purpose of Txn",
+      reportingEntityLocationNo: "Reporting Entity",
+      dateOfTxn: "Date of Txn",
+      timeOfTxn: "Time of Txn",
+      dateOfPosting: "Date of Post",
+      timeOfPosting: "Time of Post",
+      "startingActions.0.directionOfSA": "Direction",
+      "startingActions.0.typeOfFunds": "Type of Funds",
+      "startingActions.0.amount": "Debit",
+      "startingActions.0.currency": "Debit Currency",
+      "startingActions.0.fiuNo": "Debit FIU",
+      "startingActions.0.branch": "Debit Branch",
+      "startingActions.0.account": "Debit Account",
+      "startingActions.0.accountType": "Debit Account Type",
+      "startingActions.0.howFundsObtained": "How were the funds obtained?",
+      "startingActions.0.wasSofInfoObtained":
+        "Was information about the source of funds or virtual currency obtained?",
+      "startingActions.0.wasCondInfoObtained":
+        "Have you obtained any related conductor info?",
+      "startingActions.0.conductors.0.wasConductedOnBehalf":
+        "Was this transaction conducted or attempted on behalf of another person or entity?",
+      "startingActions.0.conductors.0.email": "Conductor Email",
+      "completingActions.0.detailsOfDispo": "Details of Disposition",
+      "completingActions.0.amount": "Credit Amount",
+      "completingActions.0.currency": "Credit Currency",
+      "completingActions.0.fiuNo": "Credit FIU",
+      "completingActions.0.branch": "Credit Branch",
+      "completingActions.0.account": "Credit Account",
+      "completingActions.0.accountType": "Credit Account Type",
+      "startingActions.0.accountOpen": "Debit Account Open",
+      "startingActions.0.accountClose": "Debit Account Close",
+      "startingActions.0.accountCurrency": "Debit Account Currency",
+      "completingActions.0.accountOpen": "Credit Account Open",
+      "completingActions.0.accountClose": "Credit Account Close",
+      "completingActions.0.accountCurrency": "Credit Account Currency",
+      "completingActions.0.wasAnyOtherSubInvolved":
+        "Was there any other person or entity involved in the completing action?",
+      reportingEntityTxnRefNo: "Transaction Reference No",
+      _hiddenValidation: "Validation Errors",
+      _hiddenTxnType: "Type of Txn",
+      _hiddenAmlId: "AML Id",
+    } as const satisfies Partial<Record<DataColumnsType, string>>,
   };
   get stickyColumns() {
     return TableComponent.stickyColumns;
@@ -752,6 +767,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
       "startingActions.0.branch",
       "startingActions.0.account",
       "startingActions.0.accountCurrency",
+      "startingActions.0.conductors.0.email",
       "completingActions.0.detailsOfDispo",
       "completingActions.0.fiuNo",
       "completingActions.0.accountType",
@@ -760,6 +776,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
       "completingActions.0.account",
       "completingActions.0.accountCurrency",
       "_hiddenTxnType",
+      "_hiddenAmlId",
     ] as const,
     generateFilterKey: (column) =>
       `select${column.charAt(0).toUpperCase() + column.slice(1)}` as const,
@@ -1259,6 +1276,7 @@ export class TableComponent implements OnInit, AfterViewInit, OnDestroy {
     return txns.map((txn) => ({
       ...txn,
       _hiddenTxnType: txn.reportingEntityTxnRefNo.split("-")[0],
+      _hiddenAmlId: "41179074",
       _version: 0,
     }));
   }
@@ -1309,7 +1327,6 @@ type _hiddenValidationType =
   | "Bank Info Missing";
 
 export interface StrTxn {
-  _hiddenValidation?: _hiddenValidationType[];
   _mongoid: string;
   wasTxnAttempted: boolean;
   wasTxnAttemptedReason: string;
@@ -1328,8 +1345,11 @@ export interface StrTxn {
   highlightColor?: string | null;
 }
 
-type StrTxnDisplay = StrTxn & {
+// todo incorporate some of these in data source
+export type StrTxnDisplay = StrTxn & {
+  _hiddenValidation?: _hiddenValidationType[];
   _hiddenTxnType: string;
+  _hiddenAmlId: string;
 };
 
 export interface CompletingAction {
@@ -1445,12 +1465,16 @@ type FilterKeysType = keyof WithDateRange<StrTxnDisplay>;
 export type DataColumnsType =
   | keyof StrTxnDisplay
   | keyof AddPrefixToObject<StartingAction, "startingActions.0.">
-  | keyof AddPrefixToObject<CompletingAction, "completingActions.0.">
+  | keyof AddPrefixToObject<StartingAction, "startingActions.0.">
+  | keyof AddPrefixToObject<
+      StartingAction["conductors"][number],
+      "startingActions.0.conductors.0."
+    >
   | (string & {});
 
 type DisplayedColumnType = DataColumnsType | "actions" | "select";
 
-type AddPrefixToObject<T, P extends string> = {
+export type AddPrefixToObject<T, P extends string> = {
   [K in keyof T as K extends string ? `${P}${K}` : never]: T[K];
 };
 
@@ -1459,8 +1483,5 @@ export interface SessionDataReqBody {
   data: SessionStateLocal;
 }
 
-type ColumnHeaderKeys =
-  | (typeof TableComponent.dataColumns.values)[number]
-  | ReturnType<typeof TableComponent.selectFilters.generateFilterKey>
-  | `${string}Start`
-  | `${string}End`;
+export type ColumnHeaderLabels =
+  (typeof TableComponent.displayedColumns.columnHeaderMap)[keyof typeof TableComponent.displayedColumns.columnHeaderMap];

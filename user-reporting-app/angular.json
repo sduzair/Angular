@@ -47,6 +47,8 @@
           },
           "configurations": {
             "production": {
+              "optimization": true,
+              "sourceMap": false,
               "budgets": [
                 {
                   "type": "initial",
@@ -59,7 +61,13 @@
                   "maximumError": "8kB"
                 }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "namedChunks": true
+            },
+            "analyze-bundle": {
+              "sourceMap": true,
+              "outputHashing": "none",
+              "namedChunks": true
             },
             "development": {
               "optimization": false,

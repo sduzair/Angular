@@ -1,7 +1,7 @@
 import { Injectable } from "@angular/core";
 import { ChangeLog, WithVersion } from "./change-log.service";
 import { filter, map } from "rxjs/operators";
-import { fromEvent, Subject } from "rxjs";
+import { fromEvent, of, Subject } from "rxjs";
 import { EditTabChangeLogsRes } from "./session-data.service";
 import { StrTxn } from "./table/table.component";
 
@@ -41,7 +41,9 @@ export class CrossTabEditService {
   }
 
   getEditRequestBySessionId(sessionId: string) {
-    return fromEvent(window, "DOMContentLoaded").pipe(
+    // note domcontentloaded has already been fired in lazily loaded view
+    // return fromEvent(window, "DOMContentLoaded").pipe(
+    return of(null).pipe(
       map(() => {
         const payload = JSON.parse(
           localStorage.getItem(sessionId)!,

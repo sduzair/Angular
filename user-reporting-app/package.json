@@ -4,8 +4,10 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve --no-live-reload",
+    "start-prod": "ng serve --configuration production --no-hmr --no-live-reload",
     "build": "ng build",
-    "watch": "ng build --watch --configuration development"
+    "watch": "ng build --watch --configuration development",
+    "analyze-bundle": "ng build --configuration=analyze-bundle && source-map-explorer dist/**/*.js --no-border-checks"
   },
   "private": true,
   "dependencies": {
@@ -19,6 +21,7 @@
     "@angular/platform-browser": "^19.2.0",
     "@angular/platform-browser-dynamic": "^19.2.0",
     "@angular/router": "^19.2.0",
+    "@e965/xlsx": "^0.20.3",
     "bootstrap": "^5.3.7",
     "date-fns": "^4.1.0",
     "rxjs": "~7.8.0",
@@ -38,6 +41,7 @@
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
+    "source-map-explorer": "^2.5.3",
     "typescript": "~5.7.2"
   },
   "packageManager": "pnpm@9.8.0+sha512.8e4c3550fb500e808dbc30bb0ce4dd1eb614e30b1c55245f211591ec2cdf9c611cabd34e1364b42f564bd54b3945ed0f49d61d1bbf2ec9bd74b866fcdc723276"

@@ -265,10 +265,12 @@ import { startWith, takeUntil } from "rxjs/operators";
                   <mat-form-field class="col">
                     <mat-label>Method of Transaction</mat-label>
                     <select matNativeControl formControlName="methodOfTxn">
-                      <option value="ABM">ABM</option>
-                      <option value="In-Person">In-Person</option>
-                      <option value="Online">Online</option>
-                      <option value="Other">Other</option>
+                      <option
+                        *ngFor="let key of methodOfTxnOptionsKeys"
+                        [value]="methodOfTxnOptions[key]"
+                      >
+                        {{ key }}
+                      </option>
                     </select>
                     <button
                       [disabled]="!this.strTxnsBeforeBulkEdit"
@@ -431,9 +433,12 @@ import { startWith, takeUntil } from "rxjs/operators";
                     <mat-form-field class="col">
                       <mat-label>Direction</mat-label>
                       <select matNativeControl formControlName="directionOfSA">
-                        <option value="In">In</option>
-                        <option value="Out">Out</option>
-                        <!-- Options here -->
+                        <option
+                          *ngFor="let key of directionOfSAOptionsKeys"
+                          [value]="directionOfSAOptions[key]"
+                        >
+                          {{ key }}
+                        </option>
                       </select>
                       <button
                         [disabled]="!this.strTxnsBeforeBulkEdit"
@@ -458,19 +463,12 @@ import { startWith, takeUntil } from "rxjs/operators";
                     <mat-form-field class="col">
                       <mat-label>Type of Funds</mat-label>
                       <select matNativeControl formControlName="typeOfFunds">
-                        <option value="Funds Withdrawal">
-                          Funds Withdrawal
+                        <option
+                          *ngFor="let key of typeofFundsOptionsKeys"
+                          [value]="typeofFundsOptions[key]"
+                        >
+                          {{ key }}
                         </option>
-                        <option value="Cash">Cash</option>
-                        <option value="Cheque">Cheque</option>
-                        <option value="Domestic Funds Transfer">
-                          Domestic Funds Transfer
-                        </option>
-                        <option value="Email Monel Transfer">
-                          Email Monel Transfer
-                        </option>
-                        <option value="Other">Other</option>
-                        <!-- Options here -->
                       </select>
                       <button
                         [disabled]="!this.strTxnsBeforeBulkEdit"
@@ -532,9 +530,12 @@ import { startWith, takeUntil } from "rxjs/operators";
                     <mat-form-field class="col">
                       <mat-label>Currency</mat-label>
                       <select matNativeControl formControlName="currency">
-                        <option value=""></option>
-                        <option value="CAD">CAD</option>
-                        <option value="USD">USD</option>
+                        <option
+                          *ngFor="let key of amountCurrencyOptionsKeys"
+                          [value]="amountCurrencyOptions[key]"
+                        >
+                          {{ key }}
+                        </option>
                       </select>
                       <button
                         [disabled]="!this.strTxnsBeforeBulkEdit"
@@ -656,11 +657,12 @@ import { startWith, takeUntil } from "rxjs/operators";
                         appControlToggleValue="010"
                         [appControlRequired]="true"
                       >
-                        <option value=""></option>
-                        <option value="Business">Business</option>
-                        <option value="Casino">Casino</option>
-                        <option value="Personal">Personal</option>
-                        <option value="Other">Other</option>
+                        <option
+                          *ngFor="let key of accountTypeOptionsKeys"
+                          [value]="accountTypeOptions[key]"
+                        >
+                          {{ key }}
+                        </option>
                       </select>
                       <button
                         [disabled]="!this.strTxnsBeforeBulkEdit"
@@ -705,9 +707,12 @@ import { startWith, takeUntil } from "rxjs/operators";
                         appControlToggleValue="010"
                         [appControlRequired]="true"
                       >
-                        <option value=""></option>
-                        <option value="CAD">CAD</option>
-                        <option value="USD">USD</option>
+                        <option
+                          *ngFor="let key of accountCurrencyOptionsKeys"
+                          [value]="accountCurrencyOptions[key]"
+                        >
+                          {{ key }}
+                        </option>
                       </select>
                       <button
                         [disabled]="!this.strTxnsBeforeBulkEdit"
@@ -740,11 +745,12 @@ import { startWith, takeUntil } from "rxjs/operators";
                         appControlToggleValue="010"
                         [appControlRequired]="true"
                       >
-                        <option value=""></option>
-                        <option value="Active">Active</option>
-                        <option value="Closed">Closed</option>
-                        <option value="Inactive">Inactive</option>
-                        <option value="Dorment">Dorment</option>
+                        <option
+                          *ngFor="let key of accountStatusOptionsKeys"
+                          [value]="accountStatusOptions[key]"
+                        >
+                          {{ key }}
+                        </option>
                       </select>
                       <button
                         [disabled]="!this.strTxnsBeforeBulkEdit"
@@ -1314,15 +1320,6 @@ import { startWith, takeUntil } from "rxjs/operators";
                     <mat-form-field class="col">
                       <mat-label>Details of Disposition</mat-label>
                       <select matNativeControl formControlName="detailsOfDispo">
-                        <option value="Deposit to account">
-                          Deposit to account
-                        </option>
-                        <option value="Cash Withdrawal">Cash Withdrawal</option>
-                        <option value="Issued Cheque">Issued Cheque</option>
-                        <option value="Outgoing Email Transfer">
-                          Outgoing Email Transfer
-                        </option>
-                        <option value="Other">Other</option>
                       </select>
                       <button
                         [disabled]="!this.strTxnsBeforeBulkEdit"
@@ -1385,10 +1382,12 @@ import { startWith, takeUntil } from "rxjs/operators";
                     <mat-form-field class="col">
                       <mat-label>Currency</mat-label>
                       <select matNativeControl formControlName="currency">
-                        <option value=""></option>
-                        <option value="CAD">CAD</option>
-                        <option value="USD">USD</option>
-                        <!-- Add other currencies -->
+                        <option
+                          *ngFor="let key of amountCurrencyOptionsKeys"
+                          [value]="amountCurrencyOptions[key]"
+                        >
+                          {{ key }}
+                        </option>
                       </select>
                       <button
                         [disabled]="!this.strTxnsBeforeBulkEdit"
@@ -1564,11 +1563,12 @@ import { startWith, takeUntil } from "rxjs/operators";
                         appControlToggleValue="010"
                         [appControlRequired]="true"
                       >
-                        <option value=""></option>
-                        <option value="Business">Business</option>
-                        <option value="Casino">Casino</option>
-                        <option value="Personal">Personal</option>
-                        <option value="Other">Other</option>
+                        <option
+                          *ngFor="let key of accountTypeOptionsKeys"
+                          [value]="accountTypeOptions[key]"
+                        >
+                          {{ key }}
+                        </option>
                       </select>
                       <button
                         [disabled]="!this.strTxnsBeforeBulkEdit"
@@ -1613,9 +1613,12 @@ import { startWith, takeUntil } from "rxjs/operators";
                         appControlToggleValue="010"
                         [appControlRequired]="true"
                       >
-                        <option value=""></option>
-                        <option value="CAD">CAD</option>
-                        <option value="USD">USD</option>
+                        <option
+                          *ngFor="let key of accountCurrencyOptionsKeys"
+                          [value]="accountCurrencyOptions[key]"
+                        >
+                          {{ key }}
+                        </option>
                       </select>
                       <button
                         [disabled]="!this.strTxnsBeforeBulkEdit"
@@ -2257,7 +2260,7 @@ export class EditFormTemplateComponent
         Validators.required,
       ),
       reportingEntityTxnRefNo: new FormControl({
-        value: txn?.reportingEntityTxnRefNo || "",
+        value: txn?.reportingEntityTxnRefNo || `mtxn-${uuidv4()}`,
         disabled,
       }),
       purposeOfTxn: new FormControl({
@@ -2928,4 +2931,109 @@ export class EditFormTemplateComponent
 
   auditVersionControl = new FormControl<number>(null!, { nonNullable: true });
   auditVersionOptions$: Observable<{ value: number; label: string }[]> = null!;
+
+  get methodOfTxnOptionsKeys() {
+    return Object.keys(EditFormTemplateComponent.methodOfTxnOptions);
+  }
+  get methodOfTxnOptions() {
+    return EditFormTemplateComponent.methodOfTxnOptions;
+  }
+  static methodOfTxnOptions: Record<string, string> = {
+    ABM: "ABM",
+    "In-Person": "In-Person",
+    Online: "Online",
+    Other: "Other",
+  };
+
+  get typeofFundsOptionsKeys() {
+    return Object.keys(EditFormTemplateComponent.typeOfFundsOptions);
+  }
+  get typeofFundsOptions() {
+    return EditFormTemplateComponent.typeOfFundsOptions;
+  }
+  static typeOfFundsOptions: Record<string, string> = {
+    "Funds Withdrawal": "Funds Withdrawal",
+    Cash: "Cash",
+    Cheque: "Cheque",
+    "Domestic Funds Transfer": "Domestic Funds Transfer",
+    "Email Monel Transfer": "Email Monel Transfer",
+    Other: "Other",
+  };
+
+  get accountTypeOptionsKeys() {
+    return Object.keys(EditFormTemplateComponent.accountTypeOptions);
+  }
+  get accountTypeOptions() {
+    return EditFormTemplateComponent.accountTypeOptions;
+  }
+  static accountTypeOptions: Record<string, string> = {
+    "": "",
+    Business: "Business",
+    Casino: "Casino",
+    Personal: "Personal",
+    Other: "Other",
+  };
+
+  get amountCurrencyOptionsKeys() {
+    return Object.keys(EditFormTemplateComponent.amountCurrencyOptions);
+  }
+  get amountCurrencyOptions() {
+    return EditFormTemplateComponent.amountCurrencyOptions;
+  }
+  static amountCurrencyOptions: Record<string, string> = {
+    "": "",
+    CAD: "CAD",
+    USD: "USD",
+  };
+
+  get accountCurrencyOptionsKeys() {
+    return Object.keys(EditFormTemplateComponent.accountCurrencyOptions);
+  }
+  get accountCurrencyOptions() {
+    return EditFormTemplateComponent.accountCurrencyOptions;
+  }
+  static accountCurrencyOptions: Record<string, string> = {
+    "": "",
+    CAD: "CAD",
+    USD: "USD",
+  };
+
+  get accountStatusOptionsKeys() {
+    return Object.keys(EditFormTemplateComponent.accountStatusOptions);
+  }
+  get accountStatusOptions() {
+    return EditFormTemplateComponent.accountStatusOptions;
+  }
+  static accountStatusOptions: Record<string, string> = {
+    "": "",
+    Active: "Active",
+    Closed: "Closed",
+    Inactive: "Inactive",
+    Dorment: "Dorment",
+  };
+
+  get directionOfSAOptionsKeys() {
+    return Object.keys(EditFormTemplateComponent.directionOfSAOptions);
+  }
+  get directionOfSAOptions() {
+    return EditFormTemplateComponent.directionOfSAOptions;
+  }
+  static directionOfSAOptions: Record<string, string> = {
+    In: "In",
+    Out: "Out",
+  };
+
+  get detailsOfDispositionOptionsKeys() {
+    return Object.keys(EditFormTemplateComponent.detailsOfDispositionOptions);
+  }
+  get detailsOfDispositionOptions() {
+    return EditFormTemplateComponent.detailsOfDispositionOptions;
+  }
+  static detailsOfDispositionOptions: Record<string, string> = {
+    "Deposit to account": "Deposit to account",
+    "Cash Withdrawal": "Cash Withdrawal",
+    "Issued Cheque": "Issued Cheque",
+    "Outgoing Email Transfer": "Outgoing Email Transfer",
+    Other: "Other",
+  };
 }
