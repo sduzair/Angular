@@ -13,6 +13,13 @@ export class AppErrorHandlerService implements ErrorHandler {
       this.snackBar.open(error.error, "Dismiss", {
         duration: 10000,
       });
+    } else if (error instanceof HttpErrorResponse) {
+      // Show detailed info for any HTTP error
+      const msg =
+        error.message || `HTTP Error ${error.status}: ${error.statusText}`;
+      this.snackBar.open(msg, "Dismiss", {
+        duration: undefined,
+      });
     } else if (error instanceof Error) {
       this.snackBar.open(error.message, "Dismiss", {
         duration: undefined,

@@ -1,0 +1,179 @@
+{
+  "id": 699056,
+  "num_rows": 2,
+  "file_format": "json",
+  "name": "conductorWithSubject",
+  "array": true,
+  "columns": [
+    {
+      "name": "partyKey",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "3415674561",
+        "1846597320"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "this.to_s"
+    },
+    {
+      "name": "surname",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Carter",
+        "Nguyen"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "givenName",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "James",
+        "Laura"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "otherOrInitial",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "L",
+        "M"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "nameOfEntity",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "wasConductedOnBehalf",
+      "null_percentage": 0,
+      "type": "Boolean",
+      "formula": "false"
+    },
+    {
+      "name": "onBehalfOf[0]",
+      "null_percentage": 0,
+      "type": "JSON Array",
+      "minItems": 0,
+      "maxItems": 0,
+      "formula": null
+    },
+    {
+      "name": "npdTypeOfDevice",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Computer/Laptop",
+        "Mobile",
+        "Tablet",
+        "Other"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "npdTypeOfDeviceOther",
+      "null_percentage": 0,
+      "type": "Mobile Device OS",
+      "formula": "if npdTypeOfDevice == 'Other' then generate('Mobile Device OS')\nelse '' end"
+    },
+    {
+      "name": "npdDeviceIdNo",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": null
+    },
+    {
+      "name": "npdUsername",
+      "null_percentage": 99,
+      "type": "Username",
+      "formula": null
+    },
+    {
+      "name": "npdIp",
+      "null_percentage": 0,
+      "type": "IP Address v4",
+      "formula": null
+    },
+    {
+      "name": "npdDateTimeSession",
+      "null_percentage": 0,
+      "type": "Datetime",
+      "min": "01/01/2024",
+      "max": "06/26/2025",
+      "format": "%Y-%m-%dT%H:%M:%SZ",
+      "formula": null
+    },
+    {
+      "name": "npdTimeZone",
+      "null_percentage": 99,
+      "type": "Time Zone",
+      "formula": null
+    },
+    {
+      "name": "contactName",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": "lower(givenName)"
+    },
+    {
+      "name": "contactEmail",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": "email = concat(\n  lower(surname),                 # surname (first part before space)\n  lower(givenName),                # given name (second part after space)\n  hex(surname)[0,3],              # first 3 chars of surname's hex\n  \"@dummy.com\"\n)\n\nemail"
+    },
+    {
+      "name": "certapayAccount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "BIC9QNUQ6EDYIP2SZQW"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "mobile",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "227-239-5469"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    }
+  ]
+}

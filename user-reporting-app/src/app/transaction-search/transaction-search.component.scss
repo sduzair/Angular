@@ -1,0 +1,94 @@
+@use "@angular/material" as mat;
+@use "../typography-scaling" as typo;
+
+.transaction-search {
+  @include mat.all-component-densities(-5);
+  @include mat.table-overrides(
+    (
+      background-color: --mat-sys-surface-container-low,
+    )
+  );
+
+  .filter-card {
+    @include typo.typography-scaling(0.9);
+  }
+
+  .system-info {
+    @include typo.typography-scaling(0.9);
+  }
+
+  .filter-card mat-card-content {
+    min-height: 300px;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .system-info mat-card-content {
+    min-height: 700px;
+    max-height: 700px;
+    overflow-y: auto;
+  }
+}
+
+::ng-deep .filter-card .mat-mdc-card-header-text {
+  flex: 1 0 auto;
+}
+::ng-deep .system-info .mat-mdc-card-header-text {
+  flex: 1 0 auto;
+}
+
+::ng-deep .filter-card .mat-mdc-form-field-error {
+  display: inline-block;
+}
+
+::ng-deep .system-info .mat-mdc-form-field-error {
+  display: inline-block;
+}
+
+.search-btn {
+  @include mat.button-density(0);
+}
+
+.transaction-search mat-toolbar {
+  @include mat.button-density(0);
+}
+
+mat-toolbar.card-toolbar {
+  --mat-toolbar-standard-height: auto;
+  background-color: unset;
+}
+
+mat-toolbar.card-toolbar .mdc-button {
+  @include mat.button-density(-5);
+}
+
+::ng-deep .review-period-input .mat-mdc-form-field-error-wrapper {
+  padding: 0;
+}
+
+.review-period-input mat-error {
+  white-space: nowrap;
+}
+
+.review-period-input button:disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.review-period-input.loading mat-form-field {
+  visibility: hidden; /* keeps input in DOM but invisible */
+  pointer-events: none; /* prevents interaction */
+  display: none;
+  // height: 0; /* collapse height so skeleton fits */
+  // margin: 0; /* avoid extra space */
+  // padding: 0;
+}
+
+.review-period-input .sk {
+  display: none;
+}
+
+.review-period-input.loading .sk {
+  display: inline-block; /* show skeleton when loading */
+  visibility: visible;
+}

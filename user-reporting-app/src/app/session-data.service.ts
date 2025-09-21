@@ -24,6 +24,7 @@ import {
   tap,
   withLatestFrom,
 } from "rxjs/operators";
+import { SourceSys } from "./transaction-search/aml-transaction-search.service";
 
 @Injectable()
 export class SessionDataService {
@@ -291,12 +292,20 @@ export interface StrTxnChangeLog {
   changeLogs: ChangeLog[];
 }
 
-interface GetSessionResponse {
+export interface GetSessionResponse {
+  amlId: string;
   version: number;
   createdAt: string;
   updatedAt: string;
   userId: string;
   data: {
+    transactionSearchParams: {
+      partyKeysSelection?: string[] | null;
+      accountNumbersSelection?: string[] | null;
+      sourceSystemsSelection?: string[] | null;
+      productTypesSelection?: string[] | null;
+      reviewPeriodSelection?: ReviewPeriod[] | null;
+    };
     strTxnChangeLogs?: StrTxnChangeLog[];
   };
 }
@@ -326,4 +335,9 @@ interface UpdateSessionResponse {
   sessionId: string;
   newVersion: number;
   updatedAt: string;
+}
+
+export interface ReviewPeriod {
+  start?: string | null;
+  end?: string | null;
 }

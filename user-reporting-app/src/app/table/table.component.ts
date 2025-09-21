@@ -474,16 +474,7 @@ import { ImportManualTxnsComponent } from "./import-manual-txns/import-manual-tx
     </div>
   `,
   styleUrls: ["./table.component.scss"],
-  providers: [
-    SessionDataService,
-    {
-      provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
-      useValue: {
-        appearance: "outline",
-        floatLabel: "auto",
-      } as MatFormFieldDefaultOptions,
-    },
-  ],
+  providers: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TableComponent implements OnInit, AfterViewInit, OnDestroy {

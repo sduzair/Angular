@@ -5,6 +5,7 @@ html {
     (
       color: mat.$rose-palette,
       typography: Roboto,
+      density: -3,
     )
   );
 }
@@ -92,4 +93,74 @@ html {
   scrollbar-color: var(--mat-sys-outline-variant)
     var(--mat-sys-surface-container-low);
   scrollbar-width: thin;
+}
+
+/* Base skeleton block */
+.sk {
+  display: inline-block;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--mat-sys-on-surface) 8%, transparent) 25%,
+    color-mix(in oklab, var(--mat-sys-on-surface) 14%, transparent) 37%,
+    color-mix(in oklab, var(--mat-sys-on-surface) 8%, transparent) 63%
+  );
+  background-size: 400% 100%;
+  animation: sk-shimmer 1.2s ease-in-out infinite;
+}
+
+/* Width presets (approximate character widths) */
+.skw-4 {
+  width: 64px;
+}
+.skw-6 {
+  width: 96px;
+}
+.skw-8 {
+  width: 128px;
+}
+.skw-9 {
+  width: 144px;
+}
+.skw-10 {
+  width: 160px;
+}
+.skw-12 {
+  width: 192px;
+}
+
+/* Height presets aligned to body text line heights */
+.skh-2 {
+  height: 14px;
+} /* compact text line */
+.skh-3 {
+  height: 18px;
+}
+.skh-4 {
+  height: 22px;
+}
+.skh-5 {
+  height: 26px;
+}
+.skh-6 {
+  height: 30px;
+}
+.skh-7 {
+  height: 34px;
+}
+
+/* Table cell alignment helpers (optional) */
+.mat-mdc-cell .sk,
+.mat-mdc-header-cell .sk {
+  vertical-align: middle;
+}
+
+/* Shimmer keyframes */
+@keyframes sk-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }

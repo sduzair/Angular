@@ -1,0 +1,1229 @@
+{
+  "id": 702004,
+  "num_rows": 500,
+  "file_format": "json",
+  "name": "olbOutEmtCibcRecipient",
+  "array": true,
+  "columns": [
+    {
+      "name": "accountCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "CAD"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "accountNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "5582195"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": "this.to_s"
+    },
+    {
+      "name": "acctCurrAmount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "_hiddenSaAmount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "acctHoldersAll",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "3415674561"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": "this.to_s\t\t"
+    },
+    {
+      "name": "actualCurrencyCD",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "CAD"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "amlld",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsAmlId",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "amlTransactionId",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "reportingEntityTxnRefNo",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "cardNumber",
+      "null_percentage": 0,
+      "type": "Credit Card #",
+      "formula": null
+    },
+    {
+      "name": "caseAccountNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "5582195"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": "concat(this, \"|null\")"
+    },
+    {
+      "name": "caseEcif",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "3415674561"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": "this.to_s"
+    },
+    {
+      "name": "caseTransitNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "null"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": "concat(this, \"|null\")"
+    },
+    {
+      "name": "channelCd",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "00"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "conductor",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "3415674561"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": "this.to_s"
+    },
+    {
+      "name": "crdrCode",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "D"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "creditAmount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "creditedAccount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "creditedTransit",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "creditorId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "currencyConversionRate",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "cust2AddrCityTown",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "cust2AddrPostalZipCode",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "cust2AddrProvStateName",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "cust2OrgLegalName",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "customer1AccountHolderCifId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "3415674561;1846597320"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "customer1AccountStatus",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "OPEN"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "customer2AccountCurrencyCode",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "customer2AccountHolderCifId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "customer2AccountStatus",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "debitAmount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "_hiddenSaAmount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "debitedAccount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "5582195"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": "this.to_s"
+    },
+    {
+      "name": "debitedTransit",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "84255"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": "this.to_s"
+    },
+    {
+      "name": "flowOfFundsAccountCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "CAD"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsAmlId",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsAmlId",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsAmlTransactionId",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsAmlTransactionId",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsCasePartyKey",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsCasePartyKey",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsConductorPartyKey",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsConductorPartyKey",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsCreditAmount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsCreditAmount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsCreditedAccount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsCreditedAccount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "flowOfFundsCreditedTransit",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsCreditedTransit",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "flowOfFundsDebitAmount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsDebitAmount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsDebitedAccount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsDebitedAccount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsDebitedTransit",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsDebitedTransit",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsPostingDate",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsPostingDate",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsSource",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsSource",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsSourceTransactionId",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsSourceTransactionId",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsTransactionCurrency",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsTransactionCurrency",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsTransactionCurrencyAmount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsTransactionCurrencyAmount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsTransactionDate",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsTransactionDate",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsTransactionDesc",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsTransactionTime",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsTransactionTime",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "executionLocalDateTime",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": "(DateTime.parse(flowOfFundsTransactionDate + \" \" + flowOfFundsTransactionTime).to_time.utc.to_i) * 1000\n"
+    },
+    {
+      "name": "holdingBranchKey",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "84255"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": "this.to_s"
+    },
+    {
+      "name": "ipAddress",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectOutEmt",
+      "column": "npdIp",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "messageTypeCode",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "1210"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "operationType",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "U4"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "oppAccountNumber",
+      "null_percentage": 0,
+      "type": "Character Sequence",
+      "format": "^^^@#^^#@^@@",
+      "formula": null
+    },
+    {
+      "name": "oppBranchKey",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "oppOrganizationUnitCd",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "organizationUnitCd",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "010"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "origCurrAmount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "_hiddenSaAmount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "origCurrCd",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "CAD"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "postingDate",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsPostingDate",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "processingDate",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsPostingDate",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "(date(this) - days(1)).strftime(\"%Y/%m/%d\")\n"
+    },
+    {
+      "name": "rowUpdateDate",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsPostingDate",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "((date(this) + days(2)).to_time.utc.to_i) * 1000"
+    },
+    {
+      "name": "rulesCADEquivalentAmt",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "_hiddenSaAmount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "sourceTransactionId",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsSourceTransactionId",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "splittableColumnValue",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "3415674561"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "splittingDelimiter",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        ";"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strCaAccount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strCaAccountCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strCaAccountHolderCifId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strCaAccountStatus",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strCaAmount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "_hiddenSaAmount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strCaBeneficiaryInd",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Yes"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strCaBranch",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strCaCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "CAD"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strCaDispositionType",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strCaDispositionTypeOpp",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strCaDispositionTypeOther",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strCaDispositionTypeOtherOpp",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strCaFiNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strCaInvolvedInInd",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "No"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strReportingEntity",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "reportingEntityLocationNo",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strReportingEntityOpp",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaAccount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaAccountCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "CAD"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaAccountHoldersCifId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaAccountStatus",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaAmount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "_hiddenSaAmount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaBranch",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaConductorInd",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "CAD"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaDirection",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Out"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaDirectionOp",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaFiNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaFundingSourceInd",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "No"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaFundsType",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaFundsTypeOpp",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaFundsTypeOther",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaFundsTypeOtherOpp",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaOboInd",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "No"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaPostingDate",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsPostingDate",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strTransactionStatus",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "No"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "thirdPartyCifId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "transactionCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "CAD"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "transactionCurrencyAmount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "_hiddenSaAmount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "transactionDate",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsTransactionDate",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "transactionDescription",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Send E-Transfer"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "transactionDescriptionBase",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Send E-Transfer"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "transactionId",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsAmlTransactionId",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "transactionTime",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsTransactionTime",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "userDeviceType",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Mobile phone"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "userSessionDateTime",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": "((Time.parse(field(\"transactionDate\") + \" \" + field(\"transactionTime\")) - 6*60).to_i) * 1000"
+    },
+    {
+      "name": "userSessionDateTimeStr",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": "Time.at(field(\"userSessionDateTime\") / 1000).strftime(\"%Y-%m-%d %H:%M:%S\")"
+    },
+    {
+      "name": "additionalDescription",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Financial Response"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    }
+  ]
+}

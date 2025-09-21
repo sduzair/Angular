@@ -5,8 +5,7 @@ import { ColumnHeaderLabels, StrTxn } from "../table.component";
 import { MatInputModule } from "@angular/material/input";
 import { MatIconModule } from "@angular/material/icon";
 import { MatButtonModule } from "@angular/material/button";
-import { from } from "rxjs/internal/observable/from";
-import { map } from "rxjs/operators";
+import { from, map } from "rxjs";
 import { EditFormTemplateComponent } from "../../edit-form/edit-form-template/edit-form-template.component";
 
 @Component({

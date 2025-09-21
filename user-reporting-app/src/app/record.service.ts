@@ -1,8 +1,7 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { StrTxn } from "./table/table.component";
-import { Observable } from "rxjs/internal/Observable";
-import { shareReplay } from "rxjs";
+import { Observable, shareReplay } from "rxjs";
 
 @Injectable({
   providedIn: "root",

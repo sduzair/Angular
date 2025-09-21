@@ -3,8 +3,14 @@ import { PageNotFoundComponent } from "./page-not-found/page-not-found.component
 import { TableComponent } from "./table/table.component";
 import { singleTabGuard } from "./single-tab.guard";
 import { SingleTabGuardComponent } from "./single-tab-guard/single-tab-guard.component";
+import { TransactionSearchComponent } from "./transaction-search/transaction-search.component";
 
 export const routes: Routes = [
+  {
+    path: "transactionsearch",
+    component: TransactionSearchComponent,
+    canActivate: [singleTabGuard],
+  },
   { path: "table", component: TableComponent, canActivate: [singleTabGuard] },
   {
     path: "edit-form/:sessionId",
@@ -14,7 +20,7 @@ export const routes: Routes = [
       ),
     canActivate: [singleTabGuard],
   },
-  { path: "", redirectTo: "/table", pathMatch: "full" },
+  { path: "", redirectTo: "/transactionsearch", pathMatch: "full" },
   { path: "single-tab-guard", component: SingleTabGuardComponent },
   { path: "**", component: PageNotFoundComponent },
 ];

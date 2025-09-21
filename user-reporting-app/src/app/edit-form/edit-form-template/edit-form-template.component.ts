@@ -96,7 +96,7 @@ import { startWith, takeUntil } from "rxjs/operators";
     MatOptionModule,
     MatSelectModule,
   ],
-  template: ` <div class="container form-field-density mat-typography">
+  template: ` <div class="container form-field-density">
     <mat-toolbar class="justify-content-end">
       <ng-container *ngIf="editReqType !== 'AUDIT_REQUEST'; else auditDropdown">
         <button
