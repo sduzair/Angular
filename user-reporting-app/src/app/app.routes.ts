@@ -4,12 +4,22 @@ import { TableComponent } from "./table/table.component";
 import { singleTabGuard } from "./single-tab.guard";
 import { SingleTabGuardComponent } from "./single-tab-guard/single-tab-guard.component";
 import { TransactionSearchComponent } from "./transaction-search/transaction-search.component";
+import {
+  transactionSearchResolver,
+  TransactionViewComponent,
+} from "./transaction-view/transaction-view.component";
 
 export const routes: Routes = [
   {
     path: "transactionsearch",
     component: TransactionSearchComponent,
-    canActivate: [singleTabGuard],
+  },
+  {
+    path: "aml/:amlId/transaction-view",
+    component: TransactionViewComponent,
+    resolve: {
+      transactionSearch: transactionSearchResolver,
+    },
   },
   { path: "table", component: TableComponent, canActivate: [singleTabGuard] },
   {

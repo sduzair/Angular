@@ -1,0 +1,254 @@
+@use "@angular/material" as mat;
+
+mat-toolbar-row.header-toolbar-row {
+  gap: 0.5em;
+  justify-content: space-between;
+  @include mat.button-density(5);
+}
+
+mat-drawer-content > div {
+  min-height: 75dvh;
+  height: 75dvh;
+}
+
+/* Table styling */
+mat-drawer-content table {
+  width: 100%;
+  border-spacing: 0;
+  @include mat.table-density(-5);
+}
+
+/* Cell content styling */
+.mat-mdc-header-cell,
+.mat-mdc-cell {
+  max-width: 300px;
+}
+
+.mat-mdc-cell {
+  white-space: nowrap;
+  overflow-x: scroll;
+  scrollbar-width: none;
+  text-overflow: unset;
+}
+
+.mat-column-flowOfFundsTransactionDesc {
+  max-width: 400px;
+}
+
+.sticky-cell.mat-column-select {
+  position: sticky;
+  z-index: 1;
+  left: 0px;
+  min-width: 40px; // Bigger than natural width
+  padding: 0;
+  text-align: center;
+
+  &::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: var(--mat-table-row-item-outline-width, 1px);
+    background: var(
+      --mat-table-row-item-outline-color,
+      var(--mat-sys-outline, rgba(0, 0, 0, 0.12))
+    );
+  }
+}
+
+.sticky-cell > div {
+  margin: 0px 8px;
+  text-align: center;
+}
+
+.mat-mdc-header-row {
+  z-index: 1;
+}
+
+.mat-mdc-row {
+  transform: translateZ(0); /* Triggers GPU layer creation */
+  will-change: transform; /* Hint for future changes */
+  transition: background-color 0.3s;
+}
+
+.mat-mdc-row:hover {
+  background-color: var(--mat-sys-primary-fixed);
+}
+
+th.mat-sort-header-sorted {
+  color: black;
+}
+
+/* Filters styling */
+mat-drawer.form-drawer {
+  background-color: var(--mat-sys-surface);
+}
+
+mat-drawer-container {
+  @include mat.form-field-density(-5);
+  @include mat.chips-overrides(
+    (
+      container-height: 20px,
+    )
+  );
+
+  /* Hint text styling */
+  mat-hint {
+    font-size: 0.75rem;
+    color: var(--mat-sys-on-surface-variant, #666);
+  }
+
+  & {
+    --mat-sidenav-container-elevation-shadow: 0px 0px 15px 0px
+      rgba(0, 0, 0, 0.25);
+  }
+}
+
+::ng-deep mat-drawer-container mat-chip-row.mat-mdc-chip.mat-mdc-chip-row {
+  margin: 2px 0 2px 8px;
+}
+
+/* Filter chips styling */
+.filter-chips {
+  @include mat.chips-density(0);
+}
+
+mat-chip-set.mat-mdc-chip-set.mdc-evolution-chip-set.filter-chips {
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  flex: 1 1 auto;
+}
+
+::ng-deep mat-chip-set.filter-chips .mdc-evolution-chip-set__chips {
+  flex-flow: row;
+}
+
+/* last update chip styling */
+.last-updated-chip .last-updated-chip-spinner {
+  min-width: 24px;
+}
+
+::ng-deep .last-updated-chip .mdc-evolution-chip__text-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+::ng-deep .filter-chips .mdc-evolution-chip__text-label {
+  display: flex;
+  gap: 0.5em;
+  align-items: center;
+  user-select: text;
+}
+
+::ng-deep .select-option.mat-mdc-option.mdc-list-item--disabled {
+  pointer-events: unset;
+}
+
+::ng-deep
+  .select-option.mat-mdc-option.mdc-list-item--disabled
+  .mdc-list-item__primary-text {
+  opacity: unset;
+}
+
+.filter-form-toolbar {
+  @include mat.button-density(5);
+  & {
+    --mat-toolbar-standard-height: 48px;
+  }
+}
+
+.filter-form-toolbar mat-button-toggle-group {
+  flex: 1 0 auto;
+}
+
+.filter-form-toolbar mat-toolbar-row {
+  gap: 0.5rem;
+}
+
+.color-box {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+}
+
+::ng-deep
+  mat-button-toggle.highlight-radio
+  .mat-button-toggle-checkbox-wrapper {
+  z-index: 99;
+  display: none;
+}
+
+::ng-deep
+  mat-button-toggle.highlight-radio.mat-button-toggle-checked
+  .mat-button-toggle-button:has(.mat-button-toggle-checkbox-wrapper) {
+  padding-left: 0px;
+}
+
+.form-drawer mat-button-toggle {
+  @include mat.button-toggle-density(-3);
+}
+
+mat-icon.highlight-radio-cancel.material-icons {
+  height: 20px;
+  width: 20px;
+  font-size: 22px;
+}
+
+mat-button-toggle.highlight-radio {
+  flex: 1 0 auto;
+}
+
+.color-box-in-chip {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+  border: 1px solid #ccc;
+  border-radius: 2px;
+}
+
+.color-pallette {
+  @include mat.chips-overrides(
+    (
+      container-shape-radius: 50%,
+      container-height: 32px,
+      elevated-selected-container-color: var(--mat-sys-surface),
+      outline-color: var(--mat-sys-on-surface),
+      flat-selected-outline-width: 3px,
+    )
+  );
+
+  mat-chip {
+    width: 32px;
+  }
+
+  // ::ng-deep mat-chip.mat-mdc-chip-highlighted {
+  //   outline: 3px solid #333; /* Or use your theme's primary color */
+  //   box-shadow: 0 0 6px 2px rgba(0, 0, 0, 0.2);
+  // }
+
+  ::ng-deep .mat-mdc-standard-chip .mdc-evolution-chip__action--primary {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  ::ng-deep
+    span.mdc-evolution-chip__text-label.mat-mdc-chip-action-label:last-of-type {
+    height: 24px;
+  }
+
+  ::ng-deep .mdc-evolution-chip__cell--primary {
+    justify-content: center;
+  }
+
+  .invisible-text {
+    color: transparent;
+    user-select: none;
+    pointer-events: none;
+  }
+}

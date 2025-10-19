@@ -8,7 +8,7 @@ import {
   ViewChild,
 } from "@angular/core";
 import { removePageFromOpenTabs } from "../single-tab.guard";
-import { ActivatedRoute } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
 import {
   BehaviorSubject,
   combineLatest,
@@ -118,7 +118,8 @@ class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
     AccountNumberSelectableTableComponent,
     PartyKeySelectableTableComponent,
   ],
-  template: ` <div class="transaction-search container px-0 my-1">
+  template: `
+    <div class="transaction-search container px-0 my-1">
       <div class="row row-cols-1 mx-0">
         <mat-toolbar class="col mb-3">
           <span>Transaction Search</span>
@@ -129,7 +130,8 @@ class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
             (click)="onTransactionSearch()"
             [disabled]="
               sourceRefreshTimeDataLoadingState ||
-              (transactionSearchParamsLoadingState$ | async)
+              (transactionSearchParamsLoadingState$ | async) ||
+              transactionSearchLoading
             "
           >
             <mat-icon>search</mat-icon>
@@ -167,7 +169,8 @@ class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                     [disabled]="
                       sourceRefreshTimeDataLoadingState ||
                       (transactionSearchParamsLoadingState$ | async) ||
-                      !form.controls.amlId.valid
+                      !form.controls.amlId.valid ||
+                      transactionSearchLoading
                     "
                   >
                     Load
@@ -307,7 +310,8 @@ class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                 sourceRefreshTimeDataLoadingState ||
                                 (transactionSearchParamsLoadingState$
                                   | async) ||
-                                isFormDisabled
+                                isFormDisabled ||
+                                transactionSearchLoading
                               "
                             >
                               <mat-icon>library_add</mat-icon>
@@ -407,7 +411,9 @@ class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     Start month must be before end month
                                   </mat-error>
                                 </mat-form-field>
-                                <span class="sk skw-6 skh-7 col-auto flex-grow-1 mx-3"></span>
+                                <span
+                                  class="sk skw-6 skh-7 col-auto flex-grow-1 mx-3"
+                                ></span>
 
                                 <mat-form-field class="col">
                                   <mat-label>End MM/YYYY</mat-label>
@@ -452,7 +458,9 @@ class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     End month is required
                                   </mat-error>
                                 </mat-form-field>
-                                <span class="sk skw-6 skh-7 col-auto flex-grow-1 mx-3"></span>
+                                <span
+                                  class="sk skw-6 skh-7 col-auto flex-grow-1 mx-3"
+                                ></span>
 
                                 <div
                                   class="col-1 px-0 d-flex align-items-center"
@@ -468,7 +476,8 @@ class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       isFormDisabled ||
                                       sourceRefreshTimeDataLoadingState ||
                                       (transactionSearchParamsLoadingState$
-                                        | async)
+                                        | async) ||
+                                      transactionSearchLoading
                                     "
                                     matTooltip="Remove period"
                                     class="mb-4"
@@ -530,7 +539,7 @@ class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
         </form>
       </div>
     </div>
-    `,
+  `,
   styleUrl: "./transaction-search.component.scss",
   providers: [
     {
@@ -623,6 +632,7 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
     private amlTransactionSearchService: AmlTransactionSearchService,
     private amlSessionService: AmlSessionService,
     private snackBar: MatSnackBar,
+    private router: Router,
   ) {}
   private destroy$ = new Subject<void>();
 
@@ -641,7 +651,7 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
   private suppressTransactionSearchParamsAutosave = false;
   ngOnInit(): void {
     this.amlTransactionSearchService
-      .getSourceRefreshTime()
+      .fetchSourceRefreshTime()
       .pipe(take(1))
       .subscribe((res) => {
         this.sourceRefreshTimeDataSource.data = res;
@@ -819,6 +829,8 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
       .subscribe();
   }
 
+  // todo implement loading state in view
+  transactionSearchLoading!: boolean;
   onTransactionSearch() {
     if (this.form.invalid) {
       this.snackBar.open(
@@ -834,6 +846,8 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
       "🚀 ~ TransactionSearchComponent ~ onLoad ~ this.form.value:",
       this.form.value,
     );
+
+    this.router.navigate(["/aml", "AML-1234", "transaction-view"]);
   }
 
   transactionSearchParamsExistValidator(

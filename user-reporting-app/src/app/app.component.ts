@@ -84,7 +84,7 @@ import { enCA } from "date-fns/locale";
       </mat-sidenav>
 
       <mat-sidenav-content
-        class="flex-filled d-flex flex-column justify-content-center"
+        class="flex-filled d-flex flex-column justify-content-center overflow-hidden"
       >
         <router-outlet></router-outlet>
       </mat-sidenav-content>
@@ -113,7 +113,7 @@ export class AppComponent {
       children: [
         {
           name: "Transaction View",
-          route: "/aml/AML-12345/transaction",
+          route: "/aml/AML-12345/transaction-view",
           matIcon: "compare_arrows",
         },
         {
@@ -129,7 +129,7 @@ export class AppComponent {
       children: [
         {
           name: "Transaction View",
-          route: "/aml/AML-12345/transaction",
+          route: "/aml/AML-12345/transaction-view",
           matIcon: "compare_arrows",
         },
         {

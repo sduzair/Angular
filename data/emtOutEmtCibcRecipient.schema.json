@@ -399,7 +399,7 @@
       "formula": "concat(upper(_hiddenGivenName), \" \", upper(_hiddenSurname))"
     },
     {
-      "name": "recipientPhoneNumber:",
+      "name": "recipientPhoneNumber",
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
@@ -554,6 +554,27 @@
       "type": "Dataset Column",
       "dataset": "olbOutEmtCibcRecipient",
       "column": "oppAccountNumber",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsAmlTransactionId",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsAmlTransactionId",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "sourceId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "EMT"
+      ],
       "selectionStyle": "sequential",
       "distribution": null,
       "formula": null

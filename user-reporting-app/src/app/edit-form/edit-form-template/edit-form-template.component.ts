@@ -2102,7 +2102,7 @@ export class EditFormTemplateComponent
         return null!;
       }),
       tap((form) => form.markAllAsTouched()),
-      shareReplay(1),
+      shareReplay({ bufferSize: 1, refCount: true }),
     );
 
     this.auditVersionOptions$ = this.editReq$!.pipe(

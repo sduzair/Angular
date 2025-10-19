@@ -89,7 +89,7 @@ export class EditFormComponent implements OnInit, OnDestroy {
       tap(({ type }) => {
         if (type === "BULK_EDIT_REQUEST") this.isBulkEdit = true;
       }),
-      shareReplay(1),
+      shareReplay({ bufferSize: 1, refCount: true }),
     );
   }
   private readonly destroy$ = new Subject<void>();

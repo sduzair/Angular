@@ -5,7 +5,9 @@ import { from, shareReplay } from "rxjs";
   providedIn: "root",
 })
 export class AuthService {
-  userAuthId$ = from(this.generateBrowserFingerprint()).pipe(shareReplay(1));
+  userAuthId$ = from(this.generateBrowserFingerprint()).pipe(
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
 
   private async generateBrowserFingerprint(): Promise<string> {
     const fingerprintData = {

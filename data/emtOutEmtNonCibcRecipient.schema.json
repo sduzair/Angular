@@ -342,7 +342,7 @@
       "formula": "_hiddenFullName"
     },
     {
-      "name": "recipientPhoneNumber:",
+      "name": "recipientPhoneNumber",
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
@@ -497,6 +497,27 @@
       "type": "Dataset Column",
       "dataset": "olbOutEmtNonCibcRecipient",
       "column": "oppAccountNumber",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsAmlTransactionId",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectNonCibcRecipientWithBackup",
+      "column": "flowOfFundsAmlTransactionId",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "sourceId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "EMT"
+      ],
       "selectionStyle": "sequential",
       "distribution": null,
       "formula": null

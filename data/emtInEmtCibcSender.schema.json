@@ -20,7 +20,7 @@
       "name": "amount",
       "null_percentage": 0,
       "type": "Dataset Column",
-      "dataset": "inEMTCompleteWithRawSubjectNonCibcSenderWithBackup",
+      "dataset": "inEMTCompleteWithRawSubjectCibcSenderWithBackup",
       "column": "_hiddenSaAmount",
       "selectionStyle": "sequential",
       "distribution": null,
@@ -146,7 +146,7 @@
       "name": "depositedTimeDate",
       "null_percentage": 0,
       "type": "Dataset Column",
-      "dataset": "inEMTCompleteWithRawSubjectNonCibcSenderWithBackup",
+      "dataset": "inEMTCompleteWithRawSubjectCibcSenderWithBackup",
       "column": "dateOfTxn",
       "selectionStyle": "sequential",
       "distribution": null,
@@ -156,7 +156,7 @@
       "name": "depositedTimeTime",
       "null_percentage": 0,
       "type": "Dataset Column",
-      "dataset": "inEMTCompleteWithRawSubjectNonCibcSenderWithBackup",
+      "dataset": "inEMTCompleteWithRawSubjectCibcSenderWithBackup",
       "column": "timeOfTxn",
       "selectionStyle": "sequential",
       "distribution": null,
@@ -221,7 +221,7 @@
       "name": "fiRefCode",
       "null_percentage": 0,
       "type": "Dataset Column",
-      "dataset": "inEMTCompleteWithRawSubjectNonCibcSenderWithBackup",
+      "dataset": "inEMTCompleteWithRawSubjectCibcSenderWithBackup",
       "column": "flowOfFundsSourceTransactionId",
       "selectionStyle": "sequential",
       "distribution": null,
@@ -368,7 +368,7 @@
       "formula": "concat(upper(_hiddenGivenName), \" \", upper(_hiddenSurname))"
     },
     {
-      "name": "recipientPhoneNumber:",
+      "name": "recipientPhoneNumber",
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
@@ -539,6 +539,27 @@
       "null_percentage": 0,
       "type": "Character Sequence",
       "format": "^^^@#^^#@^@@",
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsAmlTransactionId",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "inEMTCompleteWithRawSubjectCibcSenderWithBackup",
+      "column": "flowOfFundsAmlTransactionId",
+      "selectionStyle": null,
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "sourceId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "EMT"
+      ],
+      "selectionStyle": null,
+      "distribution": null,
       "formula": null
     }
   ]

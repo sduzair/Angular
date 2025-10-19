@@ -1,0 +1,24 @@
+@use "@angular/material" as mat;
+
+mat-tab-group {
+  @include mat.chips-density(-5);
+  @include mat.chips-overrides(
+    (
+      container-shape-radius: 24px,
+      hover-state-layer-opacity: 0,
+    )
+  );
+}
+::ng-deep mat-tab-group mat-chip .mdc-evolution-chip__action--presentational {
+  cursor: unset;
+}
+
+::ng-deep mat-tab-body .mat-mdc-tab-body-content {
+  overflow-x: hidden;
+}
+
+mat-toolbar-row.header-toolbar-row {
+  gap: 0.5em;
+  justify-content: space-between;
+  @include mat.button-density(5);
+}

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component } from "@angular/core";
 import { v4 as uuidv4 } from "uuid";
 import { utils, WorkSheet, read } from "@e965/xlsx/dist/xlsx.mini.min.js";
-import { ColumnHeaderLabels, StrTxn } from "../table.component";
+import { StrTxn } from "../table.component";
 import { MatInputModule } from "@angular/material/input";
 import { MatIconModule } from "@angular/material/icon";
 import { MatButtonModule } from "@angular/material/button";
@@ -35,34 +35,34 @@ export class ImportManualTxnsComponent {
   data: StrTxn[] = [];
   headers: string[] = [];
   onFileImport($event: Event) {
-    const target: DataTransfer = $event.target as any as DataTransfer;
-    if (target.files.length !== 1)
-      throw new Error("Cannot upload multiple files");
+    // const target: DataTransfer = $event.target as any as DataTransfer;
+    // if (target.files.length !== 1)
+    //   throw new Error("Cannot upload multiple files");
 
-    from(target.files[0].arrayBuffer())
-      .pipe(
-        map((arrayBuffer) => {
-          const wb = read(arrayBuffer);
+    // from(target.files[0].arrayBuffer())
+    //   .pipe(
+    //     map((arrayBuffer) => {
+    //       const wb = read(arrayBuffer);
 
-          // Read the first sheet
-          const ws: WorkSheet = wb.Sheets[wb.SheetNames[0]];
+    //       // Read the first sheet
+    //       const ws: WorkSheet = wb.Sheets[wb.SheetNames[0]];
 
-          // Convert to JSON
-          const strTxns = utils
-            .sheet_to_json<Record<ColumnHeaderLabels, string>>(ws, {
-              defval: null,
-              raw: false,
-            })
-            .map(convertSheetJsonToStrTxn);
-          console.log(
-            "🚀 ~ ImportManualTxnsComponent ~ onFileImport ~ strTxns:",
-            strTxns,
-          );
-          // todo initialize form and utilize validation info
-          return strTxns;
-        }),
-      )
-      .subscribe();
+    //       // Convert to JSON
+    //       const strTxns = utils
+    //         .sheet_to_json<Record<ColumnHeaderLabels, string>>(ws, {
+    //           defval: null,
+    //           raw: false,
+    //         })
+    //         .map(convertSheetJsonToStrTxn);
+    //       console.log(
+    //         "🚀 ~ ImportManualTxnsComponent ~ onFileImport ~ strTxns:",
+    //         strTxns,
+    //       );
+    //       // todo initialize form and utilize validation info
+    //       return strTxns;
+    //     }),
+    //   )
+    //   .subscribe();
   }
 }
 
@@ -71,7 +71,8 @@ type AddPrefixAndCapitalizeToObject<T, P extends string> = {
 };
 
 function convertSheetJsonToStrTxn(
-  value: Record<ColumnHeaderLabels, string>,
+  // value: Record<ColumnHeaderLabels, string>,
+  value: Record<string, string>,
 ): DeepPartial<StrTxn> {
   const isKnownDirectionOfSAOption = (dir: string) =>
     Object.values(EditFormTemplateComponent.directionOfSAOptions)

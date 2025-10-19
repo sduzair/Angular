@@ -1,9 +1,13 @@
 @use "@angular/material" as mat;
+@use "./styles_theme-colors.scss" as my-theme;
 
 html {
   @include mat.theme(
     (
-      color: mat.$rose-palette,
+      color: (
+        primary: my-theme.$primary-palette,
+        tertiary: my-theme.$tertiary-palette,
+      ),
       typography: Roboto,
       density: -3,
     )
@@ -93,6 +97,8 @@ html {
   scrollbar-color: var(--mat-sys-outline-variant)
     var(--mat-sys-surface-container-low);
   scrollbar-width: thin;
+
+  --mat-select-panel-background-color: var(--mat-sys-surface);
 }
 
 /* Base skeleton block */
@@ -163,4 +169,24 @@ html {
   100% {
     background-position: -200% 0;
   }
+}
+
+$minimal-chip-overrides: (
+  outline-color: rgba(0, 0, 0, 0.12),
+  outline-width: 1px,
+  flat-selected-outline-width: 1px,
+  disabled-outline-color: rgba(0, 0, 0, 0.05),
+  focus-outline-color: rgba(0, 0, 0, 0.24),
+  container-shape-radius: 4px,
+);
+
+@include mat.chips-overrides($minimal-chip-overrides);
+
+html {
+  --mat-select-panel-background-color: var(--mat-sys-surface);
+  --mat-autocomplete-background-color: var(--mat-sys-surface);
+}
+
+.mat-mdc-option.mdc-list-item {
+  min-height: 40px;
 }
