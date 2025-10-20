@@ -1,4 +1,26 @@
-import { ChangeDetectionStrategy, Component, inject } from "@angular/core";
+import { SelectionModel } from "@angular/cdk/collections";
+import { CommonModule } from "@angular/common";
+import {
+  ChangeDetectionStrategy,
+  Component,
+  Input,
+  inject,
+} from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+import { FormControl } from "@angular/forms";
+import { MatButton } from "@angular/material/button";
+import { MatChip } from "@angular/material/chips";
+import { MatSelectModule } from "@angular/material/select";
+import { MatTabsModule } from "@angular/material/tabs";
+import { MatToolbarModule } from "@angular/material/toolbar";
+import {
+  ActivatedRouteSnapshot,
+  ResolveFn,
+  RouterStateSnapshot,
+} from "@angular/router";
+import { concat, defer, map, of, tap } from "rxjs";
+import { ISelectionComparator } from "../base-table/abstract-base-table";
+import { SessionDataService, SessionStateLocal } from "../session-data.service";
 import {
   AbmSourceData,
   AmlTransactionSearchService,
@@ -8,27 +30,10 @@ import {
   SourceData,
   TransactionSearchResponse,
 } from "../transaction-search/aml-transaction-search.service";
-import { map, Observable, startWith, tap } from "rxjs";
-import {
-  ActivatedRoute,
-  ActivatedRouteSnapshot,
-  ResolveFn,
-  RouterStateSnapshot,
-} from "@angular/router";
-import { MatToolbarModule } from "@angular/material/toolbar";
-import { FofTableComponent } from "./fof-table/fof-table.component";
-import { MatSelectModule } from "@angular/material/select";
-import { ISelectionComparator } from "../base-table/abstract-base-table";
-import { SelectionModel } from "@angular/cdk/collections";
-import { MatTabsModule } from "@angular/material/tabs";
 import { AbmTableComponent } from "./abm-table/abm-table.component";
-import { OlbTableComponent } from "./olb-table/olb-table.component";
 import { EmtTableComponent } from "./emt-table/emt-table.component";
-import { FormControl } from "@angular/forms";
-import { CommonModule } from "@angular/common";
-import { MatChip } from "@angular/material/chips";
-import { MatButton } from "@angular/material/button";
-import { isEqual } from "lodash-es";
+import { FofTableComponent } from "./fof-table/fof-table.component";
+import { OlbTableComponent } from "./olb-table/olb-table.component";
 
 @Component({
   selector: "app-transaction-view",
@@ -141,50 +146,52 @@ import { isEqual } from "lodash-es";
 export class TransactionViewComponent
   implements ISelectionComparator<TableSelectionCompareWithAmlTxnId>
 {
-  fofSourceData: FlowOfFundsSourceData[] = [];
-  abmSourceData: AbmSourceData[] = [];
-  olbSourceData: OlbSourceData[] = [];
-  emtSourceData: EmtSourceData[] = [];
+  /**
+   * Initialized by router component input binding
+   */
+  @Input()
+  transactionSearch!: TransactionSearchResponse;
 
-  constructor(private route: ActivatedRoute) {
-    (
-      this.route.data as Observable<{
-        transactionSearch: TransactionSearchResponse;
-      }>
-    ).subscribe(({ transactionSearch }) => {
-      this.fofSourceData = transactionSearch.find(
-        (res) => res.sourceId === "FlowOfFunds",
-      )?.sourceData!;
-      this.abmSourceData = transactionSearch.find(
-        (res) => res.sourceId === "ABM",
-      )?.sourceData!;
-      this.olbSourceData = transactionSearch.find(
-        (res) => res.sourceId === "OLB",
-      )?.sourceData!;
-      this.emtSourceData = transactionSearch.find(
-        (res) => res.sourceId === "EMT",
-      )?.sourceData!;
-    });
+  /**
+   * Initialized by router component input binding
+   */
+  @Input()
+  readonly initSelections!: { flowOfFundsAmlTransactionId: string }[];
 
+  fofSourceData: FlowOfFundsSourceData[] = this.transactionSearch.find(
+    (res) => res.sourceId === "FlowOfFunds",
+  )?.sourceData!;
+
+  abmSourceData: AbmSourceData[] = this.transactionSearch.find(
+    (res) => res.sourceId === "ABM",
+  )?.sourceData!;
+
+  olbSourceData: OlbSourceData[] = this.transactionSearch.find(
+    (res) => res.sourceId === "OLB",
+  )?.sourceData!;
+
+  emtSourceData: EmtSourceData[] = this.transactionSearch.find(
+    (res) => res.sourceId === "EMT",
+  )?.sourceData!;
+
+  constructor() {
     this.selection.changed
       .asObservable()
       .pipe(
         tap(() => {
           this.selectionControl.setValue(this.selection.selected);
         }),
+        takeUntilDestroyed(),
       )
       .subscribe();
-
-    this.selectionLastSaved = [];
-    this.selectionControlHasChanges$ = this.selectionControl.valueChanges.pipe(
-      startWith(this.selectionLastSaved),
-      map((currentSelections) => {
-        return !isEqual(currentSelections, this.selectionLastSaved);
-      }),
-    );
   }
 
-  selection = new SelectionModel(true, [], true, this.selectionComparator);
+  selection = new SelectionModel(
+    true,
+    this.initSelections,
+    true,
+    this.selectionComparator,
+  );
 
   selectionComparator(
     o1: TableSelectionCompareWithAmlTxnId,
@@ -197,42 +204,66 @@ export class TransactionViewComponent
     nonNullable: true,
   });
 
-  fofSourceDataSelectionCount$ = this.selectionControl.valueChanges.pipe(
-    startWith([] as TableSelectionCompareWithAmlTxnId[]),
-    map((selectionTxns) => (selectionTxns as SourceData[]).length),
-  );
+  fofSourceDataSelectionCount$ = concat(
+    defer(() => of(this.selectionControl.value)),
+    this.selectionControl.valueChanges,
+  ).pipe(map((selectionTxns) => (selectionTxns as SourceData[]).length));
 
-  abmSourceDataSelectionCount$ = this.selectionControl.valueChanges.pipe(
-    startWith([] as TableSelectionCompareWithAmlTxnId[]),
+  abmSourceDataSelectionCount$ = concat(
+    defer(() => of(this.selectionControl.value)),
+    this.selectionControl.valueChanges,
+  ).pipe(
     map((selectionTxns) => {
-      return (selectionTxns as SourceData[]).filter((txn) =>
+      return selectionTxns.filter((txn) =>
         txn.flowOfFundsAmlTransactionId.startsWith("ABM"),
       ).length;
     }),
   );
 
-  olbSourceDataSelectionCount$ = this.selectionControl.valueChanges.pipe(
-    startWith([] as TableSelectionCompareWithAmlTxnId[]),
+  olbSourceDataSelectionCount$ = concat(
+    defer(() => of(this.selectionControl.value)),
+    this.selectionControl.valueChanges,
+  ).pipe(
     map((selectionTxns) => {
-      return (selectionTxns as SourceData[]).filter((txn) =>
+      return selectionTxns.filter((txn) =>
         txn.flowOfFundsAmlTransactionId.startsWith("OLB"),
       ).length;
     }),
   );
 
-  emtSourceDataSelectionCount$ = this.selectionControl.valueChanges.pipe(
-    startWith([] as TableSelectionCompareWithAmlTxnId[]),
+  emtSourceDataSelectionCount$ = concat(
+    defer(() => of(this.selectionControl.value)),
+    this.selectionControl.valueChanges,
+  ).pipe(
     map((selectionTxns) => {
-      return (selectionTxns as SourceData[]).filter(
+      return selectionTxns.filter(
         (txn) =>
           txn.flowOfFundsAmlTransactionId.startsWith("OLB") &&
-          (txn as EmtSourceData).sourceId === "EMT",
+          this.emtSourceData.findIndex(
+            (emt) =>
+              emt.flowOfFundsAmlTransactionId ===
+              (txn as EmtSourceData).flowOfFundsAmlTransactionId,
+          ) >= 0,
       ).length;
     }),
   );
 
-  selectionLastSaved!: typeof TransactionViewComponent.prototype.selection.selected;
-  selectionControlHasChanges$!: Observable<boolean>;
+  selectionsLastSaved = new Set(
+    this.selection.selected.map((sel) => sel.flowOfFundsAmlTransactionId),
+  );
+  selectionControlHasChanges$ = concat(
+    defer(() => of(this.selectionControl.value)),
+    this.selectionControl.valueChanges,
+  ).pipe(
+    map((currentSelections) => {
+      return (
+        currentSelections.length !== this.selectionsLastSaved.size ||
+        !currentSelections.every((sel) =>
+          this.selectionsLastSaved.has(sel.flowOfFundsAmlTransactionId),
+        )
+      );
+    }),
+  );
 }
 
 export const transactionSearchResolver: ResolveFn<TransactionSearchResponse> = (
@@ -242,6 +273,17 @@ export const transactionSearchResolver: ResolveFn<TransactionSearchResponse> = (
   const amlTransactionSearchService = inject(AmlTransactionSearchService);
   const amlId = route.paramMap.get("amlId")!;
   return amlTransactionSearchService.fetchTransactionSearch(amlId);
+};
+
+export const selectionsResolver: ResolveFn<
+  { flowOfFundsAmlTransactionId: string }[]
+> = (route: ActivatedRouteSnapshot, state: RouterStateSnapshot) => {
+  const sessionDataService = inject(SessionDataService);
+  return sessionDataService.sessionStateValue.strTransactionsEdited.map(
+    (txn) => ({
+      flowOfFundsAmlTransactionId: txn.flowOfFundsAmlTransactionId,
+    }),
+  );
 };
 
 export type TableSelectionCompareWithAmlTxnId = {

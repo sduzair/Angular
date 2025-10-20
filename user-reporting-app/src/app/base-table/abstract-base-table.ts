@@ -4,9 +4,9 @@ import {
   AfterViewInit,
   Component,
   DestroyRef,
-  inject,
   TrackByFunction,
   ViewChild,
+  inject,
 } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { FormControl, FormGroup } from "@angular/forms";
@@ -14,8 +14,8 @@ import { MatChipGrid, MatChipInputEvent } from "@angular/material/chips";
 import { MatPaginator } from "@angular/material/paginator";
 import { MatSort } from "@angular/material/sort";
 import { MatTable, MatTableDataSource } from "@angular/material/table";
-import { startOfDay, isAfter, isBefore, format } from "date-fns";
-import { combineLatest, map, Observable, startWith, Subject, tap } from "rxjs";
+import { format, isAfter, isBefore, startOfDay } from "date-fns";
+import { Observable, Subject, combineLatest, map, startWith, tap } from "rxjs";
 
 /**
  * Generic abstract base class for table components with filtering, pagination and selection capabilities
@@ -26,10 +26,11 @@ import { combineLatest, map, Observable, startWith, Subject, tap } from "rxjs";
  */
 @Component({ template: "" })
 export abstract class AbstractBaseTable<
-  TData extends TableRecordUiProps,
+  TData extends object,
   TDataColumn extends (keyof TData & string) | (string & {}),
-  TDisplayColumn extends TDataColumn | string,
-  TFilterKeys extends string,
+  TDisplayColumn extends TDataColumn,
+  TFilterKeys extends keyof TData & string,
+  THighlightKey extends (keyof TData & string) | TFilterKeys,
   TSelection = { [K in keyof TData]: string },
 > implements
     IDataColumns<TDataColumn, TData>,
@@ -42,7 +43,7 @@ export abstract class AbstractBaseTable<
     IPagination,
     ISortable,
     ISelection<TData, TSelection>,
-    IHighlightable<TData, TDataColumn, TFilterKeys>,
+    IHighlightable<TData, THighlightKey>,
     AfterViewInit
 {
   destroyRef = inject(DestroyRef);
@@ -128,9 +129,7 @@ export abstract class AbstractBaseTable<
     if (this.filterFormFullTextFilterKey === key)
       return this.displayedColumnsColumnHeaderMap[key]!;
     if (this.filterFormHighlightSelectFilterKey === key)
-      return this.displayedColumnsColumnHeaderMap[
-        key as IFilterForm["filterFormFullTextFilterKey"]
-      ]!;
+      return this.displayedColumnsColumnHeaderMap[key as THighlightKey]!;
 
     throw new Error("Unknown column header");
   }
@@ -566,7 +565,10 @@ export abstract class AbstractBaseTable<
 
         if (desanitizedKey === this.filterFormHighlightSelectFilterKey) {
           console.assert(typeof searchTerms[searchTermKey] === "string");
-          return record._uiPropHighlightColor === searchTerms[searchTermKey];
+          return (
+            record[this.filterFormHighlightSelectFilterKey] ===
+            searchTerms[searchTermKey]
+          );
         }
 
         throw new Error("Unknown filter search term");
@@ -657,9 +659,9 @@ export abstract class AbstractBaseTable<
   }
 
   filterFormFullTextFilterKey = "fullTextFilterKey" as const;
-  filterFormHighlightSelectFilterKey = "_uiPropHighlightColor" as
-    | TDataColumn
-    | TFilterKeys;
+
+  abstract filterFormHighlightSelectFilterKey: THighlightKey;
+
   filterFormHighlightMap: Record<string, string> = {
     "#FF6B6B": "Red",
     "#4ECB71": "Green",
@@ -697,7 +699,8 @@ export abstract class AbstractBaseTable<
       if (targetIds.has(this.table.trackBy(0, row))) {
         return {
           ...row,
-          _uiPropHighlightColor: this.filterFormHighlightSelectedColor,
+          [this.filterFormHighlightSelectFilterKey]:
+            this.filterFormHighlightSelectedColor,
         };
       }
       return row;
@@ -712,7 +715,7 @@ export abstract class AbstractBaseTable<
   // ============================================
   // IDataSource Implementation
   // ============================================
-  @ViewChild(MatTable) table!: MatTable<TData>;
+  @ViewChild(MatTable, { static: true }) table!: MatTable<TData>;
   abstract dataSource: MatTableDataSource<TData>;
   abstract dataSourceTrackBy: TrackByFunction<TData>;
 
@@ -746,8 +749,15 @@ export abstract class AbstractBaseTable<
   // ISelection Implementation
   // ============================================
   abstract selection: SelectionModel<TSelection>;
-
+  abstract selectionKey: keyof TSelection;
   lastSelectedIndex: { pageRowIndex: number; pageIndex: number } | null = null;
+
+  toggleRow(row: any): void {
+    const toggleObject = {
+      [this.selectionKey]: row[this.selectionKey],
+    };
+    this.selection.toggle(toggleObject as TSelection);
+  }
 
   onCheckBoxClickMultiToggle(
     event: MouseEvent,
@@ -882,8 +892,8 @@ export interface IFilterForm<TData = any, TFilterKeys = any> {
   filterFormFullTextFilterKey: "fullTextFilterKey";
 }
 
-export interface IHighlightable<TData, TDataColumn, TFilterKeys> {
-  filterFormHighlightSelectFilterKey: TDataColumn | TFilterKeys;
+export interface IHighlightable<TData, THighlightKey> {
+  filterFormHighlightSelectFilterKey: THighlightKey;
   filterFormHighlightMap: Record<string, string>;
   filterFormHighlightMapTrackBy: TrackByFunction<[string, string]>;
   filterFormHighlightSelectedColor?: string | null;
@@ -937,7 +947,9 @@ export interface ISortable {
  */
 export interface ISelection<TData, TSelection> {
   selection: SelectionModel<TSelection>;
+  selectionKey: keyof TSelection;
   lastSelectedIndex: { pageRowIndex: number; pageIndex: number } | null;
+  toggleRow(row: any): void;
   onCheckBoxClickMultiToggle(
     event: MouseEvent,
     _: TData,
@@ -976,7 +988,3 @@ export interface IDataSource<TData> {
   dataSource: MatTableDataSource<TData>;
   dataSourceTrackBy: TrackByFunction<TData>;
 }
-
-export type TableRecordUiProps = {
-  _uiPropHighlightColor?: string | null;
-};

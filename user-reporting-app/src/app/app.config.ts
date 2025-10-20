@@ -6,15 +6,19 @@ import {
 import { provideRouter, withComponentInputBinding } from "@angular/router";
 
 import { provideHttpClient } from "@angular/common/http";
-import { routes } from "./app.routes";
 import { provideDateFnsAdapter } from "@angular/material-date-fns-adapter";
+import {
+  MAT_FORM_FIELD_DEFAULT_OPTIONS,
+  MatFormFieldDefaultOptions,
+} from "@angular/material/form-field";
 import { AppErrorHandlerService } from "./app-error-handler.service";
-import { MAT_FORM_FIELD_DEFAULT_OPTIONS, MatFormFieldDefaultOptions } from "@angular/material/form-field";
+import { routes } from "./app.routes";
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes, withComponentInputBinding()),
+    // provideRouter(routes, withComponentInputBinding(), withDebugTracing()),    // for debugging
     provideHttpClient(),
     provideDateFnsAdapter(),
     { provide: ErrorHandler, useClass: AppErrorHandlerService },

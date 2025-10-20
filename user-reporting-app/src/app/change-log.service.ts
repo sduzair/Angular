@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { SPECIAL_EMPTY_VALUE } from "./edit-form/clear-field.directive";
+import { SPECIAL_EMPTY_VALUE } from "./reporting-ui/edit-form/clear-field.directive";
 
 type DiscriminatorType = "_id" | "index";
 
@@ -206,108 +206,109 @@ export class ChangeLogService<T extends object> {
     ]);
     const compareArrays = this.getArrayComparator(discriminator);
 
-    [...allKeys.values()]
-      .filter((key) => !key.startsWith("_hidden"))
-      .forEach((key) => {
-        const currentPath = path ? `${path}.${key}` : key;
-        const val1 = obj1?.[key];
-        const val2 = obj2?.[key];
+    const isNotIgnoredKey = (key: string) =>
+      !key.startsWith("_hidden") && key !== "_mongoid";
 
-        if (isIgnoredChange(val1, val2)) {
-          return;
-        }
-        if (typeof val2 === "object" && val2 !== null && !Array.isArray(val2)) {
-          this.compareProperties(val1 ?? {}, val2, changes, {
+    [...allKeys.values()].filter(isNotIgnoredKey).forEach((key) => {
+      const currentPath = path ? `${path}.${key}` : key;
+      const val1 = obj1?.[key];
+      const val2 = obj2?.[key];
+
+      if (isIgnoredChange(val1, val2)) {
+        return;
+      }
+      if (typeof val2 === "object" && val2 !== null && !Array.isArray(val2)) {
+        this.compareProperties(val1 ?? {}, val2, changes, {
+          path: currentPath,
+          discriminator,
+        });
+        return;
+      }
+      if (!val1 && Array.isArray(val2) && val2.length !== 0) {
+        changes.push({
+          path: currentPath,
+          oldValue: undefined,
+          newValue: val2,
+        });
+        return;
+      }
+      if (discriminator === "index" && ["_mongoid", "_id"].includes(key)) {
+        return;
+      }
+      // clear props that are not marked for clear
+      if (
+        discriminator === "index" &&
+        typeof val2 !== "boolean" &&
+        !val2 &&
+        !this.isDependentProp(key)
+      ) {
+        return;
+      }
+      if (
+        discriminator === "index" &&
+        this.isDependentProp(key) &&
+        obj2[ChangeLogService.depPropToToggleMap[key]] == null
+      ) {
+        return;
+      }
+      if (
+        discriminator === "index" &&
+        this.isDependentProp(key) &&
+        obj2[ChangeLogService.depPropToToggleMap[key]] === true
+      ) {
+        // replace
+        if (!isIgnoredChange(val1, undefined)) {
+          changes.push({
             path: currentPath,
-            discriminator,
+            oldValue: val1,
+            newValue: undefined,
           });
-          return;
         }
-        if (!val1 && Array.isArray(val2) && val2.length !== 0) {
+
+        if (!isIgnoredChange(undefined, val2)) {
           changes.push({
             path: currentPath,
             oldValue: undefined,
             newValue: val2,
           });
+        }
+        return;
+      }
+      if (
+        discriminator === "index" &&
+        this.isDependentProp(key) &&
+        obj2[ChangeLogService.depPropToToggleMap[key]] === false
+      ) {
+        if (isIgnoredChange(val1, undefined)) {
           return;
         }
-        if (discriminator === "index" && ["_mongoid", "_id"].includes(key)) {
+        // clear
+        changes.push({
+          path: currentPath,
+          oldValue: val1,
+          newValue: undefined,
+        });
+        return;
+      }
+      if (discriminator === "index" && val2 === SPECIAL_EMPTY_VALUE) {
+        if (isIgnoredChange(val1, undefined)) {
           return;
         }
-        // clear props that are not marked for clear
-        if (
-          discriminator === "index" &&
-          typeof val2 !== "boolean" &&
-          !val2 &&
-          !this.isDepProp(key)
-        ) {
-          return;
-        }
-        if (
-          discriminator === "index" &&
-          this.isDepProp(key) &&
-          obj2[ChangeLogService.depPropToToggleMap[key]] == null
-        ) {
-          return;
-        }
-        if (
-          discriminator === "index" &&
-          this.isDepProp(key) &&
-          obj2[ChangeLogService.depPropToToggleMap[key]] === true
-        ) {
-          // replace
-          if (!isIgnoredChange(val1, undefined)) {
-            changes.push({
-              path: currentPath,
-              oldValue: val1,
-              newValue: undefined,
-            });
-          }
-
-          if (!isIgnoredChange(undefined, val2)) {
-            changes.push({
-              path: currentPath,
-              oldValue: undefined,
-              newValue: val2,
-            });
-          }
-          return;
-        }
-        if (
-          discriminator === "index" &&
-          this.isDepProp(key) &&
-          obj2[ChangeLogService.depPropToToggleMap[key]] === false
-        ) {
-          if (isIgnoredChange(val1, undefined)) {
-            return;
-          }
-          // clear
-          changes.push({
-            path: currentPath,
-            oldValue: val1,
-            newValue: undefined,
-          });
-          return;
-        }
-        if (discriminator === "index" && val2 === SPECIAL_EMPTY_VALUE) {
-          if (isIgnoredChange(val1, undefined)) {
-            return;
-          }
-          changes.push({
-            path: currentPath,
-            oldValue: val1,
-            newValue: undefined,
-          });
-          return;
-        }
-        if (Array.isArray(val2)) {
-          compareArrays(val1, val2, changes, currentPath);
-          return;
-        }
-        if (val1 !== val2) {
-          changes.push({ path: currentPath, oldValue: val1, newValue: val2 });
-        }
-      });
+        changes.push({
+          path: currentPath,
+          oldValue: val1,
+          newValue: undefined,
+        });
+        return;
+      }
+      if (Array.isArray(val2)) {
+        compareArrays(val1, val2, changes, currentPath);
+        return;
+      }
+      if (val1 !== val2) {
+        changes.push({ path: currentPath, oldValue: val1, newValue: val2 });
+      }
+    });
 
     function isIgnoredChange(val1: any, val2: any) {
       return (
@@ -333,13 +334,13 @@ export class ChangeLogService<T extends object> {
     timeOfPosting: "hasPostingDate" as const,
   };
 
-  isDepProp(
+  isDependentProp(
     key: string,
   ): key is keyof typeof ChangeLogService.depPropToToggleMap {
     return Object.keys(ChangeLogService.depPropToToggleMap).includes(key);
   }
 
-  isDepPropToggle(
+  isDependentPropToggle(
     key: string,
   ): key is (typeof ChangeLogService.depPropToToggleMap)[keyof typeof ChangeLogService.depPropToToggleMap] {
     return Object.values(ChangeLogService.depPropToToggleMap).includes(
@@ -347,7 +348,7 @@ export class ChangeLogService<T extends object> {
     );
   }
 
-  getInitValForDepPropToggle(
+  getInitValForDependentPropToggle(
     key:
       | (typeof ChangeLogService.depPropToToggleMap)[keyof typeof ChangeLogService.depPropToToggleMap]
       | string,
@@ -356,7 +357,7 @@ export class ChangeLogService<T extends object> {
     useRaw: boolean,
   ): any {
     // If no toggle mapped, just return current
-    if (!this.isDepPropToggle(key) || useRaw) {
+    if (!this.isDependentPropToggle(key) || useRaw) {
       return val as string | null | undefined;
     }
 

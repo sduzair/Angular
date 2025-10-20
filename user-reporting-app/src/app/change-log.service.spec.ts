@@ -1,10 +1,10 @@
 import {
+  ChangeLog,
   ChangeLogService,
   ChangeLogWithoutVersion,
   WithVersion,
 } from "./change-log.service";
-import { ChangeLog } from "./change-log.service";
-import { SPECIAL_EMPTY_VALUE } from "./edit-form/clear-field.directive";
+import { SPECIAL_EMPTY_VALUE } from "./reporting-ui/edit-form/clear-field.directive";
 import { StartingAction, StrTxn } from "./table/table.component";
 
 describe("ChangeLogService", () => {

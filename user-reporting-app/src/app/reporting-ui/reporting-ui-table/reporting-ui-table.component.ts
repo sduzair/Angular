@@ -1,0 +1,592 @@
+import { SelectionModel } from "@angular/cdk/collections";
+import { CommonModule } from "@angular/common";
+import {
+  ChangeDetectionStrategy,
+  Component,
+  Input,
+  TrackByFunction,
+  inject,
+} from "@angular/core";
+import { MatButtonModule } from "@angular/material/button";
+import { MatCheckbox } from "@angular/material/checkbox";
+import { MatIconModule } from "@angular/material/icon";
+import { MatTableModule } from "@angular/material/table";
+import { MatToolbarModule } from "@angular/material/toolbar";
+import {
+  ActivatedRoute,
+  ActivatedRouteSnapshot,
+  ResolveFn,
+  Router,
+  RouterStateSnapshot,
+} from "@angular/router";
+import { combineLatest, map, startWith } from "rxjs";
+import { BaseTableComponent } from "../../base-table/base-table.component";
+import { CrossTabEditService } from "../../cross-tab-edit.service";
+import { SessionDataService, StrTxnEdited } from "../../session-data.service";
+
+@Component({
+  selector: "app-reporting-ui-table",
+  imports: [
+    BaseTableComponent,
+    CommonModule,
+    MatTableModule,
+    MatCheckbox,
+    MatToolbarModule,
+    MatIconModule,
+    MatButtonModule,
+  ],
+  template: `
+    <app-base-table
+      #baseTable
+      [data]="this.strTransactionsEdited"
+      [dataColumnsValues]="dataColumnsValues"
+      [dataColumnsIgnoreValues]="dataColumnsIgnoreValues"
+      [displayedColumnsValues]="displayedColumnsValues"
+      [displayedColumnsColumnHeaderMap]="displayedColumnsColumnHeaderMap"
+      [stickyColumns]="stickyColumns"
+      [selectFiltersValues]="selectFiltersValues"
+      [dateFiltersValues]="dateFiltersValues"
+      [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
+      [displayedColumnsTime]="displayedColumnsTime"
+      [dataSourceTrackBy]="dataSourceTrackBy"
+      [selection]="selection"
+      [selectionKey]="'flowOfFundsAmlTransactionId'"
+      [hasMasterToggle]="true"
+      [filterFormHighlightSelectFilterKey]="'highlightColor'"
+    >
+      <!-- Selection Model -->
+      <ng-container matColumnDef="select">
+        <th
+          mat-header-cell
+          *matHeaderCellDef
+          class="px-2"
+          [class.sticky-cell]="baseTable.isStickyColumn('select')"
+        >
+          <div *ngIf="baseTable.hasMasterToggle">
+            <mat-checkbox
+              (change)="$event ? baseTable.toggleAllRows() : null"
+              [checked]="selection.hasValue() && baseTable.isAllSelected()"
+              [indeterminate]="
+                selection.hasValue() && !baseTable.isAllSelected()
+              "
+            >
+            </mat-checkbox>
+          </div>
+        </th>
+        <td
+          mat-cell
+          *matCellDef="let row; let i = index"
+          [class.sticky-cell]="baseTable.isStickyColumn('select')"
+        >
+          <div>
+            <mat-checkbox
+              (click)="baseTable.onCheckBoxClickMultiToggle($event, row, i)"
+              (change)="$event ? baseTable.toggleRow(row) : null"
+              [checked]="selection.isSelected(row)"
+            >
+            </mat-checkbox>
+          </div>
+        </td>
+      </ng-container>
+      <!-- Actions column -->
+      <ng-container matColumnDef="actions">
+        <th
+          mat-header-cell
+          *matHeaderCellDef
+          [class.sticky-cell]="baseTable.isStickyColumn('actions')"
+        >
+          <div>
+            <button
+              [disabled]="this.idBulkEditBtnDisabled$ | async"
+              mat-icon-button
+              (click)="navigateToBulkEdit()"
+            >
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button mat-icon-button class="invisible">
+              <mat-icon>history</mat-icon>
+            </button>
+          </div>
+        </th>
+        <td
+          mat-cell
+          *matCellDef="let row"
+          [ngStyle]="{
+            backgroundColor:
+              row[baseTable.filterFormHighlightSelectFilterKey] || ''
+          }"
+          [class.sticky-cell]="baseTable.isStickyColumn('actions')"
+        >
+          <div>
+            <button
+              [disabled]="this.isSingleOrBulkEditTabOpen$ | async"
+              mat-icon-button
+              (click)="navigateToEditForm(row)"
+            >
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button
+              [disabled]="this.isSingleOrBulkEditTabOpen$ | async"
+              mat-icon-button
+              (click)="navigateToAuditForm(row)"
+            >
+              <mat-icon>history</mat-icon>
+            </button>
+          </div>
+        </td>
+      </ng-container>
+    </app-base-table>
+  `,
+  styleUrl: "./reporting-ui-table.component.scss",
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class ReportingUiTableComponent {
+  /**
+   * Initialized by router component input binding
+   */
+  @Input()
+  strTransactionsEdited!: StrTxnEdited[];
+
+  dataSourceTrackBy: TrackByFunction<StrTxnEdited> = (_, txn) => {
+    return txn.flowOfFundsAmlTransactionId;
+  };
+
+  // override filterFormAssignSelectedColorToRow(
+  //   row: EditedTransaction,
+  //   event: MouseEvent,
+  // ): void {
+  //   if (typeof this.filterFormHighlightSelectedColor === "undefined") return;
+
+  //   let beforeRows: StrTxn[] = [];
+  //   if (event.ctrlKey) {
+  //     beforeRows = this.dataSource.filteredData;
+  //   } else {
+  //     beforeRows = [row];
+  //   }
+  //   // Apply selectedColor to rows
+  //   const payload: EditTabChangeLogsRes[] = beforeRows
+  //     .map((row) => {
+  //       // make optimistic highlight
+  //       const oldTxnHighlight: Pick<StrTxn, "highlightColor"> = {
+  //         highlightColor: row.highlightColor,
+  //       };
+  //       const newTxnHighlight: Pick<StrTxn, "highlightColor"> = {
+  //         highlightColor: this.filterFormHighlightSelectedColor,
+  //       };
+  //       row.highlightColor = this.filterFormHighlightSelectedColor;
+  //       const changes: ChangeLogWithoutVersion[] = [];
+  //       this.changeLogService.compareProperties(
+  //         oldTxnHighlight,
+  //         newTxnHighlight,
+  //         changes,
+  //       );
+  //       return changes.length > 0
+  //         ? { strTxnId: row.flowOfFundsAmlTransactionId, changeLogs: changes }
+  //         : null;
+  //     })
+  //     .filter(
+  //       (editTabChangeLog): editTabChangeLog is EditTabChangeLogsRes =>
+  //         !!editTabChangeLog,
+  //     );
+  //   this.sessionDataService.updateHighlights({
+  //     type: "BULK_EDIT_RESULT",
+  //     payload,
+  //   });
+  //   return;
+  // }
+
+  selection = new SelectionModel(true, [], true, this.selectionComparator);
+
+  selectionComparator(
+    o1: { flowOfFundsAmlTransactionId: string },
+    o2: { flowOfFundsAmlTransactionId: string },
+  ): boolean {
+    return o1.flowOfFundsAmlTransactionId === o2.flowOfFundsAmlTransactionId;
+  }
+
+  dataColumnsValues: StrTxnDataColumnKey[] = [
+    "highlightColor",
+    "_hiddenValidation",
+    "dateOfTxn",
+    "timeOfTxn",
+    "dateOfPosting",
+    "timeOfPosting",
+    "_hiddenTxnType",
+    "methodOfTxn",
+    "reportingEntityLocationNo",
+    "startingActions.0.directionOfSA",
+    "startingActions.0.typeOfFunds",
+    "startingActions.0.amount",
+    "startingActions.0.currency",
+    "startingActions.0.fiuNo",
+    "startingActions.0.branch",
+    "startingActions.0.account",
+    "startingActions.0.accountType",
+    "startingActions.0.conductors.0.email",
+    "completingActions.0.detailsOfDispo",
+    "completingActions.0.amount",
+    "completingActions.0.currency",
+    "completingActions.0.fiuNo",
+    "completingActions.0.branch",
+    "completingActions.0.account",
+    "completingActions.0.accountType",
+    "startingActions.0.accountOpen",
+    "startingActions.0.accountClose",
+    "startingActions.0.accountCurrency",
+    "completingActions.0.accountOpen",
+    "completingActions.0.accountClose",
+    "completingActions.0.accountCurrency",
+    "_hiddenAmlId",
+    "reportingEntityTxnRefNo",
+  ];
+
+  dataColumnsIgnoreValues = ["highlightColor"];
+
+  displayedColumnsValues = ["select" as const, "actions" as const];
+
+  displayedColumnsColumnHeaderMap: Partial<
+    Record<"fullTextFilterKey" | StrTxnDataColumnKey, string>
+  > = {
+    highlightColor: "Highlight",
+    wasTxnAttempted: "Was the transaction attempted?",
+    wasTxnAttemptedReason: "Reason transaction was not completed",
+    methodOfTxn: "Method of Txn",
+    purposeOfTxn: "Purpose of Txn",
+    reportingEntityLocationNo: "Reporting Entity",
+    dateOfTxn: "Date of Txn",
+    timeOfTxn: "Time of Txn",
+    dateOfPosting: "Date of Post",
+    timeOfPosting: "Time of Post",
+    "startingActions.0.directionOfSA": "Direction",
+    "startingActions.0.typeOfFunds": "Type of Funds",
+    "startingActions.0.amount": "Debit",
+    "startingActions.0.currency": "Debit Currency",
+    "startingActions.0.fiuNo": "Debit FIU",
+    "startingActions.0.branch": "Debit Branch",
+    "startingActions.0.account": "Debit Account",
+    "startingActions.0.accountType": "Debit Account Type",
+    "startingActions.0.howFundsObtained": "How were the funds obtained?",
+    "startingActions.0.wasSofInfoObtained":
+      "Was information about the source of funds or virtual currency obtained?",
+    "startingActions.0.wasCondInfoObtained":
+      "Have you obtained any related conductor info?",
+    "startingActions.0.conductors.0.wasConductedOnBehalf":
+      "Was this transaction conducted or attempted on behalf of another person or entity?",
+    "startingActions.0.conductors.0.email": "Conductor Email",
+    "completingActions.0.detailsOfDispo": "Details of Disposition",
+    "completingActions.0.amount": "Credit Amount",
+    "completingActions.0.currency": "Credit Currency",
+    "completingActions.0.fiuNo": "Credit FIU",
+    "completingActions.0.branch": "Credit Branch",
+    "completingActions.0.account": "Credit Account",
+    "completingActions.0.accountType": "Credit Account Type",
+    "startingActions.0.accountOpen": "Debit Account Open",
+    "startingActions.0.accountClose": "Debit Account Close",
+    "startingActions.0.accountCurrency": "Debit Account Currency",
+    "completingActions.0.accountOpen": "Credit Account Open",
+    "completingActions.0.accountClose": "Credit Account Close",
+    "completingActions.0.accountCurrency": "Credit Account Currency",
+    "completingActions.0.wasAnyOtherSubInvolved":
+      "Was there any other person or entity involved in the completing action?",
+    reportingEntityTxnRefNo: "Transaction Reference No",
+    _hiddenValidation: "",
+    _hiddenTxnType: "Type of Txn",
+    _hiddenAmlId: "AML Id",
+    fullTextFilterKey: "Full Text",
+  };
+
+  stickyColumns: (StrTxnDataColumnKey | "actions" | "select")[] = [
+    "actions",
+    "select",
+    "_mongoid",
+    "_hiddenValidation",
+  ];
+
+  selectFiltersValues: StrTxnDataColumnKey[] = [
+    "highlightColor",
+    "_hiddenValidation",
+    "methodOfTxn",
+    "reportingEntityLocationNo",
+    "startingActions.0.directionOfSA",
+    "startingActions.0.typeOfFunds",
+    "startingActions.0.fiuNo",
+    "startingActions.0.accountType",
+    "startingActions.0.currency",
+    "startingActions.0.branch",
+    "startingActions.0.account",
+    "startingActions.0.accountCurrency",
+    "startingActions.0.conductors.0.email",
+    "completingActions.0.detailsOfDispo",
+    "completingActions.0.fiuNo",
+    "completingActions.0.accountType",
+    "completingActions.0.currency",
+    "completingActions.0.branch",
+    "completingActions.0.account",
+    "completingActions.0.accountCurrency",
+    "_hiddenTxnType",
+    "_hiddenAmlId",
+  ];
+
+  dateFiltersValues: StrTxnDataColumnKey[] = ["dateOfTxn", "dateOfPosting"];
+
+  dateFiltersValuesIgnore: StrTxnDataColumnKey[] = [
+    "timeOfTxn",
+    "timeOfPosting",
+    "startingActions.0.accountOpen",
+    "startingActions.0.accountClose",
+    "completingActions.0.accountOpen",
+    "completingActions.0.accountClose",
+  ];
+
+  displayedColumnsTime: StrTxnDataColumnKey[] = ["timeOfTxn", "timeOfPosting"];
+
+  private crossTabEditService = inject(CrossTabEditService);
+  isSingleOrBulkEditTabOpen$ =
+    this.crossTabEditService.isSingleOrBulkEditTabOpen$;
+
+  // todo concern of cross tab service
+  recentlyOpenRows: string[] = [];
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  navigateToEditForm(record: StrTxnEdited) {
+    this.recentlyOpenRows = [record.flowOfFundsAmlTransactionId];
+    this.router.navigate(
+      [`../edit-form/${record.flowOfFundsAmlTransactionId}`],
+      {
+        relativeTo: this.route,
+      },
+    );
+    // this.crossTabEditService.openEditFormTab({
+    //   editType: "EDIT_REQUEST",
+    //   strTxn: record,
+    // });
+  }
+
+  idBulkEditBtnDisabled$ = combineLatest([
+    this.selection.changed.asObservable(),
+    this.isSingleOrBulkEditTabOpen$,
+  ]).pipe(
+    map(([_, tabOpen]) => {
+      return this.selection.selected.length === 0 || tabOpen;
+    }),
+    startWith(true),
+  );
+
+  navigateToBulkEdit() {
+    this.recentlyOpenRows = this.selection.selected.map(
+      (strTxn) => strTxn.flowOfFundsAmlTransactionId,
+    );
+    // this.crossTabEditService.openEditFormTab({
+    //   editType: "BULK_EDIT_REQUEST",
+    //   strTxns: this.strTransactionsEdited.filter((strTxn) =>
+    //     this.selection.isSelected(strTxn),
+    //   ),
+    // });
+  }
+
+  navigateToAuditForm(record: StrTxnEdited) {
+    this.recentlyOpenRows = [record.flowOfFundsAmlTransactionId];
+    // this.crossTabEditService.openEditFormTab({
+    //   editType: "AUDIT_REQUEST",
+    //   strTxn: record,
+    // });
+  }
+
+  sessionDataService = inject(SessionDataService);
+}
+
+type _hiddenValidationType =
+  | "Edited Txn"
+  | "Conductor Missing"
+  | "Bank Info Missing";
+
+// Hidden props prefixed with '_hidden' are ignored by the change logging service.
+export type StrTxnWithHiddenProps = StrTxn & {
+  _hiddenValidation?: _hiddenValidationType[];
+  _hiddenTxnType: string;
+  _hiddenAmlId: string;
+  _hiddenStrTxnId: string;
+};
+
+export type StrTxn = {
+  wasTxnAttempted: boolean | null;
+  wasTxnAttemptedReason: string | null;
+  dateOfTxn: string | null;
+  timeOfTxn: string | null;
+  hasPostingDate: boolean | null;
+  dateOfPosting: string | null;
+  timeOfPosting: string | null;
+  methodOfTxn: string | null;
+  methodOfTxnOther: string | null;
+  reportingEntityTxnRefNo: string | null;
+  purposeOfTxn: string | null;
+  reportingEntityLocationNo: string | null;
+  _hiddenFullName: string | null;
+  startingActions: StartingAction[];
+  _hiddenSaAmount: number;
+  completingActions: CompletingAction[];
+  highlightColor?: string | null;
+} & StrTxnFlowOfFunds;
+
+export type StrTxnFlowOfFunds = {
+  flowOfFundsAccountCurrency: string | null;
+  flowOfFundsAmlId: number;
+  flowOfFundsAmlTransactionId: string;
+  flowOfFundsCasePartyKey: number;
+  flowOfFundsConductorPartyKey: number;
+  flowOfFundsCreditAmount: number | null;
+  flowOfFundsCreditedAccount: string | null;
+  flowOfFundsCreditedTransit: string | null;
+  flowOfFundsDebitAmount: number | null;
+  flowOfFundsDebitedAccount: string | null;
+  flowOfFundsDebitedTransit: string | null;
+  flowOfFundsPostingDate: string;
+  flowOfFundsSource: string;
+  flowOfFundsSourceTransactionId: string;
+  flowOfFundsTransactionCurrency: string;
+  flowOfFundsTransactionCurrencyAmount: number;
+  flowOfFundsTransactionDate: string;
+  flowOfFundsTransactionDesc: string;
+  flowOfFundsTransactionTime: string;
+};
+
+export interface StartingAction {
+  _id?: string;
+  directionOfSA: string | null;
+  typeOfFunds: string | null;
+  typeOfFundsOther: string | null;
+  amount: number | null;
+  currency: string | null;
+  fiuNo: string | null;
+  branch: string | null;
+  account: string | null;
+  accountType: string | null;
+  accountTypeOther: string | null;
+  accountOpen: string | null;
+  accountClose: string | null;
+  accountStatus: string | null;
+  howFundsObtained: string | null;
+  accountCurrency: string | null;
+  hasAccountHolders: boolean | null;
+  accountHolders?: AccountHolder[];
+  wasSofInfoObtained: boolean | null;
+  sourceOfFunds?: SourceOfFunds[];
+  wasCondInfoObtained: boolean | null;
+  conductors?: Conductor[];
+}
+export interface AccountHolder {
+  _id?: string;
+  partyKey: string | null;
+  surname: string | null;
+  givenName: string | null;
+  otherOrInitial: string | null;
+  nameOfEntity: string | null;
+}
+
+export type Conductor = {
+  _id?: string;
+  partyKey: string | null;
+  surname: string | null;
+  givenName: string | null;
+  otherOrInitial: string | null;
+  nameOfEntity: string | null;
+  wasConductedOnBehalf: boolean | null;
+  onBehalfOf?: OnBehalfOf[] | null;
+} & ConductorNpdData;
+
+export type ConductorNpdData = {
+  npdTypeOfDevice: string | null;
+  npdTypeOfDeviceOther: string | null;
+  npdDeviceIdNo: string | null;
+  npdUsername: string | null;
+  npdIp: string | null;
+  npdDateTimeSession: string | null;
+  npdTimeZone: string | null;
+};
+
+export interface SourceOfFunds {
+  _id?: string;
+  partyKey: string | null;
+  surname: string | null;
+  givenName: string | null;
+  otherOrInitial: string | null;
+  nameOfEntity: string | null;
+  accountNumber: string | null;
+  identifyingNumber: string | null;
+}
+
+export interface OnBehalfOf {
+  _id?: string;
+  partyKey: string;
+  surname: string;
+  givenName: string;
+  otherOrInitial: string;
+  nameOfEntity: string;
+}
+
+export interface CompletingAction {
+  _id?: string;
+  detailsOfDispo: string | null;
+  detailsOfDispoOther: string | null;
+  amount: number | null;
+  currency: string | null;
+  exchangeRate: number | null;
+  valueInCad: number | null;
+  fiuNo: string | null;
+  branch: string | null;
+  account: string | null;
+  accountType: string | null;
+  accountTypeOther: string | null;
+  accountCurrency: string | null;
+  accountOpen: string | null;
+  accountClose: string | null;
+  accountStatus: string | null;
+  hasAccountHolders: boolean | null;
+  accountHolders?: AccountHolder[];
+  wasAnyOtherSubInvolved: boolean | null;
+  involvedIn?: InvolvedIn[];
+  wasBenInfoObtained: boolean | null;
+  beneficiaries?: Beneficiary[];
+}
+
+export interface InvolvedIn {
+  _id?: string;
+  partyKey: string | null;
+  surname: string | null;
+  givenName: string | null;
+  otherOrInitial: string | null;
+  nameOfEntity: string | null;
+  accountNumber: string | null;
+  identifyingNumber: string | null;
+}
+
+export interface Beneficiary {
+  _id?: string;
+  partyKey: string | null;
+  surname: string | null;
+  givenName: string | null;
+  otherOrInitial: string | null;
+  nameOfEntity: string | null;
+}
+
+export type StrTxnDataColumnKey =
+  | keyof StrTxnWithHiddenProps
+  | keyof AddPrefixToObject<StartingAction, "startingActions.0.">
+  | keyof AddPrefixToObject<StartingAction, "startingActions.0.">
+  | keyof AddPrefixToObject<
+      NonNullable<StartingAction["conductors"]>[number],
+      "startingActions.0.conductors.0."
+    >
+  | (string & {});
+
+export type AddPrefixToObject<T, P extends string> = {
+  [K in keyof T as K extends string ? `${P}${K}` : never]: T[K];
+};
+
+export const strTransactionsEditedResolver: ResolveFn<StrTxnEdited[]> = (
+  route: ActivatedRouteSnapshot,
+  _: RouterStateSnapshot,
+) => {
+  const sessionDataService = inject(SessionDataService);
+  return sessionDataService.sessionStateValue.strTransactionsEdited;
+};

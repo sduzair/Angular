@@ -1,0 +1,18 @@
+@use "@angular/material" as mat;
+
+mat-toolbar-row.header-toolbar-row {
+  gap: 0.5em;
+  justify-content: space-between;
+  @include mat.button-density(5);
+  @include mat.chips-density(5);
+}
+
+.last-updated-chip .last-updated-chip-spinner {
+  min-width: 24px;
+}
+
+::ng-deep .last-updated-chip .mdc-evolution-chip__text-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+}

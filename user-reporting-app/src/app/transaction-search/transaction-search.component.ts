@@ -1,3 +1,4 @@
+import { CommonModule } from "@angular/common";
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -7,36 +8,6 @@ import {
   OnInit,
   ViewChild,
 } from "@angular/core";
-import { removePageFromOpenTabs } from "../single-tab.guard";
-import { ActivatedRoute, Router } from "@angular/router";
-import {
-  BehaviorSubject,
-  combineLatest,
-  debounceTime,
-  distinctUntilChanged,
-  filter,
-  finalize,
-  fromEvent,
-  map,
-  skip,
-  startWith,
-  Subject,
-  switchMap,
-  take,
-  takeUntil,
-  tap,
-} from "rxjs";
-import { CommonModule } from "@angular/common";
-import {
-  MAT_FORM_FIELD_DEFAULT_OPTIONS,
-  MatFormFieldDefaultOptions,
-  MatFormFieldModule,
-} from "@angular/material/form-field";
-import { MatSelectModule } from "@angular/material/select";
-import {
-  MatDatepicker,
-  MatDatepickerModule,
-} from "@angular/material/datepicker";
 import {
   AbstractControl,
   FormArray,
@@ -48,29 +19,30 @@ import {
   ValidationErrors,
   Validators,
 } from "@angular/forms";
-import { MatTableDataSource, MatTableModule } from "@angular/material/table";
-import { MatInputModule } from "@angular/material/input";
 import { MatButtonModule } from "@angular/material/button";
-import { AmlPartyService } from "./aml-party.service";
-import { AmlProductService } from "./aml-product.service";
-import {
-  AccountNumber,
-  AmlTransactionSearchService,
-  PartyKey,
-  SourceSys,
-  SourceSysRefreshTime,
-} from "./aml-transaction-search.service";
-import { ReviewPeriodDateDirective } from "./review-period-date.directive";
-import { AmlSessionService } from "../aml-session.service";
-import { isEqual } from "lodash-es";
-import { MatListModule } from "@angular/material/list";
 import { MatCardModule } from "@angular/material/card";
+import {
+  ErrorStateMatcher,
+  MAT_DATE_FORMATS,
+  MatDateFormats,
+} from "@angular/material/core";
+import {
+  MatDatepicker,
+  MatDatepickerModule,
+} from "@angular/material/datepicker";
+import {
+  MAT_FORM_FIELD_DEFAULT_OPTIONS,
+  MatFormFieldDefaultOptions,
+  MatFormFieldModule,
+} from "@angular/material/form-field";
 import { MatIcon } from "@angular/material/icon";
+import { MatInputModule } from "@angular/material/input";
+import { MatListModule } from "@angular/material/list";
+import { MatSelectModule } from "@angular/material/select";
+import { MatSnackBar } from "@angular/material/snack-bar";
+import { MatTableDataSource, MatTableModule } from "@angular/material/table";
 import { MatToolbar } from "@angular/material/toolbar";
-import { SourceRefreshSelectableTableComponent } from "./source-refresh-selectable-table/source-refresh-selectable-table.component";
-import { ProductTypeSelectableTableComponent } from "./product-type-selectable-table/product-type-selectable-table.component";
-import { AccountNumberSelectableTableComponent } from "./account-number-selectable-table/account-number-selectable-table.component";
-import { PartyKeySelectableTableComponent } from "./party-key-selectable-table/party-key-selectable-table.component";
+import { ActivatedRoute, Router } from "@angular/router";
 import {
   getMonth,
   getYear,
@@ -80,14 +52,42 @@ import {
   setMonth,
   setYear,
 } from "date-fns";
+import { isEqual } from "lodash-es";
 import {
-  ErrorStateMatcher,
-  MAT_DATE_FORMATS,
-  MatDateFormats,
-} from "@angular/material/core";
-import { MatSnackBar } from "@angular/material/snack-bar";
+  BehaviorSubject,
+  Subject,
+  combineLatest,
+  debounceTime,
+  distinctUntilChanged,
+  filter,
+  finalize,
+  fromEvent,
+  map,
+  skip,
+  startWith,
+  switchMap,
+  take,
+  takeUntil,
+  tap,
+} from "rxjs";
+import { AmlSessionService } from "../aml-session.service";
+import { removePageFromOpenTabs } from "../single-tab.guard";
+import { AccountNumberSelectableTableComponent } from "./account-number-selectable-table/account-number-selectable-table.component";
+import { AmlPartyService } from "./aml-party.service";
+import { AmlProductService } from "./aml-product.service";
+import {
+  AccountNumber,
+  AmlTransactionSearchService,
+  PartyKey,
+  SourceSys,
+  SourceSysRefreshTime,
+} from "./aml-transaction-search.service";
+import { PartyKeySelectableTableComponent } from "./party-key-selectable-table/party-key-selectable-table.component";
+import { ProductTypeSelectableTableComponent } from "./product-type-selectable-table/product-type-selectable-table.component";
+import { ReviewPeriodDateDirective } from "./review-period-date.directive";
+import { SourceRefreshSelectableTableComponent } from "./source-refresh-selectable-table/source-refresh-selectable-table.component";
 
-class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
+export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
   isErrorState(
     control: FormControl | null,
     _: FormGroupDirective | NgForm | null,

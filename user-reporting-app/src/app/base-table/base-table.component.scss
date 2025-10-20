@@ -35,33 +35,6 @@ mat-drawer-content table {
   max-width: 400px;
 }
 
-.sticky-cell.mat-column-select {
-  position: sticky;
-  z-index: 1;
-  left: 0px;
-  min-width: 40px; // Bigger than natural width
-  padding: 0;
-  text-align: center;
-
-  &::after {
-    content: "";
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    width: var(--mat-table-row-item-outline-width, 1px);
-    background: var(
-      --mat-table-row-item-outline-color,
-      var(--mat-sys-outline, rgba(0, 0, 0, 0.12))
-    );
-  }
-}
-
-.sticky-cell > div {
-  margin: 0px 8px;
-  text-align: center;
-}
-
 .mat-mdc-header-row {
   z-index: 1;
 }

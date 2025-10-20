@@ -1,9 +1,13 @@
+import { SelectionModel } from "@angular/cdk/collections";
 import { CommonModule, DatePipe } from "@angular/common";
 import {
+  AfterContentInit,
   ChangeDetectionStrategy,
   Component,
+  ContentChildren,
   Input,
   OnInit,
+  QueryList,
   TrackByFunction,
 } from "@angular/core";
 import { FormGroup, ReactiveFormsModule } from "@angular/forms";
@@ -26,7 +30,11 @@ import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
 import { MatSelectModule } from "@angular/material/select";
 import { MatSidenavModule } from "@angular/material/sidenav";
 import { MatSortModule } from "@angular/material/sort";
-import { MatTableDataSource, MatTableModule } from "@angular/material/table";
+import {
+  MatColumnDef,
+  MatTableDataSource,
+  MatTableModule,
+} from "@angular/material/table";
 import { MatToolbarModule } from "@angular/material/toolbar";
 import { ClickOutsideTableDirective } from "../table/click-outside-table.directive";
 import { PadZeroPipe } from "../table/pad-zero.pipe";
@@ -36,9 +44,7 @@ import {
   AbstractBaseTable,
   IFilterForm,
   ISelectionMasterToggle,
-  TableRecordUiProps,
 } from "./abstract-base-table";
-import { SelectionModel } from "@angular/cdk/collections";
 
 @Component({
   selector: "app-base-table",
@@ -398,41 +404,9 @@ import { SelectionModel } from "@angular/cdk/collections";
             [trackBy]="dataSourceTrackBy"
             matSort
           >
-            <!-- Selection Model -->
-            <ng-container matColumnDef="select">
-              <th
-                mat-header-cell
-                *matHeaderCellDef
-                class="px-2"
-                [class.sticky-cell]="isStickyColumn('select')"
-              >
-                <div *ngIf="hasMasterToggle">
-                  <mat-checkbox
-                    (change)="$event ? toggleAllRows() : null"
-                    [checked]="selection.hasValue() && isAllSelected()"
-                    [indeterminate]="selection.hasValue() && !isAllSelected()"
-                  >
-                  </mat-checkbox>
-                </div>
-              </th>
-              <td
-                mat-cell
-                *matCellDef="let row; let i = index"
-                [class.sticky-cell]="isStickyColumn('select')"
-                [ngStyle]="{
-                  backgroundColor: row._uiPropHighlightColor || ''
-                }"
-              >
-                <div>
-                  <mat-checkbox
-                    (click)="onCheckBoxClickMultiToggle($event, row, i)"
-                    (change)="$event ? selection.toggle(row) : null"
-                    [checked]="selection.isSelected(row)"
-                  >
-                  </mat-checkbox>
-                </div>
-              </td>
-            </ng-container>
+            <!-- Projected Column Definitions  -->
+            <ng-content />
+
             <!-- Column Definitions  -->
             <ng-container
               *ngFor="let column of dataColumnsDisplayValues"
@@ -478,7 +452,7 @@ import { SelectionModel } from "@angular/cdk/collections";
 
             <tr
               mat-header-row
-              *matHeaderRowDef="this.displayedColumnsValues"
+              *matHeaderRowDef="this.displayedColumnsValues; sticky: true"
             ></tr>
             <tr
               mat-row
@@ -508,10 +482,11 @@ import { SelectionModel } from "@angular/cdk/collections";
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BaseTableComponent<
-    TData extends TableRecordUiProps,
+    TData extends object,
     TDataColumn extends (keyof TData & string) | (string & {}),
-    TDisplayColumn extends TDataColumn | "select",
-    TFilterKeys extends string,
+    TDisplayColumn extends TDataColumn,
+    TFilterKeys extends keyof TData & string,
+    THighlightKey extends (keyof TData & string) | TFilterKeys,
     TSelection = { [K in keyof TData]: string },
   >
   extends AbstractBaseTable<
@@ -519,9 +494,10 @@ export class BaseTableComponent<
     TDataColumn,
     TDisplayColumn,
     TFilterKeys,
+    THighlightKey,
     TSelection
   >
-  implements OnInit, ISelectionMasterToggle<TData>
+  implements OnInit, ISelectionMasterToggle<TData>, AfterContentInit
 {
   @Input({ required: true })
   override dataColumnsValues!: TDataColumn[];
@@ -530,8 +506,9 @@ export class BaseTableComponent<
   override dataColumnsIgnoreValues!: TDataColumn[];
 
   /**
-   * Apart from data columns includes display columns for select, validation info
+   * Accepts columns that are not data columns. Includes display columns for select, validation info, actions.
    */
+  @Input({ required: true })
   override displayedColumnsValues!: TDisplayColumn[];
 
   @Input({ required: true })
@@ -569,23 +546,38 @@ export class BaseTableComponent<
   @Input({ required: true })
   override selection!: SelectionModel<TSelection>;
 
-  @Input()
+  @Input({ required: true })
+  override selectionKey!: keyof TSelection;
+
+  @Input({ required: true })
   hasMasterToggle = false;
 
-  @Input()
   isAllSelected(): boolean {
-    throw new Error("Method not implemented.");
-    //   const numSelected = this.selection.selected.length;
-    //   const numRows = this.dataSource.data.length;
-    //   return numSelected === numRows;
+    if (!this.hasMasterToggle)
+      throw new Error("Master selection toggle is disabled");
+
+    const numSelected = this.selection.selected.length;
+    const numRows = this.dataSource.filteredData.length;
+    return numSelected === numRows;
   }
 
-  @Input()
   toggleAllRows(): void {
-    throw new Error("Method not implemented.");
-    // this.isAllSelected()
-    //   ? this.selection.clear()
-    //   : this.dataSource.data.forEach((row) => this.selection.select(row));
+    if (!this.hasMasterToggle)
+      throw new Error("Master selection toggle is disabled");
+
+    this.isAllSelected()
+      ? this.selection.clear()
+      : this.dataSource.filteredData.forEach((row) =>
+          this.selection.select(row as unknown as TSelection),
+        );
+  }
+
+  @Input({ required: true })
+  override filterFormHighlightSelectFilterKey!: THighlightKey;
+
+  @ContentChildren(MatColumnDef) columnDefs!: QueryList<MatColumnDef>;
+  ngAfterContentInit(): void {
+    this.columnDefs.forEach((colDef) => this.table.addColumnDef(colDef));
   }
 
   ngOnInit(): void {
@@ -593,10 +585,9 @@ export class BaseTableComponent<
     this.dataColumnsDisplayValues = this.dataColumnsValues.filter(
       (val) => !this.dataColumnsIgnoreValues.includes(val),
     );
-    this.displayedColumnsValues = [
-      "select" as TDisplayColumn,
+    this.displayedColumnsValues.push(
       ...(this.dataColumnsDisplayValues as TDisplayColumn[]),
-    ];
+    );
     this.filterFormFilterKeys = this.filterFormFilterKeysCreate();
     this.filterFormFormGroup = this.filterFormGroupCreate();
     this.updatePageSizeOptions(this.dataSource.data.length);

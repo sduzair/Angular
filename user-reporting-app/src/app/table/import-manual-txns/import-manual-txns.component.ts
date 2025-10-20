@@ -1,12 +1,10 @@
 import { ChangeDetectionStrategy, Component } from "@angular/core";
-import { v4 as uuidv4 } from "uuid";
-import { utils, WorkSheet, read } from "@e965/xlsx/dist/xlsx.mini.min.js";
-import { StrTxn } from "../table.component";
-import { MatInputModule } from "@angular/material/input";
-import { MatIconModule } from "@angular/material/icon";
 import { MatButtonModule } from "@angular/material/button";
-import { from, map } from "rxjs";
+import { MatIconModule } from "@angular/material/icon";
+import { MatInputModule } from "@angular/material/input";
+import { v4 as uuidv4 } from "uuid";
 import { EditFormTemplateComponent } from "../../edit-form/edit-form-template/edit-form-template.component";
+import { StrTxnWithHiddenProps } from "../../reporting-ui/reporting-ui.component";
 
 @Component({
   selector: "app-import-manual-txns",
@@ -32,21 +30,18 @@ import { EditFormTemplateComponent } from "../../edit-form/edit-form-template/ed
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ImportManualTxnsComponent {
-  data: StrTxn[] = [];
+  // data: StrTxn[] = [];
   headers: string[] = [];
   onFileImport($event: Event) {
     // const target: DataTransfer = $event.target as any as DataTransfer;
     // if (target.files.length !== 1)
     //   throw new Error("Cannot upload multiple files");
-
     // from(target.files[0].arrayBuffer())
     //   .pipe(
     //     map((arrayBuffer) => {
     //       const wb = read(arrayBuffer);
-
     //       // Read the first sheet
     //       const ws: WorkSheet = wb.Sheets[wb.SheetNames[0]];
-
     //       // Convert to JSON
     //       const strTxns = utils
     //         .sheet_to_json<Record<ColumnHeaderLabels, string>>(ws, {
@@ -73,7 +68,7 @@ type AddPrefixAndCapitalizeToObject<T, P extends string> = {
 function convertSheetJsonToStrTxn(
   // value: Record<ColumnHeaderLabels, string>,
   value: Record<string, string>,
-): DeepPartial<StrTxn> {
+): DeepPartial<StrTxnWithHiddenProps> {
   const isKnownDirectionOfSAOption = (dir: string) =>
     Object.values(EditFormTemplateComponent.directionOfSAOptions)
       .filter((val) => val.length > 0)

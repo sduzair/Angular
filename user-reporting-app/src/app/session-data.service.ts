@@ -3,32 +3,28 @@ import { ErrorHandler, Injectable } from "@angular/core";
 import {
   BehaviorSubject,
   EMPTY,
-  map,
   Observable,
   Subject,
+  map,
   throwError,
 } from "rxjs";
-import { ChangeLog, ChangeLogWithoutVersion } from "./change-log.service";
+import { catchError, finalize, switchMap } from "rxjs/operators";
 import {
-  CrossTabEditService,
-  EditTabReqResType,
-} from "./cross-tab-edit.service";
-import {
-  catchError,
-  concatMap,
-  debounceTime,
-  filter,
-  finalize,
-  switchMap,
-  take,
-  tap,
-  withLatestFrom,
-} from "rxjs/operators";
-import { SourceSys } from "./transaction-search/aml-transaction-search.service";
+  ChangeLog,
+  ChangeLogWithoutVersion,
+  WithVersion,
+} from "./change-log.service";
+import { CrossTabEditService } from "./cross-tab-edit.service";
+import { EditFormEditType } from "./reporting-ui/edit-form/edit-form.component";
+import { StrTxnWithHiddenProps } from "./reporting-ui/reporting-ui-table/reporting-ui-table.component";
+import { editedTransactionsDevOnly } from "./transaction-view/transactionSearchResDevOnly";
 
-@Injectable()
+@Injectable({ providedIn: "root" })
 export class SessionDataService {
   private sessionState = new BehaviorSubject<SessionStateLocal>(null!);
+  get sessionStateValue() {
+    return this.sessionState.value;
+  }
   sessionState$ = this.sessionState.asObservable();
   public conflict$ = new Subject<void>();
   latestSessionVersion$ = this.sessionState$.pipe(
@@ -50,7 +46,28 @@ export class SessionDataService {
     private crossTabEditService: CrossTabEditService,
     private errorHandler: ErrorHandler,
   ) {
-    this.crossTabEditService.editResponse$
+    this.sessionState.next({
+      amlId: "999999",
+      version: 0,
+      transactionSearchParams: {
+        accountNumbersSelection: [],
+        partyKeysSelection: [],
+        productTypesSelection: [],
+        reviewPeriodSelection: [],
+        sourceSystemsSelection: [],
+      },
+      strTransactionsEdited: editedTransactionsDevOnly.map((txn) => ({
+        ...txn,
+        _hiddenTxnType: txn.flowOfFundsSource,
+        _hiddenAmlId: "999999",
+        _hiddenStrTxnId: txn.flowOfFundsAmlTransactionId,
+        _version: 0,
+        changeLogs: [],
+      })),
+      lastUpdated: "1996-06-13",
+    });
+
+    /*     this.crossTabEditService.editResponse$
       .pipe(
         withLatestFrom(this.sessionState$),
         switchMap(([recentEdit, sessionStateCurrent]) => {
@@ -61,7 +78,7 @@ export class SessionDataService {
             throw new Error("Expected edit result");
 
           return this.update(
-            sessionStateCurrent.sessionId,
+            sessionStateCurrent.amlId,
             sessionStateCurrent,
             recentEdit!,
           ).pipe(
@@ -74,10 +91,10 @@ export class SessionDataService {
           );
         }),
       )
-      .subscribe();
+      .subscribe(); */
 
     // Handle highlight updates: debounce + flush + reset
-    this.highlightEdits$
+    /*     this.highlightEdits$
       .pipe(
         tap((nextBatch) => {
           // Manually accumulate into the external Map
@@ -110,7 +127,7 @@ export class SessionDataService {
           this.sessionState$.pipe(
             take(1),
             switchMap((sessionState) =>
-              this.update(sessionState.sessionId, sessionState, {
+              this.update(sessionState.amlId, sessionState, {
                 type: "BULK_EDIT_RESULT",
                 payload: batchedEdits,
               }).pipe(
@@ -125,74 +142,114 @@ export class SessionDataService {
           ),
         ),
       )
-      .subscribe();
+      .subscribe(); */
   }
 
-  fetchSession(sessionId: string) {
-    return this.http.get<GetSessionResponse>(`/api/sessions/${sessionId}`).pipe(
-      map(({ version, data, updatedAt }) => {
-        // todo use error handling to display version conflict message
-        this.sessionState.next({
-          sessionId,
+  fetchSessionByAmlId(amlId: string): Observable<GetSessionResponse> {
+    return this.http.get<GetSessionResponse>(`/api/sessions/${amlId}`).pipe(
+      map(
+        ({
+          amlId,
           version,
-          data,
-          lastUpdated: updatedAt,
-        });
-        return {
-          sessionId,
-          version: version,
-          data: data,
-        };
-      }),
+          data: { strTransactionsEdited = [], transactionSearchParams },
+          createdAt,
+          updatedAt,
+          userId,
+        }) => {
+          // todo use error handling to display version conflict message
+          this.sessionState.next({
+            amlId: amlId,
+            version,
+            transactionSearchParams,
+            strTransactionsEdited,
+            lastUpdated: updatedAt,
+          });
+          return {
+            amlId,
+            version,
+            data: {
+              strTransactionsEdited,
+              transactionSearchParams,
+            },
+            createdAt,
+            updatedAt,
+            userId,
+          };
+        },
+      ),
     );
   }
 
-  initialize(fingerprint: string): Observable<SessionStateLocal> {
-    const newSession: SessionStateLocal = {
-      sessionId: null!,
-      version: 0,
-      data: { strTxnChangeLogs: [] },
-    };
-    const payload: CreateSessionRequest = {
-      userId: fingerprint,
-      data: newSession.data,
-    };
-    return this.http.post<CreateSessionResponse>("/api/sessions", payload).pipe(
-      map((res) => {
-        console.assert(res.version === newSession.version);
-        newSession.sessionId = res.sessionId;
-        this.sessionState.next(newSession);
-        return newSession;
-      }),
-    );
+  initialize(amlId: string): Observable<SessionStateLocal> {
+    return this.http
+      .post<CreateSessionResponse>("/api/sessions", {
+        amlId: amlId,
+        data: {
+          transactionSearchParams: {
+            accountNumbersSelection: [],
+            partyKeysSelection: [],
+            productTypesSelection: [],
+            reviewPeriodSelection: [],
+            sourceSystemsSelection: [],
+          },
+          strTransactionsEdited: [],
+        },
+      })
+      .pipe(
+        map((res) => {
+          console.assert(res.version === 0);
+
+          this.sessionState.next({
+            version: 0,
+            amlId,
+            transactionSearchParams: {
+              accountNumbersSelection: [],
+              partyKeysSelection: [],
+              productTypesSelection: [],
+              reviewPeriodSelection: [],
+              sourceSystemsSelection: [],
+            },
+            strTransactionsEdited: [],
+          });
+          return {
+            version: 0,
+            amlId,
+            transactionSearchParams: {
+              accountNumbersSelection: [],
+              partyKeysSelection: [],
+              productTypesSelection: [],
+              reviewPeriodSelection: [],
+              sourceSystemsSelection: [],
+            },
+            strTransactionsEdited: [],
+          };
+        }),
+      );
   }
 
   public updateHighlights(
     highlightEdit: Extract<
-      EditTabReqResType,
+      EditFormEditType,
       {
         type: "BULK_EDIT_RESULT";
       }
     >,
   ) {
-    this.highlightEdits$.next(highlightEdit.payload);
+    // this.highlightEdits$.next(highlightEdit.payload);
   }
 
   private update(
-    sessionId: string,
+    amlId: string,
     sessionStateCurrent: SessionStateLocal,
-    recentEdit: RecentEditType,
+    changeLogs: EditTabChangeLogsRes[],
   ) {
     const {
-      data: { strTxnChangeLogs = [] },
+      strTransactionsEdited = [],
+      transactionSearchParams,
       version: currentVersion,
     } = structuredClone(sessionStateCurrent);
 
-    let editTabRes: EditTabChangeLogsRes[] = null!;
-    if (recentEdit.type === "EDIT_RESULT") editTabRes = [recentEdit.payload];
-    if (recentEdit.type === "BULK_EDIT_RESULT") editTabRes = recentEdit.payload;
-
-    const editTabPartialChangeLogsResponse: StrTxnChangeLog[] = editTabRes
+    const editTabPartialChangeLogsResponse: StrTxnChangeLogs[] = changeLogs
       .filter((txnChangeLog) => txnChangeLog.changeLogs.length > 0)
       .map(({ strTxnId, changeLogs }) => {
         const changeLogsVersioned = changeLogs.map((changeLog) => ({
@@ -200,18 +257,13 @@ export class SessionDataService {
           version: currentVersion + 1,
         }));
 
-        const txn = strTxnChangeLogs?.find(
-          (strTxn) => strTxn.strTxnId === strTxnId,
-        );
+        const txn = strTransactionsEdited?.find(
+          (strTxn) => strTxn._hiddenStrTxnId === strTxnId,
+        )!;
 
-        if (!txn) {
-          strTxnChangeLogs.push({
-            strTxnId: strTxnId,
-            changeLogs: changeLogsVersioned,
-          });
-        } else {
-          txn.changeLogs.push(...changeLogsVersioned);
-        }
+        console.assert(!!txn, "Assert transaction selected");
+
+        txn.changeLogs.push(...changeLogsVersioned);
 
         return { strTxnId, changeLogs: changeLogsVersioned };
       });
@@ -223,23 +275,29 @@ export class SessionDataService {
 
     const payload: UpdateSessionRequest = {
       currentVersion,
-      data: { strTxnChangeLogs },
+      data: { transactionSearchParams, strTransactionsEdited },
     };
     this.savingSubject.next(true);
     return this.http
-      .put<UpdateSessionResponse>(`/api/sessions/${sessionId}`, payload)
+      .put<UpdateSessionResponse>(`/api/sessions/${amlId}`, payload)
       .pipe(
         map(({ newVersion, updatedAt }) => {
           console.assert(newVersion === payload.currentVersion + 1);
-          const newSessionState: SessionStateLocal = {
-            sessionId,
+          this.sessionState.next({
+            amlId,
             version: newVersion,
-            data: { strTxnChangeLogs },
+            transactionSearchParams,
+            strTransactionsEdited,
+            editTabPartialChangeLogsResponse,
+            lastUpdated: updatedAt,
+          });
+          return {
+            amlId,
+            version: newVersion,
+            strTransactionsEdited,
             editTabPartialChangeLogsResponse,
             lastUpdated: updatedAt,
           };
-          this.sessionState.next(newSessionState);
-          return newSessionState;
         }),
         catchError((error: HttpErrorResponse) => {
           // rollback local session state on error
@@ -248,7 +306,7 @@ export class SessionDataService {
           // on conflict
           if (error.status === 409) {
             this.conflict$.next();
-            return this.fetchSession(sessionId).pipe(
+            return this.fetchSessionByAmlId(amlId).pipe(
               switchMap(() => throwError(() => error)),
             );
           }
@@ -261,7 +319,7 @@ export class SessionDataService {
 }
 
 type RecentEditType = Extract<
-  EditTabReqResType,
+  EditFormEditType,
   {
     type: "EDIT_RESULT" | "BULK_EDIT_RESULT";
   }
@@ -278,16 +336,25 @@ export interface EditTabChangeLogsResVersioned {
 }
 
 export interface SessionStateLocal {
-  sessionId: string;
+  amlId: string;
   version: number;
-  data: {
-    strTxnChangeLogs?: StrTxnChangeLog[];
+  transactionSearchParams: {
+    partyKeysSelection?: string[] | null;
+    accountNumbersSelection?: string[] | null;
+    sourceSystemsSelection?: string[] | null;
+    productTypesSelection?: string[] | null;
+    reviewPeriodSelection?: ReviewPeriod[] | null;
   };
-  editTabPartialChangeLogsResponse?: StrTxnChangeLog[] | null;
+  strTransactionsEdited: StrTxnEdited[];
+  editTabPartialChangeLogsResponse?: StrTxnChangeLogs[] | null;
   lastUpdated?: string;
 }
 
-export interface StrTxnChangeLog {
+export type StrTxnEdited = WithVersion<StrTxnWithHiddenProps> & {
+  changeLogs: ChangeLog[];
+};
+
+export interface StrTxnChangeLogs {
   strTxnId: string;
   changeLogs: ChangeLog[];
 }
@@ -306,19 +373,26 @@ export interface GetSessionResponse {
       productTypesSelection?: string[] | null;
       reviewPeriodSelection?: ReviewPeriod[] | null;
     };
-    strTxnChangeLogs?: StrTxnChangeLog[];
+    strTransactionsEdited?: StrTxnEdited[];
   };
 }
 
 interface CreateSessionRequest {
-  userId: string;
+  amlId: string;
   data: {
-    strTxnChangeLogs?: StrTxnChangeLog[];
+    transactionSearchParams: {
+      partyKeysSelection?: string[] | null;
+      accountNumbersSelection?: string[] | null;
+      sourceSystemsSelection?: string[] | null;
+      productTypesSelection?: string[] | null;
+      reviewPeriodSelection?: ReviewPeriod[] | null;
+    };
+    strTransactionsEdited?: StrTxnEdited[];
   };
 }
 
 interface CreateSessionResponse {
-  sessionId: string;
+  amlId: string;
   userId: string;
   version: number;
   createdAt: string;
@@ -327,7 +401,14 @@ interface CreateSessionResponse {
 interface UpdateSessionRequest {
   currentVersion: number;
   data: {
-    strTxnChangeLogs?: StrTxnChangeLog[];
+    transactionSearchParams: {
+      partyKeysSelection?: string[] | null;
+      accountNumbersSelection?: string[] | null;
+      sourceSystemsSelection?: string[] | null;
+      productTypesSelection?: string[] | null;
+      reviewPeriodSelection?: ReviewPeriod[] | null;
+    };
+    strTransactionsEdited?: StrTxnEdited[];
   };
 }
 

@@ -9,15 +9,20 @@ import { BaseTableComponent } from "../../base-table/base-table.component";
 import { AbmSourceData } from "../../transaction-search/aml-transaction-search.service";
 import { SelectionModel } from "@angular/cdk/collections";
 import { IFilterForm } from "../../base-table/abstract-base-table";
+import { CommonModule } from "@angular/common";
+import { MatCheckbox } from "@angular/material/checkbox";
+import { MatTableModule } from "@angular/material/table";
 
 @Component({
   selector: "app-abm-table",
-  imports: [BaseTableComponent],
+  imports: [BaseTableComponent, CommonModule, MatTableModule, MatCheckbox],
   template: `
     <app-base-table
+      #baseTable
       [data]="this.abmSourceData"
       [dataColumnsValues]="dataColumnsValues"
       [dataColumnsIgnoreValues]="dataColumnsIgnoreValues"
+      [displayedColumnsValues]="displayedColumnsValues"
       [displayedColumnsColumnHeaderMap]="displayedColumnsColumnHeaderMap"
       [stickyColumns]="stickyColumns"
       [selectFiltersValues]="selectFiltersValues"
@@ -26,8 +31,49 @@ import { IFilterForm } from "../../base-table/abstract-base-table";
       [displayedColumnsTime]="displayedColumnsTime"
       [dataSourceTrackBy]="dataSourceTrackBy"
       [selection]="selection"
+      [selectionKey]="'flowOfFundsAmlTransactionId'"
       [hasMasterToggle]="false"
-    />
+      [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'"
+    >
+      <!-- Selection Model -->
+      <ng-container matColumnDef="select">
+        <th
+          mat-header-cell
+          *matHeaderCellDef
+          class="px-2"
+          [class.sticky-cell]="baseTable.isStickyColumn('select')"
+        >
+          <div *ngIf="baseTable.hasMasterToggle">
+            <mat-checkbox
+              (change)="$event ? baseTable.toggleAllRows() : null"
+              [checked]="selection.hasValue() && baseTable.isAllSelected()"
+              [indeterminate]="
+                selection.hasValue() && !baseTable.isAllSelected()
+              "
+            >
+            </mat-checkbox>
+          </div>
+        </th>
+        <td
+          mat-cell
+          *matCellDef="let row; let i = index"
+          [class.sticky-cell]="baseTable.isStickyColumn('select')"
+          [ngStyle]="{
+            backgroundColor:
+              row[baseTable.filterFormHighlightSelectFilterKey] || ''
+          }"
+        >
+          <div>
+            <mat-checkbox
+              (click)="baseTable.onCheckBoxClickMultiToggle($event, row, i)"
+              (change)="$event ? baseTable.toggleRow(row) : null"
+              [checked]="selection.isSelected(row)"
+            >
+            </mat-checkbox>
+          </div>
+        </td>
+      </ng-container>
+    </app-base-table>
   `,
   styleUrl: "./abm-table.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -254,6 +300,8 @@ export class AbmTableComponent<
     "exchangeRateApplied",
     "crdrCode",
   ];
+
+  displayedColumnsValues = ["select" as const];
 
   displayedColumnsColumnHeaderMap: Partial<
     Record<

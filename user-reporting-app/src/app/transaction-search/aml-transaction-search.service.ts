@@ -1,7 +1,6 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { Observable, timer, map, of } from "rxjs";
-import { TableRecordUiProps } from "../base-table/abstract-base-table";
+import { Observable, map, of, timer } from "rxjs";
 import { TableSelectionCompareWithAmlTxnId } from "../transaction-view/transaction-view.component";
 import { transactionSearchResDevOnly } from "../transaction-view/transactionSearchResDevOnly";
 
@@ -424,3 +423,7 @@ export type AbmSourceData = {
 
 export type SourceData =
   TransactionSearchResponse[number]["sourceData"][number];
+
+type TableRecordUiProps = {
+  _uiPropHighlightColor?: string;
+};
