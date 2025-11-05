@@ -2,23 +2,22 @@ import {
   DestroyRef,
   Directive,
   EventEmitter,
-  HostBinding,
-  inject,
   Input,
   OnInit,
   Optional,
   Output,
+  inject,
 } from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import {
-  NgControl,
-  FormGroupDirective,
   ControlContainer,
   FormArray,
+  FormGroupDirective,
+  NgControl,
   ValidatorFn,
   Validators,
 } from "@angular/forms";
 import { startWith } from "rxjs";
-import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { SPECIAL_EMPTY_VALUE } from "./clear-field.directive";
 
 @Directive({
@@ -30,9 +29,9 @@ export class ControlToggleDirective implements OnInit {
   @Input() appControlRequired = false;
   @Output() addControlGroup = new EventEmitter();
 
-  @HostBinding("readOnly") get isReadonly(): boolean {
-    return this.controlToToggle.value === SPECIAL_EMPTY_VALUE;
-  }
+  // @HostBinding("readOnly") get isReadonly(): boolean {
+  //   return this.controlToToggle.value === SPECIAL_EMPTY_VALUE;
+  // }
 
   get controlToWatch() {
     return this.formGroupDirective.form.get(this.appControlToggle);

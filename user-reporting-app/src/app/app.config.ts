@@ -1,26 +1,48 @@
 import {
   type ApplicationConfig,
   ErrorHandler,
+  inject,
   provideZoneChangeDetection,
 } from "@angular/core";
-import { provideRouter, withComponentInputBinding } from "@angular/router";
+import {
+  Router,
+  provideRouter,
+  withComponentInputBinding,
+  withNavigationErrorHandler,
+  withRouterConfig,
+} from "@angular/router";
 
 import { provideHttpClient } from "@angular/common/http";
-import { provideDateFnsAdapter } from "@angular/material-date-fns-adapter";
+import {
+  MAT_DATE_FNS_FORMATS,
+  provideDateFnsAdapter,
+} from "@angular/material-date-fns-adapter";
+import { MAT_DATE_LOCALE } from "@angular/material/core";
 import {
   MAT_FORM_FIELD_DEFAULT_OPTIONS,
   MatFormFieldDefaultOptions,
 } from "@angular/material/form-field";
+import { enCA } from "date-fns/locale";
 import { AppErrorHandlerService } from "./app-error-handler.service";
 import { routes } from "./app.routes";
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
-    provideRouter(routes, withComponentInputBinding()),
-    // provideRouter(routes, withComponentInputBinding(), withDebugTracing()),    // for debugging
+    provideRouter(
+      routes,
+      withComponentInputBinding(),
+      withRouterConfig({ paramsInheritanceStrategy: "always" }),
+      withNavigationErrorHandler((navError) => {
+        const router = inject(Router);
+        console.error("Navigation error:", navError.error);
+        router.navigate(["/transactionsearch"]);
+      }),
+    ),
+    // provideRouter(routes, withComponentInputBinding(), withDebugTracing()),    // for debugging router
     provideHttpClient(),
-    provideDateFnsAdapter(),
+    provideDateFnsAdapter(MAT_DATE_FNS_FORMATS),
+    { provide: MAT_DATE_LOCALE, useValue: enCA },
     { provide: ErrorHandler, useClass: AppErrorHandlerService },
     {
       provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,

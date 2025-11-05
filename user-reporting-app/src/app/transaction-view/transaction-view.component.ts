@@ -20,7 +20,7 @@ import {
 } from "@angular/router";
 import { concat, defer, map, of, tap } from "rxjs";
 import { ISelectionComparator } from "../base-table/abstract-base-table";
-import { SessionDataService, SessionStateLocal } from "../session-data.service";
+import { SessionDataService } from "../session-data.service";
 import {
   AbmSourceData,
   AmlTransactionSearchService,
@@ -49,32 +49,10 @@ import { OlbTableComponent } from "./olb-table/olb-table.component";
     MatChip,
     MatButton,
   ],
-  template: `<div class="container-fluid px-0 my-1">
+  template: `
     <div class="row row-cols-1 mx-0">
       <mat-toolbar class="col">
         <mat-toolbar-row class="px-0 header-toolbar-row">
-          <h1>Transaction View</h1>
-          <!-- <mat-chip
-            *ngIf="lastUpdated"
-            selected="true"
-            class="last-updated-chip"
-          >
-            <ng-container
-              *ngIf="sessionDataService.saving$ | async; else updateIcon"
-            >
-              <mat-progress-spinner
-                diameter="20"
-                mode="indeterminate"
-                class="last-updated-chip-spinner"
-              ></mat-progress-spinner>
-            </ng-container>
-            <ng-template #updateIcon>
-              <mat-icon class="mat-accent last-updated-chip-spinner"
-                >update</mat-icon
-              >
-            </ng-template>
-            Last Updated: {{ lastUpdated | date : "short" }}
-          </mat-chip> -->
           <div class="flex-fill"></div>
           <button
             color="primary"
@@ -85,61 +63,55 @@ import { OlbTableComponent } from "./olb-table/olb-table.component";
           </button>
         </mat-toolbar-row>
       </mat-toolbar>
-      <mat-tab-group
-        class="col"
-        mat-stretch-tabs="false"
-        mat-align-tabs="start"
-      >
-        <mat-tab>
-          <ng-template mat-tab-label>
-            Flow of Funds
-            <mat-chip class="ms-1" disableRipple>
-              {{ fofSourceDataSelectionCount$ | async }}
-            </mat-chip>
-          </ng-template>
-          <app-fof-table
-            [fofSourceData]="fofSourceData"
-            [selection]="selection"
-          />
-        </mat-tab>
-        <mat-tab>
-          <ng-template mat-tab-label>
-            ABM
-            <mat-chip class="ms-1" disableRipple>
-              {{ abmSourceDataSelectionCount$ | async }}
-            </mat-chip>
-          </ng-template>
-          <app-abm-table
-            [abmSourceData]="abmSourceData"
-            [selection]="selection"
-          />
-        </mat-tab>
-        <mat-tab>
-          <ng-template mat-tab-label>
-            OLB
-            <mat-chip class="ms-1" disableRipple>
-              {{ olbSourceDataSelectionCount$ | async }}
-            </mat-chip>
-          </ng-template>
-          <app-olb-table
-            [olbSourceData]="olbSourceData"
-            [selection]="selection"
-          />
-        </mat-tab>
-        <mat-tab>
-          <ng-template mat-tab-label>
-            EMT
-            <mat-chip class="ms-1" disableRipple>
-              {{ emtSourceDataSelectionCount$ | async }}
-            </mat-chip>
-          </ng-template>
-          <app-emt-table
-            [emtSourceData]="emtSourceData"
-            [selection]="selection"
-        /></mat-tab>
-      </mat-tab-group>
     </div>
-  </div> `,
+    <mat-tab-group class="col" mat-stretch-tabs="false" mat-align-tabs="start">
+      <mat-tab>
+        <ng-template mat-tab-label>
+          Flow of Funds
+          <mat-chip class="ms-1" disableRipple>
+            {{ fofSourceDataSelectionCount$ | async }}
+          </mat-chip>
+        </ng-template>
+        <app-fof-table
+          [fofSourceData]="fofSourceData"
+          [selection]="selection"
+        />
+      </mat-tab>
+      <mat-tab>
+        <ng-template mat-tab-label>
+          ABM
+          <mat-chip class="ms-1" disableRipple>
+            {{ abmSourceDataSelectionCount$ | async }}
+          </mat-chip>
+        </ng-template>
+        <app-abm-table
+          [abmSourceData]="abmSourceData"
+          [selection]="selection"
+        />
+      </mat-tab>
+      <mat-tab>
+        <ng-template mat-tab-label>
+          OLB
+          <mat-chip class="ms-1" disableRipple>
+            {{ olbSourceDataSelectionCount$ | async }}
+          </mat-chip>
+        </ng-template>
+        <app-olb-table
+          [olbSourceData]="olbSourceData"
+          [selection]="selection"
+        />
+      </mat-tab>
+      <mat-tab>
+        <ng-template mat-tab-label>
+          EMT
+          <mat-chip class="ms-1" disableRipple>
+            {{ emtSourceDataSelectionCount$ | async }}
+          </mat-chip>
+        </ng-template>
+        <app-emt-table [emtSourceData]="emtSourceData" [selection]="selection"
+      /></mat-tab>
+    </mat-tab-group>
+  `,
   styleUrl: "./transaction-view.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -279,11 +251,11 @@ export const selectionsResolver: ResolveFn<
   { flowOfFundsAmlTransactionId: string }[]
 > = (route: ActivatedRouteSnapshot, state: RouterStateSnapshot) => {
   const sessionDataService = inject(SessionDataService);
-  return sessionDataService.sessionStateValue.strTransactionsEdited.map(
-    (txn) => ({
-      flowOfFundsAmlTransactionId: txn.flowOfFundsAmlTransactionId,
-    }),
-  );
+  const sessionStateValue = sessionDataService.getSessionStateValue();
+  if (!sessionStateValue) throw new Error("No session found");
+  return sessionStateValue.strTransactionsEdited.map((txn) => ({
+    flowOfFundsAmlTransactionId: txn.flowOfFundsAmlTransactionId,
+  }));
 };
 
 export type TableSelectionCompareWithAmlTxnId = {

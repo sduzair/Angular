@@ -34,11 +34,7 @@ import {
   RouterStateSnapshot,
 } from "@angular/router";
 import { v4 as uuidv4 } from "uuid";
-import {
-  ChangeLogService,
-  ChangeLogWithoutVersion,
-  WithVersion,
-} from "../../change-log.service";
+import { ChangeLogService, WithVersion } from "../../change-log.service";
 import { SessionDataService, StrTxnEdited } from "../../session-data.service";
 import { PreemptiveErrorStateMatcher } from "../../transaction-search/transaction-search.component";
 import {
@@ -55,11 +51,11 @@ import {
   StrTxnFlowOfFunds,
 } from "../reporting-ui-table/reporting-ui-table.component";
 import { ClearFieldDirective } from "./clear-field.directive";
+import { ControlToggleDirective } from "./control-toggle.directive";
 import { ToggleEditFieldDirective } from "./toggle-edit-field.directive";
 import { TransactionDateDirective } from "./transaction-date.directive";
 import { TransactionDetailsPanelComponent } from "./transaction-details-panel/transaction-details-panel.component";
 import { TransactionTimeDirective } from "./transaction-time.directive";
-import { ControlToggleDirective } from "./control-toggle.directive";
 
 @Component({
   selector: "app-edit-form",
@@ -90,10 +86,12 @@ import { ControlToggleDirective } from "./control-toggle.directive";
     MatSelectModule,
   ],
   template: `
-    <app-transaction-details-panel
-      *ngIf="isSingleEdit"
-      [singleStrTransaction]="$any(editType.payload)"
-    />
+    <div class="container px-0">
+      <app-transaction-details-panel
+        *ngIf="isSingleEdit"
+        [singleStrTransaction]="$any(editType.payload)"
+      />
+    </div>
     <div class="container form-field-density px-0">
       <mat-toolbar class="justify-content-end my-3 px-0">
         <!-- <ng-container
@@ -132,9 +130,10 @@ import { ControlToggleDirective } from "./control-toggle.directive";
         (ngSubmit)="onSave()"
         [class.bulk-edit-form]="isBulkEdit"
         class="edit-form"
+        data-testid="edit-form"
       >
         <!-- Main Tabs -->
-        <mat-tab-group class="gap-3">
+        <mat-tab-group preserveContent class="gap-3">
           <!-- Transaction Details Tab -->
           <mat-tab>
             <ng-template mat-tab-label>
@@ -153,7 +152,7 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                 </mat-card-header>
                 <mat-card-content>
                   <div class="row row-cols-1 row-cols-md-2">
-                    <mat-form-field class="col-xl-4">
+                    <mat-form-field class="col-xl-4" data-testid="dateOfTxn">
                       <mat-label>Date of Transaction</mat-label>
                       <input
                         matInput
@@ -185,7 +184,7 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                         <mat-icon>edit</mat-icon>
                       </button>
                     </mat-form-field>
-                    <mat-form-field class="col-xl-4">
+                    <mat-form-field class="col-xl-4" data-testid="timeOfTxn">
                       <mat-label>Time of Transaction</mat-label>
                       <input
                         matInput
@@ -217,6 +216,7 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                       <mat-checkbox
                         formControlName="hasPostingDate"
                         class="col-auto"
+                        data-testid="hasPostingDate"
                       >
                         Has Posting Date?
                       </mat-checkbox>
@@ -233,7 +233,7 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                     </div>
                   </div>
                   <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
-                    <mat-form-field class="col">
+                    <mat-form-field class="col" data-testid="dateOfPosting">
                       <mat-label>Date of Posting</mat-label>
                       <input
                         matInput
@@ -248,7 +248,7 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                       ></mat-datepicker-toggle>
                       <mat-datepicker #dateOfPostingPicker />
                     </mat-form-field>
-                    <mat-form-field class="col">
+                    <mat-form-field class="col" data-testid="timeOfPosting">
                       <mat-label>Time of Posting</mat-label>
                       <input
                         matInput
@@ -261,16 +261,16 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                     </mat-form-field>
                   </div>
                   <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
-                    <mat-form-field class="col">
+                    <mat-form-field class="col" data-testid="methodOfTxn">
                       <mat-label>Method of Transaction</mat-label>
-                      <select matNativeControl formControlName="methodOfTxn">
-                        <option
+                      <mat-select formControlName="methodOfTxn">
+                        <mat-option
                           *ngFor="let key of methodOfTxnOptionsKeys"
                           [value]="methodOfTxnOptions[key]"
                         >
                           {{ key }}
-                        </option>
-                      </select>
+                        </mat-option>
+                      </mat-select>
                       <button
                         [disabled]="!this.isBulkEdit"
                         type="button"
@@ -290,7 +290,7 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                         <mat-icon>edit</mat-icon>
                       </button>
                     </mat-form-field>
-                    <mat-form-field class="col">
+                    <mat-form-field class="col" data-testid="methodOfTxnOther">
                       <mat-label>Other Method of Transaction</mat-label>
                       <input
                         matInput
@@ -305,6 +305,7 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                       <mat-checkbox
                         formControlName="wasTxnAttempted"
                         class="col-auto"
+                        data-testid="wasTxnAttempted"
                       >
                         Was Transaction Attempted?
                       </mat-checkbox>
@@ -319,7 +320,10 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                         <mat-icon>edit</mat-icon>
                       </button>
                     </div>
-                    <mat-form-field class="col-12 col-xl-8">
+                    <mat-form-field
+                      class="col-12 col-xl-8"
+                      data-testid="wasTxnAttemptedReason"
+                    >
                       <mat-label
                         >Reason transaction was not completed</mat-label
                       >
@@ -331,7 +335,7 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                     </mat-form-field>
                   </div>
                   <div class="row row-cols-md-3">
-                    <mat-form-field class="col-md-8">
+                    <mat-form-field class="col-md-8" data-testid="purposeOfTxn">
                       <mat-label>Purpose of Transaction</mat-label>
                       <input matInput formControlName="purposeOfTxn" />
                       <button
@@ -355,14 +359,20 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                     </mat-form-field>
                   </div>
                   <div class="row row-cols-md-3">
-                    <mat-form-field class="col-md-4">
+                    <mat-form-field
+                      class="col-md-4"
+                      data-testid="reportingEntityLocationNo"
+                    >
                       <mat-label>Reporting Entity Location</mat-label>
                       <input
                         matInput
                         formControlName="reportingEntityLocationNo"
                       />
                     </mat-form-field>
-                    <mat-form-field class="col-md-8">
+                    <mat-form-field
+                      class="col-md-8"
+                      data-testid="reportingEntityTxnRefNo"
+                    >
                       <mat-label>Reporting Entity Ref No</mat-label>
                       <input
                         matInput
@@ -424,19 +434,21 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                       </mat-panel-title>
                     </mat-expansion-panel-header>
                     <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-directionOfSA'
+                        "
+                      >
                         <mat-label>Direction</mat-label>
-                        <select
-                          matNativeControl
-                          formControlName="directionOfSA"
-                        >
-                          <option
+                        <mat-select formControlName="directionOfSA">
+                          <mat-option
                             *ngFor="let key of directionOfSAOptionsKeys"
                             [value]="directionOfSAOptions[key]"
                           >
                             {{ key }}
-                          </option>
-                        </select>
+                          </mat-option>
+                        </mat-select>
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
@@ -456,16 +468,21 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                           <mat-icon>edit</mat-icon>
                         </button>
                       </mat-form-field>
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-typeOfFunds'
+                        "
+                      >
                         <mat-label>Type of Funds</mat-label>
-                        <select matNativeControl formControlName="typeOfFunds">
-                          <option
+                        <mat-select formControlName="typeOfFunds">
+                          <mat-option
                             *ngFor="let key of typeofFundsOptionsKeys"
                             [value]="typeofFundsOptions[key]"
                           >
                             {{ key }}
-                          </option>
-                        </select>
+                          </mat-option>
+                        </mat-select>
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
@@ -485,7 +502,12 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                           <mat-icon>edit</mat-icon>
                         </button>
                       </mat-form-field>
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-typeOfFundsOther'
+                        "
+                      >
                         <mat-label>Other Type of Funds</mat-label>
                         <input
                           matInput
@@ -499,7 +521,12 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                     </div>
                     <!-- Amount Section -->
                     <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-amount'
+                        "
+                      >
                         <mat-label>Amount</mat-label>
                         <input
                           matInput
@@ -525,16 +552,21 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                           <mat-icon>edit</mat-icon>
                         </button>
                       </mat-form-field>
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-currency'
+                        "
+                      >
                         <mat-label>Currency</mat-label>
-                        <select matNativeControl formControlName="currency">
-                          <option
+                        <mat-select formControlName="currency">
+                          <mat-option
                             *ngFor="let key of amountCurrencyOptionsKeys"
                             [value]="amountCurrencyOptions[key]"
                           >
                             {{ key }}
-                          </option>
-                        </select>
+                          </mat-option>
+                        </mat-select>
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
@@ -557,7 +589,12 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                     </div>
                     <!-- Account Information -->
                     <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-fiuNo'
+                        "
+                      >
                         <mat-label>FIU Number</mat-label>
                         <input matInput formControlName="fiuNo" />
                         <button
@@ -579,7 +616,12 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                           <mat-icon>edit</mat-icon>
                         </button>
                       </mat-form-field>
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-branch'
+                        "
+                      >
                         <mat-label>Branch</mat-label>
                         <input
                           matInput
@@ -609,7 +651,12 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                           <mat-icon>edit</mat-icon>
                         </button>
                       </mat-form-field>
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-account'
+                        "
+                      >
                         <mat-label>Account Number</mat-label>
                         <input
                           matInput
@@ -642,10 +689,14 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                     </div>
                     <!-- Account Information -->
                     <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-accountType'
+                        "
+                      >
                         <mat-label>Account Type</mat-label>
-                        <select
-                          matNativeControl
+                        <mat-select
                           formControlName="accountType"
                           [appControlToggle]="
                             'startingActions.' + saIndex + '.fiuNo'
@@ -653,13 +704,13 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                           appControlToggleValue="010"
                           [appControlRequired]="true"
                         >
-                          <option
+                          <mat-option
                             *ngFor="let key of accountTypeOptionsKeys"
                             [value]="accountTypeOptions[key]"
                           >
                             {{ key }}
-                          </option>
-                        </select>
+                          </mat-option>
+                        </mat-select>
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
@@ -679,7 +730,12 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                           <mat-icon>edit</mat-icon>
                         </button>
                       </mat-form-field>
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-accountTypeOther'
+                        "
+                      >
                         <mat-label>Other Account Type</mat-label>
                         <input
                           matInput
@@ -690,10 +746,14 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                           appControlToggleValue="Other"
                         />
                       </mat-form-field>
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-accountCurrency'
+                        "
+                      >
                         <mat-label>Account Currency</mat-label>
-                        <select
-                          matNativeControl
+                        <mat-select
                           formControlName="accountCurrency"
                           [appControlToggle]="
                             'startingActions.' + saIndex + '.fiuNo'
@@ -701,13 +761,13 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                           appControlToggleValue="010"
                           [appControlRequired]="true"
                         >
-                          <option
+                          <mat-option
                             *ngFor="let key of accountCurrencyOptionsKeys"
                             [value]="accountCurrencyOptions[key]"
                           >
                             {{ key }}
-                          </option>
-                        </select>
+                          </mat-option>
+                        </mat-select>
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
@@ -727,10 +787,14 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                           <mat-icon>edit</mat-icon>
                         </button>
                       </mat-form-field>
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-accountStatus'
+                        "
+                      >
                         <mat-label>Account Status</mat-label>
-                        <select
-                          matNativeControl
+                        <mat-select
                           formControlName="accountStatus"
                           [appControlToggle]="
                             'startingActions.' + saIndex + '.fiuNo'
@@ -738,13 +802,13 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                           appControlToggleValue="010"
                           [appControlRequired]="true"
                         >
-                          <option
+                          <mat-option
                             *ngFor="let key of accountStatusOptionsKeys"
                             [value]="accountStatusOptions[key]"
                           >
                             {{ key }}
-                          </option>
-                        </select>
+                          </mat-option>
+                        </mat-select>
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
@@ -767,7 +831,12 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                     </div>
                     <!-- Account Open/Close -->
                     <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-3">
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-accountOpen'
+                        "
+                      >
                         <mat-label>Account Open Date</mat-label>
                         <input
                           matInput
@@ -804,7 +873,12 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                           <mat-icon>edit</mat-icon>
                         </button>
                       </mat-form-field>
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-accountClose'
+                        "
+                      >
                         <mat-label>Account Close Date</mat-label>
                         <input
                           matInput
@@ -843,7 +917,12 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                       </mat-form-field>
                     </div>
                     <div class="row">
-                      <mat-form-field class="col-12">
+                      <mat-form-field
+                        class="col-12"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-howFundsObtained'
+                        "
+                      >
                         <mat-label>How Funds Were Obtained</mat-label>
                         <textarea
                           matInput
@@ -876,6 +955,9 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                       <mat-checkbox
                         class="col"
                         formControlName="hasAccountHolders"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-hasAccountHolders'
+                        "
                       >
                         Has account holders?
                       </mat-checkbox>
@@ -902,7 +984,7 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                       <div
                         *ngFor="
                           let holder of saAction.controls.accountHolders
-                            ?.controls;
+                            .controls;
                           let holderIndex = index
                         "
                         [formGroupName]="holderIndex"
@@ -929,22 +1011,58 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                             </mat-panel-title>
                           </mat-expansion-panel-header>
                           <div class="row row-cols-1 row-cols-md-2">
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'startingActions-' +
+                                saIndex +
+                                '-accountHolders-' +
+                                holderIndex +
+                                '-partyKey'
+                              "
+                            >
                               <mat-label>Party Key</mat-label>
                               <input matInput formControlName="partyKey" />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'startingActions-' +
+                                saIndex +
+                                '-accountHolders-' +
+                                holderIndex +
+                                '-surname'
+                              "
+                            >
                               <mat-label>Surname</mat-label>
                               <input matInput formControlName="surname" />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'startingActions-' +
+                                saIndex +
+                                '-accountHolders-' +
+                                holderIndex +
+                                '-givenName'
+                              "
+                            >
                               <mat-label>GivenName</mat-label>
                               <input matInput formControlName="givenName" />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'startingActions-' +
+                                saIndex +
+                                '-accountHolders-' +
+                                holderIndex +
+                                '-otherOrInitial'
+                              "
+                            >
                               <mat-label>Other or Initial</mat-label>
                               <input
                                 matInput
@@ -952,7 +1070,16 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                               />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'startingActions-' +
+                                saIndex +
+                                '-accountHolders-' +
+                                holderIndex +
+                                '-nameOfEntity'
+                              "
+                            >
                               <mat-label>Name of Entity</mat-label>
                               <input matInput formControlName="nameOfEntity" />
                             </mat-form-field>
@@ -974,6 +1101,9 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                       <mat-checkbox
                         class="col"
                         formControlName="wasSofInfoObtained"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-wasSofInfoObtained'
+                        "
                       >
                         Was Source of Funds Info Obtained?
                       </mat-checkbox>
@@ -1021,22 +1151,58 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                             </mat-panel-title>
                           </mat-expansion-panel-header>
                           <div class="row row-cols-1 row-cols-md-2">
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'startingActions-' +
+                                saIndex +
+                                '-sourceOfFunds-' +
+                                fundsIndex +
+                                '-partyKey'
+                              "
+                            >
                               <mat-label>Party Key</mat-label>
                               <input matInput formControlName="partyKey" />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'startingActions-' +
+                                saIndex +
+                                '-sourceOfFunds-' +
+                                fundsIndex +
+                                '-surname'
+                              "
+                            >
                               <mat-label>Surname</mat-label>
                               <input matInput formControlName="surname" />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'startingActions-' +
+                                saIndex +
+                                '-sourceOfFunds-' +
+                                fundsIndex +
+                                '-givenName'
+                              "
+                            >
                               <mat-label>GivenName</mat-label>
                               <input matInput formControlName="givenName" />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'startingActions-' +
+                                saIndex +
+                                '-sourceOfFunds-' +
+                                fundsIndex +
+                                '-otherOrInitial'
+                              "
+                            >
                               <mat-label>Other or Initial</mat-label>
                               <input
                                 matInput
@@ -1044,17 +1210,44 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                               />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'startingActions-' +
+                                saIndex +
+                                '-sourceOfFunds-' +
+                                fundsIndex +
+                                '-nameOfEntity'
+                              "
+                            >
                               <mat-label>Name of Entity</mat-label>
                               <input matInput formControlName="nameOfEntity" />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'startingActions-' +
+                                saIndex +
+                                '-sourceOfFunds-' +
+                                fundsIndex +
+                                '-accountNumber'
+                              "
+                            >
                               <mat-label>Account Number</mat-label>
                               <input matInput formControlName="accountNumber" />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'startingActions-' +
+                                saIndex +
+                                '-sourceOfFunds-' +
+                                fundsIndex +
+                                '-identifyingNumber'
+                              "
+                            >
                               <mat-label>Identifying Number</mat-label>
                               <input
                                 matInput
@@ -1080,6 +1273,9 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                       <mat-checkbox
                         class="col"
                         formControlName="wasCondInfoObtained"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-wasCondInfoObtained'
+                        "
                       >
                         Was Conductor Info Obtained?
                       </mat-checkbox>
@@ -1127,22 +1323,58 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                           </mat-expansion-panel-header>
 
                           <div class="row row-cols-1 row-cols-md-2">
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'startingActions-' +
+                                saIndex +
+                                '-conductors-' +
+                                condIndex +
+                                '-partyKey'
+                              "
+                            >
                               <mat-label>Party Key</mat-label>
                               <input matInput formControlName="partyKey" />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'startingActions-' +
+                                saIndex +
+                                '-conductors-' +
+                                condIndex +
+                                '-surname'
+                              "
+                            >
                               <mat-label>Surname</mat-label>
                               <input matInput formControlName="surname" />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'startingActions-' +
+                                saIndex +
+                                '-conductors-' +
+                                condIndex +
+                                '-givenName'
+                              "
+                            >
                               <mat-label>GivenName</mat-label>
                               <input matInput formControlName="givenName" />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'startingActions-' +
+                                saIndex +
+                                '-conductors-' +
+                                condIndex +
+                                '-otherOrInitial'
+                              "
+                            >
                               <mat-label>Other or Initial</mat-label>
                               <input
                                 matInput
@@ -1150,7 +1382,16 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                               />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'startingActions-' +
+                                saIndex +
+                                '-conductors-' +
+                                condIndex +
+                                '-nameOfEntity'
+                              "
+                            >
                               <mat-label>Name of Entity</mat-label>
                               <input matInput formControlName="nameOfEntity" />
                             </mat-form-field>
@@ -1161,6 +1402,13 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                           <div class="row">
                             <mat-checkbox
                               formControlName="wasConductedOnBehalf"
+                              [attr.data-testid]="
+                                'startingActions-' +
+                                saIndex +
+                                '-conductors-' +
+                                condIndex +
+                                '-wasConductedOnBehalf'
+                              "
                             >
                               Was Conducted On Behalf Of Others?
                             </mat-checkbox>
@@ -1213,7 +1461,18 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                                 </mat-expansion-panel-header>
 
                                 <div class="row row-cols-1 row-cols-md-2">
-                                  <mat-form-field class="col">
+                                  <mat-form-field
+                                    class="col"
+                                    [attr.data-testid]="
+                                      'startingActions-' +
+                                      saIndex +
+                                      '-conductors-' +
+                                      condIndex +
+                                      '-onBehalfOf-' +
+                                      behalfIndex +
+                                      '-partyKey'
+                                    "
+                                  >
                                     <mat-label>Party Key</mat-label>
                                     <input
                                       matInput
@@ -1221,12 +1480,34 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                                     />
                                   </mat-form-field>
 
-                                  <mat-form-field class="col">
+                                  <mat-form-field
+                                    class="col"
+                                    [attr.data-testid]="
+                                      'startingActions-' +
+                                      saIndex +
+                                      '-conductors-' +
+                                      condIndex +
+                                      '-onBehalfOf-' +
+                                      behalfIndex +
+                                      '-surname'
+                                    "
+                                  >
                                     <mat-label>Surname</mat-label>
                                     <input matInput formControlName="surname" />
                                   </mat-form-field>
 
-                                  <mat-form-field class="col">
+                                  <mat-form-field
+                                    class="col"
+                                    [attr.data-testid]="
+                                      'startingActions-' +
+                                      saIndex +
+                                      '-conductors-' +
+                                      condIndex +
+                                      '-onBehalfOf-' +
+                                      behalfIndex +
+                                      '-givenName'
+                                    "
+                                  >
                                     <mat-label>GivenName</mat-label>
                                     <input
                                       matInput
@@ -1234,7 +1515,18 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                                     />
                                   </mat-form-field>
 
-                                  <mat-form-field class="col">
+                                  <mat-form-field
+                                    class="col"
+                                    [attr.data-testid]="
+                                      'startingActions-' +
+                                      saIndex +
+                                      '-conductors-' +
+                                      condIndex +
+                                      '-onBehalfOf-' +
+                                      behalfIndex +
+                                      '-otherOrInitial'
+                                    "
+                                  >
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
@@ -1242,7 +1534,18 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                                     />
                                   </mat-form-field>
 
-                                  <mat-form-field class="col">
+                                  <mat-form-field
+                                    class="col"
+                                    [attr.data-testid]="
+                                      'startingActions-' +
+                                      saIndex +
+                                      '-conductors-' +
+                                      condIndex +
+                                      '-onBehalfOf-' +
+                                      behalfIndex +
+                                      '-nameOfEntity'
+                                    "
+                                  >
                                     <mat-label>Name of Entity</mat-label>
                                     <input
                                       matInput
@@ -1331,19 +1634,21 @@ import { ControlToggleDirective } from "./control-toggle.directive";
 
                     <!-- Disposition Details -->
                     <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'completingActions-' + caIndex + '-detailsOfDispo'
+                        "
+                      >
                         <mat-label>Details of Disposition</mat-label>
-                        <select
-                          matNativeControl
-                          formControlName="detailsOfDispo"
-                        >
-                          <option
+                        <mat-select formControlName="detailsOfDispo">
+                          <mat-option
                             *ngFor="let key of detailsOfDispositionOptionsKeys"
                             [value]="detailsOfDispositionOptions[key]"
                           >
                             {{ key }}
-                          </option>
-                        </select>
+                          </mat-option>
+                        </mat-select>
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
@@ -1364,7 +1669,14 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                         </button>
                       </mat-form-field>
 
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'completingActions-' +
+                          caIndex +
+                          '-detailsOfDispoOther'
+                        "
+                      >
                         <mat-label>Other Details of Disposition</mat-label>
                         <input
                           matInput
@@ -1379,7 +1691,12 @@ import { ControlToggleDirective } from "./control-toggle.directive";
 
                     <!-- Amount Section -->
                     <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'completingActions-' + caIndex + '-amount'
+                        "
+                      >
                         <mat-label>Amount</mat-label>
                         <input
                           matInput
@@ -1406,16 +1723,21 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                         </button>
                       </mat-form-field>
 
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'completingActions-' + caIndex + '-currency'
+                        "
+                      >
                         <mat-label>Currency</mat-label>
-                        <select matNativeControl formControlName="currency">
-                          <option
+                        <mat-select formControlName="currency">
+                          <mat-option
                             *ngFor="let key of amountCurrencyOptionsKeys"
                             [value]="amountCurrencyOptions[key]"
                           >
                             {{ key }}
-                          </option>
-                        </select>
+                          </mat-option>
+                        </mat-select>
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
@@ -1436,7 +1758,12 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                         </button>
                       </mat-form-field>
 
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'completingActions-' + caIndex + '-exchangeRate'
+                        "
+                      >
                         <mat-label>Exchange Rate</mat-label>
                         <input
                           matInput
@@ -1463,7 +1790,12 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                         </button>
                       </mat-form-field>
 
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'completingActions-' + caIndex + '-valueInCad'
+                        "
+                      >
                         <mat-label>Value in CAD</mat-label>
                         <input
                           matInput
@@ -1493,7 +1825,12 @@ import { ControlToggleDirective } from "./control-toggle.directive";
 
                     <!-- Account Information -->
                     <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'completingActions-' + caIndex + '-fiuNo'
+                        "
+                      >
                         <mat-label>FIU Number</mat-label>
                         <input matInput formControlName="fiuNo" />
                         <button
@@ -1515,7 +1852,12 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                           <mat-icon>edit</mat-icon>
                         </button>
                       </mat-form-field>
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'completingActions-' + caIndex + '-branch'
+                        "
+                      >
                         <mat-label>Branch</mat-label>
                         <input
                           matInput
@@ -1545,7 +1887,12 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                           <mat-icon>edit</mat-icon>
                         </button>
                       </mat-form-field>
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'completingActions-' + caIndex + '-account'
+                        "
+                      >
                         <mat-label>Account Number</mat-label>
                         <input
                           matInput
@@ -1579,10 +1926,14 @@ import { ControlToggleDirective } from "./control-toggle.directive";
 
                     <!-- Account Information -->
                     <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'completingActions-' + caIndex + '-accountType'
+                        "
+                      >
                         <mat-label>Account Type</mat-label>
-                        <select
-                          matNativeControl
+                        <mat-select
                           formControlName="accountType"
                           [appControlToggle]="
                             'completingActions.' + caIndex + '.fiuNo'
@@ -1590,13 +1941,13 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                           appControlToggleValue="010"
                           [appControlRequired]="true"
                         >
-                          <option
+                          <mat-option
                             *ngFor="let key of accountTypeOptionsKeys"
                             [value]="accountTypeOptions[key]"
                           >
                             {{ key }}
-                          </option>
-                        </select>
+                          </mat-option>
+                        </mat-select>
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
@@ -1617,7 +1968,12 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                         </button>
                       </mat-form-field>
 
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'completingActions-' + caIndex + '-accountTypeOther'
+                        "
+                      >
                         <mat-label>Other Account Type</mat-label>
                         <input
                           matInput
@@ -1629,10 +1985,14 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                         />
                       </mat-form-field>
 
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'completingActions-' + caIndex + '-accountCurrency'
+                        "
+                      >
                         <mat-label>Account Currency</mat-label>
-                        <select
-                          matNativeControl
+                        <mat-select
                           formControlName="accountCurrency"
                           [appControlToggle]="
                             'completingActions.' + caIndex + '.fiuNo'
@@ -1640,13 +2000,13 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                           appControlToggleValue="010"
                           [appControlRequired]="true"
                         >
-                          <option
+                          <mat-option
                             *ngFor="let key of accountCurrencyOptionsKeys"
                             [value]="accountCurrencyOptions[key]"
                           >
                             {{ key }}
-                          </option>
-                        </select>
+                          </mat-option>
+                        </mat-select>
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
@@ -1667,10 +2027,14 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                         </button>
                       </mat-form-field>
 
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'completingActions-' + caIndex + '-accountStatus'
+                        "
+                      >
                         <mat-label>Account Status</mat-label>
-                        <select
-                          matNativeControl
+                        <mat-select
                           formControlName="accountStatus"
                           [appControlToggle]="
                             'completingActions.' + caIndex + '.fiuNo'
@@ -1678,13 +2042,13 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                           appControlToggleValue="010"
                           [appControlRequired]="true"
                         >
-                          <option
+                          <mat-option
                             *ngFor="let key of accountStatusOptionsKeys"
                             [value]="accountStatusOptions[key]"
                           >
                             {{ key }}
-                          </option>
-                        </select>
+                          </mat-option>
+                        </mat-select>
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
@@ -1708,7 +2072,12 @@ import { ControlToggleDirective } from "./control-toggle.directive";
 
                     <!-- Account Open/Close -->
                     <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-3">
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'completingActions-' + caIndex + '-accountOpen'
+                        "
+                      >
                         <mat-label>Account Open Date</mat-label>
                         <input
                           matInput
@@ -1746,7 +2115,12 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                           <mat-icon>edit</mat-icon>
                         </button>
                       </mat-form-field>
-                      <mat-form-field class="col">
+                      <mat-form-field
+                        class="col"
+                        [attr.data-testid]="
+                          'completingActions-' + caIndex + '-accountClose'
+                        "
+                      >
                         <mat-label>Account Close Date</mat-label>
                         <input
                           matInput
@@ -1792,6 +2166,9 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                       <mat-checkbox
                         class="col"
                         formControlName="hasAccountHolders"
+                        [attr.data-testid]="
+                          'completingActions-' + caIndex + '-hasAccountHolders'
+                        "
                       >
                         Has account holders?
                       </mat-checkbox>
@@ -1820,7 +2197,7 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                       <div
                         *ngFor="
                           let holder of caAction.controls.accountHolders
-                            ?.controls;
+                            .controls;
                           let holderIndex = index
                         "
                         [formGroupName]="holderIndex"
@@ -1847,22 +2224,58 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                             </mat-panel-title>
                           </mat-expansion-panel-header>
                           <div class="row row-cols-1 row-cols-md-2">
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'completingActions-' +
+                                caIndex +
+                                '-accountHolders-' +
+                                holderIndex +
+                                '-partyKey'
+                              "
+                            >
                               <mat-label>Party Key</mat-label>
                               <input matInput formControlName="partyKey" />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'completingActions-' +
+                                caIndex +
+                                '-accountHolders-' +
+                                holderIndex +
+                                '-surname'
+                              "
+                            >
                               <mat-label>Surname</mat-label>
                               <input matInput formControlName="surname" />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'completingActions-' +
+                                caIndex +
+                                '-accountHolders-' +
+                                holderIndex +
+                                '-givenName'
+                              "
+                            >
                               <mat-label>GivenName</mat-label>
                               <input matInput formControlName="givenName" />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'completingActions-' +
+                                caIndex +
+                                '-accountHolders-' +
+                                holderIndex +
+                                '-otherOrInitial'
+                              "
+                            >
                               <mat-label>Other or Initial</mat-label>
                               <input
                                 matInput
@@ -1870,7 +2283,16 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                               />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'completingActions-' +
+                                caIndex +
+                                '-accountHolders-' +
+                                holderIndex +
+                                '-nameOfEntity'
+                              "
+                            >
                               <mat-label>Name of Entity</mat-label>
                               <input matInput formControlName="nameOfEntity" />
                             </mat-form-field>
@@ -1894,6 +2316,11 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                       <mat-checkbox
                         class="col"
                         formControlName="wasAnyOtherSubInvolved"
+                        [attr.data-testid]="
+                          'completingActions-' +
+                          caIndex +
+                          '-wasAnyOtherSubInvolved'
+                        "
                       >
                         Was any other subject involved?
                       </mat-checkbox>
@@ -1920,8 +2347,7 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                     >
                       <div
                         *ngFor="
-                          let involved of caAction.controls.involvedIn
-                            ?.controls;
+                          let involved of caAction.controls.involvedIn.controls;
                           let invIndex = index
                         "
                         [formGroupName]="invIndex"
@@ -1942,26 +2368,107 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                             </mat-panel-title>
                           </mat-expansion-panel-header>
                           <div class="row row-cols-1 row-cols-md-2">
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'completingActions-' +
+                                caIndex +
+                                '-involvedIn-' +
+                                invIndex +
+                                '-partyKey'
+                              "
+                            >
                               <mat-label>Party Key</mat-label>
                               <input matInput formControlName="partyKey" />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'completingActions-' +
+                                caIndex +
+                                '-involvedIn-' +
+                                invIndex +
+                                '-surname'
+                              "
+                            >
                               <mat-label>Surname</mat-label>
                               <input matInput formControlName="surname" />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'completingActions-' +
+                                caIndex +
+                                '-involvedIn-' +
+                                invIndex +
+                                '-givenName'
+                              "
+                            >
                               <mat-label>GivenName</mat-label>
                               <input matInput formControlName="givenName" />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'completingActions-' +
+                                caIndex +
+                                '-involvedIn-' +
+                                invIndex +
+                                '-otherOrInitial'
+                              "
+                            >
                               <mat-label>Other or Initial</mat-label>
                               <input
                                 matInput
                                 formControlName="otherOrInitial"
+                              />
+                            </mat-form-field>
+
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'completingActions-' +
+                                caIndex +
+                                '-involvedIn-' +
+                                invIndex +
+                                '-nameOfEntity'
+                              "
+                            >
+                              <mat-label>Name of Entity</mat-label>
+                              <input matInput formControlName="nameOfEntity" />
+                            </mat-form-field>
+
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'completingActions-' +
+                                caIndex +
+                                '-involvedIn-' +
+                                invIndex +
+                                '-accountNumber'
+                              "
+                            >
+                              <mat-label>Account Number</mat-label>
+                              <input matInput formControlName="accountNumber" />
+                            </mat-form-field>
+
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'completingActions-' +
+                                caIndex +
+                                '-involvedIn-' +
+                                invIndex +
+                                '-identifyingNumber'
+                              "
+                            >
+                              <mat-label>Identifying Number</mat-label>
+                              <input
+                                matInput
+                                formControlName="identifyingNumber"
                               />
                             </mat-form-field>
                           </div>
@@ -1982,6 +2489,9 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                       <mat-checkbox
                         class="col"
                         formControlName="wasBenInfoObtained"
+                        [attr.data-testid]="
+                          'completingActions-' + caIndex + '-wasBenInfoObtained'
+                        "
                       >
                         Was Beneficiary Info Obtained?
                       </mat-checkbox>
@@ -2006,7 +2516,7 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                       <div
                         *ngFor="
                           let beneficiary of caAction.controls.beneficiaries
-                            ?.controls;
+                            .controls;
                           let benIndex = index
                         "
                         [formGroupName]="benIndex"
@@ -2027,22 +2537,58 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                             </mat-panel-title>
                           </mat-expansion-panel-header>
                           <div class="row row-cols-1 row-cols-md-2">
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'completingActions-' +
+                                caIndex +
+                                '-beneficiaries-' +
+                                benIndex +
+                                '-partyKey'
+                              "
+                            >
                               <mat-label>Party Key</mat-label>
                               <input matInput formControlName="partyKey" />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'completingActions-' +
+                                caIndex +
+                                '-beneficiaries-' +
+                                benIndex +
+                                '-surname'
+                              "
+                            >
                               <mat-label>Surname</mat-label>
                               <input matInput formControlName="surname" />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'completingActions-' +
+                                caIndex +
+                                '-beneficiaries-' +
+                                benIndex +
+                                '-givenName'
+                              "
+                            >
                               <mat-label>GivenName</mat-label>
                               <input matInput formControlName="givenName" />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'completingActions-' +
+                                caIndex +
+                                '-beneficiaries-' +
+                                benIndex +
+                                '-otherOrInitial'
+                              "
+                            >
                               <mat-label>Other or Initial</mat-label>
                               <input
                                 matInput
@@ -2050,7 +2596,16 @@ import { ControlToggleDirective } from "./control-toggle.directive";
                               />
                             </mat-form-field>
 
-                            <mat-form-field class="col">
+                            <mat-form-field
+                              class="col"
+                              [attr.data-testid]="
+                                'completingActions-' +
+                                caIndex +
+                                '-beneficiaries-' +
+                                benIndex +
+                                '-nameOfEntity'
+                              "
+                            >
                               <mat-label>Name of Entity</mat-label>
                               <input matInput formControlName="nameOfEntity" />
                             </mat-form-field>
@@ -2085,17 +2640,17 @@ import { ControlToggleDirective } from "./control-toggle.directive";
 export class EditFormComponent implements OnInit {
   @Input()
   readonly editType!: EditFormEditType;
-  get isSingleEdit() {
+  protected get isSingleEdit() {
     return this.editType.type === "SINGLE_EDIT";
   }
-  get isBulkEdit() {
+  protected get isBulkEdit() {
     return this.editType.type === "BULK_EDIT";
   }
-  get isNotAudit() {
+  protected get isNotAudit() {
     return this.editType.type !== "AUDIT_REQUEST";
   }
 
-  editForm: ReturnType<
+  protected editForm: ReturnType<
     typeof EditFormComponent.prototype.createEditForm
   > | null = null;
   private singleStrTransactionBeforeEdit:
@@ -2121,37 +2676,37 @@ export class EditFormComponent implements OnInit {
   // ----------------------
   // Form Submission
   // ----------------------
-  isSaved = false;
-  onSave(): void {
-    // console.log(
-    //   "🚀 ~ EditFormComponent ~ onSubmit ~ this.userForm!.value:",
-    //   this.editForm!.value,
-    // );
-    const isBulkEditSaved = this.isSaved && this.editType.type === "BULK_EDIT";
+  protected isSaved = false;
+  protected onSave(): void {
+    console.log(
+      "🚀 ~ EditFormComponent ~ onSubmit ~ this.userForm!.value:",
+      this.editForm!.value,
+    );
+    // const isBulkEditSaved = this.isSaved && this.editType.type === "BULK_EDIT";
 
-    if (isBulkEditSaved) {
-      this.snackBar.open(
-        "Edits already saved please close this tab!",
-        "Dismiss",
-        {
-          duration: 5000,
-        },
-      );
-      return;
-    }
+    // if (isBulkEditSaved) {
+    //   this.snackBar.open(
+    //     "Edits already saved please close this tab!",
+    //     "Dismiss",
+    //     {
+    //       duration: 5000,
+    //     },
+    //   );
+    //   return;
+    // }
 
-    if (this.editType.type === "SINGLE_EDIT") {
-      const changes: ChangeLogWithoutVersion[] = [];
-      this.changeLogService.compareProperties(
-        this.singleStrTransactionBeforeEdit,
-        this.editForm!.value,
-        changes,
-      );
+    // if (this.editType.type === "SINGLE_EDIT") {
+    //   const changes: ChangeLogWithoutVersion[] = [];
+    //   this.changeLogService.compareProperties(
+    //     this.singleStrTransactionBeforeEdit,
+    //     this.editForm!.value,
+    //     changes,
+    //   );
 
-      this.singleStrTransactionBeforeEdit = structuredClone(
-        this.editForm!.value,
-      );
-    }
+    //   this.singleStrTransactionBeforeEdit = structuredClone(
+    //     this.editForm!.value,
+    //   );
+    // }
 
     // this.editForm$.pipe(take(1)).subscribe((form) => {
     //   if (!this.isBulkEdit) {
@@ -2183,13 +2738,13 @@ export class EditFormComponent implements OnInit {
     //       },
     //     );
     //   }
-    this.snackBar.open("Edits saved!", "Dismiss", {
-      duration: 5000,
-    });
-    this.isSaved = true;
+    // this.snackBar.open("Edits saved!", "Dismiss", {
+    //   duration: 5000,
+    // });
+    // this.isSaved = true;
   }
 
-  public createEditForm({
+  private createEditForm({
     txn,
     options,
   }: {
@@ -2768,7 +3323,7 @@ export class EditFormComponent implements OnInit {
   // Array Management
   // ----------------------
   // Starting Actions
-  addStartingAction(isBulk: boolean): void {
+  protected addStartingAction(isBulk: boolean): void {
     const newSaGroup = this.createStartingActionGroup({
       options: { createEmptyArrays: isBulk, disabled: false },
     });
@@ -2780,14 +3335,14 @@ export class EditFormComponent implements OnInit {
     if (isBulk) newSaGroup.disable();
   }
 
-  removeStartingAction(index: number): void {
+  protected removeStartingAction(index: number): void {
     if (this.editForm!.controls.startingActions.disabled) return;
 
     this.editForm!.controls.startingActions.removeAt(index);
   }
 
   // Completing Actions
-  addCompletingAction(isBulk: boolean): void {
+  protected addCompletingAction(isBulk: boolean): void {
     const newCaGroup = this.createCompletingActionGroup({
       options: { createEmptyArrays: isBulk, disabled: false },
     });
@@ -2799,14 +3354,17 @@ export class EditFormComponent implements OnInit {
     if (isBulk) newCaGroup.disable();
   }
 
-  removeCompletingAction(index: number): void {
+  protected removeCompletingAction(index: number): void {
     if (this.editForm!.controls.completingActions.disabled) return;
 
     this.editForm!.controls.completingActions.removeAt(index);
   }
 
   // Account Hodlers SA/CA
-  addAccountHolder(actionControlName: keyof StrTxn, actionIndex: number): void {
+  protected addAccountHolder(
+    actionControlName: keyof StrTxn,
+    actionIndex: number,
+  ): void {
     const action = (
       this.editForm!.get(actionControlName) as any as
         | FormArray<FormGroup<TypedForm<StartingAction>>>
@@ -2822,7 +3380,7 @@ export class EditFormComponent implements OnInit {
     action.controls.accountHolders!.markAllAsTouched();
   }
 
-  removeAccountHolder(
+  protected removeAccountHolder(
     actionControlName: keyof StrTxn,
     actionIndex: number,
     index: number,
@@ -2839,7 +3397,7 @@ export class EditFormComponent implements OnInit {
   }
 
   // Source of Funds
-  addSourceOfFunds(saIndex: number): void {
+  protected addSourceOfFunds(saIndex: number): void {
     const startingAction = this.editForm!.controls.startingActions.at(saIndex);
 
     if (startingAction.controls.sourceOfFunds.disabled) return;
@@ -2851,7 +3409,7 @@ export class EditFormComponent implements OnInit {
     startingAction.controls.sourceOfFunds.markAllAsTouched();
   }
 
-  removeSourceOfFunds(saIndex: number, index: number): void {
+  protected removeSourceOfFunds(saIndex: number, index: number): void {
     const startingAction = this.editForm!.controls.startingActions.at(saIndex);
 
     if (startingAction.controls.sourceOfFunds.disabled) return;
@@ -2860,7 +3418,7 @@ export class EditFormComponent implements OnInit {
   }
 
   // Conductors
-  addConductor(saIndex: number): void {
+  protected addConductor(saIndex: number): void {
     const startingAction = this.editForm!.controls.startingActions.at(saIndex);
 
     if (startingAction.controls.conductors.disabled) return;
@@ -2872,7 +3430,7 @@ export class EditFormComponent implements OnInit {
     startingAction.controls.conductors.markAllAsTouched();
   }
 
-  removeConductor(saIndex: number, index: number): void {
+  protected removeConductor(saIndex: number, index: number): void {
     const startingAction = this.editForm!.controls.startingActions.at(saIndex);
     if (startingAction.controls.conductors.disabled) return;
 
@@ -2880,7 +3438,7 @@ export class EditFormComponent implements OnInit {
   }
 
   // On Behalf Of
-  addOnBehalfOf(saIndex: number, conductorIndex: number): void {
+  protected addOnBehalfOf(saIndex: number, conductorIndex: number): void {
     const startingAction = this.editForm!.controls.startingActions.at(saIndex);
 
     if (
@@ -2904,7 +3462,7 @@ export class EditFormComponent implements OnInit {
       .controls.onBehalfOf.markAllAsTouched();
   }
 
-  removeOnBehalfOf(
+  protected removeOnBehalfOf(
     saIndex: number,
     conductorIndex: number,
     index: number,
@@ -2923,7 +3481,7 @@ export class EditFormComponent implements OnInit {
   }
 
   // Involved In (Completing Action)
-  addInvolvedIn(caIndex: number): void {
+  protected addInvolvedIn(caIndex: number): void {
     const completingAction =
       this.editForm!.controls.completingActions.at(caIndex);
 
@@ -2936,7 +3494,7 @@ export class EditFormComponent implements OnInit {
     completingAction.controls.involvedIn!.markAllAsTouched();
   }
 
-  removeInvolvedIn(caIndex: number, index: number): void {
+  protected removeInvolvedIn(caIndex: number, index: number): void {
     const completingAction =
       this.editForm!.controls.completingActions.at(caIndex);
 
@@ -2946,7 +3504,7 @@ export class EditFormComponent implements OnInit {
   }
 
   // Beneficiaries
-  addBeneficiary(caIndex: number): void {
+  protected addBeneficiary(caIndex: number): void {
     const completingAction =
       this.editForm!.controls.completingActions.at(caIndex);
 
@@ -2959,7 +3517,7 @@ export class EditFormComponent implements OnInit {
     completingAction.controls.beneficiaries!.markAllAsTouched();
   }
 
-  removeBeneficiary(caIndex: number, index: number): void {
+  protected removeBeneficiary(caIndex: number, index: number): void {
     const completingAction =
       this.editForm!.controls.completingActions.at(caIndex);
 
@@ -2968,13 +3526,13 @@ export class EditFormComponent implements OnInit {
     completingAction.controls.beneficiaries!.removeAt(index);
   }
 
-  get methodOfTxnOptionsKeys() {
+  protected get methodOfTxnOptionsKeys() {
     return Object.keys(EditFormComponent.methodOfTxnOptions);
   }
-  get methodOfTxnOptions() {
+  protected get methodOfTxnOptions() {
     return EditFormComponent.methodOfTxnOptions;
   }
-  static methodOfTxnOptions: Record<string, string> = {
+  protected static methodOfTxnOptions: Record<string, string> = {
     "": "",
     ABM: "ABM",
     "In-Person": "In-Person",
@@ -2982,13 +3540,13 @@ export class EditFormComponent implements OnInit {
     Other: "Other",
   };
 
-  get typeofFundsOptionsKeys() {
+  protected get typeofFundsOptionsKeys() {
     return Object.keys(EditFormComponent.typeOfFundsOptions);
   }
-  get typeofFundsOptions() {
+  protected get typeofFundsOptions() {
     return EditFormComponent.typeOfFundsOptions;
   }
-  static typeOfFundsOptions: Record<string, string> = {
+  protected static typeOfFundsOptions: Record<string, string> = {
     "": "",
     "Funds Withdrawal": "Funds Withdrawal",
     Cash: "Cash",
@@ -2998,13 +3556,13 @@ export class EditFormComponent implements OnInit {
     Other: "Other",
   };
 
-  get accountTypeOptionsKeys() {
+  protected get accountTypeOptionsKeys() {
     return Object.keys(EditFormComponent.accountTypeOptions);
   }
-  get accountTypeOptions() {
+  protected get accountTypeOptions() {
     return EditFormComponent.accountTypeOptions;
   }
-  static accountTypeOptions: Record<string, string> = {
+  protected static accountTypeOptions: Record<string, string> = {
     "": "",
     Business: "Business",
     Casino: "Casino",
@@ -3012,37 +3570,37 @@ export class EditFormComponent implements OnInit {
     Other: "Other",
   };
 
-  get amountCurrencyOptionsKeys() {
+  protected get amountCurrencyOptionsKeys() {
     return Object.keys(EditFormComponent.amountCurrencyOptions);
   }
-  get amountCurrencyOptions() {
+  protected get amountCurrencyOptions() {
     return EditFormComponent.amountCurrencyOptions;
   }
-  static amountCurrencyOptions: Record<string, string> = {
+  protected static amountCurrencyOptions: Record<string, string> = {
     "": "",
     CAD: "CAD",
     USD: "USD",
   };
 
-  get accountCurrencyOptionsKeys() {
+  protected get accountCurrencyOptionsKeys() {
     return Object.keys(EditFormComponent.accountCurrencyOptions);
   }
-  get accountCurrencyOptions() {
+  protected get accountCurrencyOptions() {
     return EditFormComponent.accountCurrencyOptions;
   }
-  static accountCurrencyOptions: Record<string, string> = {
+  protected static accountCurrencyOptions: Record<string, string> = {
     "": "",
     CAD: "CAD",
     USD: "USD",
   };
 
-  get accountStatusOptionsKeys() {
+  protected get accountStatusOptionsKeys() {
     return Object.keys(EditFormComponent.accountStatusOptions);
   }
-  get accountStatusOptions() {
+  protected get accountStatusOptions() {
     return EditFormComponent.accountStatusOptions;
   }
-  static accountStatusOptions: Record<string, string> = {
+  protected static accountStatusOptions: Record<string, string> = {
     "": "",
     Active: "Active",
     Closed: "Closed",
@@ -3050,25 +3608,25 @@ export class EditFormComponent implements OnInit {
     Dorment: "Dorment",
   };
 
-  get directionOfSAOptionsKeys() {
+  protected get directionOfSAOptionsKeys() {
     return Object.keys(EditFormComponent.directionOfSAOptions);
   }
-  get directionOfSAOptions() {
+  protected get directionOfSAOptions() {
     return EditFormComponent.directionOfSAOptions;
   }
-  static directionOfSAOptions: Record<string, string> = {
+  protected static directionOfSAOptions: Record<string, string> = {
     "": "",
     In: "In",
     Out: "Out",
   };
 
-  get detailsOfDispositionOptionsKeys() {
+  protected get detailsOfDispositionOptionsKeys() {
     return Object.keys(EditFormComponent.detailsOfDispositionOptions);
   }
-  get detailsOfDispositionOptions() {
+  protected get detailsOfDispositionOptions() {
     return EditFormComponent.detailsOfDispositionOptions;
   }
-  static detailsOfDispositionOptions: Record<string, string> = {
+  protected static detailsOfDispositionOptions: Record<string, string> = {
     "": "",
     "Deposit to account": "Deposit to account",
     "Cash Withdrawal": "Cash Withdrawal",
@@ -3077,7 +3635,7 @@ export class EditFormComponent implements OnInit {
     Other: "Other",
   };
 
-  navigateBack() {
+  protected navigateBack() {
     throw new Error("Method not implemented.");
   }
 }
@@ -3086,13 +3644,19 @@ export const singleEditResolver: ResolveFn<EditFormEditType> = (
   route: ActivatedRouteSnapshot,
   _: RouterStateSnapshot,
 ) => {
+  const sessionStateValue = inject(SessionDataService).getSessionStateValue();
+
+  if (!sessionStateValue) throw new Error("No session found");
+
+  const strTransactionEdited = sessionStateValue.strTransactionsEdited.find(
+    (txn) => route.params["txnId"] === txn.flowOfFundsAmlTransactionId,
+  );
+
+  if (!strTransactionEdited) throw new Error("Transaction not found");
+
   return {
     type: "SINGLE_EDIT",
-    payload: inject(
-      SessionDataService,
-    ).sessionStateValue.strTransactionsEdited.find(
-      (txn) => route.params["txnId"] === txn.flowOfFundsAmlTransactionId,
-    )!,
+    payload: strTransactionEdited,
   };
 };
 
@@ -3106,7 +3670,7 @@ export type TypedForm<T> = {
       : FormControl<Exclude<T[K], undefined> | null>;
 };
 
-type StrTxnEditForm = RecursiveOmit<
+export type StrTxnEditForm = RecursiveOmit<
   StrTxn,
   | keyof StrTxnFlowOfFunds
   | "highlightColor"

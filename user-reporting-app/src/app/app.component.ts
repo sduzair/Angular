@@ -91,11 +91,6 @@ import { enCA } from "date-fns/locale";
     </mat-sidenav-container>
   `,
   styleUrl: "./app.component.scss",
-  providers: [
-    { provide: MAT_DATE_LOCALE, useValue: enCA },
-    { provide: DateAdapter, useClass: DateFnsAdapter, deps: [MAT_DATE_LOCALE] },
-    { provide: MAT_DATE_FORMATS, useValue: MAT_DATE_FNS_FORMATS },
-  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppComponent {

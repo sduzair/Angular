@@ -7,16 +7,19 @@ type DiscriminatorType = "_id" | "index";
 export class ChangeLogService<T extends object> {
   // Closure-based path resolver factory
   private createPathResolver(discriminator: DiscriminatorType) {
-    return (arr: any[], part: string): number => {
-      if (part.startsWith("$id=") && discriminator === "_id") {
+    if (discriminator === "_id")
+      return (arr: any[], part: string): number => {
+        console.assert(part.startsWith("$id=") && discriminator === "_id");
         const targetId = part.split("=")[1];
         return arr.findIndex((item) => item._id === targetId);
-      }
-      if (part.startsWith("$idx=") && discriminator === "index") {
+      };
+
+    if (discriminator === "index")
+      return (arr: any[], part: string): number => {
+        console.assert(part.startsWith("$idx=") && discriminator === "index");
         return Number(part.split("=")[1]);
-      }
-      return -1;
-    };
+      };
+    return;
   }
 
   // Higher-order function for array comparison
@@ -108,29 +111,33 @@ export class ChangeLogService<T extends object> {
     const result = structuredClone(original) as WithVersion<T>; // todo breaks table selection model refs
 
     changes.forEach((change) => {
-      const pathParts = change.path.split(".");
+      const pathSegments = change.path.split(".");
       let current: Record<string, unknown> = result;
       let parent: Record<string, unknown> | null = null;
       let targetIndex: number | null = null;
 
-      pathParts.forEach((part, index) => {
-        const isLastSegment = index === pathParts.length - 1;
+      pathSegments.forEach((segment, index) => {
+        const isLastSegment = index === pathSegments.length - 1;
         const isArraySegment = ["$id=", "$idx="].some((prefix) =>
-          part.startsWith(prefix),
+          segment.startsWith(prefix),
         );
+
+        if (Array.isArray(current) && !isArraySegment)
+          throw new Error("unknown array segment");
 
         // Handle array navigation
         if (isArraySegment) {
           let resolvePath: ReturnType<typeof this.createPathResolver> | null =
             null;
-          if (part.startsWith("$id="))
+          if (segment.startsWith("$id="))
             resolvePath = this.createPathResolver("_id");
-          if (part.startsWith("$idx="))
+          if (segment.startsWith("$idx="))
             resolvePath = this.createPathResolver("index");
 
-          if (!Array.isArray(current)) throw new Error("exptected array");
+          if (!Array.isArray(current))
+            throw new Error("exptected array invalid array access");
 
-          targetIndex = resolvePath!(current, part);
+          targetIndex = resolvePath!(current, segment);
           if (targetIndex === -1) return;
 
           parent = current;
@@ -143,13 +150,13 @@ export class ChangeLogService<T extends object> {
 
         // Apply changes at terminal node
         if (isLastSegment) {
-          this.applyChange(change, current, parent, targetIndex, part);
+          this.applyChange(change, current, parent, targetIndex, segment);
           return;
         }
 
         // Continue traversal
         parent = current;
-        current = current[part] as any;
+        current = current[segment] as any;
       });
     });
 

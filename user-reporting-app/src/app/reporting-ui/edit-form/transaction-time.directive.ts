@@ -1,8 +1,4 @@
-import {
-  Directive,
-  ElementRef,
-  HostListener,
-} from "@angular/core";
+import { Directive, ElementRef, HostListener } from "@angular/core";
 import { ControlValueAccessor, NgControl } from "@angular/forms";
 import { format, isValid, parse } from "date-fns";
 
@@ -50,11 +46,11 @@ export class TransactionTimeDirective implements ControlValueAccessor {
     this.el.nativeElement.disabled = isDisabled;
   }
 
-  static parseAndFormattedTime(value: string) {
+  static parseAndFormattedTime(value: string | unknown) {
     // Try parsing 'H:mm', 'HH:mm', or 'HH:mm:ss' formats
     const formats = ["HH:mm:ss", "HH:mm"];
     for (const fmt of formats) {
-      const parsed = parse(value, fmt, new Date());
+      const parsed = parse(String(value ?? ""), fmt, new Date());
       if (!isValid(parsed)) continue;
       const formatted = format(parsed, "HH:mm:ss");
       return formatted;

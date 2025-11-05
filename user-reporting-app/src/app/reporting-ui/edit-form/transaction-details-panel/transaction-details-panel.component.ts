@@ -1,9 +1,9 @@
-import { ChangeDetectionStrategy, Component, Input } from "@angular/core";
-import { StrTxnEdited } from "../../../session-data.service";
 import { CommonModule, CurrencyPipe } from "@angular/common";
+import { ChangeDetectionStrategy, Component, Input } from "@angular/core";
 import { MatButtonModule } from "@angular/material/button";
 import { MatDivider } from "@angular/material/divider";
 import { MatExpansionModule } from "@angular/material/expansion";
+import { StrTxnEdited } from "../../../session-data.service";
 
 @Component({
   selector: "app-transaction-details-panel",
@@ -15,37 +15,39 @@ import { MatExpansionModule } from "@angular/material/expansion";
     MatExpansionModule,
   ],
   template: `
-    <mat-expansion-panel class="container mx-auto">
-      <mat-expansion-panel-header class="container row row-cols-auto">
-        <mat-panel-description class="row">
-          <div class="col-auto d-flex flex-column">
+    <mat-expansion-panel>
+      <mat-expansion-panel-header>
+        <mat-panel-description class="row row-cols-1 justify-content-between">
+          <div class="col-md-auto d-flex flex-column">
             <span class="label text-uppercase">Transaction Description:</span>
             <span class="value text-break">{{
               singleStrTransaction.flowOfFundsTransactionDesc
             }}</span>
           </div>
 
-          <div class="col"></div>
+          <div class="col-auto">
+            <div class="row">
+              <div class="col-md-auto d-flex flex-column">
+                <span class="label text-uppercase">Transaction Date:</span>
+                <span class="value text-break">{{
+                  singleStrTransaction.flowOfFundsTransactionDate
+                }}</span>
+              </div>
 
-          <div class="col-auto d-flex flex-column">
-            <span class="label text-uppercase">Transaction Date:</span>
-            <span class="value text-break">{{
-              singleStrTransaction.flowOfFundsTransactionDate
-            }}</span>
-          </div>
+              <div class="col-md-auto d-flex flex-column">
+                <span class="label text-uppercase">Transaction Time:</span>
+                <span class="value text-break">{{
+                  singleStrTransaction.flowOfFundsTransactionTime
+                }}</span>
+              </div>
 
-          <div class="col-auto d-flex flex-column">
-            <span class="label text-uppercase">Transaction Time:</span>
-            <span class="value text-break">{{
-              singleStrTransaction.flowOfFundsTransactionTime
-            }}</span>
-          </div>
-
-          <div class="col-auto d-flex flex-column">
-            <span class="label text-uppercase">Posting Date:</span>
-            <span class="value text-break">{{
-              singleStrTransaction.flowOfFundsPostingDate
-            }}</span>
+              <div class="col-md-auto d-flex flex-column">
+                <span class="label text-uppercase">Posting Date:</span>
+                <span class="value text-break">{{
+                  singleStrTransaction.flowOfFundsPostingDate
+                }}</span>
+              </div>
+            </div>
           </div>
         </mat-panel-description>
       </mat-expansion-panel-header>

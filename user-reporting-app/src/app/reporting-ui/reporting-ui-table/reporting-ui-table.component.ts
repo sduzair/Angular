@@ -588,5 +588,7 @@ export const strTransactionsEditedResolver: ResolveFn<StrTxnEdited[]> = (
   _: RouterStateSnapshot,
 ) => {
   const sessionDataService = inject(SessionDataService);
-  return sessionDataService.sessionStateValue.strTransactionsEdited;
+  const sessionStateValue = sessionDataService.getSessionStateValue();
+  if (!sessionStateValue) throw new Error("No session found");
+  return sessionStateValue.strTransactionsEdited;
 };

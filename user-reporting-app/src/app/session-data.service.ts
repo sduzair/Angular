@@ -8,65 +8,50 @@ import {
   map,
   throwError,
 } from "rxjs";
-import { catchError, finalize, switchMap } from "rxjs/operators";
+import { catchError, finalize, startWith, switchMap } from "rxjs/operators";
 import {
   ChangeLog,
   ChangeLogWithoutVersion,
   WithVersion,
 } from "./change-log.service";
-import { CrossTabEditService } from "./cross-tab-edit.service";
 import { EditFormEditType } from "./reporting-ui/edit-form/edit-form.component";
 import { StrTxnWithHiddenProps } from "./reporting-ui/reporting-ui-table/reporting-ui-table.component";
 import { editedTransactionsDevOnly } from "./transaction-view/transactionSearchResDevOnly";
 
-@Injectable({ providedIn: "root" })
+@Injectable()
 export class SessionDataService {
-  private sessionState = new BehaviorSubject<SessionStateLocal>(null!);
-  get sessionStateValue() {
+  private sessionState = new BehaviorSubject<SessionStateLocal | null>(null);
+  getSessionStateValue() {
     return this.sessionState.value;
   }
-  sessionState$ = this.sessionState.asObservable();
+  readonly sessionState$ = this.sessionState.asObservable();
   public conflict$ = new Subject<void>();
-  latestSessionVersion$ = this.sessionState$.pipe(
+  readonly latestSessionVersion$ = this.sessionState$.pipe(
     map((sessionState) => sessionState?.version),
   );
 
-  // highligts
-  private highlightEdits$ = new Subject<EditTabChangeLogsRes[]>();
-  private highlightAccumulatorMap = new Map<
-    string,
-    ChangeLogWithoutVersion[]
-  >();
+  readonly lastUpdated$ = this.sessionState$.pipe(
+    map((sessionState) => sessionState?.lastUpdated!),
+    startWith(new Date(0).toISOString().split("T")[0]),
+  );
 
-  public savingSubject = new BehaviorSubject<boolean>(false);
-  saving$ = this.savingSubject.asObservable();
+  // highlights
+  // private highlightEdits$ = new Subject<EditTabChangeLogsRes[]>();
+  // private highlightAccumulatorMap = new Map<
+  //   string,
+  //   ChangeLogWithoutVersion[]
+  // >();
+
+  private savingSubject = new BehaviorSubject<boolean>(false);
+  savingStatus$ = this.savingSubject.asObservable();
 
   constructor(
     private http: HttpClient,
-    private crossTabEditService: CrossTabEditService,
     private errorHandler: ErrorHandler,
   ) {
-    this.sessionState.next({
-      amlId: "999999",
-      version: 0,
-      transactionSearchParams: {
-        accountNumbersSelection: [],
-        partyKeysSelection: [],
-        productTypesSelection: [],
-        reviewPeriodSelection: [],
-        sourceSystemsSelection: [],
-      },
-      strTransactionsEdited: editedTransactionsDevOnly.map((txn) => ({
-        ...txn,
-        _hiddenTxnType: txn.flowOfFundsSource,
-        _hiddenAmlId: "999999",
-        _hiddenStrTxnId: txn.flowOfFundsAmlTransactionId,
-        _version: 0,
-        changeLogs: [],
-      })),
-      lastUpdated: "1996-06-13",
-    });
+    this.sessionState.next(sessionStateDevOrTestOnly);
 
+    // this.sessionState.next(sessionStateDevOrTestOnly);
     /*     this.crossTabEditService.editResponse$
       .pipe(
         withLatestFrom(this.sessionState$),
@@ -92,7 +77,6 @@ export class SessionDataService {
         }),
       )
       .subscribe(); */
-
     // Handle highlight updates: debounce + flush + reset
     /*     this.highlightEdits$
       .pipe(
@@ -145,16 +129,14 @@ export class SessionDataService {
       .subscribe(); */
   }
 
-  fetchSessionByAmlId(amlId: string): Observable<GetSessionResponse> {
+  fetchSessionByAmlId(amlId: string): Observable<SessionStateLocal> {
     return this.http.get<GetSessionResponse>(`/api/sessions/${amlId}`).pipe(
       map(
         ({
           amlId,
           version,
-          data: { strTransactionsEdited = [], transactionSearchParams },
-          createdAt,
+          data: { transactionSearchParams, strTransactionsEdited = [] },
           updatedAt,
-          userId,
         }) => {
           // todo use error handling to display version conflict message
           this.sessionState.next({
@@ -165,22 +147,18 @@ export class SessionDataService {
             lastUpdated: updatedAt,
           });
           return {
-            amlId,
+            amlId: amlId,
             version,
-            data: {
-              strTransactionsEdited,
-              transactionSearchParams,
-            },
-            createdAt,
-            updatedAt,
-            userId,
+            transactionSearchParams,
+            strTransactionsEdited,
+            lastUpdated: updatedAt,
           };
         },
       ),
     );
   }
 
-  initialize(amlId: string): Observable<SessionStateLocal> {
+  createSession(amlId: string): Observable<SessionStateLocal> {
     return this.http
       .post<CreateSessionResponse>("/api/sessions", {
         amlId: amlId,
@@ -227,16 +205,16 @@ export class SessionDataService {
       );
   }
 
-  public updateHighlights(
-    highlightEdit: Extract<
-      EditFormEditType,
-      {
-        type: "BULK_EDIT_RESULT";
-      }
-    >,
-  ) {
-    // this.highlightEdits$.next(highlightEdit.payload);
-  }
+  // public updateHighlights(
+  //   highlightEdit: Extract<
+  //     EditFormEditType,
+  //     {
+  //       type: "BULK_EDIT_RESULT";
+  //     }
+  //   >,
+  // ) {
+  //   // this.highlightEdits$.next(highlightEdit.payload);
+  // }
 
   private update(
     amlId: string,
@@ -391,7 +369,7 @@ interface CreateSessionRequest {
   };
 }
 
-interface CreateSessionResponse {
+export interface CreateSessionResponse {
   amlId: string;
   userId: string;
   version: number;
@@ -422,3 +400,24 @@ export interface ReviewPeriod {
   start?: string | null;
   end?: string | null;
 }
+
+export const sessionStateDevOrTestOnly: SessionStateLocal = {
+  amlId: "999999",
+  version: 0,
+  transactionSearchParams: {
+    accountNumbersSelection: [],
+    partyKeysSelection: [],
+    productTypesSelection: [],
+    reviewPeriodSelection: [],
+    sourceSystemsSelection: [],
+  },
+  strTransactionsEdited: editedTransactionsDevOnly.map((txn) => ({
+    ...txn,
+    _hiddenTxnType: txn.flowOfFundsSource,
+    _hiddenAmlId: "999999",
+    _hiddenStrTxnId: txn.flowOfFundsAmlTransactionId,
+    _version: 0,
+    changeLogs: [],
+  })),
+  lastUpdated: "1996-06-13",
+};

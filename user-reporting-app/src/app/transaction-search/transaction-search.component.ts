@@ -71,7 +71,6 @@ import {
   tap,
 } from "rxjs";
 import { AmlSessionService } from "../aml-session.service";
-import { removePageFromOpenTabs } from "../single-tab.guard";
 import { AccountNumberSelectableTableComponent } from "./account-number-selectable-table/account-number-selectable-table.component";
 import { AmlPartyService } from "./aml-party.service";
 import { AmlProductService } from "./aml-product.service";
@@ -641,7 +640,7 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
     this.destroy$.next();
     this.destroy$.complete();
 
-    removePageFromOpenTabs(this.route.snapshot);
+    // removePageFromOpenTabs(this.route.snapshot);
   }) as () => void;
 
   @ViewChild(FormGroupDirective)
