@@ -1,17 +1,17 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  Input,
-  TrackByFunction,
-} from "@angular/core";
-import { TableSelectionCompareWithAmlTxnId } from "../transaction-view.component";
-import { BaseTableComponent } from "../../base-table/base-table.component";
-import { AbmSourceData } from "../../transaction-search/aml-transaction-search.service";
 import { SelectionModel } from "@angular/cdk/collections";
-import { IFilterForm } from "../../base-table/abstract-base-table";
 import { CommonModule } from "@angular/common";
+import {
+    ChangeDetectionStrategy,
+    Component,
+    Input,
+    TrackByFunction,
+} from "@angular/core";
 import { MatCheckbox } from "@angular/material/checkbox";
 import { MatTableModule } from "@angular/material/table";
+import { IFilterForm } from "../../base-table/abstract-base-table";
+import { BaseTableComponent } from "../../base-table/base-table.component";
+import { AbmSourceData } from "../../transaction-search/aml-transaction-search.service";
+import { TableSelectionCompareWithAmlTransactionId } from "../transaction-view.component";
 
 @Component({
   selector: "app-abm-table",
@@ -79,7 +79,7 @@ import { MatTableModule } from "@angular/material/table";
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AbmTableComponent<
-  TSelection extends { [K in keyof TableSelectionCompareWithAmlTxnId]: string },
+  TSelection extends { [K in keyof TableSelectionCompareWithAmlTransactionId]: string },
 > {
   dataColumnsValues: (keyof AbmSourceData)[] = [
     "postingDate",

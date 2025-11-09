@@ -4,7 +4,7 @@ import { SPECIAL_EMPTY_VALUE } from "./reporting-ui/edit-form/clear-field.direct
 type DiscriminatorType = "_id" | "index";
 
 @Injectable({ providedIn: "root" })
-export class ChangeLogService<T extends object> {
+export class ChangeLogService {
   // Closure-based path resolver factory
   private createPathResolver(discriminator: DiscriminatorType) {
     if (discriminator === "_id")
@@ -106,7 +106,10 @@ export class ChangeLogService<T extends object> {
   }
 
   // Main applyChanges function using path traversal closure
-  applyChanges(original: T, changes: ChangeLog[]): WithVersion<T> {
+  applyChanges<T extends object>(
+    original: T,
+    changes: ChangeLog[],
+  ): WithVersion<T> {
     // Enforce immutability on record data to synchronize UI features like highlights
     const result = structuredClone(original) as WithVersion<T>; // todo breaks table selection model refs
 

@@ -49,6 +49,10 @@ mat-drawer-content table {
   background-color: var(--mat-sys-primary-fixed);
 }
 
+.mat-mdc-row.recentlyOpenRowHighlight {
+  background-color: var(--mat-sys-primary-fixed);
+}
+
 th.mat-sort-header-sorted {
   color: black;
 }

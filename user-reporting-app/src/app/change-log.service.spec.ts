@@ -7,18 +7,18 @@ import {
 import { SPECIAL_EMPTY_VALUE } from "./reporting-ui/edit-form/clear-field.directive";
 import {
   StartingAction,
-  StrTxn,
+  StrTransaction,
 } from "./reporting-ui/reporting-ui-table/reporting-ui-table.component";
 
 describe("ChangeLogService", () => {
-  let service: ChangeLogService<DeepPartial<StrTxn>>;
-  let txnBefore: DeepPartial<WithVersion<StrTxn>> = null!;
-  let txnAfter: DeepPartial<WithVersion<StrTxn>> = null!;
+  let service: ChangeLogService;
+  let transactionBefore: DeepPartial<WithVersion<StrTransaction>> = null!;
+  let transactionAfter: DeepPartial<WithVersion<StrTransaction>> = null!;
 
   beforeEach(() => {
     service = new ChangeLogService();
-    // Mock StrTxn structure
-    const mockTxn = {
+    // Mock StrTransaction structure
+    const mockTransaction = {
       purposeOfTxn: "savings",
       startingActions: [
         {
@@ -28,13 +28,13 @@ describe("ChangeLogService", () => {
       ],
       _version: 0,
     };
-    txnBefore = structuredClone(mockTxn);
-    txnAfter = structuredClone(mockTxn);
+    transactionBefore = structuredClone(mockTransaction);
+    transactionAfter = structuredClone(mockTransaction);
   });
 
   describe("applyChanges", () => {
     it("should apply simple property change", () => {
-      txnBefore.purposeOfTxn = "savings";
+      transactionBefore.purposeOfTxn = "savings";
       const changes: ChangeLog[] = [
         {
           path: "purposeOfTxn",
@@ -44,14 +44,14 @@ describe("ChangeLogService", () => {
         },
       ];
 
-      const result = service.applyChanges(txnBefore, changes);
+      const result = service.applyChanges(transactionBefore, changes);
 
       expect(result.purposeOfTxn).toBe("grocery");
       expect(result._version).toBe(1);
     });
 
     it("should apply simple property change from undefined", () => {
-      txnBefore.purposeOfTxn = undefined;
+      transactionBefore.purposeOfTxn = undefined;
       const changes: ChangeLog[] = [
         {
           path: "purposeOfTxn",
@@ -61,14 +61,14 @@ describe("ChangeLogService", () => {
         },
       ];
 
-      const result = service.applyChanges(txnBefore, changes);
+      const result = service.applyChanges(transactionBefore, changes);
 
       expect(result.purposeOfTxn).toBe("trade");
       expect(result._version).toBe(1);
     });
 
     it("should apply nested property change", () => {
-      txnBefore.startingActions![0]!.currency = "CAD";
+      transactionBefore.startingActions![0]!.currency = "CAD";
       const changes: ChangeLog[] = [
         {
           path: "startingActions.$idx=0.currency",
@@ -78,14 +78,14 @@ describe("ChangeLogService", () => {
         },
       ];
 
-      const result = service.applyChanges(txnBefore, changes);
+      const result = service.applyChanges(transactionBefore, changes);
 
       expect(result?.startingActions?.[0]?.currency).toBe("USD");
       expect(result._version).toBe(1);
     });
 
     it("should throw on unknown array segment", () => {
-      txnBefore.startingActions![0]!.currency = "CAD";
+      transactionBefore.startingActions![0]!.currency = "CAD";
       const changes: ChangeLog[] = [
         {
           path: "startingActions.firstSA.currency",
@@ -95,13 +95,13 @@ describe("ChangeLogService", () => {
         },
       ];
 
-      expect(() => service.applyChanges(txnBefore, changes)).toThrowError(
-        "unknown array segment",
-      );
+      expect(() =>
+        service.applyChanges(transactionBefore, changes),
+      ).toThrowError("unknown array segment");
     });
 
     it("should throw on array access for nested simple property", () => {
-      (txnBefore as { name: { first: string; last: string } }).name = {
+      (transactionBefore as { name: { first: string; last: string } }).name = {
         first: "uzair",
         last: "syed",
       };
@@ -115,29 +115,29 @@ describe("ChangeLogService", () => {
         },
       ];
 
-      expect(() => service.applyChanges(txnBefore, changes)).toThrowError(
-        "exptected array invalid array access",
-      );
+      expect(() =>
+        service.applyChanges(transactionBefore, changes),
+      ).toThrowError("exptected array invalid array access");
     });
 
     it("should remove entire array", () => {
-      txnBefore.startingActions = [{ _id: "sa1", branch: "123" }];
+      transactionBefore.startingActions = [{ _id: "sa1", branch: "123" }];
       const changes: ChangeLog[] = [
         {
           path: "startingActions",
-          oldValue: txnBefore.startingActions,
+          oldValue: transactionBefore.startingActions,
           newValue: undefined,
           version: 1,
         },
       ];
-      const result = service.applyChanges(txnBefore, changes);
+      const result = service.applyChanges(transactionBefore, changes);
 
       expect(result.startingActions).toBeUndefined();
       expect(result._version).toBe(1);
     });
 
     it("should throw for add new array item when current has no array", () => {
-      txnBefore.startingActions = undefined;
+      transactionBefore.startingActions = undefined;
       const newSa: DeepPartial<StartingAction> = {
         _id: "sa1",
         typeOfFundsOther: "investment",
@@ -151,13 +151,13 @@ describe("ChangeLogService", () => {
         },
       ];
 
-      expect(() => service.applyChanges(txnBefore, changes)).toThrowError(
-        "add new array item when current has no array",
-      );
+      expect(() =>
+        service.applyChanges(transactionBefore, changes),
+      ).toThrowError("add new array item when current has no array");
     });
 
     it("should throw for entire array addition when current is already array", () => {
-      txnBefore.startingActions = [];
+      transactionBefore.startingActions = [];
       const newSa: DeepPartial<StartingAction> = {
         _id: "sa1",
         typeOfFundsOther: "investment",
@@ -171,13 +171,13 @@ describe("ChangeLogService", () => {
         },
       ];
 
-      expect(() => service.applyChanges(txnBefore, changes)).toThrowError(
-        "entire array addition when current is already array",
-      );
+      expect(() =>
+        service.applyChanges(transactionBefore, changes),
+      ).toThrowError("entire array addition when current is already array");
     });
 
     it("should entire array addition", () => {
-      txnBefore.startingActions = undefined;
+      transactionBefore.startingActions = undefined;
       const newArray = [{ _id: "sa1", branch: "123" }];
       const changes: ChangeLog[] = [
         {
@@ -188,7 +188,7 @@ describe("ChangeLogService", () => {
         },
       ];
 
-      const result = service.applyChanges(txnBefore, changes);
+      const result = service.applyChanges(transactionBefore, changes);
 
       expect(result.startingActions).toBeDefined();
       expect(result.startingActions!.length).toBe(1);
@@ -198,7 +198,7 @@ describe("ChangeLogService", () => {
 
     describe("for items with _id as discriminator", () => {
       it("should add new array item", () => {
-        txnBefore.startingActions = [
+        transactionBefore.startingActions = [
           {
             _id: "sa1",
             currency: "CAD",
@@ -217,7 +217,7 @@ describe("ChangeLogService", () => {
           },
         ];
 
-        const result = service.applyChanges(txnBefore, changes);
+        const result = service.applyChanges(transactionBefore, changes);
 
         expect(result?.startingActions?.length).toBe(2);
         expect(result?.startingActions![1]).toEqual(newSa);
@@ -225,7 +225,7 @@ describe("ChangeLogService", () => {
       });
 
       it("should remove array item", () => {
-        txnBefore.startingActions = [
+        transactionBefore.startingActions = [
           {
             _id: "sa1",
             currency: "CAD",
@@ -243,14 +243,14 @@ describe("ChangeLogService", () => {
           },
         ];
 
-        const result = service.applyChanges(txnBefore, changes);
+        const result = service.applyChanges(transactionBefore, changes);
 
         expect(result.startingActions!.length).toBe(0);
         expect(result._version).toBe(1);
       });
 
       it("should modify array item property", () => {
-        txnBefore.startingActions = [
+        transactionBefore.startingActions = [
           {
             _id: "sa1",
             currency: "CAD",
@@ -265,7 +265,7 @@ describe("ChangeLogService", () => {
           },
         ];
 
-        const result = service.applyChanges(txnBefore, changes);
+        const result = service.applyChanges(transactionBefore, changes);
 
         const sa1 = result.startingActions!.find((a: any) => a!._id === "sa1");
         expect(sa1?.currency).toBe("USD");
@@ -275,7 +275,7 @@ describe("ChangeLogService", () => {
 
     describe("for items with index as discriminator", () => {
       it("should add new array item", () => {
-        txnBefore.startingActions = [
+        transactionBefore.startingActions = [
           {
             _id: "sa1",
             currency: "CAD",
@@ -295,7 +295,7 @@ describe("ChangeLogService", () => {
           },
         ];
 
-        const result = service.applyChanges(txnBefore, changes);
+        const result = service.applyChanges(transactionBefore, changes);
 
         expect(result?.startingActions?.length).toBe(2);
         expect(result?.startingActions![1]).toEqual(saNew);
@@ -303,7 +303,7 @@ describe("ChangeLogService", () => {
       });
 
       it("should remove array item", () => {
-        txnBefore.startingActions = [
+        transactionBefore.startingActions = [
           {
             _id: "sa1",
             currency: "CAD",
@@ -321,14 +321,14 @@ describe("ChangeLogService", () => {
           },
         ];
 
-        const result = service.applyChanges(txnBefore, changes);
+        const result = service.applyChanges(transactionBefore, changes);
 
         expect(result.startingActions!.length).toBe(0);
         expect(result._version).toBe(1);
       });
 
       it("should modify array item property", () => {
-        txnBefore.startingActions = [
+        transactionBefore.startingActions = [
           {
             _id: "sa1",
             currency: "CAD",
@@ -343,7 +343,7 @@ describe("ChangeLogService", () => {
           },
         ];
 
-        const result = service.applyChanges(txnBefore, changes);
+        const result = service.applyChanges(transactionBefore, changes);
 
         const sa1 = result.startingActions![0];
         expect(sa1?.currency).toBe("USD");
@@ -353,8 +353,8 @@ describe("ChangeLogService", () => {
 
     describe("should apply bulk edit change logs", () => {
       it("existing underlying object set to undefined", () => {
-        txnBefore.purposeOfTxn = "savings";
-        txnBefore.startingActions = [{ directionOfSA: "Out" }];
+        transactionBefore.purposeOfTxn = "savings";
+        transactionBefore.startingActions = [{ directionOfSA: "Out" }];
 
         const changes: ChangeLog[] = [
           {
@@ -365,7 +365,7 @@ describe("ChangeLogService", () => {
           },
         ];
 
-        const result = service.applyChanges(txnBefore, changes);
+        const result = service.applyChanges(transactionBefore, changes);
 
         expect(result.startingActions![0]!.directionOfSA).toBeUndefined();
         expect(result._version).toBe(1);
@@ -375,12 +375,12 @@ describe("ChangeLogService", () => {
 
   describe("compareProperties", () => {
     it("should detect simple property change", () => {
-      txnBefore.purposeOfTxn = "savings";
-      txnAfter.purposeOfTxn = "trade";
+      transactionBefore.purposeOfTxn = "savings";
+      transactionAfter.purposeOfTxn = "trade";
 
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual([
         {
@@ -392,12 +392,12 @@ describe("ChangeLogService", () => {
     });
 
     it("should detect simple property change from undefined", () => {
-      txnBefore.purposeOfTxn = undefined;
-      txnAfter.purposeOfTxn = "trade";
+      transactionBefore.purposeOfTxn = undefined;
+      transactionAfter.purposeOfTxn = "trade";
 
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual([
         {
@@ -409,12 +409,12 @@ describe("ChangeLogService", () => {
     });
 
     it("should detect nested property change", () => {
-      txnBefore.startingActions = [{ _id: "sa1", amount: 100 }];
-      txnAfter.startingActions = [{ _id: "sa1", amount: 200 }];
+      transactionBefore.startingActions = [{ _id: "sa1", amount: 100 }];
+      transactionAfter.startingActions = [{ _id: "sa1", amount: 200 }];
 
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual([
         {
@@ -426,111 +426,111 @@ describe("ChangeLogService", () => {
     });
 
     it("should ignore null to undefined property change", () => {
-      txnBefore.purposeOfTxn = null;
-      txnAfter.purposeOfTxn = undefined;
+      transactionBefore.purposeOfTxn = null;
+      transactionAfter.purposeOfTxn = undefined;
 
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual([]);
     });
 
     it("should ignore undefined to null property change", () => {
-      txnBefore.purposeOfTxn = undefined;
-      txnAfter.purposeOfTxn = null;
+      transactionBefore.purposeOfTxn = undefined;
+      transactionAfter.purposeOfTxn = null;
 
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual([]);
     });
 
     it("should ignore null to empty string property change", () => {
-      txnBefore.purposeOfTxn = null;
-      txnAfter.purposeOfTxn = "";
+      transactionBefore.purposeOfTxn = null;
+      transactionAfter.purposeOfTxn = "";
 
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual([]);
     });
 
     it("should ignore empty string to null property change", () => {
-      txnBefore.purposeOfTxn = "";
-      txnAfter.purposeOfTxn = null;
+      transactionBefore.purposeOfTxn = "";
+      transactionAfter.purposeOfTxn = null;
 
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual([]);
     });
 
     it("should ignore undefined to empty string property change", () => {
-      txnBefore.purposeOfTxn = undefined;
-      txnAfter.purposeOfTxn = "";
+      transactionBefore.purposeOfTxn = undefined;
+      transactionAfter.purposeOfTxn = "";
 
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual([]);
     });
 
     it("should ignore empty string to undefined property change", () => {
-      txnBefore.purposeOfTxn = "";
-      txnAfter.purposeOfTxn = undefined;
+      transactionBefore.purposeOfTxn = "";
+      transactionAfter.purposeOfTxn = undefined;
 
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual([]);
     });
 
     it("should ignore _hidden prefix property changes", () => {
-      (txnBefore as { _hiddenProp: string })._hiddenProp = "oldVal";
-      (txnAfter as { _hiddenProp: string })._hiddenProp = "newVal";
+      (transactionBefore as { _hiddenProp: string })._hiddenProp = "oldVal";
+      (transactionAfter as { _hiddenProp: string })._hiddenProp = "newVal";
 
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual([]);
     });
 
     it("should ignore null/undefined to empty array property change", () => {
-      txnBefore.startingActions = undefined;
-      txnAfter.startingActions = [];
+      transactionBefore.startingActions = undefined;
+      transactionAfter.startingActions = [];
 
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual([]);
     });
 
     it("should ignore empty array to null/undefined property change", () => {
-      txnBefore.startingActions = [];
-      txnAfter.startingActions = undefined;
+      transactionBefore.startingActions = [];
+      transactionAfter.startingActions = undefined;
 
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual([]);
     });
 
     it("should ignore empty array to empty array property change", () => {
-      txnBefore.startingActions = [];
-      txnAfter.startingActions = [];
+      transactionBefore.startingActions = [];
+      transactionAfter.startingActions = [];
 
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual([]);
     });
@@ -538,12 +538,14 @@ describe("ChangeLogService", () => {
     // See change log service for dependent properties and their toggles
     // VALID CHANGE FOR DEPENDENCY PROPERTY TOGGLES
     it("should NOT ignore undefined to boolean false", () => {
-      txnBefore.hasPostingDate = undefined;
-      txnBefore.startingActions = [
+      transactionBefore.hasPostingDate = undefined;
+      transactionBefore.startingActions = [
         { _id: "sa1", wasSofInfoObtained: undefined },
       ];
-      txnAfter.hasPostingDate = false;
-      txnAfter.startingActions = [{ _id: "sa1", wasSofInfoObtained: false }];
+      transactionAfter.hasPostingDate = false;
+      transactionAfter.startingActions = [
+        { _id: "sa1", wasSofInfoObtained: false },
+      ];
 
       const changes: ChangeLogWithoutVersion[] = [
         {
@@ -558,17 +560,21 @@ describe("ChangeLogService", () => {
         },
       ];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual(changes);
     });
 
     // VALID CHANGE FOR DEP PROP TOGGLES
     it("should NOT ignore null to boolean false", () => {
-      txnBefore.hasPostingDate = null;
-      txnBefore.startingActions = [{ _id: "sa1", wasSofInfoObtained: null }];
-      txnAfter.hasPostingDate = false;
-      txnAfter.startingActions = [{ _id: "sa1", wasSofInfoObtained: false }];
+      transactionBefore.hasPostingDate = null;
+      transactionBefore.startingActions = [
+        { _id: "sa1", wasSofInfoObtained: null },
+      ];
+      transactionAfter.hasPostingDate = false;
+      transactionAfter.startingActions = [
+        { _id: "sa1", wasSofInfoObtained: false },
+      ];
 
       const changes: ChangeLogWithoutVersion[] = [
         {
@@ -583,46 +589,52 @@ describe("ChangeLogService", () => {
         },
       ];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual(changes);
     });
 
     it("should ignore boolean false to undefined", () => {
-      txnBefore.hasPostingDate = false;
-      txnBefore.startingActions = [{ _id: "sa1", wasSofInfoObtained: false }];
-      txnAfter.hasPostingDate = undefined;
-      txnAfter.startingActions = [
+      transactionBefore.hasPostingDate = false;
+      transactionBefore.startingActions = [
+        { _id: "sa1", wasSofInfoObtained: false },
+      ];
+      transactionAfter.hasPostingDate = undefined;
+      transactionAfter.startingActions = [
         { _id: "sa1", wasSofInfoObtained: undefined },
       ];
 
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual([]);
     });
 
     it("should ignore boolean false to null", () => {
-      txnBefore.hasPostingDate = false;
-      txnBefore.startingActions = [{ _id: "sa1", wasSofInfoObtained: false }];
-      txnAfter.hasPostingDate = null;
-      txnAfter.startingActions = [{ _id: "sa1", wasSofInfoObtained: null }];
+      transactionBefore.hasPostingDate = false;
+      transactionBefore.startingActions = [
+        { _id: "sa1", wasSofInfoObtained: false },
+      ];
+      transactionAfter.hasPostingDate = null;
+      transactionAfter.startingActions = [
+        { _id: "sa1", wasSofInfoObtained: null },
+      ];
 
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual([]);
     });
 
     it("should not ignore undefined to boolean true", () => {
-      txnBefore.hasPostingDate = undefined;
-      txnAfter.hasPostingDate = true;
+      transactionBefore.hasPostingDate = undefined;
+      transactionAfter.hasPostingDate = true;
 
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual([
         {
@@ -634,12 +646,12 @@ describe("ChangeLogService", () => {
     });
 
     it("should not ignore null to boolean true", () => {
-      txnBefore.hasPostingDate = null;
-      txnAfter.hasPostingDate = true;
+      transactionBefore.hasPostingDate = null;
+      transactionAfter.hasPostingDate = true;
 
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual([
         {
@@ -651,12 +663,12 @@ describe("ChangeLogService", () => {
     });
 
     it("should detect entire array addition", () => {
-      txnBefore.startingActions = undefined;
-      txnAfter.startingActions = [{ _id: "sa1", branch: "123" }];
+      transactionBefore.startingActions = undefined;
+      transactionAfter.startingActions = [{ _id: "sa1", branch: "123" }];
 
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual([
         {
@@ -668,17 +680,17 @@ describe("ChangeLogService", () => {
     });
 
     it("should detect entire array removal", () => {
-      txnBefore.startingActions = [{ _id: "sa1", branch: "123" }];
-      txnAfter.startingActions = undefined;
+      transactionBefore.startingActions = [{ _id: "sa1", branch: "123" }];
+      transactionAfter.startingActions = undefined;
 
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual([
         {
           path: "startingActions",
-          oldValue: txnBefore.startingActions,
+          oldValue: transactionBefore.startingActions,
           newValue: undefined,
         },
       ]);
@@ -686,7 +698,7 @@ describe("ChangeLogService", () => {
 
     describe("should detect bulk edits", () => {
       it("should detect removal for dep prop", () => {
-        txnBefore.startingActions = [
+        transactionBefore.startingActions = [
           {
             _id: "sa1",
             wasCondInfoObtained: true,
@@ -698,7 +710,7 @@ describe("ChangeLogService", () => {
             accountHolders: [{ _id: "cond1", givenName: "jon" }],
           },
         ];
-        txnAfter.startingActions = [
+        transactionAfter.startingActions = [
           {
             _id: "sa1",
             wasCondInfoObtained: false,
@@ -712,9 +724,14 @@ describe("ChangeLogService", () => {
 
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(txnBefore, txnAfter, changes, {
-          discriminator: "index",
-        });
+        service.compareProperties(
+          transactionBefore,
+          transactionAfter,
+          changes,
+          {
+            discriminator: "index",
+          },
+        );
 
         expect(changes).toEqual(
           jasmine.arrayWithExactContents([
@@ -743,7 +760,7 @@ describe("ChangeLogService", () => {
       });
 
       it("should ignore removal when dep prop has ignored values", () => {
-        txnBefore.startingActions = [
+        transactionBefore.startingActions = [
           {
             _id: "sa1",
             wasCondInfoObtained: false,
@@ -755,7 +772,7 @@ describe("ChangeLogService", () => {
             conductors: undefined,
           },
         ];
-        txnAfter.startingActions = [
+        transactionAfter.startingActions = [
           {
             _id: "sa1",
             wasCondInfoObtained: false,
@@ -770,29 +787,39 @@ describe("ChangeLogService", () => {
 
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(txnBefore, txnAfter, changes, {
-          discriminator: "index",
-        });
+        service.compareProperties(
+          transactionBefore,
+          transactionAfter,
+          changes,
+          {
+            discriminator: "index",
+          },
+        );
 
         expect(changes.length).toEqual(0);
       });
 
       it("should detect removal for dep simple prop", () => {
-        txnBefore.wasTxnAttempted = true;
-        txnBefore.wasTxnAttemptedReason = "Bounced cheque";
+        transactionBefore.wasTxnAttempted = true;
+        transactionBefore.wasTxnAttemptedReason = "Bounced cheque";
 
-        txnBefore.hasPostingDate = true;
-        txnBefore.dateOfPosting = "2024/02/02";
-        txnBefore.timeOfPosting = "06:32";
+        transactionBefore.hasPostingDate = true;
+        transactionBefore.dateOfPosting = "2024/02/02";
+        transactionBefore.timeOfPosting = "06:32";
 
-        txnAfter.wasTxnAttempted = false;
-        txnAfter.hasPostingDate = false;
+        transactionAfter.wasTxnAttempted = false;
+        transactionAfter.hasPostingDate = false;
 
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(txnBefore, txnAfter, changes, {
-          discriminator: "index",
-        });
+        service.compareProperties(
+          transactionBefore,
+          transactionAfter,
+          changes,
+          {
+            discriminator: "index",
+          },
+        );
 
         expect(changes).toEqual(
           jasmine.arrayWithExactContents([
@@ -826,7 +853,7 @@ describe("ChangeLogService", () => {
       });
 
       it("should detect replacement for dep prop", () => {
-        txnBefore.startingActions = [
+        transactionBefore.startingActions = [
           {
             _id: "sa1",
             wasCondInfoObtained: false,
@@ -838,7 +865,7 @@ describe("ChangeLogService", () => {
             conductors: [{ _id: "cond1", givenName: "mary" }],
           },
         ];
-        txnAfter.startingActions = [
+        transactionAfter.startingActions = [
           {
             _id: "sa1",
             wasCondInfoObtained: true,
@@ -856,9 +883,14 @@ describe("ChangeLogService", () => {
 
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(txnBefore, txnAfter, changes, {
-          discriminator: "index",
-        });
+        service.compareProperties(
+          transactionBefore,
+          transactionAfter,
+          changes,
+          {
+            discriminator: "index",
+          },
+        );
 
         expect(changes).toEqual(
           jasmine.arrayWithExactContents([
@@ -890,7 +922,7 @@ describe("ChangeLogService", () => {
       });
 
       it("should ignore replacement for dep prop", () => {
-        txnBefore.startingActions = [
+        transactionBefore.startingActions = [
           {
             _id: "sa1",
             wasCondInfoObtained: true,
@@ -902,7 +934,7 @@ describe("ChangeLogService", () => {
             conductors: [],
           },
         ];
-        txnAfter.startingActions = [
+        transactionAfter.startingActions = [
           {
             _id: "sa1",
             wasCondInfoObtained: true,
@@ -917,25 +949,35 @@ describe("ChangeLogService", () => {
 
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(txnBefore, txnAfter, changes, {
-          discriminator: "index",
-        });
+        service.compareProperties(
+          transactionBefore,
+          transactionAfter,
+          changes,
+          {
+            discriminator: "index",
+          },
+        );
 
         expect(changes.length).toEqual(0);
       });
 
       it("should detect replacement for dep simple prop", () => {
-        txnBefore.wasTxnAttempted = undefined;
-        txnBefore.wasTxnAttemptedReason = undefined;
+        transactionBefore.wasTxnAttempted = undefined;
+        transactionBefore.wasTxnAttemptedReason = undefined;
 
-        txnAfter.wasTxnAttempted = true;
-        txnAfter.wasTxnAttemptedReason = "Cancelled emt";
+        transactionAfter.wasTxnAttempted = true;
+        transactionAfter.wasTxnAttemptedReason = "Cancelled emt";
 
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(txnBefore, txnAfter, changes, {
-          discriminator: "index",
-        });
+        service.compareProperties(
+          transactionBefore,
+          transactionAfter,
+          changes,
+          {
+            discriminator: "index",
+          },
+        );
 
         expect(changes).toEqual(
           jasmine.arrayWithExactContents([
@@ -954,7 +996,7 @@ describe("ChangeLogService", () => {
       });
 
       it("should detect null to false for dep prop toggle", () => {
-        txnBefore.startingActions = [
+        transactionBefore.startingActions = [
           {
             hasAccountHolders: null,
             accountHolders: [
@@ -970,7 +1012,7 @@ describe("ChangeLogService", () => {
           },
         ];
 
-        txnAfter.startingActions = [
+        transactionAfter.startingActions = [
           {
             hasAccountHolders: false,
             accountHolders: [],
@@ -979,9 +1021,14 @@ describe("ChangeLogService", () => {
 
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(txnBefore, txnAfter, changes, {
-          discriminator: "index",
-        });
+        service.compareProperties(
+          transactionBefore,
+          transactionAfter,
+          changes,
+          {
+            discriminator: "index",
+          },
+        );
 
         expect(changes).toEqual(
           jasmine.arrayWithExactContents<ChangeLogWithoutVersion>([
@@ -1010,31 +1057,41 @@ describe("ChangeLogService", () => {
 
       // bulk edit - tests for properties marked for clearing using a placeholder
       it("should not clear simple props not marked for clearing", () => {
-        txnBefore.dateOfTxn = "2024/09/23";
-        txnBefore.dateOfPosting = "2025/03/03";
+        transactionBefore.dateOfTxn = "2024/09/23";
+        transactionBefore.dateOfPosting = "2025/03/03";
 
-        txnAfter.dateOfTxn = null;
-        txnAfter.dateOfPosting = "";
+        transactionAfter.dateOfTxn = null;
+        transactionAfter.dateOfPosting = "";
 
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(txnBefore, txnAfter, changes, {
-          discriminator: "index",
-        });
+        service.compareProperties(
+          transactionBefore,
+          transactionAfter,
+          changes,
+          {
+            discriminator: "index",
+          },
+        );
 
         expect(changes.length).toEqual(0);
       });
 
       it("should clear simple props marked for clearing", () => {
-        txnBefore.dateOfTxn = "2024/09/23";
+        transactionBefore.dateOfTxn = "2024/09/23";
 
-        txnAfter.dateOfTxn = SPECIAL_EMPTY_VALUE;
+        transactionAfter.dateOfTxn = SPECIAL_EMPTY_VALUE;
 
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(txnBefore, txnAfter, changes, {
-          discriminator: "index",
-        });
+        service.compareProperties(
+          transactionBefore,
+          transactionAfter,
+          changes,
+          {
+            discriminator: "index",
+          },
+        );
 
         expect(changes).toEqual(
           jasmine.arrayWithExactContents([
@@ -1048,15 +1105,22 @@ describe("ChangeLogService", () => {
       });
 
       it("should clear nested simple props marked for clearing", () => {
-        txnBefore.startingActions = [{ directionOfSA: "Out" }];
+        transactionBefore.startingActions = [{ directionOfSA: "Out" }];
 
-        txnAfter.startingActions = [{ directionOfSA: SPECIAL_EMPTY_VALUE }];
+        transactionAfter.startingActions = [
+          { directionOfSA: SPECIAL_EMPTY_VALUE },
+        ];
 
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(txnBefore, txnAfter, changes, {
-          discriminator: "index",
-        });
+        service.compareProperties(
+          transactionBefore,
+          transactionAfter,
+          changes,
+          {
+            discriminator: "index",
+          },
+        );
 
         expect(changes).toEqual(
           jasmine.arrayWithExactContents([
@@ -1117,7 +1181,7 @@ describe("ChangeLogService", () => {
       // });
 
       it("should ignore dep propeties if their associated toggle is null", () => {
-        txnBefore.startingActions = [
+        transactionBefore.startingActions = [
           {
             accountHolders: [
               {
@@ -1132,7 +1196,7 @@ describe("ChangeLogService", () => {
           },
         ];
 
-        txnAfter.startingActions = [
+        transactionAfter.startingActions = [
           {
             hasAccountHolders: null,
             accountHolders: [
@@ -1146,21 +1210,26 @@ describe("ChangeLogService", () => {
 
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(txnBefore, txnAfter, changes, {
-          discriminator: "index",
-        });
+        service.compareProperties(
+          transactionBefore,
+          transactionAfter,
+          changes,
+          {
+            discriminator: "index",
+          },
+        );
 
         expect(changes.length).toEqual(0);
       });
 
       it("should ignore extra starting actions if underlying object does not have them", () => {
-        txnBefore.startingActions = [
+        transactionBefore.startingActions = [
           {
             account: "5582195",
           },
         ];
 
-        txnAfter.startingActions = [
+        transactionAfter.startingActions = [
           {
             account: "9999999",
           },
@@ -1174,9 +1243,14 @@ describe("ChangeLogService", () => {
 
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(txnBefore, txnAfter, changes, {
-          discriminator: "index",
-        });
+        service.compareProperties(
+          transactionBefore,
+          transactionAfter,
+          changes,
+          {
+            discriminator: "index",
+          },
+        );
 
         expect(changes).toEqual([
           {
@@ -1190,12 +1264,12 @@ describe("ChangeLogService", () => {
 
     describe("for items with _id as discriminator", () => {
       it("should detect array item modification", () => {
-        txnBefore.startingActions = [{ _id: "sa1", amount: 100 }];
-        txnAfter.startingActions = [{ _id: "sa1", amount: 200 }];
+        transactionBefore.startingActions = [{ _id: "sa1", amount: 100 }];
+        transactionAfter.startingActions = [{ _id: "sa1", amount: 200 }];
 
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(txnBefore, txnAfter, changes);
+        service.compareProperties(transactionBefore, transactionAfter, changes);
 
         expect(changes).toEqual([
           {
@@ -1207,15 +1281,15 @@ describe("ChangeLogService", () => {
       });
 
       it("should detect array item addition", () => {
-        txnBefore.startingActions = [{ _id: "sa1", branch: "123" }];
-        txnAfter.startingActions = [
+        transactionBefore.startingActions = [{ _id: "sa1", branch: "123" }];
+        transactionAfter.startingActions = [
           { _id: "sa1", branch: "123" },
           { _id: "sa2", branch: "321" },
         ];
 
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(txnBefore, txnAfter, changes);
+        service.compareProperties(transactionBefore, transactionAfter, changes);
 
         expect(changes).toEqual([
           {
@@ -1227,20 +1301,20 @@ describe("ChangeLogService", () => {
       });
 
       it("should detect array item removal", () => {
-        txnBefore.startingActions = [
+        transactionBefore.startingActions = [
           { _id: "sa1", branch: "123" },
           { _id: "sa2", branch: "321" },
         ];
-        txnAfter.startingActions = [{ _id: "sa1", branch: "123" }];
+        transactionAfter.startingActions = [{ _id: "sa1", branch: "123" }];
 
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(txnBefore, txnAfter, changes);
+        service.compareProperties(transactionBefore, transactionAfter, changes);
 
         expect(changes).toEqual([
           {
             path: "startingActions.$id=sa2",
-            oldValue: txnBefore.startingActions[1],
+            oldValue: transactionBefore.startingActions[1],
             newValue: undefined,
           },
         ]);
@@ -1249,14 +1323,19 @@ describe("ChangeLogService", () => {
 
     describe("for items with index as discriminator", () => {
       it("should detect array item modification", () => {
-        txnBefore.startingActions = [{ _id: "sa1", amount: 100 }];
-        txnAfter.startingActions = [{ _id: "sa1", amount: 200 }];
+        transactionBefore.startingActions = [{ _id: "sa1", amount: 100 }];
+        transactionAfter.startingActions = [{ _id: "sa1", amount: 200 }];
 
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(txnBefore, txnAfter, changes, {
-          discriminator: "index",
-        });
+        service.compareProperties(
+          transactionBefore,
+          transactionAfter,
+          changes,
+          {
+            discriminator: "index",
+          },
+        );
 
         expect(changes).toEqual([
           {
@@ -1268,15 +1347,15 @@ describe("ChangeLogService", () => {
       });
 
       it("should detect array item addition", () => {
-        txnBefore.startingActions = [{ _id: "sa1", branch: "123" }];
-        txnAfter.startingActions = [
+        transactionBefore.startingActions = [{ _id: "sa1", branch: "123" }];
+        transactionAfter.startingActions = [
           { _id: "sa1", branch: "123" },
           { _id: "sa2", branch: "321" },
         ];
 
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(txnBefore, txnAfter, changes);
+        service.compareProperties(transactionBefore, transactionAfter, changes);
 
         expect(changes).toEqual([
           {
@@ -1288,17 +1367,22 @@ describe("ChangeLogService", () => {
       });
 
       it("should detect array item removal", () => {
-        txnBefore.startingActions = [
+        transactionBefore.startingActions = [
           { _id: "sa1", branch: "123" },
           { _id: "sa2", branch: "321" },
         ];
-        txnAfter.startingActions = [{ _id: "sa1", branch: "123" }];
+        transactionAfter.startingActions = [{ _id: "sa1", branch: "123" }];
 
         const changes: ChangeLogWithoutVersion[] = [];
 
-        service.compareProperties(txnBefore, txnAfter, changes, {
-          discriminator: "index",
-        });
+        service.compareProperties(
+          transactionBefore,
+          transactionAfter,
+          changes,
+          {
+            discriminator: "index",
+          },
+        );
 
         expect(changes).toEqual([
           {
@@ -1311,18 +1395,18 @@ describe("ChangeLogService", () => {
     });
 
     it("should detect multiple changes", () => {
-      txnBefore.purposeOfTxn = "savings";
-      txnBefore.startingActions = [{ _id: "sa1", amount: 100 }];
+      transactionBefore.purposeOfTxn = "savings";
+      transactionBefore.startingActions = [{ _id: "sa1", amount: 100 }];
 
-      txnAfter.purposeOfTxn = "trade";
-      txnAfter.startingActions = [
+      transactionAfter.purposeOfTxn = "trade";
+      transactionAfter.startingActions = [
         { _id: "sa1", amount: 200 },
         { _id: "sa2", branch: "321" },
       ];
 
       const changes: ChangeLogWithoutVersion[] = [];
 
-      service.compareProperties(txnBefore, txnAfter, changes);
+      service.compareProperties(transactionBefore, transactionAfter, changes);
 
       expect(changes).toEqual([
         {

@@ -36,6 +36,8 @@ import {
   MatTableModule,
 } from "@angular/material/table";
 import { MatToolbarModule } from "@angular/material/toolbar";
+import { of } from "rxjs";
+import { ScrollPositionPreserveDirective } from "../route-cache/scroll-position-preserve.directive";
 import { ClickOutsideTableDirective } from "../table/click-outside-table.directive";
 import { PadZeroPipe } from "../table/pad-zero.pipe";
 import { ReviewPeriodDateDirective } from "../transaction-search/review-period-date.directive";
@@ -77,6 +79,7 @@ import {
     PersistentAutocompleteTrigger,
     MatButtonToggleModule,
     ClickOutsideTableDirective,
+    ScrollPositionPreserveDirective,
   ],
   template: `
     <mat-toolbar class="col">
@@ -139,7 +142,7 @@ import {
         </button>
       </mat-toolbar-row>
     </mat-toolbar>
-    <mat-drawer-container class="overflow-visible" hasBackdrop="false">
+    <mat-drawer-container class="overflow-visible" hasBackdrop="false" appScrollPositionPreserve>
       <mat-drawer class="form-drawer" position="end" #drawer>
         <form
           [formGroup]="filterFormFormGroup"
@@ -176,7 +179,7 @@ import {
             </mat-toolbar-row>
           </mat-toolbar>
           <mat-divider></mat-divider>
-          <div class="flex-grow-1 overflow-auto row row-cols-1 mx-0 pt-3">
+          <div class="flex-grow-1 overflow-auto row row-cols-1 mx-0 pt-3 scroll-position-preserve">
             <ng-container
               *ngFor="
                 let filterKey of filterFormFilterKeys;
@@ -395,7 +398,7 @@ import {
 
       <mat-drawer-content>
         <div
-          class="col px-0 overflow-auto"
+          class="col px-0 overflow-auto scroll-position-preserve"
           (appClickOutsideTable)="filterFormHighlightSelectedColor = undefined"
         >
           <table
@@ -454,16 +457,21 @@ import {
               mat-header-row
               *matHeaderRowDef="this.displayedColumnsValues; sticky: true"
             ></tr>
-            <tr
-              mat-row
-              *matRowDef="let row; columns: this.displayedColumnsValues"
-              (click)="filterFormAssignSelectedColorToRow(row, $event)"
-              [style.cursor]="
-                filterFormHighlightSelectedColor !== undefined
-                  ? 'pointer'
-                  : 'default'
-              "
-            ></tr>
+            <ng-container *ngIf="recentlyOpenRows$ | async as recentlyOpenRows">
+              <tr
+                mat-row
+                *matRowDef="let row; columns: this.displayedColumnsValues"
+                [class.recentlyOpenRowHighlight]="
+                  isRecentlyOpened(row, recentlyOpenRows)
+                "
+                (click)="filterFormAssignSelectedColorToRow(row, $event)"
+                [style.cursor]="
+                  filterFormHighlightSelectedColor !== undefined
+                    ? 'pointer'
+                    : 'default'
+                "
+              ></tr>
+            </ng-container>
           </table>
         </div>
       </mat-drawer-content>
@@ -534,9 +542,17 @@ export class BaseTableComponent<
   override filterFormFormGroup!: FormGroup<any>;
 
   override filterFormFilterKeys!: TFilterKeys[];
+  private _data!: TData[];
+  get data(): TData[] {
+    return this._data;
+  }
 
   @Input()
-  data!: TData[];
+  set data(value: TData[]) {
+    this._data = value;
+    if (!this.dataSource) return;
+    this.dataSource.data = value;
+  }
 
   override dataSource!: MatTableDataSource<TData, MatPaginator>;
 
@@ -593,5 +609,13 @@ export class BaseTableComponent<
     this.updatePageSizeOptions(this.dataSource.data.length);
     this.selectFiltersComputeUniqueFilterOptions(this.dataSource.data);
     this.dataSource.filterPredicate = this.filterFormFilterPredicateCreate();
+  }
+
+  @Input() recentlyOpenRows$ = of([] as string[]);
+
+  isRecentlyOpened(row: TData, recentlyOpenRows: string[]) {
+    return recentlyOpenRows.includes(
+      row[this.selectionKey as unknown as keyof TData] as string,
+    );
   }
 }

@@ -1,17 +1,17 @@
 import { SelectionModel } from "@angular/cdk/collections";
 import { CommonModule } from "@angular/common";
 import {
-  ChangeDetectionStrategy,
-  Component,
-  Input,
-  TrackByFunction,
+    ChangeDetectionStrategy,
+    Component,
+    Input,
+    TrackByFunction,
 } from "@angular/core";
 import { MatCheckbox } from "@angular/material/checkbox";
 import { MatTableModule } from "@angular/material/table";
 import { IFilterForm } from "../../base-table/abstract-base-table";
 import { BaseTableComponent } from "../../base-table/base-table.component";
 import { EmtSourceData } from "../../transaction-search/aml-transaction-search.service";
-import { TableSelectionCompareWithAmlTxnId } from "../transaction-view.component";
+import { TableSelectionCompareWithAmlTransactionId } from "../transaction-view.component";
 
 @Component({
   selector: "app-emt-table",
@@ -79,7 +79,7 @@ import { TableSelectionCompareWithAmlTxnId } from "../transaction-view.component
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EmtTableComponent<
-  TSelection extends { [K in keyof TableSelectionCompareWithAmlTxnId]: string },
+  TSelection extends { [K in keyof TableSelectionCompareWithAmlTransactionId]: string },
 > {
   dataColumnsValues: (keyof EmtSourceData)[] = [
     "depositedTimeDate",

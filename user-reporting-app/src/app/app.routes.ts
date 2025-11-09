@@ -1,4 +1,10 @@
 import type { Routes } from "@angular/router";
+import {
+  AmlComponent,
+  lastUpdatedResolver,
+  savingStatusResolver,
+} from "./aml/aml.component";
+import { SessionDataService } from "./aml/session-data.service";
 import { PageNotFoundComponent } from "./page-not-found/page-not-found.component";
 import {
   EditFormComponent,
@@ -15,12 +21,6 @@ import {
   selectionsResolver,
   transactionSearchResolver,
 } from "./transaction-view/transaction-view.component";
-import {
-  AmlComponent,
-  lastUpdatedResolver,
-  savingStatusResolver,
-} from "./aml/aml.component";
-import { SessionDataService } from "./session-data.service";
 
 export const routes: Routes = [
   {
@@ -36,6 +36,7 @@ export const routes: Routes = [
       lastUpdated$: lastUpdatedResolver,
       savingStatus$: savingStatusResolver,
     },
+    data: { reuse: true },
     children: [
       {
         path: "transaction-view",
@@ -44,6 +45,7 @@ export const routes: Routes = [
           transactionSearch: transactionSearchResolver,
           initSelections: selectionsResolver,
         },
+        data: { reuse: true },
         title: (route) => `Transaction View - ${route.params["amlId"]}`,
       },
       {
@@ -54,15 +56,17 @@ export const routes: Routes = [
           {
             path: "table",
             component: ReportingUiTableComponent,
-            resolve: { strTransactionsEdited: strTransactionsEditedResolver },
+            resolve: { strTransactionData$: strTransactionsEditedResolver },
+            data: { reuse: true },
           },
           {
-            path: "edit-form/:txnId",
+            path: "edit-form/:transactionId",
             component: EditFormComponent,
             resolve: {
               editType: singleEditResolver,
             },
-            title: (route) => `Edit - ${route.params["txnId"]}`,
+            data: { reuse: false },
+            title: (route) => `Edit - ${route.params["transactionId"]}`,
           },
         ],
       },

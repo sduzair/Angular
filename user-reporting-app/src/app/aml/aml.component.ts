@@ -11,7 +11,7 @@ import { MatProgressSpinner } from "@angular/material/progress-spinner";
 import { MatToolbarModule } from "@angular/material/toolbar";
 import { ResolveFn, RouterOutlet } from "@angular/router";
 import { Observable } from "rxjs";
-import { SessionDataService } from "../session-data.service";
+import { SessionDataService } from "./session-data.service";
 
 @Component({
   selector: "app-aml",

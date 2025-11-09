@@ -1,7 +1,7 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable, map, of, timer } from "rxjs";
-import { TableSelectionCompareWithAmlTxnId } from "../transaction-view/transaction-view.component";
+import { TableSelectionCompareWithAmlTransactionId } from "../transaction-view/transaction-view.component";
 import { transactionSearchResDevOnly } from "../transaction-view/transactionSearchResDevOnly";
 
 @Injectable({
@@ -115,7 +115,7 @@ export type FlowOfFundsSourceData = {
   flowOfFundsTransactionTime: string;
   _mongoid: string;
 } & TableRecordUiProps &
-  TableSelectionCompareWithAmlTxnId;
+  TableSelectionCompareWithAmlTransactionId;
 
 export type EmtSourceData = {
   amlId: number;
@@ -172,7 +172,7 @@ export type EmtSourceData = {
   _mongoid: string;
   sourceId: string;
 } & TableRecordUiProps &
-  TableSelectionCompareWithAmlTxnId;
+  TableSelectionCompareWithAmlTransactionId;
 
 export type OlbSourceData = {
   accountCurrency: string;
@@ -292,7 +292,7 @@ export type OlbSourceData = {
   additionalDescription: string;
   _mongoid: string;
 } & TableRecordUiProps &
-  TableSelectionCompareWithAmlTxnId;
+  TableSelectionCompareWithAmlTransactionId;
 
 export type AbmSourceData = {
   accountCurrency: string;
@@ -419,7 +419,7 @@ export type AbmSourceData = {
   txnType: number;
   _mongoid: string;
 } & TableRecordUiProps &
-  TableSelectionCompareWithAmlTxnId;
+  TableSelectionCompareWithAmlTransactionId;
 
 export type SourceData =
   TransactionSearchResponse[number]["sourceData"][number];

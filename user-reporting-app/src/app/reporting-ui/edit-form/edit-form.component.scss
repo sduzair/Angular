@@ -1,8 +1,11 @@
 @use "@angular/material" as mat;
 
+mat-toolbar {
+  @include mat.button-density(0);
+}
+
 .form-field-density {
   @include mat.form-field-density(-5);
-  @include mat.button-density(0);
 }
 
 .overlay-pre {

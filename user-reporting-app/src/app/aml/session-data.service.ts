@@ -1,37 +1,53 @@
 import { HttpClient, HttpErrorResponse } from "@angular/common/http";
-import { ErrorHandler, Injectable } from "@angular/core";
+import { ErrorHandler, inject, Injectable } from "@angular/core";
+import { BehaviorSubject, Subject, map, of, throwError } from "rxjs";
 import {
-  BehaviorSubject,
-  EMPTY,
-  Observable,
-  Subject,
-  map,
-  throwError,
-} from "rxjs";
-import { catchError, finalize, startWith, switchMap } from "rxjs/operators";
+  catchError,
+  finalize,
+  scan,
+  shareReplay,
+  startWith,
+  switchMap,
+  tap,
+} from "rxjs/operators";
 import {
   ChangeLog,
+  ChangeLogService,
   ChangeLogWithoutVersion,
   WithVersion,
-} from "./change-log.service";
-import { EditFormEditType } from "./reporting-ui/edit-form/edit-form.component";
-import { StrTxnWithHiddenProps } from "./reporting-ui/reporting-ui-table/reporting-ui-table.component";
-import { editedTransactionsDevOnly } from "./transaction-view/transactionSearchResDevOnly";
+} from "../change-log.service";
+import { StrTransactionData } from "../reporting-ui/reporting-ui-table/reporting-ui-table.component";
+import { editedTransactionsDevOnly } from "../transaction-view/transactionSearchResDevOnly";
 
 @Injectable()
 export class SessionDataService {
-  private sessionState = new BehaviorSubject<SessionStateLocal | null>(null);
+  private sessionState = new BehaviorSubject<SessionStateLocal>({
+    version: 0,
+    amlId: "",
+    transactionSearchParams: {
+      accountNumbersSelection: [],
+      partyKeysSelection: [],
+      productTypesSelection: [],
+      reviewPeriodSelection: [],
+      sourceSystemsSelection: [],
+    },
+    strTransactions: [],
+  });
+
+  // todo try removing this as allows stale session info to exist
   getSessionStateValue() {
     return this.sessionState.value;
   }
-  readonly sessionState$ = this.sessionState.asObservable();
+
+  private readonly sessionState$ = this.sessionState.asObservable();
+
   public conflict$ = new Subject<void>();
   readonly latestSessionVersion$ = this.sessionState$.pipe(
     map((sessionState) => sessionState?.version),
   );
 
   readonly lastUpdated$ = this.sessionState$.pipe(
-    map((sessionState) => sessionState?.lastUpdated!),
+    map((sessionState) => sessionState.lastUpdated!),
     startWith(new Date(0).toISOString().split("T")[0]),
   );
 
@@ -45,10 +61,45 @@ export class SessionDataService {
   private savingSubject = new BehaviorSubject<boolean>(false);
   savingStatus$ = this.savingSubject.asObservable();
 
+  private changeLogService = inject(ChangeLogService);
+
+  /**
+   * Used to populate reporting ui table
+   */
+  readonly strTransactionData$ = this.sessionState$.pipe(
+    map(
+      ({
+        strTransactions,
+        lastEditedStrTransactions: editedStrTransactions,
+      }) => {
+        if (editedStrTransactions)
+          return computePartialTransactionDataHandler(
+            strTransactions,
+            (original: StrTransactionData, changes: ChangeLog[]) =>
+              this.changeLogService.applyChanges(original, changes),
+            editedStrTransactions,
+          );
+
+        return computeFullTransactionDataHandler(
+          strTransactions,
+          (original: StrTransactionData, changes: ChangeLog[]) =>
+            this.changeLogService.applyChanges(original, changes),
+        );
+      },
+    ),
+    scan((acc, handler) => {
+      return handler(acc);
+    }, [] as StrTransactionData[]),
+    shareReplay({ bufferSize: 1, refCount: false }), // Stream never dies
+  );
+
   constructor(
     private http: HttpClient,
     private errorHandler: ErrorHandler,
   ) {
+    // Subscribe immediately to ensure scan accumulates from first emission
+    this.strTransactionData$.subscribe();
+
     this.sessionState.next(sessionStateDevOrTestOnly);
 
     // this.sessionState.next(sessionStateDevOrTestOnly);
@@ -129,13 +180,13 @@ export class SessionDataService {
       .subscribe(); */
   }
 
-  fetchSessionByAmlId(amlId: string): Observable<SessionStateLocal> {
+  fetchSessionByAmlId(amlId: string) {
     return this.http.get<GetSessionResponse>(`/api/sessions/${amlId}`).pipe(
-      map(
+      tap(
         ({
           amlId,
           version,
-          data: { transactionSearchParams, strTransactionsEdited = [] },
+          data: { transactionSearchParams, strTransactions = [] },
           updatedAt,
         }) => {
           // todo use error handling to display version conflict message
@@ -143,22 +194,15 @@ export class SessionDataService {
             amlId: amlId,
             version,
             transactionSearchParams,
-            strTransactionsEdited,
+            strTransactions,
             lastUpdated: updatedAt,
           });
-          return {
-            amlId: amlId,
-            version,
-            transactionSearchParams,
-            strTransactionsEdited,
-            lastUpdated: updatedAt,
-          };
         },
       ),
     );
   }
 
-  createSession(amlId: string): Observable<SessionStateLocal> {
+  createSession(amlId: string) {
     return this.http
       .post<CreateSessionResponse>("/api/sessions", {
         amlId: amlId,
@@ -174,7 +218,7 @@ export class SessionDataService {
         },
       })
       .pipe(
-        map((res) => {
+        tap((res) => {
           console.assert(res.version === 0);
 
           this.sessionState.next({
@@ -187,20 +231,8 @@ export class SessionDataService {
               reviewPeriodSelection: [],
               sourceSystemsSelection: [],
             },
-            strTransactionsEdited: [],
+            strTransactions: [],
           });
-          return {
-            version: 0,
-            amlId,
-            transactionSearchParams: {
-              accountNumbersSelection: [],
-              partyKeysSelection: [],
-              productTypesSelection: [],
-              reviewPeriodSelection: [],
-              sourceSystemsSelection: [],
-            },
-            strTransactionsEdited: [],
-          };
         }),
       );
   }
@@ -216,96 +248,77 @@ export class SessionDataService {
   //   // this.highlightEdits$.next(highlightEdit.payload);
   // }
 
-  private update(
-    amlId: string,
-    sessionStateCurrent: SessionStateLocal,
-    changeLogs: EditTabChangeLogsRes[],
-  ) {
+  public updateStrTransactions(pendingChanges: EditFormChange[]) {
     const {
-      strTransactionsEdited = [],
+      strTransactions = [],
       transactionSearchParams,
       version: currentVersion,
-    } = structuredClone(sessionStateCurrent);
+    } = structuredClone(this.getSessionStateValue()!);
 
-    const editTabPartialChangeLogsResponse: StrTxnChangeLogs[] = changeLogs
-      .filter((txnChangeLog) => txnChangeLog.changeLogs.length > 0)
-      .map(({ strTxnId, changeLogs }) => {
-        const changeLogsVersioned = changeLogs.map((changeLog) => ({
-          ...changeLog,
-          version: currentVersion + 1,
-        }));
-
-        const txn = strTransactionsEdited?.find(
-          (strTxn) => strTxn._hiddenStrTxnId === strTxnId,
-        )!;
-
-        console.assert(!!txn, "Assert transaction selected");
-
-        txn.changeLogs.push(...changeLogsVersioned);
-
-        return { strTxnId, changeLogs: changeLogsVersioned };
+    // todo to avoid scenarios where transaction for pending changes does not exist subscribe to the local session state in edit form
+    pendingChanges
+      .filter((change) => change.pendingChangeLogs.length > 0)
+      .forEach(({ flowOfFundsAmlTransactionId, pendingChangeLogs }) => {
+        strTransactions
+          .find(
+            (strTxn) => strTxn._hiddenStrTxnId === flowOfFundsAmlTransactionId,
+          )!
+          .changeLogs.push(
+            ...pendingChangeLogs.map((changeLog) => ({
+              ...changeLog,
+              version: currentVersion + 1,
+            })),
+          );
       });
-
-    if (editTabPartialChangeLogsResponse.length === 0) {
-      console.debug("Skipping update: no versioned edits present.");
-      return EMPTY;
-    }
 
     const payload: UpdateSessionRequest = {
       currentVersion,
-      data: { transactionSearchParams, strTransactionsEdited },
+      data: { transactionSearchParams, strTransactions },
     };
     this.savingSubject.next(true);
-    return this.http
-      .put<UpdateSessionResponse>(`/api/sessions/${amlId}`, payload)
-      .pipe(
-        map(({ newVersion, updatedAt }) => {
-          console.assert(newVersion === payload.currentVersion + 1);
-          this.sessionState.next({
-            amlId,
-            version: newVersion,
-            transactionSearchParams,
-            strTransactionsEdited,
-            editTabPartialChangeLogsResponse,
-            lastUpdated: updatedAt,
-          });
-          return {
-            amlId,
-            version: newVersion,
-            strTransactionsEdited,
-            editTabPartialChangeLogsResponse,
-            lastUpdated: updatedAt,
-          };
-        }),
-        catchError((error: HttpErrorResponse) => {
-          // rollback local session state on error
-          this.sessionState.next(sessionStateCurrent);
 
-          // on conflict
-          if (error.status === 409) {
-            this.conflict$.next();
-            return this.fetchSessionByAmlId(amlId).pipe(
-              switchMap(() => throwError(() => error)),
-            );
-          }
+    // return this.http
+    //   .put<UpdateSessionResponse>(
+    //     `/api/sessions/${this.getSessionStateValue()!.amlId}`,
+    //     payload,
+    //   )
+    return of({
+      amlId: "9999",
+      newVersion: currentVersion + 1,
+      updatedAt: new Date(0).toISOString().split("T")[0],
+    }).pipe(
+      tap(({ newVersion, updatedAt }) => {
+        console.assert(newVersion === payload.currentVersion + 1);
+        this.sessionState.next({
+          amlId: this.getSessionStateValue()!.amlId,
+          version: newVersion,
+          transactionSearchParams,
+          strTransactions,
+          lastEditedStrTransactions: pendingChanges.map(
+            (change) => change.flowOfFundsAmlTransactionId,
+          ),
+          lastUpdated: updatedAt,
+        });
+      }),
+      catchError((error: HttpErrorResponse) => {
+        // on conflict
+        if (error.status === 409) {
+          this.conflict$.next();
+          return this.fetchSessionByAmlId(
+            this.getSessionStateValue()!.amlId,
+          ).pipe(switchMap(() => throwError(() => error)));
+        }
 
-          return throwError(() => error);
-        }),
-        finalize(() => this.savingSubject.next(false)),
-      );
+        return throwError(() => error);
+      }),
+      finalize(() => this.savingSubject.next(false)),
+    );
   }
 }
 
-type RecentEditType = Extract<
-  EditFormEditType,
-  {
-    type: "EDIT_RESULT" | "BULK_EDIT_RESULT";
-  }
->;
-
-export interface EditTabChangeLogsRes {
-  strTxnId: string;
-  changeLogs: ChangeLogWithoutVersion[];
+export interface EditFormChange {
+  flowOfFundsAmlTransactionId: string;
+  pendingChangeLogs: ChangeLogWithoutVersion[];
 }
 
 export interface EditTabChangeLogsResVersioned {
@@ -323,17 +336,17 @@ export interface SessionStateLocal {
     productTypesSelection?: string[] | null;
     reviewPeriodSelection?: ReviewPeriod[] | null;
   };
-  strTransactionsEdited: StrTxnEdited[];
-  editTabPartialChangeLogsResponse?: StrTxnChangeLogs[] | null;
+  strTransactions: StrTransactionWithChangeLogs[];
+  lastEditedStrTransactions?: EditFormChange["flowOfFundsAmlTransactionId"][];
   lastUpdated?: string;
 }
 
-export type StrTxnEdited = WithVersion<StrTxnWithHiddenProps> & {
+export type StrTransactionWithChangeLogs = WithVersion<StrTransactionData> & {
   changeLogs: ChangeLog[];
 };
 
-export interface StrTxnChangeLogs {
-  strTxnId: string;
+export interface StrTransactionChangeLogs {
+  txnId: string;
   changeLogs: ChangeLog[];
 }
 
@@ -351,7 +364,7 @@ export interface GetSessionResponse {
       productTypesSelection?: string[] | null;
       reviewPeriodSelection?: ReviewPeriod[] | null;
     };
-    strTransactionsEdited?: StrTxnEdited[];
+    strTransactions?: StrTransactionWithChangeLogs[];
   };
 }
 
@@ -365,7 +378,7 @@ interface CreateSessionRequest {
       productTypesSelection?: string[] | null;
       reviewPeriodSelection?: ReviewPeriod[] | null;
     };
-    strTransactionsEdited?: StrTxnEdited[];
+    strTransactions?: StrTransactionWithChangeLogs[];
   };
 }
 
@@ -386,12 +399,12 @@ interface UpdateSessionRequest {
       productTypesSelection?: string[] | null;
       reviewPeriodSelection?: ReviewPeriod[] | null;
     };
-    strTransactionsEdited?: StrTxnEdited[];
+    strTransactions?: StrTransactionWithChangeLogs[];
   };
 }
 
 interface UpdateSessionResponse {
-  sessionId: string;
+  amlId: string;
   newVersion: number;
   updatedAt: string;
 }
@@ -411,7 +424,7 @@ export const sessionStateDevOrTestOnly: SessionStateLocal = {
     reviewPeriodSelection: [],
     sourceSystemsSelection: [],
   },
-  strTransactionsEdited: editedTransactionsDevOnly.map((txn) => ({
+  strTransactions: editedTransactionsDevOnly.map((txn) => ({
     ...txn,
     _hiddenTxnType: txn.flowOfFundsSource,
     _hiddenAmlId: "999999",
@@ -420,4 +433,41 @@ export const sessionStateDevOrTestOnly: SessionStateLocal = {
     changeLogs: [],
   })),
   lastUpdated: "1996-06-13",
+};
+
+const computeFullTransactionDataHandler = (
+  strTransactions: StrTransactionWithChangeLogs[],
+  applyChanges: typeof ChangeLogService.prototype.applyChanges<StrTransactionData>,
+) => {
+  return (acc: StrTransactionData[]) => {
+    return strTransactions.map((strTransaction) => {
+      return applyChanges(strTransaction, strTransaction.changeLogs);
+    });
+  };
+};
+
+const computePartialTransactionDataHandler = (
+  strTransactions: StrTransactionWithChangeLogs[],
+  applyChanges: typeof ChangeLogService.prototype.applyChanges<StrTransactionData>,
+  editedStrTransactions: NonNullable<
+    SessionStateLocal["lastEditedStrTransactions"]
+  >,
+) => {
+  return (acc: StrTransactionData[]) => {
+    const partialTransactionData = strTransactions
+      .filter(({ flowOfFundsAmlTransactionId }) =>
+        editedStrTransactions.includes(flowOfFundsAmlTransactionId),
+      )
+      .map((strTransaction) => {
+        return applyChanges(strTransaction, strTransaction.changeLogs);
+      });
+
+    return [
+      ...partialTransactionData,
+      ...acc.filter(
+        ({ flowOfFundsAmlTransactionId }) =>
+          !editedStrTransactions.includes(flowOfFundsAmlTransactionId),
+      ),
+    ];
+  };
 };

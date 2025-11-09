@@ -1,9 +1,8 @@
 import { Injectable } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import { BehaviorSubject, Subject, fromEvent, interval, of } from "rxjs";
-import { filter, map, takeWhile } from "rxjs/operators";
+import { BehaviorSubject, Subject, interval, of } from "rxjs";
+import { map, takeWhile } from "rxjs/operators";
 import { EditFormEditType } from "./reporting-ui/edit-form/edit-form.component";
-import { StrTxnEdited } from "./session-data.service";
 
 @Injectable({
   providedIn: "root",

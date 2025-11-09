@@ -1,7 +1,7 @@
-import { StrTxn } from "../reporting-ui/reporting-ui-table/reporting-ui-table.component";
+import { StrTransaction } from "../reporting-ui/reporting-ui-table/reporting-ui-table.component";
 import { TransactionSearchResponse } from "../transaction-search/aml-transaction-search.service";
 
-export const editedTransactionsDevOnly: StrTxn[] = [
+export const editedTransactionsDevOnly: StrTransaction[] = [
   {
     wasTxnAttempted: false,
     wasTxnAttemptedReason: null,

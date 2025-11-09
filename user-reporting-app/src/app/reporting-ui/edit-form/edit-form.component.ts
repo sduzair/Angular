@@ -6,6 +6,7 @@ import {
   OnInit,
   inject,
 } from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import {
   FormArray,
   FormControl,
@@ -29,13 +30,24 @@ import { MatSnackBar } from "@angular/material/snack-bar";
 import { MatTabsModule } from "@angular/material/tabs";
 import { MatToolbarModule } from "@angular/material/toolbar";
 import {
+  ActivatedRoute,
   ActivatedRouteSnapshot,
   ResolveFn,
+  Router,
   RouterStateSnapshot,
 } from "@angular/router";
+import { Subject, exhaustMap, map, tap } from "rxjs";
 import { v4 as uuidv4 } from "uuid";
-import { ChangeLogService, WithVersion } from "../../change-log.service";
-import { SessionDataService, StrTxnEdited } from "../../session-data.service";
+import {
+  EditFormChange,
+  SessionDataService,
+  StrTransactionWithChangeLogs,
+} from "../../aml/session-data.service";
+import {
+  ChangeLogService,
+  ChangeLogWithoutVersion,
+  WithVersion,
+} from "../../change-log.service";
 import { PreemptiveErrorStateMatcher } from "../../transaction-search/transaction-search.component";
 import {
   AccountHolder,
@@ -47,7 +59,7 @@ import {
   OnBehalfOf,
   SourceOfFunds,
   StartingAction,
-  StrTxn,
+  StrTransaction,
   StrTxnFlowOfFunds,
 } from "../reporting-ui-table/reporting-ui-table.component";
 import { ClearFieldDirective } from "./clear-field.directive";
@@ -86,14 +98,13 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
     MatSelectModule,
   ],
   template: `
-    <div class="container px-0">
-      <app-transaction-details-panel
-        *ngIf="isSingleEdit"
-        [singleStrTransaction]="$any(editType.payload)"
-      />
-    </div>
-    <div class="container form-field-density px-0">
-      <mat-toolbar class="justify-content-end my-3 px-0">
+    <div class="container px-0 mb-5">
+      <mat-toolbar class="justify-content-end px-0">
+        <button mat-icon-button (click)="navigateBack()" aria-label="Go back">
+          <mat-icon>arrow_back</mat-icon>
+        </button>
+        <div class="flex-fill"></div>
+
         <!-- <ng-container
           *ngIf="isNotAudit; else auditDropdown"
         > -->
@@ -102,9 +113,14 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
             mat-flat-button
             color="primary"
             type="submit"
-            (click)="onSave()"
+            form="edit-form"
           >
-            Save
+            <ng-container
+              *ngIf="sessionDataService.savingStatus$ | async; else saveText"
+            >
+              Saving...
+            </ng-container>
+            <ng-template #saveText>Save</ng-template>
           </button>
         </ng-container>
         <!-- <ng-template #auditDropdown>
@@ -124,6 +140,12 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
           </mat-form-field>
         </ng-template> -->
       </mat-toolbar>
+      <app-transaction-details-panel
+        *ngIf="isSingleEdit"
+        [singleStrTransaction]="$any(editType.payload)"
+      />
+    </div>
+    <div class="container form-field-density px-0">
       <form
         *ngIf="editForm"
         [formGroup]="editForm"
@@ -131,6 +153,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
         [class.bulk-edit-form]="isBulkEdit"
         class="edit-form"
         data-testid="edit-form"
+        id="edit-form"
       >
         <!-- Main Tabs -->
         <mat-tab-group preserveContent class="gap-3">
@@ -2650,12 +2673,9 @@ export class EditFormComponent implements OnInit {
     return this.editType.type !== "AUDIT_REQUEST";
   }
 
-  protected editForm: ReturnType<
-    typeof EditFormComponent.prototype.createEditForm
-  > | null = null;
-  private singleStrTransactionBeforeEdit:
-    | ReturnType<typeof EditFormComponent.prototype.createEditForm>["value"]
-    | null = null;
+  editForm: EditFormType | null = null;
+
+  private singleStrTransactionBeforeEdit: EditFormValueType | null = null;
 
   ngOnInit(): void {
     if (this.editType.type === "SINGLE_EDIT") {
@@ -2667,46 +2687,103 @@ export class EditFormComponent implements OnInit {
         this.editForm.value,
       );
     }
+
+    this.save$.subscribe();
   }
 
-  private changeLogService: ChangeLogService<StrTxnEdited> =
-    inject(ChangeLogService);
+  private changeLogService = inject(ChangeLogService);
   private snackBar = inject(MatSnackBar);
 
   // ----------------------
   // Form Submission
   // ----------------------
-  protected isSaved = false;
+  protected sessionDataService = inject(SessionDataService);
+  protected isBulkEditSaved = false;
+  saveSubject = new Subject<
+    | {
+        editType: EditFormEditType;
+        editFormValue: EditFormValueType;
+        singleStrTransactionBeforeEdit: EditFormValueType;
+      }
+    | {
+        editType: EditFormEditType;
+        editFormValue: EditFormValueType;
+      }
+    | {
+        editType: EditFormEditType;
+        version: number;
+      }
+  >();
+  private save$ = this.saveSubject.asObservable().pipe(
+    exhaustMap((saveData) => {
+      const {
+        editType: { type, payload },
+      } = saveData;
+      const pendingChanges: EditFormChange[] = [];
+      if (type === "SINGLE_EDIT") {
+        const changeLogs: ChangeLogWithoutVersion[] = [];
+        this.changeLogService.compareProperties(
+          this.singleStrTransactionBeforeEdit,
+          this.editForm!.value,
+          changeLogs,
+        );
+        pendingChanges.push({
+          flowOfFundsAmlTransactionId: payload.flowOfFundsAmlTransactionId,
+          pendingChangeLogs: changeLogs,
+        });
+      }
+      return this.sessionDataService.updateStrTransactions(pendingChanges).pipe(
+        map((response) => ({
+          response,
+          saveData,
+        })),
+      );
+    }),
+    tap(
+      ({
+        saveData: {
+          editType: { type },
+        },
+      }) => {
+        if (type === "SINGLE_EDIT")
+          this.singleStrTransactionBeforeEdit = structuredClone(
+            this.editForm!.value,
+          );
+
+        if (type === "BULK_EDIT") this.isBulkEditSaved = true;
+
+        this.snackBar.open("Edits saved!", "Dismiss", {
+          duration: 5000,
+        });
+      },
+    ),
+    takeUntilDestroyed(),
+  );
+
   protected onSave(): void {
     console.log(
       "🚀 ~ EditFormComponent ~ onSubmit ~ this.userForm!.value:",
       this.editForm!.value,
     );
-    // const isBulkEditSaved = this.isSaved && this.editType.type === "BULK_EDIT";
 
-    // if (isBulkEditSaved) {
-    //   this.snackBar.open(
-    //     "Edits already saved please close this tab!",
-    //     "Dismiss",
-    //     {
-    //       duration: 5000,
-    //     },
-    //   );
-    //   return;
-    // }
+    if (this.isBulkEditSaved) {
+      this.snackBar.open(
+        "Edits already saved please close this tab!",
+        "Dismiss",
+        {
+          duration: 5000,
+        },
+      );
+      return;
+    }
 
-    // if (this.editType.type === "SINGLE_EDIT") {
-    //   const changes: ChangeLogWithoutVersion[] = [];
-    //   this.changeLogService.compareProperties(
-    //     this.singleStrTransactionBeforeEdit,
-    //     this.editForm!.value,
-    //     changes,
-    //   );
-
-    //   this.singleStrTransactionBeforeEdit = structuredClone(
-    //     this.editForm!.value,
-    //   );
-    // }
+    if (this.editType.type === "SINGLE_EDIT") {
+      this.saveSubject.next({
+        editType: this.editType,
+        editFormValue: this.editForm!.value,
+        singleStrTransactionBeforeEdit: this.singleStrTransactionBeforeEdit!,
+      });
+    }
 
     // this.editForm$.pipe(take(1)).subscribe((form) => {
     //   if (!this.isBulkEdit) {
@@ -2738,17 +2815,13 @@ export class EditFormComponent implements OnInit {
     //       },
     //     );
     //   }
-    // this.snackBar.open("Edits saved!", "Dismiss", {
-    //   duration: 5000,
-    // });
-    // this.isSaved = true;
   }
 
-  private createEditForm({
+  createEditForm({
     txn,
     options,
   }: {
-    txn?: WithVersion<StrTxn> | StrTxn | null;
+    txn?: WithVersion<StrTransaction> | StrTransaction | null;
     options: { isBulkEdit?: boolean; disabled: boolean };
   }) {
     const { isBulkEdit: createEmptyArrays = false, disabled } = options;
@@ -3362,7 +3435,7 @@ export class EditFormComponent implements OnInit {
 
   // Account Hodlers SA/CA
   protected addAccountHolder(
-    actionControlName: keyof StrTxn,
+    actionControlName: keyof StrTransaction,
     actionIndex: number,
   ): void {
     const action = (
@@ -3381,7 +3454,7 @@ export class EditFormComponent implements OnInit {
   }
 
   protected removeAccountHolder(
-    actionControlName: keyof StrTxn,
+    actionControlName: keyof StrTransaction,
     actionIndex: number,
     index: number,
   ): void {
@@ -3635,8 +3708,12 @@ export class EditFormComponent implements OnInit {
     Other: "Other",
   };
 
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
   protected navigateBack() {
-    throw new Error("Method not implemented.");
+    this.router.navigate(["../../table"], {
+      relativeTo: this.route,
+    });
   }
 }
 
@@ -3648,8 +3725,8 @@ export const singleEditResolver: ResolveFn<EditFormEditType> = (
 
   if (!sessionStateValue) throw new Error("No session found");
 
-  const strTransactionEdited = sessionStateValue.strTransactionsEdited.find(
-    (txn) => route.params["txnId"] === txn.flowOfFundsAmlTransactionId,
+  const strTransactionEdited = sessionStateValue.strTransactions.find(
+    (txn) => route.params["transactionId"] === txn.flowOfFundsAmlTransactionId,
   );
 
   if (!strTransactionEdited) throw new Error("Transaction not found");
@@ -3671,7 +3748,7 @@ export type TypedForm<T> = {
 };
 
 export type StrTxnEditForm = RecursiveOmit<
-  StrTxn,
+  StrTransaction,
   | keyof StrTxnFlowOfFunds
   | "highlightColor"
   | keyof ConductorNpdData
@@ -3682,44 +3759,26 @@ export type StrTxnEditForm = RecursiveOmit<
 export type EditFormEditType =
   | {
       type: "SINGLE_EDIT";
-      payload: StrTxnEdited;
+      payload: StrTransactionWithChangeLogs;
     }
   | {
       type: "BULK_EDIT";
-      payload: StrTxnEdited[];
+      payload: StrTransactionWithChangeLogs[];
     }
   | {
       type: "AUDIT_REQUEST";
-      payload: StrTxnEdited;
+      payload: StrTransactionWithChangeLogs;
     };
-
-// export type EditFormEditTypeType = EditFormEditType extends { type: infer T }
-//   ? T
-//   : never;
-
-// export type EditFormEditType =
-//   | {
-//       type: "EDIT_REQUEST";
-//       payload: StrTxnEdited;
-//     }
-//   | {
-//       type: "EDIT_RESULT";
-//       payload: EditTabChangeLogsRes;
-//     }
-//   | {
-//       type: "BULK_EDIT_REQUEST";
-//       payload: StrTxnEdited[];
-//     }
-//   | {
-//       type: "BULK_EDIT_RESULT";
-//       payload: EditTabChangeLogsRes[];
-//     }
-//   | {
-//       type: "AUDIT_REQUEST";
-//       payload: StrTxnEdited;
-//     };
 
 // note does not properly omit keys from union types
 type RecursiveOmit<T, K extends PropertyKey> = T extends object
   ? Omit<{ [P in keyof T]: RecursiveOmit<T[P], K> }, K>
   : T;
+
+type EditFormValueType = ReturnType<
+  typeof EditFormComponent.prototype.createEditForm
+>["value"];
+
+type EditFormType = ReturnType<
+  typeof EditFormComponent.prototype.createEditForm
+>;

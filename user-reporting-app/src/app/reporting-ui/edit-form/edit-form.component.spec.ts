@@ -33,12 +33,12 @@ import { RouterTestingHarness } from "@angular/router/testing";
 import { enCA } from "date-fns/locale";
 import { defer } from "rxjs";
 import { AmlComponent } from "../../aml/aml.component";
-import { AppErrorHandlerService } from "../../app-error-handler.service";
 import {
   SessionDataService,
   SessionStateLocal,
-  StrTxnEdited,
-} from "../../session-data.service";
+  StrTransactionWithChangeLogs,
+} from "../../aml/session-data.service";
+import { AppErrorHandlerService } from "../../app-error-handler.service";
 import {
   EditFormComponent,
   StrTxnEditForm,
@@ -88,12 +88,12 @@ describe("EditFormComponent", () => {
                   path: "reporting-ui",
                   children: [
                     {
-                      path: "edit-form/:txnId",
+                      path: "edit-form/:transactionId",
                       component: EditFormComponent,
                       resolve: {
                         editType: singleEditResolver,
                       },
-                      title: (route) => `Edit - ${route.params["txnId"]}`,
+                      title: (route) => `Edit - ${route.params["transactionId"]}`,
                     },
                   ],
                 },
@@ -631,6 +631,6 @@ const sessionStateMock: SessionStateLocal = {
     reviewPeriodSelection: [],
     sourceSystemsSelection: [],
   },
-  strTransactionsEdited: [transactionEditFormMockAllFields] as StrTxnEdited[],
+  strTransactions: [transactionEditFormMockAllFields] as StrTransactionWithChangeLogs[],
   lastUpdated: "1996-06-13",
 };

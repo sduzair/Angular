@@ -1,63 +1,6 @@
-import { CommonModule, DatePipe } from "@angular/common";
 import {
-  type AfterViewInit,
-  ChangeDetectionStrategy,
-  Component,
-  HostListener,
-  OnDestroy,
-  type OnInit,
-} from "@angular/core";
-import { ReactiveFormsModule } from "@angular/forms";
-import { MatButtonModule } from "@angular/material/button";
-import { MatCheckboxModule } from "@angular/material/checkbox";
-import { MatChipsModule } from "@angular/material/chips";
-import {
-  MatDatepicker,
-  MatDatepickerInput,
-  MatDatepickerToggle,
-} from "@angular/material/datepicker";
-import { MatFormFieldModule } from "@angular/material/form-field";
-import { MatIconModule } from "@angular/material/icon";
-import { MatInputModule } from "@angular/material/input";
-import { MatPaginatorModule } from "@angular/material/paginator";
-import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
-import { MatSelectModule } from "@angular/material/select";
-import { MatSidenavModule } from "@angular/material/sidenav";
-import { MatSortModule } from "@angular/material/sort";
-import { MatTableDataSource, MatTableModule } from "@angular/material/table";
-import { MatToolbarModule } from "@angular/material/toolbar";
-import { ActivatedRoute } from "@angular/router";
-import {
-  BehaviorSubject,
-  Subject,
-  catchError,
-  combineLatest,
-  interval,
-  map,
-  scan,
-  switchMap,
-  take,
-  takeUntil,
-  takeWhile,
-  tap,
-  throwError,
-} from "rxjs";
-import { AbstractBaseTable } from "../base-table/abstract-base-table";
-import {
-  ChangeLog,
-  ChangeLogService,
-  WithVersion,
-} from "../change-log.service";
-import { CrossTabEditService } from "../cross-tab-edit.service";
-import { AuthService } from "../fingerprinting.service";
-import {
-  SessionDataService,
-  type SessionStateLocal,
-} from "../session-data.service";
-import { removePageFromOpenTabs } from "../single-tab.guard";
-import { ClickOutsideTableDirective } from "./click-outside-table.directive";
-import { ImportManualTxnsComponent } from "./import-manual-txns/import-manual-txns.component";
-import { PadZeroPipe } from "./pad-zero.pipe";
+  type SessionStateLocal
+} from "../aml/session-data.service";
 
 // @Component({
 //   selector: "app-table",

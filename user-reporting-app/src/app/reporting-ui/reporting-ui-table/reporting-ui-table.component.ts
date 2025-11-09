@@ -19,10 +19,9 @@ import {
   Router,
   RouterStateSnapshot,
 } from "@angular/router";
-import { combineLatest, map, startWith } from "rxjs";
+import { BehaviorSubject, map, Observable, startWith, tap } from "rxjs";
+import { SessionDataService } from "../../aml/session-data.service";
 import { BaseTableComponent } from "../../base-table/base-table.component";
-import { CrossTabEditService } from "../../cross-tab-edit.service";
-import { SessionDataService, StrTxnEdited } from "../../session-data.service";
 
 @Component({
   selector: "app-reporting-ui-table",
@@ -38,7 +37,7 @@ import { SessionDataService, StrTxnEdited } from "../../session-data.service";
   template: `
     <app-base-table
       #baseTable
-      [data]="this.strTransactionsEdited"
+      [data]="(strTransactionData$ | async) ?? []"
       [dataColumnsValues]="dataColumnsValues"
       [dataColumnsIgnoreValues]="dataColumnsIgnoreValues"
       [displayedColumnsValues]="displayedColumnsValues"
@@ -53,13 +52,13 @@ import { SessionDataService, StrTxnEdited } from "../../session-data.service";
       [selectionKey]="'flowOfFundsAmlTransactionId'"
       [hasMasterToggle]="true"
       [filterFormHighlightSelectFilterKey]="'highlightColor'"
+      [recentlyOpenRows$]="recentlyOpenedRows$"
     >
       <!-- Selection Model -->
       <ng-container matColumnDef="select">
         <th
           mat-header-cell
           *matHeaderCellDef
-          class="px-2"
           [class.sticky-cell]="baseTable.isStickyColumn('select')"
         >
           <div *ngIf="baseTable.hasMasterToggle">
@@ -97,7 +96,7 @@ import { SessionDataService, StrTxnEdited } from "../../session-data.service";
         >
           <div>
             <button
-              [disabled]="this.idBulkEditBtnDisabled$ | async"
+              [disabled]="this.isBulkEditBtnDisabled$ | async"
               mat-icon-button
               (click)="navigateToBulkEdit()"
             >
@@ -119,14 +118,12 @@ import { SessionDataService, StrTxnEdited } from "../../session-data.service";
         >
           <div>
             <button
-              [disabled]="this.isSingleOrBulkEditTabOpen$ | async"
               mat-icon-button
               (click)="navigateToEditForm(row)"
             >
               <mat-icon>edit</mat-icon>
             </button>
             <button
-              [disabled]="this.isSingleOrBulkEditTabOpen$ | async"
               mat-icon-button
               (click)="navigateToAuditForm(row)"
             >
@@ -141,13 +138,18 @@ import { SessionDataService, StrTxnEdited } from "../../session-data.service";
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReportingUiTableComponent {
-  /**
-   * Initialized by router component input binding
-   */
+  // sessionDataService = inject(SessionDataService);
+  // strTransactionsData$ = this.sessionDataService.strTransactionData$.pipe(
+  //   tap((strTransactionsData) => {
+  //     console.log(
+  //       "🚀 ~ ReportingUiTableComponent ~ strTransactionsData:",
+  //       strTransactionsData,
+  //     );
+  //   }),
+  // );
   @Input()
-  strTransactionsEdited!: StrTxnEdited[];
-
-  dataSourceTrackBy: TrackByFunction<StrTxnEdited> = (_, txn) => {
+  strTransactionData$!: Observable<StrTransactionData[]>;
+  dataSourceTrackBy: TrackByFunction<StrTransactionData> = (_, txn) => {
     return txn.flowOfFundsAmlTransactionId;
   };
 
@@ -196,7 +198,6 @@ export class ReportingUiTableComponent {
   // }
 
   selection = new SelectionModel(true, [], true, this.selectionComparator);
-
   selectionComparator(
     o1: { flowOfFundsAmlTransactionId: string },
     o2: { flowOfFundsAmlTransactionId: string },
@@ -204,7 +205,12 @@ export class ReportingUiTableComponent {
     return o1.flowOfFundsAmlTransactionId === o2.flowOfFundsAmlTransactionId;
   }
 
-  dataColumnsValues: StrTxnDataColumnKey[] = [
+  isBulkEditBtnDisabled$ = this.selection.changed.asObservable().pipe(
+    map(() => this.selection.selected.length === 0),
+    startWith(true),
+  );
+
+  dataColumnsValues: StrTransactionDataColumnKey[] = [
     "highlightColor",
     "_hiddenValidation",
     "dateOfTxn",
@@ -245,7 +251,7 @@ export class ReportingUiTableComponent {
   displayedColumnsValues = ["select" as const, "actions" as const];
 
   displayedColumnsColumnHeaderMap: Partial<
-    Record<"fullTextFilterKey" | StrTxnDataColumnKey, string>
+    Record<"fullTextFilterKey" | StrTransactionDataColumnKey, string>
   > = {
     highlightColor: "Highlight",
     wasTxnAttempted: "Was the transaction attempted?",
@@ -253,12 +259,12 @@ export class ReportingUiTableComponent {
     methodOfTxn: "Method of Txn",
     purposeOfTxn: "Purpose of Txn",
     reportingEntityLocationNo: "Reporting Entity",
-    dateOfTxn: "Date of Txn",
-    timeOfTxn: "Time of Txn",
-    dateOfPosting: "Date of Post",
-    timeOfPosting: "Time of Post",
+    dateOfTxn: "Txn Date",
+    timeOfTxn: "Txn Time",
+    dateOfPosting: "Post Date",
+    timeOfPosting: "Post Time",
     "startingActions.0.directionOfSA": "Direction",
-    "startingActions.0.typeOfFunds": "Type of Funds",
+    "startingActions.0.typeOfFunds": "Funds Type",
     "startingActions.0.amount": "Debit",
     "startingActions.0.currency": "Debit Currency",
     "startingActions.0.fiuNo": "Debit FIU",
@@ -273,7 +279,7 @@ export class ReportingUiTableComponent {
     "startingActions.0.conductors.0.wasConductedOnBehalf":
       "Was this transaction conducted or attempted on behalf of another person or entity?",
     "startingActions.0.conductors.0.email": "Conductor Email",
-    "completingActions.0.detailsOfDispo": "Details of Disposition",
+    "completingActions.0.detailsOfDispo": "Disposition Details",
     "completingActions.0.amount": "Credit Amount",
     "completingActions.0.currency": "Credit Currency",
     "completingActions.0.fiuNo": "Credit FIU",
@@ -290,19 +296,19 @@ export class ReportingUiTableComponent {
       "Was there any other person or entity involved in the completing action?",
     reportingEntityTxnRefNo: "Transaction Reference No",
     _hiddenValidation: "",
-    _hiddenTxnType: "Type of Txn",
+    _hiddenTxnType: "Txn Type",
     _hiddenAmlId: "AML Id",
     fullTextFilterKey: "Full Text",
   };
 
-  stickyColumns: (StrTxnDataColumnKey | "actions" | "select")[] = [
+  stickyColumns: (StrTransactionDataColumnKey | "actions" | "select")[] = [
     "actions",
     "select",
     "_mongoid",
     "_hiddenValidation",
   ];
 
-  selectFiltersValues: StrTxnDataColumnKey[] = [
+  selectFiltersValues: StrTransactionDataColumnKey[] = [
     "highlightColor",
     "_hiddenValidation",
     "methodOfTxn",
@@ -327,9 +333,12 @@ export class ReportingUiTableComponent {
     "_hiddenAmlId",
   ];
 
-  dateFiltersValues: StrTxnDataColumnKey[] = ["dateOfTxn", "dateOfPosting"];
+  dateFiltersValues: StrTransactionDataColumnKey[] = [
+    "dateOfTxn",
+    "dateOfPosting",
+  ];
 
-  dateFiltersValuesIgnore: StrTxnDataColumnKey[] = [
+  dateFiltersValuesIgnore: StrTransactionDataColumnKey[] = [
     "timeOfTxn",
     "timeOfPosting",
     "startingActions.0.accountOpen",
@@ -338,18 +347,18 @@ export class ReportingUiTableComponent {
     "completingActions.0.accountClose",
   ];
 
-  displayedColumnsTime: StrTxnDataColumnKey[] = ["timeOfTxn", "timeOfPosting"];
+  displayedColumnsTime: StrTransactionDataColumnKey[] = [
+    "timeOfTxn",
+    "timeOfPosting",
+  ];
 
-  private crossTabEditService = inject(CrossTabEditService);
-  isSingleOrBulkEditTabOpen$ =
-    this.crossTabEditService.isSingleOrBulkEditTabOpen$;
+  private recentlyOpenedRowsSubject = new BehaviorSubject([] as string[]);
+  recentlyOpenedRows$ = this.recentlyOpenedRowsSubject.asObservable();
 
-  // todo concern of cross tab service
-  recentlyOpenRows: string[] = [];
   private route = inject(ActivatedRoute);
   private router = inject(Router);
-  navigateToEditForm(record: StrTxnEdited) {
-    this.recentlyOpenRows = [record.flowOfFundsAmlTransactionId];
+  navigateToEditForm(record: StrTransactionData) {
+    this.recentlyOpenedRowsSubject.next([record.flowOfFundsAmlTransactionId]);
     this.router.navigate(
       [`../edit-form/${record.flowOfFundsAmlTransactionId}`],
       {
@@ -362,19 +371,11 @@ export class ReportingUiTableComponent {
     // });
   }
 
-  idBulkEditBtnDisabled$ = combineLatest([
-    this.selection.changed.asObservable(),
-    this.isSingleOrBulkEditTabOpen$,
-  ]).pipe(
-    map(([_, tabOpen]) => {
-      return this.selection.selected.length === 0 || tabOpen;
-    }),
-    startWith(true),
-  );
-
   navigateToBulkEdit() {
-    this.recentlyOpenRows = this.selection.selected.map(
-      (strTxn) => strTxn.flowOfFundsAmlTransactionId,
+    this.recentlyOpenedRowsSubject.next(
+      this.selection.selected.map(
+        (strTxn) => strTxn.flowOfFundsAmlTransactionId,
+      ),
     );
     // this.crossTabEditService.openEditFormTab({
     //   editType: "BULK_EDIT_REQUEST",
@@ -384,15 +385,14 @@ export class ReportingUiTableComponent {
     // });
   }
 
-  navigateToAuditForm(record: StrTxnEdited) {
-    this.recentlyOpenRows = [record.flowOfFundsAmlTransactionId];
+  navigateToAuditForm(record: StrTransactionData) {
+    this.recentlyOpenedRowsSubject.next([record.flowOfFundsAmlTransactionId]);
+
     // this.crossTabEditService.openEditFormTab({
     //   editType: "AUDIT_REQUEST",
     //   strTxn: record,
     // });
   }
-
-  sessionDataService = inject(SessionDataService);
 }
 
 type _hiddenValidationType =
@@ -401,14 +401,14 @@ type _hiddenValidationType =
   | "Bank Info Missing";
 
 // Hidden props prefixed with '_hidden' are ignored by the change logging service.
-export type StrTxnWithHiddenProps = StrTxn & {
+export type StrTransactionData = StrTransaction & {
   _hiddenValidation?: _hiddenValidationType[];
   _hiddenTxnType: string;
   _hiddenAmlId: string;
   _hiddenStrTxnId: string;
 };
 
-export type StrTxn = {
+export type StrTransaction = {
   wasTxnAttempted: boolean | null;
   wasTxnAttemptedReason: string | null;
   dateOfTxn: string | null;
@@ -569,8 +569,8 @@ export interface Beneficiary {
   nameOfEntity: string | null;
 }
 
-export type StrTxnDataColumnKey =
-  | keyof StrTxnWithHiddenProps
+export type StrTransactionDataColumnKey =
+  | keyof StrTransactionData
   | keyof AddPrefixToObject<StartingAction, "startingActions.0.">
   | keyof AddPrefixToObject<StartingAction, "startingActions.0.">
   | keyof AddPrefixToObject<
@@ -583,12 +583,8 @@ export type AddPrefixToObject<T, P extends string> = {
   [K in keyof T as K extends string ? `${P}${K}` : never]: T[K];
 };
 
-export const strTransactionsEditedResolver: ResolveFn<StrTxnEdited[]> = (
-  route: ActivatedRouteSnapshot,
-  _: RouterStateSnapshot,
-) => {
-  const sessionDataService = inject(SessionDataService);
-  const sessionStateValue = sessionDataService.getSessionStateValue();
-  if (!sessionStateValue) throw new Error("No session found");
-  return sessionStateValue.strTransactionsEdited;
+export const strTransactionsEditedResolver: ResolveFn<
+  Observable<StrTransactionData[]>
+> = async (route: ActivatedRouteSnapshot, _: RouterStateSnapshot) => {
+  return inject(SessionDataService).strTransactionData$;
 };

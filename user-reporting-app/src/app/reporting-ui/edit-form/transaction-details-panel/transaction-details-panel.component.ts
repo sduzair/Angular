@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, Input } from "@angular/core";
 import { MatButtonModule } from "@angular/material/button";
 import { MatDivider } from "@angular/material/divider";
 import { MatExpansionModule } from "@angular/material/expansion";
-import { StrTxnEdited } from "../../../session-data.service";
+import { StrTransactionWithChangeLogs } from "../../../aml/session-data.service";
 
 @Component({
   selector: "app-transaction-details-panel",
@@ -198,5 +198,5 @@ import { StrTxnEdited } from "../../../session-data.service";
 })
 export class TransactionDetailsPanelComponent {
   @Input({ required: true })
-  singleStrTransaction!: StrTxnEdited;
+  singleStrTransaction!: StrTransactionWithChangeLogs;
 }

@@ -19,8 +19,8 @@ import {
   RouterStateSnapshot,
 } from "@angular/router";
 import { concat, defer, map, of, tap } from "rxjs";
+import { SessionDataService } from "../aml/session-data.service";
 import { ISelectionComparator } from "../base-table/abstract-base-table";
-import { SessionDataService } from "../session-data.service";
 import {
   AbmSourceData,
   AmlTransactionSearchService,
@@ -116,7 +116,7 @@ import { OlbTableComponent } from "./olb-table/olb-table.component";
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TransactionViewComponent
-  implements ISelectionComparator<TableSelectionCompareWithAmlTxnId>
+  implements ISelectionComparator<TableSelectionCompareWithAmlTransactionId>
 {
   /**
    * Initialized by router component input binding
@@ -166,8 +166,8 @@ export class TransactionViewComponent
   );
 
   selectionComparator(
-    o1: TableSelectionCompareWithAmlTxnId,
-    o2: TableSelectionCompareWithAmlTxnId,
+    o1: TableSelectionCompareWithAmlTransactionId,
+    o2: TableSelectionCompareWithAmlTransactionId,
   ): boolean {
     return o1.flowOfFundsAmlTransactionId === o2.flowOfFundsAmlTransactionId;
   }
@@ -253,11 +253,11 @@ export const selectionsResolver: ResolveFn<
   const sessionDataService = inject(SessionDataService);
   const sessionStateValue = sessionDataService.getSessionStateValue();
   if (!sessionStateValue) throw new Error("No session found");
-  return sessionStateValue.strTransactionsEdited.map((txn) => ({
+  return sessionStateValue.strTransactions.map((txn) => ({
     flowOfFundsAmlTransactionId: txn.flowOfFundsAmlTransactionId,
   }));
 };
 
-export type TableSelectionCompareWithAmlTxnId = {
+export type TableSelectionCompareWithAmlTransactionId = {
   flowOfFundsAmlTransactionId: string;
 };

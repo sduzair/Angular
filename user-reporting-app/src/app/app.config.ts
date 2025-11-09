@@ -5,6 +5,7 @@ import {
   provideZoneChangeDetection,
 } from "@angular/core";
 import {
+  RouteReuseStrategy,
   Router,
   provideRouter,
   withComponentInputBinding,
@@ -25,6 +26,7 @@ import {
 import { enCA } from "date-fns/locale";
 import { AppErrorHandlerService } from "./app-error-handler.service";
 import { routes } from "./app.routes";
+import { CachedRouteReuseStrategy } from "./route-cache/preserve-route-reuse-strategy";
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -39,6 +41,7 @@ export const appConfig: ApplicationConfig = {
         router.navigate(["/transactionsearch"]);
       }),
     ),
+    { provide: RouteReuseStrategy, useClass: CachedRouteReuseStrategy },
     // provideRouter(routes, withComponentInputBinding(), withDebugTracing()),    // for debugging router
     provideHttpClient(),
     provideDateFnsAdapter(MAT_DATE_FNS_FORMATS),
