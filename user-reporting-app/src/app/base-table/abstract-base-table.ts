@@ -4,6 +4,7 @@ import {
   AfterViewInit,
   Component,
   DestroyRef,
+  Input,
   TrackByFunction,
   ViewChild,
   inject,
@@ -15,7 +16,18 @@ import { MatPaginator } from "@angular/material/paginator";
 import { MatSort } from "@angular/material/sort";
 import { MatTable, MatTableDataSource } from "@angular/material/table";
 import { format, isAfter, isBefore, startOfDay } from "date-fns";
-import { Observable, Subject, combineLatest, map, startWith, tap } from "rxjs";
+import { isValid } from "date-fns/fp";
+import {
+  Observable,
+  Subject,
+  combineLatest,
+  filter,
+  map,
+  startWith,
+  tap,
+} from "rxjs";
+import { TransactionDateDirective } from "../reporting-ui/edit-form/transaction-date.directive";
+import { TransactionTimeDirective } from "../reporting-ui/edit-form/transaction-time.directive";
 
 /**
  * Generic abstract base class for table components with filtering, pagination and selection capabilities
@@ -41,7 +53,7 @@ export abstract class AbstractBaseTable<
     IFilterForm<TData, TFilterKeys>,
     IDataSource<TData>,
     IPagination,
-    ISortable,
+    ISortable<TData, TDataColumn>,
     ISelection<TData, TSelection>,
     IHighlightable<TData, THighlightKey>,
     AfterViewInit
@@ -53,6 +65,7 @@ export abstract class AbstractBaseTable<
 
   abstract dataColumnsValues: TDataColumn[];
   abstract dataColumnsIgnoreValues: TDataColumn[];
+  abstract dataColumnsProjected: TDataColumn[];
 
   dataColumnsDisplayValues!: TDataColumn[];
 
@@ -84,22 +97,13 @@ export abstract class AbstractBaseTable<
    * @returns {string}
    */
   dataColumnsFormatAndNormalizeUnsafevalue(unsafeValue: unknown): string {
-    if (unsafeValue === null || unsafeValue === undefined) {
-      return "";
-    }
-    if (typeof unsafeValue === "object") {
-      throw new Error(
-        "Need primitive values to compute distict values for a column",
-      );
-    }
-
-    return String(unsafeValue).trim();
+    return String(unsafeValue ?? "").trim();
   }
 
   // ============================================================================
   // Displayed Columns Implementation
   // ============================================================================
-  abstract displayedColumnsValues: TDisplayColumn[];
+  abstract displayedColumns: TDisplayColumn[];
   abstract displayedColumnsColumnHeaderMap: Partial<
     Record<TDataColumn | IFilterForm["filterFormFullTextFilterKey"], string>
   >;
@@ -162,6 +166,11 @@ export abstract class AbstractBaseTable<
     Record<TFilterKeys, string[]>
   > = {};
   selectFiltersInputControl: Partial<Record<TFilterKeys, FormControl>> = {};
+  selectFiltersOpenTrigger$: Partial<Record<TFilterKeys, Subject<null>>> = {};
+  /**
+   * Used to track select filter unique options cache dirtly flag to lazily re-compute options
+   */
+  selectFiltersIsUniqueOptionsCacheDirty = new Map<TFilterKeys, boolean>();
 
   selectFiltersGenerateFilterKeys = (column: string) =>
     `select${column.charAt(0).toUpperCase() + column.slice(1)}` as TFilterKeys;
@@ -188,40 +197,47 @@ export abstract class AbstractBaseTable<
     return option.value;
   }
 
+  selectFiltersComputeUniqueFilterOptions(data: TData[], key: TFilterKeys) {
+    const uniqueValuesSet = new Set<string>([this.SELECT_FILTER_BLANK_VALUE]);
+    for (const record of data) {
+      const value = this.dataColumnsGetUnsafeValueByPath(
+        record,
+        this.selectFiltersParseFilterKey(key),
+      );
+
+      const addToValueSet = (unsafeVal: string) => {
+        const safeVal =
+          this.dataColumnsFormatAndNormalizeUnsafevalue(unsafeVal);
+        if (safeVal === "") return;
+        uniqueValuesSet.add(safeVal);
+      };
+
+      // in case of row validation info the value is an array
+      if (Array.isArray(value)) {
+        value.forEach((v) => addToValueSet(v));
+        continue;
+      }
+
+      addToValueSet(value);
+    }
+
+    return Array.from(uniqueValuesSet).sort();
+  }
   SELECT_FILTER_BLANK_VALUE = "-- blank --" as const;
-  selectFiltersComputeUniqueFilterOptions(data: TData[]): void {
-    const filterKeys = this.filterFormFilterKeys.filter(
+  selectFiltersInitialize(data: TData[]): void {
+    const selectFilterKeys = this.filterFormFilterKeys.filter(
       this.selectFiltersIsSelectFilterKey,
     );
 
     this.selectFiltersOptionsSelectionsFiltered$ = {};
 
-    for (const key of filterKeys) {
-      const valueSet = new Set<string>([this.SELECT_FILTER_BLANK_VALUE]);
-      for (const record of data) {
-        const value = this.dataColumnsGetUnsafeValueByPath(
-          record,
-          this.selectFiltersParseFilterKey(key),
-        );
+    for (const key of selectFilterKeys) {
+      // initial eager computation of readonly select filter options
+      this.selectFiltersUniqueFilterOptions[key] =
+        this.selectFiltersComputeUniqueFilterOptions(data, key);
 
-        const addToValueSet = (unsafeVal: string) => {
-          const safeVal =
-            this.dataColumnsFormatAndNormalizeUnsafevalue(unsafeVal);
-          if (safeVal === "") return;
-          valueSet.add(safeVal);
-        };
-
-        // in case of row validation info the value is an array
-        if (Array.isArray(value)) {
-          value.forEach((v) => addToValueSet(v));
-          continue;
-        }
-
-        addToValueSet(value);
-      }
-
-      // readonly unique filter options
-      this.selectFiltersUniqueFilterOptions[key] = Array.from(valueSet).sort();
+      // Mark as clean initially
+      this.selectFiltersIsUniqueOptionsCacheDirty.set(key, false);
 
       // options selection model sets/gets select state
       this.selectFiltersOptionsSelectionModel[key] = new SelectionModel<string>(
@@ -240,36 +256,60 @@ export abstract class AbstractBaseTable<
           startWith(this.selectFiltersOptionsSelectionModel[key].selected),
         );
 
+      // emits on opening autocomplete select filter
+      this.selectFiltersOpenTrigger$[key] = new Subject();
+
       // filtered selection options
       this.selectFiltersOptionsSelectionsFiltered$[key] = combineLatest([
         this.selectFiltersInputControl[key]!.valueChanges.pipe(startWith("")),
         this.selectFiltersOptionsSelected[key].pipe(
+          takeUntilDestroyed(this.destroyRef),
           tap((selected) => {
-            this.selectFiltersInputControl[key]!.reset();
+            // this.selectFiltersInputControl[key]!.reset();
             this.filterFormFormGroup
               .get(this.filterFormFilterFormKeySanitize(key))!
               .setValue(selected);
           }),
-          takeUntilDestroyed(this.destroyRef),
+        ),
+        this.selectFiltersOpenTrigger$[key].pipe(
+          filter(
+            () => this.selectFiltersIsUniqueOptionsCacheDirty.get(key) === true,
+          ),
+          tap(console.log),
+          map(() => {
+            // lazily recompute readonly select filter options
+            this.selectFiltersUniqueFilterOptions[key] =
+              this.selectFiltersComputeUniqueFilterOptions(
+                this.dataSource.data,
+                key,
+              );
+            this.selectFiltersIsUniqueOptionsCacheDirty.set(key, false);
+
+            return this.selectFiltersUniqueFilterOptions[key];
+          }),
+          startWith(this.selectFiltersUniqueFilterOptions[key]),
         ),
       ]).pipe(
-        map(([value, optionsSelected]: [string, string[]]) => {
-          return this.selectFiltersUniqueFilterOptions[key]!.flatMap(
-            (option) => {
-              const matchesFilter =
-                value === "" ||
-                option.toLowerCase().includes(value.toLowerCase());
+        map(([value, optionsSelected, uniqueOptions = []]) => {
+          return uniqueOptions.flatMap((option) => {
+            const matchesFilter =
+              value === "" ||
+              option.toLowerCase().includes(value.toLowerCase());
 
-              if (!matchesFilter) return [];
+            if (!matchesFilter) return [];
 
-              const isSelected = (optionsSelected ?? []).includes(option);
+            const isSelected = (optionsSelected ?? []).includes(option);
 
-              return [{ value: option, isSelected }];
-            },
-          );
+            return [{ value: option, isSelected }];
+          });
         }),
       );
     }
+  }
+
+  selectFiltersOnFilterDropdownOpened(key: TFilterKeys): void {
+    // Always emit - the filter() operator in the pipeline handles the dirty check
+    this.selectFiltersOpenTrigger$[key]!.next(null);
   }
 
   selectFiltersSeparatorKeysCodes: number[] = [ENTER, COMMA];
@@ -473,6 +513,7 @@ export abstract class AbstractBaseTable<
 
   // todo invert filter
   // todo selection filter
+  // todo hidden validation info
   filterFormFilterPredicateCreate(): (
     record: TData,
     filter: string,
@@ -522,10 +563,16 @@ export abstract class AbstractBaseTable<
           );
 
           if (keyPath === ("_hiddenValidation" as TDataColumn)) {
-            console.assert(typeof searchTerms[searchTermKey] === "string");
             console.assert(Array.isArray(recordValue));
-            return (recordValue as string[]).includes(
-              searchTerms[searchTermKey] as string,
+            if (!Array.isArray(recordValue)) throw new Error("Expected array");
+
+            return (searchTerms[searchTermKey] as string[]).some(
+              (searchTerm) => {
+                if (searchTerm === this.SELECT_FILTER_BLANK_VALUE) {
+                  return recordValue.length === 0;
+                }
+                return recordValue.includes(searchTerm);
+              },
             );
           }
 
@@ -724,6 +771,41 @@ export abstract class AbstractBaseTable<
   // ============================================
   @ViewChild(MatSort) sort!: MatSort;
 
+  @Input()
+  sortingAccessorDateTimeTuples: TDataColumn[][] = [];
+
+  @Input()
+  sortedBy?: TDataColumn;
+
+  sortingAccessor = (data: TData, sortHeaderId: string) => {
+    const tupleIndex = this.sortingAccessorDateTimeTuples.findIndex(
+      (tuple) => tuple[0] === sortHeaderId,
+    );
+
+    if (tupleIndex > -1) {
+      const date = TransactionDateDirective.parse(
+        this.dataColumnsGetUnsafeValueByPath(
+          data,
+          this.sortingAccessorDateTimeTuples[tupleIndex][0],
+        ) ?? "",
+      );
+      if (!isValid(date)) return 0;
+
+      const time = TransactionTimeDirective.parseAndFormatTime(
+        this.dataColumnsGetUnsafeValueByPath(
+          data,
+          this.sortingAccessorDateTimeTuples[tupleIndex][1],
+        ),
+      );
+
+      const [hours, minutes, seconds] = (time ?? "00:00:00")
+        .split(":")
+        .map(Number);
+      return date.setHours(hours, minutes, seconds);
+    }
+    return this.dataColumnsGetUnsafeValueByPath(data, sortHeaderId);
+  };
+
   // ============================================
   // IPagination Implementation
   // ============================================
@@ -794,6 +876,12 @@ export abstract class AbstractBaseTable<
   ngAfterViewInit() {
     this.dataSource.paginator = this.paginator!;
     this.dataSource.sort = this.sort!;
+
+    if (this.sortedBy) {
+      this.sort.active = this.sortedBy;
+      this.sort.direction = "asc";
+      this.sort.sortChange.emit({ active: this.sortedBy, direction: "asc" });
+    }
   }
   readonly Object: any = Object;
 }
@@ -838,6 +926,8 @@ export interface ISelectFilters<
     Record<TFilterKeys, string[]>
   >;
   selectFiltersInputControl: Partial<Record<TFilterKeys, FormControl<string>>>;
+  selectFiltersOpenTrigger$: Partial<Record<TFilterKeys, Subject<null>>>;
+  selectFiltersIsUniqueOptionsCacheDirty: Map<TFilterKeys, boolean>;
   selectFiltersGenerateFilterKeys(column: string): TFilterKeys;
   selectFiltersParseFilterKey(key: TFilterKeys): TDataColumn;
   selectFiltersIsSelectFilterKey(key: TFilterKeys): boolean;
@@ -846,7 +936,13 @@ export interface ISelectFilters<
     isSelected: boolean;
   }>;
   selectFiltersChipsTrackByOption(index: number, option: string): string;
-  selectFiltersComputeUniqueFilterOptions(data: TData[]): void;
+  selectFiltersComputeUniqueFilterOptions(
+    data: TData[],
+    key: TFilterKeys,
+  ): string[];
+  selectFiltersInitialize(data: TData[]): void;
+  // Called from template when dropdown opens
+  selectFiltersOnFilterDropdownOpened(key: TFilterKeys): void;
   selectFiltersSeparatorKeysCodes: number[];
   selectFiltersChipRemove(
     filterKey: TFilterKeys,
@@ -920,7 +1016,7 @@ export interface IDisplayedColumns<
   TDataColumn extends string,
   TDisplayedColumn extends TDataColumn | string,
 > {
-  displayedColumnsValues: TDisplayedColumn[];
+  displayedColumns: TDisplayedColumn[];
   displayedColumnsColumnHeaderMap: Partial<Record<TDataColumn, string>>;
   displayedColumnsTransform(key: string): string;
 }
@@ -938,8 +1034,11 @@ export interface IPagination {
 /**
  * Interface for pagination configuration and updates
  */
-export interface ISortable {
+export interface ISortable<TData, TDataColumn> {
   sort: MatSort;
+  sortingAccessorDateTimeTuples: TDataColumn[][];
+  sortingAccessor: (data: TData, sortHeaderId: string) => any;
+  sortedBy?: TDataColumn;
 }
 
 /**

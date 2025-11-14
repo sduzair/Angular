@@ -1,10 +1,10 @@
 import { SelectionModel } from "@angular/cdk/collections";
 import { CommonModule } from "@angular/common";
 import {
-    ChangeDetectionStrategy,
-    Component,
-    Input,
-    TrackByFunction,
+  ChangeDetectionStrategy,
+  Component,
+  Input,
+  TrackByFunction,
 } from "@angular/core";
 import { MatCheckbox } from "@angular/material/checkbox";
 import { MatTableModule } from "@angular/material/table";
@@ -22,7 +22,7 @@ import { TableSelectionCompareWithAmlTransactionId } from "../transaction-view.c
       [data]="this.abmSourceData"
       [dataColumnsValues]="dataColumnsValues"
       [dataColumnsIgnoreValues]="dataColumnsIgnoreValues"
-      [displayedColumnsValues]="displayedColumnsValues"
+      [displayedColumns]="displayedColumns"
       [displayedColumnsColumnHeaderMap]="displayedColumnsColumnHeaderMap"
       [stickyColumns]="stickyColumns"
       [selectFiltersValues]="selectFiltersValues"
@@ -301,7 +301,7 @@ export class AbmTableComponent<
     "crdrCode",
   ];
 
-  displayedColumnsValues = ["select" as const];
+  displayedColumns = ["select" as const];
 
   displayedColumnsColumnHeaderMap: Partial<
     Record<

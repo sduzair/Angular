@@ -7,6 +7,7 @@ import {
   TrackByFunction,
   inject,
 } from "@angular/core";
+import { MatBadgeModule } from "@angular/material/badge";
 import { MatButtonModule } from "@angular/material/button";
 import { MatCheckbox } from "@angular/material/checkbox";
 import { MatIconModule } from "@angular/material/icon";
@@ -19,7 +20,7 @@ import {
   Router,
   RouterStateSnapshot,
 } from "@angular/router";
-import { BehaviorSubject, map, Observable, startWith, tap } from "rxjs";
+import { BehaviorSubject, Observable, map, startWith } from "rxjs";
 import { SessionDataService } from "../../aml/session-data.service";
 import { BaseTableComponent } from "../../base-table/base-table.component";
 
@@ -33,6 +34,7 @@ import { BaseTableComponent } from "../../base-table/base-table.component";
     MatToolbarModule,
     MatIconModule,
     MatButtonModule,
+    MatBadgeModule,
   ],
   template: `
     <app-base-table
@@ -40,7 +42,8 @@ import { BaseTableComponent } from "../../base-table/base-table.component";
       [data]="(strTransactionData$ | async) ?? []"
       [dataColumnsValues]="dataColumnsValues"
       [dataColumnsIgnoreValues]="dataColumnsIgnoreValues"
-      [displayedColumnsValues]="displayedColumnsValues"
+      [dataColumnsProjected]="dataColumnsProjected"
+      [displayedColumns]="displayedColumns"
       [displayedColumnsColumnHeaderMap]="displayedColumnsColumnHeaderMap"
       [stickyColumns]="stickyColumns"
       [selectFiltersValues]="selectFiltersValues"
@@ -53,6 +56,8 @@ import { BaseTableComponent } from "../../base-table/base-table.component";
       [hasMasterToggle]="true"
       [filterFormHighlightSelectFilterKey]="'highlightColor'"
       [recentlyOpenRows$]="recentlyOpenedRows$"
+      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
+      [sortedBy]="'dateOfTxn'"
     >
       <!-- Selection Model -->
       <ng-container matColumnDef="select">
@@ -99,6 +104,8 @@ import { BaseTableComponent } from "../../base-table/base-table.component";
               [disabled]="this.isBulkEditBtnDisabled$ | async"
               mat-icon-button
               (click)="navigateToBulkEdit()"
+              [matBadge]="selection.selected.length"
+              [matBadgeHidden]="!selection.hasValue()"
             >
               <mat-icon>edit</mat-icon>
             </button>
@@ -120,15 +127,37 @@ import { BaseTableComponent } from "../../base-table/base-table.component";
             <button
               mat-icon-button
               (click)="navigateToEditForm(row)"
+              [disabled]="isEditDisabled(row) | async"
             >
               <mat-icon>edit</mat-icon>
             </button>
-            <button
-              mat-icon-button
-              (click)="navigateToAuditForm(row)"
-            >
+            <button mat-icon-button (click)="navigateToAuditForm(row)">
               <mat-icon>history</mat-icon>
             </button>
+          </div>
+        </td>
+      </ng-container>
+      <!-- Validation Info column -->
+      <ng-container matColumnDef="_hiddenValidation">
+        <th
+          mat-header-cell
+          *matHeaderCellDef
+          mat-sort-header="_hiddenValidation"
+          [class.sticky-cell]="baseTable.isStickyColumn('_hiddenValidation')"
+        >
+          <div></div>
+        </th>
+        <td
+          mat-cell
+          *matCellDef="let row"
+          [class.sticky-cell]="baseTable.isStickyColumn('_hiddenValidation')"
+        >
+          <div>
+            <ng-container *ngFor="let ch of row._hiddenValidation">
+              <span [style.background-color]="getColorForValidation(ch)">
+                {{ ch[0].toUpperCase() }}
+              </span>
+            </ng-container>
           </div>
         </td>
       </ng-container>
@@ -138,20 +167,16 @@ import { BaseTableComponent } from "../../base-table/base-table.component";
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReportingUiTableComponent {
-  // sessionDataService = inject(SessionDataService);
-  // strTransactionsData$ = this.sessionDataService.strTransactionData$.pipe(
-  //   tap((strTransactionsData) => {
-  //     console.log(
-  //       "🚀 ~ ReportingUiTableComponent ~ strTransactionsData:",
-  //       strTransactionsData,
-  //     );
-  //   }),
-  // );
   @Input()
   strTransactionData$!: Observable<StrTransactionData[]>;
+  @Input()
+  savingEdits$!: Observable<string[]>;
+
   dataSourceTrackBy: TrackByFunction<StrTransactionData> = (_, txn) => {
     return txn.flowOfFundsAmlTransactionId;
   };
+
+  sortingDataAccessor = (data: StrTransactionData, sortHeaderId: string) => {};
 
   // override filterFormAssignSelectedColorToRow(
   //   row: EditedTransaction,
@@ -247,8 +272,9 @@ export class ReportingUiTableComponent {
   ];
 
   dataColumnsIgnoreValues = ["highlightColor"];
+  dataColumnsProjected = ["_hiddenValidation"];
 
-  displayedColumnsValues = ["select" as const, "actions" as const];
+  displayedColumns = ["select" as const, "actions" as const];
 
   displayedColumnsColumnHeaderMap: Partial<
     Record<"fullTextFilterKey" | StrTransactionDataColumnKey, string>
@@ -295,7 +321,7 @@ export class ReportingUiTableComponent {
     "completingActions.0.wasAnyOtherSubInvolved":
       "Was there any other person or entity involved in the completing action?",
     reportingEntityTxnRefNo: "Transaction Reference No",
-    _hiddenValidation: "",
+    _hiddenValidation: "Validation Info",
     _hiddenTxnType: "Txn Type",
     _hiddenAmlId: "AML Id",
     fullTextFilterKey: "Full Text",
@@ -352,8 +378,29 @@ export class ReportingUiTableComponent {
     "timeOfPosting",
   ];
 
+  sortingAccessorDateTimeTuples: StrTransactionDataColumnKey[][] = [
+    ["dateOfTxn", "timeOfTxn"],
+    ["dateOfPosting", "timeOfPosting"],
+  ];
+
   private recentlyOpenedRowsSubject = new BehaviorSubject([] as string[]);
   recentlyOpenedRows$ = this.recentlyOpenedRowsSubject.asObservable();
+
+  isEditDisabled(row: StrTransactionData) {
+    return this.savingEdits$.pipe(
+      map((ids) => ids.includes(row.flowOfFundsAmlTransactionId)),
+    );
+  }
+
+  getColorForValidation(error: _hiddenValidationType): string {
+    const colors: Record<_hiddenValidationType, string> = {
+      "Conductor Missing": "#dc3545",
+      "Bank Info Missing": "#ba005c",
+      "Edited Txn": "#0d6efd",
+    };
+    if (!error) return "#007bff"; // fallback color
+    return colors[error];
+  }
 
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -365,24 +412,19 @@ export class ReportingUiTableComponent {
         relativeTo: this.route,
       },
     );
-    // this.crossTabEditService.openEditFormTab({
-    //   editType: "EDIT_REQUEST",
-    //   strTxn: record,
-    // });
   }
 
   navigateToBulkEdit() {
-    this.recentlyOpenedRowsSubject.next(
-      this.selection.selected.map(
-        (strTxn) => strTxn.flowOfFundsAmlTransactionId,
-      ),
+    const selectedTransactionsForBulkEdit = this.selection.selected.map(
+      (strTxn) => strTxn.flowOfFundsAmlTransactionId,
     );
-    // this.crossTabEditService.openEditFormTab({
-    //   editType: "BULK_EDIT_REQUEST",
-    //   strTxns: this.strTransactionsEdited.filter((strTxn) =>
-    //     this.selection.isSelected(strTxn),
-    //   ),
-    // });
+    this.recentlyOpenedRowsSubject.next(selectedTransactionsForBulkEdit);
+    this.router.navigate(["../edit-form/bulk-edit"], {
+      relativeTo: this.route,
+      state: {
+        selectedTransactionsForBulkEdit,
+      },
+    });
   }
 
   navigateToAuditForm(record: StrTransactionData) {
@@ -395,7 +437,7 @@ export class ReportingUiTableComponent {
   }
 }
 
-type _hiddenValidationType =
+export type _hiddenValidationType =
   | "Edited Txn"
   | "Conductor Missing"
   | "Bank Info Missing";
@@ -421,9 +463,9 @@ export type StrTransaction = {
   reportingEntityTxnRefNo: string | null;
   purposeOfTxn: string | null;
   reportingEntityLocationNo: string | null;
-  _hiddenFullName: string | null;
+  _hiddenFullName?: string | null;
   startingActions: StartingAction[];
-  _hiddenSaAmount: number;
+  _hiddenSaAmount?: number;
   completingActions: CompletingAction[];
   highlightColor?: string | null;
 } & StrTxnFlowOfFunds;
@@ -495,13 +537,13 @@ export type Conductor = {
 } & ConductorNpdData;
 
 export type ConductorNpdData = {
-  npdTypeOfDevice: string | null;
-  npdTypeOfDeviceOther: string | null;
-  npdDeviceIdNo: string | null;
-  npdUsername: string | null;
-  npdIp: string | null;
-  npdDateTimeSession: string | null;
-  npdTimeZone: string | null;
+  npdTypeOfDevice?: string | null;
+  npdTypeOfDeviceOther?: string | null;
+  npdDeviceIdNo?: string | null;
+  npdUsername?: string | null;
+  npdIp?: string | null;
+  npdDateTimeSession?: string | null;
+  npdTimeZone?: string | null;
 };
 
 export interface SourceOfFunds {
@@ -587,4 +629,11 @@ export const strTransactionsEditedResolver: ResolveFn<
   Observable<StrTransactionData[]>
 > = async (route: ActivatedRouteSnapshot, _: RouterStateSnapshot) => {
   return inject(SessionDataService).strTransactionData$;
+};
+
+export const savingEditsResolver: ResolveFn<Observable<string[]>> = async (
+  _route: ActivatedRouteSnapshot,
+  _: RouterStateSnapshot,
+) => {
+  return inject(SessionDataService).savingEdits$;
 };

@@ -1,4 +1,4 @@
-import { Directive, ElementRef, HostListener } from "@angular/core";
+import { Directive } from "@angular/core";
 import { ControlValueAccessor, NgControl } from "@angular/forms";
 import { MatDatepickerInput } from "@angular/material/datepicker";
 import { parse, format, isValid } from "date-fns/fp";
@@ -37,9 +37,7 @@ export class TransactionDateDirective implements ControlValueAccessor {
 
   registerOnChange(fn: (_: any) => void): void {
     this._onChange = (date: Date | null) => {
-      const formatted = date
-        ? TransactionDateDirective.formatSession(date)
-        : null;
+      const formatted = date ? TransactionDateDirective.format(date) : null;
       fn(formatted);
     };
     this.datepickerInput.registerOnChange(this._onChange);
@@ -53,5 +51,5 @@ export class TransactionDateDirective implements ControlValueAccessor {
   }
 
   static parse = parse(new Date(), "yyyy/MM/dd");
-  static formatSession = format("yyyy/MM/dd");
+  static format = format("yyyy/MM/dd");
 }

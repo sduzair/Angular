@@ -1,6 +1,6 @@
 @use "@angular/material" as mat;
 
-mat-toolbar {
+:host {
   @include mat.button-density(0);
 }
 
@@ -37,7 +37,12 @@ mat-toolbar {
   padding-right: 16px;
 }
 
-button[appClearField] {
+::ng-deep .mat-mdc-form-field-icon-suffix {
+  display: flex;
+  gap: 0.2rem;
+}
+
+button[appMarkAsEmpty] {
   display: none;
 }
 
@@ -46,12 +51,16 @@ button[appToggleEditField] {
 }
 
 .bulk-edit-form {
-  button[appClearField] {
+  button[appMarkAsEmpty] {
     display: unset;
   }
 
   button[appToggleEditField] {
     display: unset;
+  }
+
+  button[appClearField] {
+    display: none;
   }
 
   ::ng-deep .mat-mdc-form-field-has-icon-suffix div.mat-mdc-text-field-wrapper {

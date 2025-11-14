@@ -150,10 +150,10 @@ export class TransactionViewComponent
     this.selection.changed
       .asObservable()
       .pipe(
+        takeUntilDestroyed(),
         tap(() => {
           this.selectionControl.setValue(this.selection.selected);
         }),
-        takeUntilDestroyed(),
       )
       .subscribe();
   }

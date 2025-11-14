@@ -6,13 +6,15 @@ import {
 import { ErrorHandler } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { take } from "rxjs";
-import { editedTransactionsDevOnly } from "../transaction-view/transactionSearchResDevOnly";
+import {
+  EDITED_TRANSACTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+  SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE,
+} from "./session-data.fixture";
 import {
   CreateSessionResponse,
   GetSessionResponse,
   SessionDataService,
   SessionStateLocal,
-  sessionStateDevOrTestOnly,
 } from "./session-data.service";
 
 describe("SessionDataService", () => {
@@ -38,8 +40,8 @@ describe("SessionDataService", () => {
     service = TestBed.inject(SessionDataService);
     httpMock = TestBed.inject(HttpTestingController);
 
-    mockAmlId = sessionStateDevOrTestOnly.amlId;
-    mockSessionState = sessionStateDevOrTestOnly;
+    mockAmlId = SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE.amlId;
+    mockSessionState = SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE;
   });
 
   afterEach(() => {
@@ -108,14 +110,16 @@ describe("SessionDataService", () => {
             reviewPeriodSelection: [],
             sourceSystemsSelection: [],
           },
-          strTransactions: editedTransactionsDevOnly.map((txn) => ({
-            ...txn,
-            _hiddenTxnType: txn.flowOfFundsSource,
-            _hiddenAmlId: "999999",
-            _hiddenStrTxnId: txn.flowOfFundsAmlTransactionId,
-            _version: 0,
-            changeLogs: [],
-          })),
+          strTransactions: EDITED_TRANSACTIONS_DEV_OR_TEST_ONLY_FIXTURE.map(
+            (txn) => ({
+              ...txn,
+              _hiddenTxnType: txn.flowOfFundsSource,
+              _hiddenAmlId: "999999",
+              _hiddenStrTxnId: txn.flowOfFundsAmlTransactionId,
+              _version: 0,
+              changeLogs: [],
+            }),
+          ),
         },
         updatedAt: "1996-06-13",
         createdAt: "1996-06-12",
@@ -409,12 +413,12 @@ describe("SessionDataService", () => {
 
   describe("conflict$", () => {
     it("should be a Subject that can emit conflict events", (done) => {
-      service.conflict$.subscribe(() => {
+      service.conflictSubject.subscribe(() => {
         expect(true).toBe(true);
         done();
       });
 
-      service.conflict$.next();
+      service.conflictSubject.next();
     });
   });
 });

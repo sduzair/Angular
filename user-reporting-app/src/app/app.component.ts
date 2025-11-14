@@ -1,22 +1,12 @@
 import { ArrayDataSource } from "@angular/cdk/collections";
 import { CommonModule } from "@angular/common";
 import { ChangeDetectionStrategy, Component, ViewChild } from "@angular/core";
-import {
-  DateFnsAdapter,
-  MAT_DATE_FNS_FORMATS,
-} from "@angular/material-date-fns-adapter";
 import { MatButtonModule } from "@angular/material/button";
-import {
-  MAT_DATE_LOCALE,
-  DateAdapter,
-  MAT_DATE_FORMATS,
-} from "@angular/material/core";
 import { MatIconModule } from "@angular/material/icon";
 import { MatSidenavModule } from "@angular/material/sidenav";
 import { MatToolbarModule } from "@angular/material/toolbar";
 import { MatTree, MatTreeModule } from "@angular/material/tree";
 import { Router, RouterOutlet } from "@angular/router";
-import { enCA } from "date-fns/locale";
 
 @Component({
   selector: "app-root",

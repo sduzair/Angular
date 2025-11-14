@@ -1,8 +1,17 @@
 import { HttpClient, HttpErrorResponse } from "@angular/common/http";
-import { ErrorHandler, inject, Injectable } from "@angular/core";
-import { BehaviorSubject, Subject, map, of, throwError } from "rxjs";
+import {
+  ErrorHandler,
+  Injectable,
+  InjectionToken,
+  inject,
+} from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+import { MatSnackBar } from "@angular/material/snack-bar";
+import { BehaviorSubject, EMPTY, Subject, map, of, throwError } from "rxjs";
 import {
   catchError,
+  delay,
+  exhaustMap,
   finalize,
   scan,
   shareReplay,
@@ -16,32 +25,54 @@ import {
   ChangeLogWithoutVersion,
   WithVersion,
 } from "../change-log.service";
-import { StrTransactionData } from "../reporting-ui/reporting-ui-table/reporting-ui-table.component";
-import { editedTransactionsDevOnly } from "../transaction-view/transactionSearchResDevOnly";
+import { EditFormValueType } from "../reporting-ui/edit-form/edit-form.component";
+import {
+  CompletingAction,
+  StartingAction,
+  StrTransactionData,
+  _hiddenValidationType,
+} from "../reporting-ui/reporting-ui-table/reporting-ui-table.component";
+
+export const DEFAULT_SESSION_STATE: SessionStateLocal = {
+  version: 0,
+  amlId: "",
+  transactionSearchParams: {
+    accountNumbersSelection: [],
+    partyKeysSelection: [],
+    productTypesSelection: [],
+    reviewPeriodSelection: [],
+    sourceSystemsSelection: [],
+  },
+  strTransactions: [],
+};
+
+export const SESSION_INITIAL_STATE = new InjectionToken<SessionStateLocal>(
+  "SESSION_INITIAL_STATE",
+  {
+    factory: () => DEFAULT_SESSION_STATE,
+  },
+);
 
 @Injectable()
 export class SessionDataService {
-  private sessionState = new BehaviorSubject<SessionStateLocal>({
-    version: 0,
-    amlId: "",
-    transactionSearchParams: {
-      accountNumbersSelection: [],
-      partyKeysSelection: [],
-      productTypesSelection: [],
-      reviewPeriodSelection: [],
-      sourceSystemsSelection: [],
-    },
-    strTransactions: [],
-  });
+  private readonly initialState = inject(SESSION_INITIAL_STATE);
+  http = inject(HttpClient);
+  errorHandler = inject(ErrorHandler);
+
+  private sessionState = new BehaviorSubject<SessionStateLocal>(
+    this.initialState,
+  );
 
   // todo try removing this as allows stale session info to exist
   getSessionStateValue() {
     return this.sessionState.value;
   }
 
-  private readonly sessionState$ = this.sessionState.asObservable();
+  private readonly sessionState$ = this.sessionState
+    .asObservable()
+    .pipe(takeUntilDestroyed());
 
-  public conflict$ = new Subject<void>();
+  public conflictSubject = new Subject<void>();
   readonly latestSessionVersion$ = this.sessionState$.pipe(
     map((sessionState) => sessionState?.version),
   );
@@ -58,8 +89,11 @@ export class SessionDataService {
   //   ChangeLogWithoutVersion[]
   // >();
 
-  private savingSubject = new BehaviorSubject<boolean>(false);
-  savingStatus$ = this.savingSubject.asObservable();
+  private savingEditsSubject = new BehaviorSubject<string[]>([]);
+  savingEdits$ = this.savingEditsSubject
+    .asObservable()
+    .pipe(takeUntilDestroyed());
+  savingStatus$ = this.savingEdits$.pipe(map((txns) => txns.length > 0));
 
   private changeLogService = inject(ChangeLogService);
 
@@ -75,34 +109,28 @@ export class SessionDataService {
         if (editedStrTransactions)
           return computePartialTransactionDataHandler(
             strTransactions,
-            (original: StrTransactionData, changes: ChangeLog[]) =>
+            (original: StrTransactionWithChangeLogs, changes: ChangeLog[]) =>
               this.changeLogService.applyChanges(original, changes),
             editedStrTransactions,
           );
 
         return computeFullTransactionDataHandler(
           strTransactions,
-          (original: StrTransactionData, changes: ChangeLog[]) =>
+          (original: StrTransactionWithChangeLogs, changes: ChangeLog[]) =>
             this.changeLogService.applyChanges(original, changes),
         );
       },
     ),
     scan((acc, handler) => {
       return handler(acc);
-    }, [] as StrTransactionData[]),
-    shareReplay({ bufferSize: 1, refCount: false }), // Stream never dies
+    }, [] as StrTransactionWithChangeLogs[]),
+    shareReplay({ bufferSize: 1, refCount: false }), // stream never dies in aml component scope
   );
 
-  constructor(
-    private http: HttpClient,
-    private errorHandler: ErrorHandler,
-  ) {
+  constructor() {
     // Subscribe immediately to ensure scan accumulates from first emission
     this.strTransactionData$.subscribe();
 
-    this.sessionState.next(sessionStateDevOrTestOnly);
-
-    // this.sessionState.next(sessionStateDevOrTestOnly);
     /*     this.crossTabEditService.editResponse$
       .pipe(
         withLatestFrom(this.sessionState$),
@@ -248,7 +276,7 @@ export class SessionDataService {
   //   // this.highlightEdits$.next(highlightEdit.payload);
   // }
 
-  public updateStrTransactions(pendingChanges: EditFormChange[]) {
+  private updateStrTransactions(pendingChanges: EditFormChange[]) {
     const {
       strTransactions = [],
       transactionSearchParams,
@@ -275,7 +303,9 @@ export class SessionDataService {
       currentVersion,
       data: { transactionSearchParams, strTransactions },
     };
-    this.savingSubject.next(true);
+    this.savingEditsSubject.next(
+      pendingChanges.map((change) => change.flowOfFundsAmlTransactionId),
+    );
 
     // return this.http
     //   .put<UpdateSessionResponse>(
@@ -287,6 +317,7 @@ export class SessionDataService {
       newVersion: currentVersion + 1,
       updatedAt: new Date(0).toISOString().split("T")[0],
     }).pipe(
+      delay(5000),
       tap(({ newVersion, updatedAt }) => {
         console.assert(newVersion === payload.currentVersion + 1);
         this.sessionState.next({
@@ -295,7 +326,7 @@ export class SessionDataService {
           transactionSearchParams,
           strTransactions,
           lastEditedStrTransactions: pendingChanges.map(
-            (change) => change.flowOfFundsAmlTransactionId,
+            ({ flowOfFundsAmlTransactionId }) => flowOfFundsAmlTransactionId,
           ),
           lastUpdated: updatedAt,
         });
@@ -303,7 +334,7 @@ export class SessionDataService {
       catchError((error: HttpErrorResponse) => {
         // on conflict
         if (error.status === 409) {
-          this.conflict$.next();
+          this.conflictSubject.next();
           return this.fetchSessionByAmlId(
             this.getSessionStateValue()!.amlId,
           ).pipe(switchMap(() => throwError(() => error)));
@@ -311,9 +342,83 @@ export class SessionDataService {
 
         return throwError(() => error);
       }),
-      finalize(() => this.savingSubject.next(false)),
+      finalize(() => this.savingEditsSubject.next([])),
+      shareReplay({ bufferSize: 0, refCount: false }),
     );
   }
+
+  private snackBar = inject(MatSnackBar);
+  editFormSaveSubject = new Subject<
+    | {
+        editType: "SINGLE_EDIT";
+        flowOfFundsAmlTransactionId: string;
+        editFormValue: EditFormValueType;
+        editFormValueBefore: EditFormValueType;
+      }
+    | {
+        editType: "BULK_EDIT";
+        editFormValue: EditFormValueType;
+        transactionsBefore: StrTransactionWithChangeLogs[];
+      }
+  >();
+
+  editFormSave$ = this.editFormSaveSubject.asObservable().pipe(
+    takeUntilDestroyed(),
+    exhaustMap((saveData) => {
+      const { editType, editFormValue } = saveData;
+      const pendingChanges: EditFormChange[] = [];
+      if (editType === "SINGLE_EDIT") {
+        const { editFormValueBefore, flowOfFundsAmlTransactionId } = saveData;
+        const changeLogs: ChangeLogWithoutVersion[] = [];
+        this.changeLogService.compareProperties(
+          editFormValueBefore,
+          editFormValue,
+          changeLogs,
+        );
+        pendingChanges.push({
+          flowOfFundsAmlTransactionId,
+          pendingChangeLogs: changeLogs,
+        });
+      }
+      if (editType === "BULK_EDIT") {
+        const { transactionsBefore } = saveData;
+        transactionsBefore.forEach((transactionBefore) => {
+          const changeLogs: ChangeLogWithoutVersion[] = [];
+          this.changeLogService.compareProperties(
+            transactionBefore,
+            editFormValue,
+            changeLogs,
+            { discriminator: "index" },
+          );
+          pendingChanges.push({
+            flowOfFundsAmlTransactionId:
+              transactionBefore.flowOfFundsAmlTransactionId,
+            pendingChangeLogs: changeLogs,
+          });
+        });
+      }
+      if (
+        pendingChanges.every((change) => change.pendingChangeLogs.length === 0)
+      ) {
+        this.snackBar.open("No changes to save", "Dismiss", {
+          duration: 3000,
+        });
+        return EMPTY;
+      }
+
+      return this.updateStrTransactions(pendingChanges).pipe(
+        map((response) => ({
+          response,
+          editType,
+        })),
+      );
+    }),
+    tap(() => {
+      this.snackBar.open("Edits saved!", "Dismiss", {
+        duration: 5000,
+      });
+    }),
+  );
 }
 
 export interface EditFormChange {
@@ -414,46 +519,27 @@ export interface ReviewPeriod {
   end?: string | null;
 }
 
-export const sessionStateDevOrTestOnly: SessionStateLocal = {
-  amlId: "999999",
-  version: 0,
-  transactionSearchParams: {
-    accountNumbersSelection: [],
-    partyKeysSelection: [],
-    productTypesSelection: [],
-    reviewPeriodSelection: [],
-    sourceSystemsSelection: [],
-  },
-  strTransactions: editedTransactionsDevOnly.map((txn) => ({
-    ...txn,
-    _hiddenTxnType: txn.flowOfFundsSource,
-    _hiddenAmlId: "999999",
-    _hiddenStrTxnId: txn.flowOfFundsAmlTransactionId,
-    _version: 0,
-    changeLogs: [],
-  })),
-  lastUpdated: "1996-06-13",
-};
-
 const computeFullTransactionDataHandler = (
   strTransactions: StrTransactionWithChangeLogs[],
-  applyChanges: typeof ChangeLogService.prototype.applyChanges<StrTransactionData>,
+  applyChanges: typeof ChangeLogService.prototype.applyChanges<StrTransactionWithChangeLogs>,
 ) => {
-  return (acc: StrTransactionData[]) => {
-    return strTransactions.map((strTransaction) => {
-      return applyChanges(strTransaction, strTransaction.changeLogs);
-    });
+  return (acc: StrTransactionWithChangeLogs[]) => {
+    return strTransactions
+      .map((strTransaction) => {
+        return applyChanges(strTransaction, strTransaction.changeLogs);
+      })
+      .map(addValidationInfo);
   };
 };
 
 const computePartialTransactionDataHandler = (
   strTransactions: StrTransactionWithChangeLogs[],
-  applyChanges: typeof ChangeLogService.prototype.applyChanges<StrTransactionData>,
+  applyChanges: typeof ChangeLogService.prototype.applyChanges<StrTransactionWithChangeLogs>,
   editedStrTransactions: NonNullable<
     SessionStateLocal["lastEditedStrTransactions"]
   >,
 ) => {
-  return (acc: StrTransactionData[]) => {
+  return (acc: StrTransactionWithChangeLogs[]) => {
     const partialTransactionData = strTransactions
       .filter(({ flowOfFundsAmlTransactionId }) =>
         editedStrTransactions.includes(flowOfFundsAmlTransactionId),
@@ -463,7 +549,7 @@ const computePartialTransactionDataHandler = (
       });
 
     return [
-      ...partialTransactionData,
+      ...partialTransactionData.map(addValidationInfo),
       ...acc.filter(
         ({ flowOfFundsAmlTransactionId }) =>
           !editedStrTransactions.includes(flowOfFundsAmlTransactionId),
@@ -471,3 +557,58 @@ const computePartialTransactionDataHandler = (
     ];
   };
 };
+
+function addValidationInfo(transaction: StrTransactionWithChangeLogs) {
+  const errors: _hiddenValidationType[] = [];
+  if (
+    transaction._version &&
+    transaction._version > 0 &&
+    !transaction.changeLogs.every((log) => log.path === "highlightColor")
+  )
+    errors.push("Edited Txn");
+
+  if (transaction.startingActions.some(hasMissingConductors))
+    errors.push("Conductor Missing");
+
+  if (
+    transaction.startingActions.some(hasMissingCibcInfo) ||
+    transaction.completingActions.some(hasMissingCibcInfo)
+  )
+    errors.push("Bank Info Missing");
+
+  transaction._hiddenValidation = errors;
+  return transaction;
+}
+
+function hasMissingConductors(sa: StartingAction) {
+  if (!sa.wasCondInfoObtained) return false;
+
+  if (sa.conductors!.length === 0) return true;
+  if (
+    sa.conductors!.some(
+      ({ givenName, surname, otherOrInitial, nameOfEntity }) =>
+        !givenName && !surname && !otherOrInitial && !nameOfEntity,
+    )
+  )
+    return true;
+
+  return false;
+}
+
+function hasMissingCibcInfo(action: StartingAction | CompletingAction) {
+  if (action.fiuNo !== "010") return false;
+
+  if (
+    !action.branch ||
+    !action.account ||
+    !action.accountType ||
+    (action.accountType === "Other" && !action.accountTypeOther) ||
+    !action.accountCurrency ||
+    !action.accountStatus ||
+    !action.accountOpen ||
+    (action.accountStatus === "Closed" && !action.accountClose)
+  )
+    return true;
+
+  return false;
+}

@@ -37,9 +37,9 @@ import {
 } from "@angular/material/table";
 import { MatToolbarModule } from "@angular/material/toolbar";
 import { of } from "rxjs";
+import { TxnTimePipe } from "../reporting-ui/reporting-ui-table/pad-zero.pipe";
 import { ScrollPositionPreserveDirective } from "../route-cache/scroll-position-preserve.directive";
-import { ClickOutsideTableDirective } from "../table/click-outside-table.directive";
-import { PadZeroPipe } from "../table/pad-zero.pipe";
+import { ClickOutsideTableDirective } from "./click-outside-table.directive";
 import { ReviewPeriodDateDirective } from "../transaction-search/review-period-date.directive";
 import { PersistentAutocompleteTrigger } from "../transaction-view/persistent-autocomplete-trigger.directive";
 import {
@@ -69,7 +69,7 @@ import {
     MatToolbarModule,
     MatButtonModule,
     MatInputModule,
-    PadZeroPipe,
+    TxnTimePipe,
     MatChipsModule,
     MatProgressSpinnerModule,
     MatSelectModule,
@@ -142,7 +142,11 @@ import {
         </button>
       </mat-toolbar-row>
     </mat-toolbar>
-    <mat-drawer-container class="overflow-visible" hasBackdrop="false" appScrollPositionPreserve>
+    <mat-drawer-container
+      class="overflow-visible"
+      hasBackdrop="false"
+      appScrollPositionPreserve
+    >
       <mat-drawer class="form-drawer" position="end" #drawer>
         <form
           [formGroup]="filterFormFormGroup"
@@ -179,7 +183,9 @@ import {
             </mat-toolbar-row>
           </mat-toolbar>
           <mat-divider></mat-divider>
-          <div class="flex-grow-1 overflow-auto row row-cols-1 mx-0 pt-3 scroll-position-preserve">
+          <div
+            class="flex-grow-1 overflow-auto row row-cols-1 mx-0 pt-3 scroll-position-preserve"
+          >
             <ng-container
               *ngFor="
                 let filterKey of filterFormFilterKeys;
@@ -304,7 +310,10 @@ import {
                     "
                   />
                 </mat-chip-grid>
-                <mat-autocomplete #auto="matAutocomplete">
+                <mat-autocomplete
+                  #auto="matAutocomplete"
+                  (opened)="selectFiltersOnFilterDropdownOpened(filterKey)"
+                >
                   <mat-option [value]="null" disabled class="select-option">
                     <mat-checkbox
                       [checked]="selectFiltersIsAllSelected(filterKey)"
@@ -419,20 +428,26 @@ import {
                 mat-header-cell
                 *matHeaderCellDef
                 [mat-sort-header]="column"
+                [class.sticky-cell]="isStickyColumn(column)"
                 class="px-2"
               >
-                <div [class.sticky-cell]="isStickyColumn(column)">
+                <div>
                   {{ this.displayedColumnsTransform(column) }}
                 </div>
               </th>
-              <td mat-cell *matCellDef="let row">
-                <div [class.sticky-cell]="isStickyColumn(column)">
+              <td
+                mat-cell
+                *matCellDef="let row"
+                [class.sticky-cell]="isStickyColumn(column)"
+                class="px-2"
+              >
+                <div>
                   <ng-container
                     *ngIf="this.displayedColumnsTime.includes(column)"
                   >
                     {{
                       this.dataColumnsGetUnsafeValueByPath(row, column)
-                        | appPadZero : 8
+                        | appTxnTime
                     }}
                   </ng-container>
                   <ng-container *ngIf="this.dateFiltersValues.includes(column)">
@@ -455,12 +470,12 @@ import {
 
             <tr
               mat-header-row
-              *matHeaderRowDef="this.displayedColumnsValues; sticky: true"
+              *matHeaderRowDef="this.displayedColumns; sticky: true"
             ></tr>
             <ng-container *ngIf="recentlyOpenRows$ | async as recentlyOpenRows">
               <tr
                 mat-row
-                *matRowDef="let row; columns: this.displayedColumnsValues"
+                *matRowDef="let row; columns: this.displayedColumns"
                 [class.recentlyOpenRowHighlight]="
                   isRecentlyOpened(row, recentlyOpenRows)
                 "
@@ -513,11 +528,14 @@ export class BaseTableComponent<
   @Input({ required: true })
   override dataColumnsIgnoreValues!: TDataColumn[];
 
+  @Input()
+  override dataColumnsProjected: TDataColumn[] = [];
+
   /**
-   * Accepts columns that are not data columns. Includes display columns for select, validation info, actions.
+   * Accepts columns that are not data columns. Includes display columns for select, actions.
    */
   @Input({ required: true })
-  override displayedColumnsValues!: TDisplayColumn[];
+  override displayedColumns!: TDisplayColumn[];
 
   @Input({ required: true })
   override displayedColumnsColumnHeaderMap: Partial<
@@ -551,7 +569,21 @@ export class BaseTableComponent<
   set data(value: TData[]) {
     this._data = value;
     if (!this.dataSource) return;
+
+    // todo update page size options if no of records changes
+    if (this.dataSource.data.length !== value.length) {
+      throw new Error("update page size options if no of records changes");
+    }
+
     this.dataSource.data = value;
+
+    // Mark ALL select filter options caches as dirty
+    const selectFilterKeys = this.filterFormFilterKeys.filter(
+      this.selectFiltersIsSelectFilterKey,
+    );
+    for (const key of selectFilterKeys) {
+      this.selectFiltersIsUniqueOptionsCacheDirty.set(key, true);
+    }
   }
 
   override dataSource!: MatTableDataSource<TData, MatPaginator>;
@@ -598,16 +630,20 @@ export class BaseTableComponent<
 
   ngOnInit(): void {
     this.dataSource = new MatTableDataSource(this.data);
+    this.dataSource.sortingDataAccessor = this.sortingAccessor;
     this.dataColumnsDisplayValues = this.dataColumnsValues.filter(
-      (val) => !this.dataColumnsIgnoreValues.includes(val),
+      (val) =>
+        !this.dataColumnsIgnoreValues.includes(val) &&
+        !this.dataColumnsProjected.includes(val),
     );
-    this.displayedColumnsValues.push(
+    this.displayedColumns.push(
+      ...(this.dataColumnsProjected as TDisplayColumn[]),
       ...(this.dataColumnsDisplayValues as TDisplayColumn[]),
     );
     this.filterFormFilterKeys = this.filterFormFilterKeysCreate();
     this.filterFormFormGroup = this.filterFormGroupCreate();
     this.updatePageSizeOptions(this.dataSource.data.length);
-    this.selectFiltersComputeUniqueFilterOptions(this.dataSource.data);
+    this.selectFiltersInitialize(this.dataSource.data);
     this.dataSource.filterPredicate = this.filterFormFilterPredicateCreate();
   }
 

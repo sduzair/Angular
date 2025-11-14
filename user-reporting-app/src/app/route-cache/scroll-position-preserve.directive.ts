@@ -28,9 +28,9 @@ export class ScrollPositionPreserveDirective implements OnInit, OnDestroy {
     // Listen for navigation events to save scroll before leaving
     this.router.events
       .pipe(
+        takeUntilDestroyed(this.destroyRef),
         filter((event) => event instanceof NavigationStart),
         filter(() => this.router.url.includes(this.routeKey)),
-        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe(() => {
         this.saveScrollPositions();
@@ -39,9 +39,9 @@ export class ScrollPositionPreserveDirective implements OnInit, OnDestroy {
     // Listen for when navigating TO this route (handles cached route reattachment)
     this.router.events
       .pipe(
+        takeUntilDestroyed(this.destroyRef),
         filter((event) => event instanceof NavigationEnd),
         filter(() => this.router.url.includes(this.routeKey)),
-        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe(() => {
         this.restoreScrollPositions();

@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { SPECIAL_EMPTY_VALUE } from "./reporting-ui/edit-form/clear-field.directive";
+import { SPECIAL_EMPTY_VALUE } from "./reporting-ui/edit-form/mark-as-empty.directive";
 
 type DiscriminatorType = "_id" | "index";
 
@@ -38,7 +38,7 @@ export class ChangeLogService {
     };
   }
 
-  // Refactored array comparison by ID
+  // array comparison by ID
   private compareById(
     arr1: any[],
     arr2: any[],
@@ -53,12 +53,17 @@ export class ChangeLogService {
       const itemPath = `${path}.$id=${updatedItem._id}`;
       const originalItem = originalMap.get(updatedItem._id);
 
-      originalItem
-        ? this.compareProperties(originalItem, updatedItem, changes, {
-            path: itemPath,
-            discriminator: "_id",
-          })
-        : changes.push({ path, oldValue: undefined, newValue: updatedItem });
+      if (originalItem) {
+        this.compareProperties(originalItem, updatedItem, changes, {
+          path: itemPath,
+          discriminator: "_id",
+        });
+      } else {
+        if (!this.hasObjectIdentifier(updatedItem)) {
+          throw new Error("array items must have an identifier");
+        }
+        changes.push({ path, oldValue: undefined, newValue: updatedItem });
+      }
     });
 
     // Process deletions
@@ -88,6 +93,9 @@ export class ChangeLogService {
       const originalItem = arr1[i];
       const updatedItem = arr2[i];
 
+      if (!!updatedItem && !this.hasObjectIdentifier(updatedItem)) {
+        throw new Error("array items must have an identifier");
+      }
       if (i < arr1.length && i < arr2.length) {
         this.compareProperties(originalItem, updatedItem, changes, {
           path: itemPath,
@@ -106,12 +114,9 @@ export class ChangeLogService {
   }
 
   // Main applyChanges function using path traversal closure
-  applyChanges<T extends object>(
-    original: T,
-    changes: ChangeLog[],
-  ): WithVersion<T> {
+  applyChanges<T extends WithVersion>(original: T, changes: ChangeLog[]): T {
     // Enforce immutability on record data to synchronize UI features like highlights
-    const result = structuredClone(original) as WithVersion<T>; // todo breaks table selection model refs
+    const result = structuredClone(original); // todo breaks table selection model refs
 
     changes.forEach((change) => {
       const pathSegments = change.path.split(".");
@@ -141,7 +146,11 @@ export class ChangeLogService {
             throw new Error("exptected array invalid array access");
 
           targetIndex = resolvePath!(current, segment);
-          if (targetIndex === -1) return;
+          if (targetIndex === -1) {
+            throw new Error(
+              "unknown target index: accessing non existent item in array",
+            );
+          }
 
           parent = current;
           current = current[targetIndex];
@@ -167,7 +176,7 @@ export class ChangeLogService {
     return result;
   }
 
-  // Change application logic extracted to method
+  // apply primitive value change from change log
   private applyChange(
     change: ChangeLog,
     current: any,
@@ -197,19 +206,17 @@ export class ChangeLogService {
     }
   }
 
-  // Refactored comparison using higher-order comparator
+  // comparison using higher-order comparator
   compareProperties(
     obj1: any,
     obj2: any,
     changes: ChangeLogWithoutVersion[],
-    {
-      path = "",
-      discriminator = "_id",
-    }: {
+    options: {
       path?: string;
-      discriminator?: DiscriminatorType;
-    } = {},
+      discriminator: DiscriminatorType;
+    } = { path: "", discriminator: "_id" },
   ) {
+    const { path, discriminator } = options;
     const allKeys = new Set([
       ...Object.keys(obj1 ?? {}),
       ...Object.keys(obj2 ?? {}),
@@ -217,7 +224,9 @@ export class ChangeLogService {
     const compareArrays = this.getArrayComparator(discriminator);
 
     const isNotIgnoredKey = (key: string) =>
-      !key.startsWith("_hidden") && key !== "_mongoid";
+      !key.startsWith("_hidden") &&
+      key !== "_mongoid" &&
+      !key.startsWith("flowOfFunds");
 
     [...allKeys.values()].filter(isNotIgnoredKey).forEach((key) => {
       const currentPath = path ? `${path}.${key}` : key;
@@ -235,6 +244,9 @@ export class ChangeLogService {
         return;
       }
       if (!val1 && Array.isArray(val2) && val2.length !== 0) {
+        if (!val2.every(this.hasObjectIdentifier)) {
+          throw new Error("array items must have an identifier");
+        }
         changes.push({
           path: currentPath,
           oldValue: undefined,
@@ -276,6 +288,9 @@ export class ChangeLogService {
         }
 
         if (!isIgnoredChange(undefined, val2)) {
+          if (Array.isArray(val2) && !val2.every(this.hasObjectIdentifier)) {
+            throw new Error("array items must have an identifier");
+          }
           changes.push({
             path: currentPath,
             oldValue: undefined,
@@ -344,13 +359,19 @@ export class ChangeLogService {
     timeOfPosting: "hasPostingDate" as const,
   };
 
+  private hasObjectIdentifier(obj: unknown) {
+    return (
+      typeof obj === "object" && obj !== null && "_id" in obj && !!obj["_id"]
+    );
+  }
+
   isDependentProp(
     key: string,
   ): key is keyof typeof ChangeLogService.depPropToToggleMap {
     return Object.keys(ChangeLogService.depPropToToggleMap).includes(key);
   }
 
-  isDependentPropToggle(
+  static isDependentPropToggle(
     key: string,
   ): key is (typeof ChangeLogService.depPropToToggleMap)[keyof typeof ChangeLogService.depPropToToggleMap] {
     return Object.values(ChangeLogService.depPropToToggleMap).includes(
@@ -358,7 +379,7 @@ export class ChangeLogService {
     );
   }
 
-  getInitValForDependentPropToggle(
+  static getInitValForDependentPropToggle(
     key:
       | (typeof ChangeLogService.depPropToToggleMap)[keyof typeof ChangeLogService.depPropToToggleMap]
       | string,
@@ -367,7 +388,7 @@ export class ChangeLogService {
     useRaw: boolean,
   ): any {
     // If no toggle mapped, just return current
-    if (!this.isDependentPropToggle(key) || useRaw) {
+    if (!ChangeLogService.isDependentPropToggle(key) || useRaw) {
       return val as string | null | undefined;
     }
 
@@ -390,7 +411,7 @@ export interface ChangeLog {
   version: number;
 }
 
-export type WithVersion<T> = T & {
+export type WithVersion<T = object> = T & {
   /**
    * This version is not session version. It represents the last session in which the user was edited
    *

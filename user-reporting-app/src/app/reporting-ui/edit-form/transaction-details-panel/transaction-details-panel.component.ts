@@ -15,7 +15,7 @@ import { StrTransactionWithChangeLogs } from "../../../aml/session-data.service"
     MatExpansionModule,
   ],
   template: `
-    <mat-expansion-panel>
+    <mat-expansion-panel expanded>
       <mat-expansion-panel-header>
         <mat-panel-description class="row row-cols-1 justify-content-between">
           <div class="col-md-auto d-flex flex-column">

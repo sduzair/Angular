@@ -34,17 +34,22 @@ import { enCA } from "date-fns/locale";
 import { defer } from "rxjs";
 import { AmlComponent } from "../../aml/aml.component";
 import {
+  SESSION_INITIAL_STATE,
   SessionDataService,
   SessionStateLocal,
-  StrTransactionWithChangeLogs,
 } from "../../aml/session-data.service";
 import { AppErrorHandlerService } from "../../app-error-handler.service";
 import {
   EditFormComponent,
   StrTxnEditForm,
-  singleEditResolver,
+  editTypeResolver,
 } from "./edit-form.component";
 import { TransactionTimeDirective } from "./transaction-time.directive";
+import { provideHttpClient } from "@angular/common/http";
+import {
+  HttpTestingController,
+  provideHttpClientTesting,
+} from "@angular/common/http/testing";
 
 @Component({
   selector: "app-transaction-search",
@@ -54,15 +59,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
 class MockTransactionSearchComponent {}
 
 describe("EditFormComponent", () => {
-  async function setup(
-    methodsNames: jasmine.SpyObjMethodNames<SessionDataService> = [],
-    propertiesNames: jasmine.SpyObjPropertyNames<SessionDataService> = [],
-  ) {
-    const sessionDataServiceSpy = jasmine.createSpyObj<SessionDataService>(
-      "SessionDataService",
-      methodsNames,
-      propertiesNames,
-    );
+  async function setup() {
     await TestBed.configureTestingModule({
       providers: [
         provideZoneChangeDetection({ eventCoalescing: true }),
@@ -79,9 +76,10 @@ describe("EditFormComponent", () => {
               component: AmlComponent,
               providers: [
                 {
-                  provide: SessionDataService,
-                  useValue: sessionDataServiceSpy,
+                  provide: SESSION_INITIAL_STATE,
+                  useValue: SESSION_STATE_FIXTURE,
                 },
+                SessionDataService,
               ],
               children: [
                 {
@@ -91,9 +89,10 @@ describe("EditFormComponent", () => {
                       path: "edit-form/:transactionId",
                       component: EditFormComponent,
                       resolve: {
-                        editType: singleEditResolver,
+                        editType: editTypeResolver,
                       },
-                      title: (route) => `Edit - ${route.params["transactionId"]}`,
+                      title: (route) =>
+                        `Edit - ${route.params["transactionId"]}`,
                     },
                   ],
                 },
@@ -108,6 +107,8 @@ describe("EditFormComponent", () => {
             router.navigate(["/transactionsearch"]);
           }),
         ),
+        provideHttpClient(),
+        provideHttpClientTesting(),
         // note needed as mat date input harness reads displayed value instead of form model value
         provideDateFnsAdapter({
           ...MAT_DATE_FNS_FORMATS,
@@ -122,37 +123,32 @@ describe("EditFormComponent", () => {
 
     const harness = await RouterTestingHarness.create();
     const loader = TestbedHarnessEnvironment.loader(harness.fixture);
+    // todo add edit form save tests that invoke http requests
+    const httpTesting = TestBed.inject(HttpTestingController);
     return {
       harness,
-      sessionDataServiceSpy,
       loader,
+      httpTesting,
     };
   }
 
   describe("navigate to edit form component", () => {
     async function setupAndNavigate() {
-      const { harness, sessionDataServiceSpy, loader } = await setup([
-        "getSessionStateValue",
-      ]);
-      (
-        sessionDataServiceSpy.getSessionStateValue as jasmine.Spy
-      ).and.returnValue(sessionStateMock);
+      const { harness, loader } = await setup();
 
       await harness.navigateByUrl(
         "aml/99999999/reporting-ui/edit-form/ABM-01K4WANX6DRN6KCN05PMG7WJHA",
         AmlComponent,
       );
 
-      return { harness, sessionDataServiceSpy, loader };
+      return { harness, loader };
     }
 
     it("should create form template", async () => {
       const {
         harness: { fixture },
-        sessionDataServiceSpy,
       } = await setupAndNavigate();
 
-      expect(sessionDataServiceSpy.getSessionStateValue).toHaveBeenCalled();
       expect(findEl(fixture, "edit-form")).toBeTruthy();
     });
 
@@ -176,7 +172,7 @@ describe("EditFormComponent", () => {
       const { loader } = await setupAndNavigate();
 
       const verify = await formVerifierFactory(loader);
-      const errors = await verify(transactionEditFormMockAllFields);
+      const errors = await verify(TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE);
 
       expect(errors.length).toBe(0);
       if (errors.length > 0) {
@@ -186,19 +182,18 @@ describe("EditFormComponent", () => {
   });
 
   it("should redirect to transaction search when ID is invalid", async () => {
-    const { harness, sessionDataServiceSpy } = await setup([
-      "getSessionStateValue",
-    ]);
-    (sessionDataServiceSpy.getSessionStateValue as jasmine.Spy).and.returnValue(
-      sessionStateMock,
-    );
+    const { harness } = await setup();
     const router = TestBed.inject(Router);
 
     await expectAsync(
       harness.navigateByUrl("aml/99999999/reporting-ui/edit-form/asdfasdf"),
     ).toBeRejectedWithError(/Transaction not found/);
-    expect(sessionDataServiceSpy.getSessionStateValue).toHaveBeenCalled();
     expect(router.url).toBe("/transactionsearch");
+  });
+
+  afterEach(() => {
+    // Verify that none of the tests make any extra HTTP requests.
+    TestBed.inject(HttpTestingController).verify();
   });
 });
 
@@ -272,7 +267,7 @@ async function formVerifierFactory(loader: HarnessLoader) {
         const { control } = await getMatField(loader, testId);
         const actualValue = await control.getValue();
         const expectedValue = String(
-          TransactionTimeDirective.parseAndFormattedTime(val) ?? "",
+          TransactionTimeDirective.parseAndFormatTime(val) ?? "",
         );
         if (actualValue !== expectedValue) {
           errors.push(
@@ -446,22 +441,7 @@ function asyncError<T>(errorObject: any) {
   return defer(() => Promise.reject(errorObject));
 }
 
-type SessionDataServiceStub = Pick<
-  SessionDataService,
-  keyof SessionDataService
->;
-//   ^?
-
-function getPropertySpy<T>(obj: T, prop: keyof T, type: "get" | "set" = "get") {
-  return Object.getOwnPropertyDescriptor(obj, prop as string)?.[
-    type
-  ] as jasmine.Spy;
-}
-
-const transactionEditFormMockAllFields: StrTxnEditForm & {
-  flowOfFundsAmlTransactionId: string;
-} = {
-  flowOfFundsAmlTransactionId: "ABM-01K4WANX6DRN6KCN05PMG7WJHA",
+const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
   wasTxnAttempted: true,
   wasTxnAttemptedReason: "Lack of funds",
   dateOfTxn: "2024/09/25",
@@ -621,8 +601,8 @@ const transactionEditFormMockAllFields: StrTxnEditForm & {
   ],
 };
 
-const sessionStateMock: SessionStateLocal = {
-  amlId: "999999",
+const SESSION_STATE_FIXTURE: SessionStateLocal = {
+  amlId: "9999999",
   version: 0,
   transactionSearchParams: {
     accountNumbersSelection: [],
@@ -631,6 +611,35 @@ const sessionStateMock: SessionStateLocal = {
     reviewPeriodSelection: [],
     sourceSystemsSelection: [],
   },
-  strTransactions: [transactionEditFormMockAllFields] as StrTransactionWithChangeLogs[],
+  strTransactions: [TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE].map((txn) => {
+    return {
+      ...txn,
+      flowOfFundsAccountCurrency: "",
+      flowOfFundsAmlId: 9999999,
+      flowOfFundsAmlTransactionId: "ABM-01K4WANX6DRN6KCN05PMG7WJHA",
+      flowOfFundsCasePartyKey: 0,
+      flowOfFundsConductorPartyKey: 0,
+      flowOfFundsCreditAmount: 0,
+      flowOfFundsCreditedAccount: "",
+      flowOfFundsCreditedTransit: "",
+      flowOfFundsDebitAmount: 0,
+      flowOfFundsDebitedAccount: "",
+      flowOfFundsDebitedTransit: "",
+      flowOfFundsPostingDate: "",
+      flowOfFundsSource: "",
+      flowOfFundsSourceTransactionId: "",
+      flowOfFundsTransactionCurrency: "",
+      flowOfFundsTransactionCurrencyAmount: 0,
+      flowOfFundsTransactionDate: "",
+      flowOfFundsTransactionDesc: "",
+      flowOfFundsTransactionTime: "",
+      _hiddenTxnType: "",
+      _hiddenAmlId: "",
+      _hiddenStrTxnId: "",
+      _version: 0,
+      changeLogs: [],
+    };
+  }),
+
   lastUpdated: "1996-06-13",
 };

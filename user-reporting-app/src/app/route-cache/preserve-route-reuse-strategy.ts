@@ -34,13 +34,21 @@ export class CachedRouteReuseStrategy implements RouteReuseStrategy {
       ? (this.handlers.get(key) ?? null)
       : null;
   }
+  /**
+   * Determines if the router should reuse the current route instance.
+   * Reload current page with
+   * this.router.navigateByUrl(this.router.url, {
+   *   onSameUrlNavigation: "reload",
+   * });
+   */
   shouldReuseRoute(
-    future: ActivatedRouteSnapshot,
-    curr: ActivatedRouteSnapshot,
+    _future: ActivatedRouteSnapshot,
+    _curr: ActivatedRouteSnapshot,
   ): boolean {
-    // Determines if the router should reuse the current route instance
-    return future.routeConfig === curr.routeConfig;
+    // return future.routeConfig === curr.routeConfig;
+    return false;
   }
+
   private getRouteKey(route: ActivatedRouteSnapshot): string {
     return route.routeConfig?.path ?? "";
   }

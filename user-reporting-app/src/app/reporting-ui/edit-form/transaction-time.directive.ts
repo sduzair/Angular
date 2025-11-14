@@ -23,12 +23,13 @@ export class TransactionTimeDirective implements ControlValueAccessor {
     }
 
     this.el.nativeElement.value =
-      TransactionTimeDirective.parseAndFormattedTime(value)!;
+      TransactionTimeDirective.parseAndFormatTime(value)!;
   }
 
-  @HostListener("input", ["$event.target.value"])
-  onInput(value: string) {
-    this.onChange(TransactionTimeDirective.parseAndFormattedTime(value)!);
+  @HostListener("input", ["$event"])
+  onInput(event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    this.onChange(TransactionTimeDirective.parseAndFormatTime(value)!);
   }
 
   @HostListener("blur")
@@ -46,7 +47,7 @@ export class TransactionTimeDirective implements ControlValueAccessor {
     this.el.nativeElement.disabled = isDisabled;
   }
 
-  static parseAndFormattedTime(value: string | unknown) {
+  static parseAndFormatTime(value: string | unknown) {
     // Try parsing 'H:mm', 'HH:mm', or 'HH:mm:ss' formats
     const formats = ["HH:mm:ss", "HH:mm"];
     for (const fmt of formats) {

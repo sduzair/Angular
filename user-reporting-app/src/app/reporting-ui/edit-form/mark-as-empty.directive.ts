@@ -1,14 +1,30 @@
-import { Directive, HostListener, Optional } from "@angular/core";
+import {
+  AfterViewInit,
+  DestroyRef,
+  Directive,
+  ElementRef,
+  HostListener,
+  Optional,
+  Renderer2,
+  inject,
+} from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { NgControl, ValidatorFn } from "@angular/forms";
 import { MatFormField } from "@angular/material/form-field";
 
 export const SPECIAL_EMPTY_VALUE = "<<marked as empty>>";
 
 @Directive({
-  selector: "[appClearField]",
+  selector: "[appMarkAsEmpty]",
 })
-export class ClearFieldDirective {
-  constructor(@Optional() private formField: MatFormField) {}
+export class MarkAsEmptyDirective implements AfterViewInit {
+  constructor(
+    @Optional() private formField: MatFormField,
+    private elementRef: ElementRef,
+    private renderer: Renderer2,
+  ) {}
+
+  private destroy$ = inject(DestroyRef);
   origWriteValue: ((obj: any) => void) | undefined;
   originalValidators: [ValidatorFn] | null = null;
 
@@ -38,9 +54,7 @@ export class ClearFieldDirective {
       : null;
     this.control.clearValidators();
 
-    this.control.markAsTouched();
     this.control.setValue(SPECIAL_EMPTY_VALUE, { emitEvent: false });
-    this.control.markAsDirty();
     this.control.updateValueAndValidity();
 
     // Restore view updates and validation
@@ -49,5 +63,25 @@ export class ClearFieldDirective {
       this.control.setValidators(this.originalValidators!);
       // control.updateValueAndValidity();
     });
+  }
+
+  private matIconElement: HTMLElement | null = null;
+  ngAfterViewInit(): void {
+    this.matIconElement =
+      this.elementRef.nativeElement.querySelector("mat-icon");
+    // Subscribe to value changes to trigger host class update
+    this.control.valueChanges
+      .pipe(takeUntilDestroyed(this.destroy$))
+      .subscribe(() => this.updateIconClass());
+  }
+
+  private updateIconClass(): void {
+    console.assert(!!this.matIconElement);
+
+    if (this.control?.value === SPECIAL_EMPTY_VALUE) {
+      this.renderer.addClass(this.matIconElement, "mat-warn");
+    } else {
+      this.renderer.removeClass(this.matIconElement, "mat-warn");
+    }
   }
 }

@@ -22,7 +22,7 @@ $my-typography: mat.m2-define-typography-config();
 .mat-success {
   @include mat.icon-overrides(
     (
-      color: #4caf50,
+      color: var(--bs-success),
     )
   );
 }
@@ -30,7 +30,7 @@ $my-typography: mat.m2-define-typography-config();
 .mat-info {
   @include mat.icon-overrides(
     (
-      color: #2196f3,
+      color: var(--bs-info),
     )
   );
 }
@@ -38,7 +38,7 @@ $my-typography: mat.m2-define-typography-config();
 .mat-warning {
   @include mat.icon-overrides(
     (
-      color: #ff9800,
+      color: var(--bs-warning),
     )
   );
 }
@@ -54,7 +54,7 @@ $my-typography: mat.m2-define-typography-config();
 .mat-warn {
   @include mat.icon-overrides(
     (
-      color: #f44336,
+      color: var(--bs-danger),
     )
   );
 }

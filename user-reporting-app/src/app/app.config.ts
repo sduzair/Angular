@@ -34,15 +34,17 @@ export const appConfig: ApplicationConfig = {
     provideRouter(
       routes,
       withComponentInputBinding(),
-      withRouterConfig({ paramsInheritanceStrategy: "always" }),
+      withRouterConfig({
+        paramsInheritanceStrategy: "always",
+      }),
       withNavigationErrorHandler((navError) => {
         const router = inject(Router);
         console.error("Navigation error:", navError.error);
         router.navigate(["/transactionsearch"]);
       }),
+      // withDebugTracing(), // for debugging router
     ),
     { provide: RouteReuseStrategy, useClass: CachedRouteReuseStrategy },
-    // provideRouter(routes, withComponentInputBinding(), withDebugTracing()),    // for debugging router
     provideHttpClient(),
     provideDateFnsAdapter(MAT_DATE_FNS_FORMATS),
     { provide: MAT_DATE_LOCALE, useValue: enCA },

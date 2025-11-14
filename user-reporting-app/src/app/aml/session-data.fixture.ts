@@ -1,7 +1,8 @@
 import { StrTransaction } from "../reporting-ui/reporting-ui-table/reporting-ui-table.component";
 import { TransactionSearchResponse } from "../transaction-search/aml-transaction-search.service";
+import { SessionStateLocal } from "./session-data.service";
 
-export const editedTransactionsDevOnly: StrTransaction[] = [
+export const EDITED_TRANSACTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransaction[] = [
   {
     wasTxnAttempted: false,
     wasTxnAttemptedReason: null,
@@ -10206,3 +10207,24 @@ export const transactionSearchResDevOnly: TransactionSearchResponse = [
     ],
   },
 ];
+
+export const SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE: SessionStateLocal = {
+  amlId: "999999",
+  version: 0,
+  transactionSearchParams: {
+    accountNumbersSelection: [],
+    partyKeysSelection: [],
+    productTypesSelection: [],
+    reviewPeriodSelection: [],
+    sourceSystemsSelection: [],
+  },
+  strTransactions: EDITED_TRANSACTIONS_DEV_OR_TEST_ONLY_FIXTURE.map((txn) => ({
+    ...txn,
+    _hiddenTxnType: txn.flowOfFundsSource,
+    _hiddenAmlId: "999999",
+    _hiddenStrTxnId: txn.flowOfFundsAmlTransactionId,
+    _version: 0,
+    changeLogs: [],
+  })),
+  lastUpdated: "1996-06-13",
+};

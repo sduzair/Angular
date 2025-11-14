@@ -14,6 +14,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from "@angular/forms";
+import { MatBadgeModule } from "@angular/material/badge";
 import { MatButtonModule } from "@angular/material/button";
 import { MatCardModule } from "@angular/material/card";
 import { MatCheckboxModule } from "@angular/material/checkbox";
@@ -36,18 +37,15 @@ import {
   Router,
   RouterStateSnapshot,
 } from "@angular/router";
-import { Subject, exhaustMap, map, tap } from "rxjs";
+import { isEqualWith } from "lodash-es";
+import { defer, map, tap } from "rxjs";
 import { v4 as uuidv4 } from "uuid";
 import {
-  EditFormChange,
   SessionDataService,
   StrTransactionWithChangeLogs,
 } from "../../aml/session-data.service";
-import {
-  ChangeLogService,
-  ChangeLogWithoutVersion,
-  WithVersion,
-} from "../../change-log.service";
+import { ChangeLogService, WithVersion } from "../../change-log.service";
+import { ClearFieldDirective } from "../../clear-field.directive";
 import { PreemptiveErrorStateMatcher } from "../../transaction-search/transaction-search.component";
 import {
   AccountHolder,
@@ -60,10 +58,11 @@ import {
   SourceOfFunds,
   StartingAction,
   StrTransaction,
+  StrTransactionData,
   StrTxnFlowOfFunds,
 } from "../reporting-ui-table/reporting-ui-table.component";
-import { ClearFieldDirective } from "./clear-field.directive";
 import { ControlToggleDirective } from "./control-toggle.directive";
+import { MarkAsEmptyDirective } from "./mark-as-empty.directive";
 import { ToggleEditFieldDirective } from "./toggle-edit-field.directive";
 import { TransactionDateDirective } from "./transaction-date.directive";
 import { TransactionDetailsPanelComponent } from "./transaction-details-panel/transaction-details-panel.component";
@@ -81,7 +80,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
     TransactionTimeDirective,
     ControlToggleDirective,
     ToggleEditFieldDirective,
-    ClearFieldDirective,
+    MarkAsEmptyDirective,
     MatFormField,
     MatToolbarModule,
     MatIconModule,
@@ -96,6 +95,8 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
     MatDividerModule,
     MatOptionModule,
     MatSelectModule,
+    ClearFieldDirective,
+    MatBadgeModule,
   ],
   template: `
     <div class="container px-0 mb-5">
@@ -114,6 +115,9 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
             color="primary"
             type="submit"
             form="edit-form"
+            [disabled]="!(editFormHasChanges$ | async)"
+            [matBadge]="selectedTransactionsForBulkEditLength"
+            [matBadgeHidden]="!isBulkEdit"
           >
             <ng-container
               *ngIf="sessionDataService.savingStatus$ | async; else saveText"
@@ -163,7 +167,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
               <h3 class="mb-0">Transaction Details</h3>
               <mat-icon
                 class="error-icon mx-1"
-                [class.error-icon-show]="!editForm.valid && editForm.dirty"
+                [class.error-icon-show]="showTransactionDetailsErrorIcon"
                 color="error"
                 >error_outline</mat-icon
               >
@@ -191,7 +195,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                       <button
                         [disabled]="!this.isBulkEdit"
                         type="button"
-                        appClearField
+                        appMarkAsEmpty
                         mat-icon-button
                         matSuffix
                       >
@@ -205,6 +209,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         matSuffix
                       >
                         <mat-icon>edit</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="this.isBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>clear</mat-icon>
                       </button>
                     </mat-form-field>
                     <mat-form-field class="col-xl-4" data-testid="timeOfTxn">
@@ -219,7 +232,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                       <button
                         [disabled]="!this.isBulkEdit"
                         type="button"
-                        appClearField
+                        appMarkAsEmpty
                         mat-icon-button
                         matSuffix
                       >
@@ -233,6 +246,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         matSuffix
                       >
                         <mat-icon>edit</mat-icon>
+                      </button>
+                      <button
+                        [disabled]="this.isBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>clear</mat-icon>
                       </button>
                     </mat-form-field>
                     <div class="col-xl-4 d-flex">
@@ -270,6 +292,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         [for]="dateOfPostingPicker"
                       ></mat-datepicker-toggle>
                       <mat-datepicker #dateOfPostingPicker />
+                      <button
+                        [disabled]="this.isBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>clear</mat-icon>
+                      </button>
                     </mat-form-field>
                     <mat-form-field class="col" data-testid="timeOfPosting">
                       <mat-label>Time of Posting</mat-label>
@@ -281,6 +312,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         appTransactionTime
                         appControlToggle="hasPostingDate"
                       />
+                      <button
+                        [disabled]="this.isBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>clear</mat-icon>
+                      </button>
                     </mat-form-field>
                   </div>
                   <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
@@ -297,7 +337,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                       <button
                         [disabled]="!this.isBulkEdit"
                         type="button"
-                        appClearField
+                        appMarkAsEmpty
                         mat-icon-button
                         matSuffix
                       >
@@ -312,6 +352,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                       >
                         <mat-icon>edit</mat-icon>
                       </button>
+                      <button
+                        [disabled]="this.isBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>clear</mat-icon>
+                      </button>
                     </mat-form-field>
                     <mat-form-field class="col" data-testid="methodOfTxnOther">
                       <mat-label>Other Method of Transaction</mat-label>
@@ -321,6 +370,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         appControlToggle="methodOfTxn"
                         appControlToggleValue="Other"
                       />
+                      <button
+                        [disabled]="this.isBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>clear</mat-icon>
+                      </button>
                     </mat-form-field>
                   </div>
                   <div class="row row-cols-1">
@@ -355,6 +413,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         formControlName="wasTxnAttemptedReason"
                         appControlToggle="wasTxnAttempted"
                       />
+                      <button
+                        [disabled]="this.isBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>clear</mat-icon>
+                      </button>
                     </mat-form-field>
                   </div>
                   <div class="row row-cols-md-3">
@@ -364,7 +431,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                       <button
                         [disabled]="!this.isBulkEdit"
                         type="button"
-                        appClearField
+                        appMarkAsEmpty
                         mat-icon-button
                         matSuffix
                       >
@@ -379,6 +446,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                       >
                         <mat-icon>edit</mat-icon>
                       </button>
+                      <button
+                        [disabled]="this.isBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>clear</mat-icon>
+                      </button>
                     </mat-form-field>
                   </div>
                   <div class="row row-cols-md-3">
@@ -391,6 +467,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         matInput
                         formControlName="reportingEntityLocationNo"
                       />
+                      <button
+                        [disabled]="this.isBulkEdit"
+                        type="button"
+                        appClearField
+                        mat-icon-button
+                        matSuffix
+                      >
+                        <mat-icon>clear</mat-icon>
+                      </button>
                     </mat-form-field>
                     <mat-form-field
                       class="col-md-8"
@@ -414,10 +499,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
               <h3 class="mb-0">Starting Actions</h3>
               <mat-icon
                 class="error-icon mx-1"
-                [class.error-icon-show]="
-                  !editForm.controls.startingActions.valid &&
-                  editForm.controls.startingActions.dirty
-                "
+                [class.error-icon-show]="showStartingActionsErrorIcon"
                 color="error"
                 >error_outline</mat-icon
               >
@@ -475,7 +557,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -489,6 +571,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
                       <mat-form-field
@@ -509,7 +600,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -523,6 +614,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
                       <mat-form-field
@@ -540,6 +640,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           "
                           appControlToggleValue="Other"
                         />
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
+                        </button>
                       </mat-form-field>
                     </div>
                     <!-- Amount Section -->
@@ -559,7 +668,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -573,6 +682,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
                       <mat-form-field
@@ -593,7 +711,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -607,6 +725,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
                     </div>
@@ -623,7 +750,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -637,6 +764,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
                       <mat-form-field
@@ -658,7 +794,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -672,6 +808,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
                       <mat-form-field
@@ -693,7 +838,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -707,6 +852,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
                     </div>
@@ -737,7 +891,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -751,6 +905,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
                       <mat-form-field
@@ -768,6 +931,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           "
                           appControlToggleValue="Other"
                         />
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
+                        </button>
                       </mat-form-field>
                       <mat-form-field
                         class="col"
@@ -794,7 +966,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -808,6 +980,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
                       <mat-form-field
@@ -835,7 +1016,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -849,6 +1030,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
                     </div>
@@ -880,7 +1070,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -894,6 +1084,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
                       <mat-form-field
@@ -922,7 +1121,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -936,6 +1135,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
                     </div>
@@ -955,7 +1163,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -969,6 +1177,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
                     </div>
@@ -1046,6 +1263,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>Party Key</mat-label>
                               <input matInput formControlName="partyKey" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -1060,6 +1286,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>Surname</mat-label>
                               <input matInput formControlName="surname" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -1074,6 +1309,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>GivenName</mat-label>
                               <input matInput formControlName="givenName" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -1091,6 +1335,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                                 matInput
                                 formControlName="otherOrInitial"
                               />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -1105,6 +1358,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>Name of Entity</mat-label>
                               <input matInput formControlName="nameOfEntity" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
                           </div>
                         </mat-expansion-panel>
@@ -1186,6 +1448,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>Party Key</mat-label>
                               <input matInput formControlName="partyKey" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -1200,6 +1471,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>Surname</mat-label>
                               <input matInput formControlName="surname" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -1214,6 +1494,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>GivenName</mat-label>
                               <input matInput formControlName="givenName" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -1231,6 +1520,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                                 matInput
                                 formControlName="otherOrInitial"
                               />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -1245,6 +1543,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>Name of Entity</mat-label>
                               <input matInput formControlName="nameOfEntity" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -1259,6 +1566,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>Account Number</mat-label>
                               <input matInput formControlName="accountNumber" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -1276,6 +1592,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                                 matInput
                                 formControlName="identifyingNumber"
                               />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
                           </div>
                         </mat-expansion-panel>
@@ -1358,6 +1683,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>Party Key</mat-label>
                               <input matInput formControlName="partyKey" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -1372,6 +1706,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>Surname</mat-label>
                               <input matInput formControlName="surname" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -1386,6 +1729,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>GivenName</mat-label>
                               <input matInput formControlName="givenName" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -1403,6 +1755,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                                 matInput
                                 formControlName="otherOrInitial"
                               />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -1417,6 +1778,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>Name of Entity</mat-label>
                               <input matInput formControlName="nameOfEntity" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
                           </div>
 
@@ -1501,6 +1871,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                                       matInput
                                       formControlName="partyKey"
                                     />
+                                    <button
+                                      [disabled]="this.isBulkEdit"
+                                      type="button"
+                                      appClearField
+                                      mat-icon-button
+                                      matSuffix
+                                    >
+                                      <mat-icon>clear</mat-icon>
+                                    </button>
                                   </mat-form-field>
 
                                   <mat-form-field
@@ -1517,6 +1896,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                                   >
                                     <mat-label>Surname</mat-label>
                                     <input matInput formControlName="surname" />
+                                    <button
+                                      [disabled]="this.isBulkEdit"
+                                      type="button"
+                                      appClearField
+                                      mat-icon-button
+                                      matSuffix
+                                    >
+                                      <mat-icon>clear</mat-icon>
+                                    </button>
                                   </mat-form-field>
 
                                   <mat-form-field
@@ -1536,6 +1924,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                                       matInput
                                       formControlName="givenName"
                                     />
+                                    <button
+                                      [disabled]="this.isBulkEdit"
+                                      type="button"
+                                      appClearField
+                                      mat-icon-button
+                                      matSuffix
+                                    >
+                                      <mat-icon>clear</mat-icon>
+                                    </button>
                                   </mat-form-field>
 
                                   <mat-form-field
@@ -1555,6 +1952,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                                       matInput
                                       formControlName="otherOrInitial"
                                     />
+                                    <button
+                                      [disabled]="this.isBulkEdit"
+                                      type="button"
+                                      appClearField
+                                      mat-icon-button
+                                      matSuffix
+                                    >
+                                      <mat-icon>clear</mat-icon>
+                                    </button>
                                   </mat-form-field>
 
                                   <mat-form-field
@@ -1574,6 +1980,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                                       matInput
                                       formControlName="nameOfEntity"
                                     />
+                                    <button
+                                      [disabled]="this.isBulkEdit"
+                                      type="button"
+                                      appClearField
+                                      mat-icon-button
+                                      matSuffix
+                                    >
+                                      <mat-icon>clear</mat-icon>
+                                    </button>
                                   </mat-form-field>
                                 </div>
                               </mat-expansion-panel>
@@ -1610,10 +2025,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
               <h3 class="mb-0">Completing Actions</h3>
               <mat-icon
                 class="error-icon mx-1"
-                [class.error-icon-show]="
-                  !editForm.controls.completingActions.valid &&
-                  editForm.controls.completingActions.dirty
-                "
+                [class.error-icon-show]="showCompletingActionsErrorIcon"
                 color="error"
                 >error_outline</mat-icon
               >
@@ -1675,7 +2087,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -1689,6 +2101,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
 
@@ -1709,6 +2130,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           "
                           appControlToggleValue="Other"
                         />
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
+                        </button>
                       </mat-form-field>
                     </div>
 
@@ -1729,7 +2159,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -1743,6 +2173,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
 
@@ -1764,7 +2203,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -1778,6 +2217,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
 
@@ -1796,7 +2244,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -1810,6 +2258,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
 
@@ -1828,7 +2285,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -1842,6 +2299,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
                     </div>
@@ -1859,7 +2325,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -1873,6 +2339,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
                       <mat-form-field
@@ -1894,7 +2369,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -1908,6 +2383,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
                       <mat-form-field
@@ -1929,7 +2413,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -1943,6 +2427,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
                     </div>
@@ -1974,7 +2467,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -1988,6 +2481,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
 
@@ -2006,6 +2508,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           "
                           appControlToggleValue="Other"
                         />
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
+                        </button>
                       </mat-form-field>
 
                       <mat-form-field
@@ -2033,7 +2544,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -2047,6 +2558,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
 
@@ -2075,7 +2595,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -2089,6 +2609,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
                     </div>
@@ -2122,7 +2651,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -2136,6 +2665,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
                       <mat-form-field
@@ -2165,7 +2703,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appClearField
+                          appMarkAsEmpty
                           mat-icon-button
                           matSuffix
                         >
@@ -2179,6 +2717,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           matSuffix
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="this.isBulkEdit"
+                          type="button"
+                          appClearField
+                          mat-icon-button
+                          matSuffix
+                        >
+                          <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
                     </div>
@@ -2259,6 +2806,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>Party Key</mat-label>
                               <input matInput formControlName="partyKey" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -2273,6 +2829,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>Surname</mat-label>
                               <input matInput formControlName="surname" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -2287,6 +2852,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>GivenName</mat-label>
                               <input matInput formControlName="givenName" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -2304,6 +2878,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                                 matInput
                                 formControlName="otherOrInitial"
                               />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -2318,6 +2901,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>Name of Entity</mat-label>
                               <input matInput formControlName="nameOfEntity" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
                           </div>
                         </mat-expansion-panel>
@@ -2403,6 +2995,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>Party Key</mat-label>
                               <input matInput formControlName="partyKey" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -2417,6 +3018,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>Surname</mat-label>
                               <input matInput formControlName="surname" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -2431,6 +3041,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>GivenName</mat-label>
                               <input matInput formControlName="givenName" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -2448,6 +3067,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                                 matInput
                                 formControlName="otherOrInitial"
                               />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -2462,6 +3090,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>Name of Entity</mat-label>
                               <input matInput formControlName="nameOfEntity" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -2476,6 +3113,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>Account Number</mat-label>
                               <input matInput formControlName="accountNumber" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -2493,6 +3139,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                                 matInput
                                 formControlName="identifyingNumber"
                               />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
                           </div>
                         </mat-expansion-panel>
@@ -2572,6 +3227,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>Party Key</mat-label>
                               <input matInput formControlName="partyKey" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -2586,6 +3250,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>Surname</mat-label>
                               <input matInput formControlName="surname" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -2600,6 +3273,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>GivenName</mat-label>
                               <input matInput formControlName="givenName" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -2617,6 +3299,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                                 matInput
                                 formControlName="otherOrInitial"
                               />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
 
                             <mat-form-field
@@ -2631,6 +3322,15 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                             >
                               <mat-label>Name of Entity</mat-label>
                               <input matInput formControlName="nameOfEntity" />
+                              <button
+                                [disabled]="this.isBulkEdit"
+                                type="button"
+                                appClearField
+                                mat-icon-button
+                                matSuffix
+                              >
+                                <mat-icon>clear</mat-icon>
+                              </button>
                             </mat-form-field>
                           </div>
                         </mat-expansion-panel>
@@ -2650,7 +3350,9 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
             </div>
           </mat-tab>
         </mat-tab-group>
-        <pre class="overlay-pre">Form values: {{ editForm.value | json }}</pre>
+        <pre class="overlay-pre">
+Form values: {{ editForm.getRawValue() | json }}</pre
+        >
       </form>
     </div>
   `,
@@ -2663,35 +3365,62 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
 export class EditFormComponent implements OnInit {
   @Input()
   readonly editType!: EditFormEditType;
-  protected get isSingleEdit() {
-    return this.editType.type === "SINGLE_EDIT";
-  }
-  protected get isBulkEdit() {
-    return this.editType.type === "BULK_EDIT";
-  }
-  protected get isNotAudit() {
-    return this.editType.type !== "AUDIT_REQUEST";
-  }
 
   editForm: EditFormType | null = null;
 
-  private singleStrTransactionBeforeEdit: EditFormValueType | null = null;
+  private editFormValueBefore: EditFormValueType | null = null;
 
   ngOnInit(): void {
     if (this.editType.type === "SINGLE_EDIT") {
-      this.editForm = this.createEditForm({
-        txn: this.editType.payload,
-        options: { disabled: false },
+      this.editForm = this.initializeEditForm({
+        initValue: this.editType.payload,
       });
-      this.singleStrTransactionBeforeEdit = structuredClone(
-        this.editForm.value,
-      );
     }
-
-    this.save$.subscribe();
+    if (this.editType.type === "BULK_EDIT") {
+      this.editForm = this.initializeEditForm({
+        isBulkEdit: true,
+        disabled: true,
+      });
+    }
   }
 
-  private changeLogService = inject(ChangeLogService);
+  private initializeEditForm({
+    initValue,
+    isBulkEdit = false,
+    disabled = false,
+  }: {
+    initValue?: StrTransactionData;
+    isBulkEdit?: boolean;
+    disabled?: boolean;
+  }) {
+    const editForm = this.createEditForm({
+      txn: initValue,
+      options: { disabled, isBulkEdit },
+    });
+    this.editFormValueBefore = structuredClone(editForm.getRawValue());
+    return editForm;
+  }
+
+  editFormHasChanges$ = defer(() => this.editForm!.valueChanges).pipe(
+    map(() => {
+      const editFormVal = this.editForm?.getRawValue()!;
+      return !isEqualWith(
+        editFormVal,
+        this.editFormValueBefore,
+        (val1, val2, indexOrKey) => {
+          const isEmpty = (val: unknown) => val == null || val === "";
+
+          if (isEmpty(val1) && isEmpty(val2)) return true;
+
+          if (this.editType.type === "BULK_EDIT" && indexOrKey === "_id")
+            return true;
+
+          return undefined;
+        },
+      );
+    }),
+  );
+
   private snackBar = inject(MatSnackBar);
 
   // ----------------------
@@ -2699,89 +3428,55 @@ export class EditFormComponent implements OnInit {
   // ----------------------
   protected sessionDataService = inject(SessionDataService);
   protected isBulkEditSaved = false;
-  saveSubject = new Subject<
-    | {
-        editType: EditFormEditType;
-        editFormValue: EditFormValueType;
-        singleStrTransactionBeforeEdit: EditFormValueType;
-      }
-    | {
-        editType: EditFormEditType;
-        editFormValue: EditFormValueType;
-      }
-    | {
-        editType: EditFormEditType;
-        version: number;
-      }
-  >();
-  private save$ = this.saveSubject.asObservable().pipe(
-    exhaustMap((saveData) => {
-      const {
-        editType: { type, payload },
-      } = saveData;
-      const pendingChanges: EditFormChange[] = [];
-      if (type === "SINGLE_EDIT") {
-        const changeLogs: ChangeLogWithoutVersion[] = [];
-        this.changeLogService.compareProperties(
-          this.singleStrTransactionBeforeEdit,
-          this.editForm!.value,
-          changeLogs,
-        );
-        pendingChanges.push({
-          flowOfFundsAmlTransactionId: payload.flowOfFundsAmlTransactionId,
-          pendingChangeLogs: changeLogs,
-        });
-      }
-      return this.sessionDataService.updateStrTransactions(pendingChanges).pipe(
-        map((response) => ({
-          response,
-          saveData,
-        })),
-      );
-    }),
-    tap(
-      ({
-        saveData: {
-          editType: { type },
-        },
-      }) => {
-        if (type === "SINGLE_EDIT")
-          this.singleStrTransactionBeforeEdit = structuredClone(
-            this.editForm!.value,
-          );
+  _ = this.sessionDataService.editFormSave$
+    .pipe(
+      takeUntilDestroyed(),
+      tap(({ editType }) => {
+        if (editType === "SINGLE_EDIT") {
+          // Reload current page
+          this.router.navigateByUrl(this.router.url, {
+            onSameUrlNavigation: "reload",
+          });
+        }
 
-        if (type === "BULK_EDIT") this.isBulkEditSaved = true;
-
-        this.snackBar.open("Edits saved!", "Dismiss", {
-          duration: 5000,
-        });
-      },
-    ),
-    takeUntilDestroyed(),
-  );
+        if (editType === "BULK_EDIT") {
+          this.isBulkEditSaved = true;
+          this.snackBar.open("Edits saved!", "Dismiss", {
+            duration: 5000,
+          });
+        }
+      }),
+    )
+    .subscribe();
 
   protected onSave(): void {
     console.log(
-      "🚀 ~ EditFormComponent ~ onSubmit ~ this.userForm!.value:",
-      this.editForm!.value,
+      "🚀 ~ EditFormComponent ~ onSubmit ~ this.userForm!.getRawValue():",
+      this.editForm!.getRawValue(),
     );
 
     if (this.isBulkEditSaved) {
-      this.snackBar.open(
-        "Edits already saved please close this tab!",
-        "Dismiss",
-        {
-          duration: 5000,
-        },
-      );
+      this.snackBar.open("Edits already saved!", "Dismiss", {
+        duration: 5000,
+      });
       return;
     }
 
     if (this.editType.type === "SINGLE_EDIT") {
-      this.saveSubject.next({
-        editType: this.editType,
-        editFormValue: this.editForm!.value,
-        singleStrTransactionBeforeEdit: this.singleStrTransactionBeforeEdit!,
+      this.sessionDataService.editFormSaveSubject.next({
+        editType: "SINGLE_EDIT",
+        flowOfFundsAmlTransactionId:
+          this.editType.payload.flowOfFundsAmlTransactionId,
+        editFormValue: this.editForm!.getRawValue(),
+        editFormValueBefore: this.editFormValueBefore!,
+      });
+    }
+
+    if (this.editType.type === "BULK_EDIT") {
+      this.sessionDataService.editFormSaveSubject.next({
+        editType: "BULK_EDIT",
+        editFormValue: this.editForm!.getRawValue(),
+        transactionsBefore: this.editType.payload,
       });
     }
 
@@ -2832,7 +3527,7 @@ export class EditFormComponent implements OnInit {
         disabled,
       }),
       wasTxnAttempted: new FormControl({
-        value: this.changeLogService.getInitValForDependentPropToggle(
+        value: ChangeLogService.getInitValForDependentPropToggle(
           "wasTxnAttempted",
           txn?.wasTxnAttempted,
           this.editType.type === "BULK_EDIT",
@@ -2853,7 +3548,7 @@ export class EditFormComponent implements OnInit {
         Validators.required,
       ),
       hasPostingDate: new FormControl({
-        value: this.changeLogService.getInitValForDependentPropToggle(
+        value: ChangeLogService.getInitValForDependentPropToggle(
           "hasPostingDate",
           txn?.hasPostingDate,
           this.editType.type === "BULK_EDIT",
@@ -2934,7 +3629,7 @@ export class EditFormComponent implements OnInit {
       action.hasAccountHolders = action.accountHolders.length > 0;
 
     return new FormGroup({
-      _id: new FormControl({ value: action?._id || uuidv4(), disabled }),
+      _id: new FormControl(action?._id ?? uuidv4()),
       directionOfSA: new FormControl({
         value: action?.directionOfSA || "",
         disabled,
@@ -2987,7 +3682,7 @@ export class EditFormComponent implements OnInit {
         disabled,
       }),
       hasAccountHolders: new FormControl({
-        value: this.changeLogService.getInitValForDependentPropToggle(
+        value: ChangeLogService.getInitValForDependentPropToggle(
           "hasAccountHolders",
           action?.hasAccountHolders,
           this.editType.type === "BULK_EDIT",
@@ -3004,7 +3699,7 @@ export class EditFormComponent implements OnInit {
             : []),
       ),
       wasSofInfoObtained: new FormControl({
-        value: this.changeLogService.getInitValForDependentPropToggle(
+        value: ChangeLogService.getInitValForDependentPropToggle(
           "wasSofInfoObtained",
           action?.wasSofInfoObtained,
           this.editType.type === "BULK_EDIT",
@@ -3021,7 +3716,7 @@ export class EditFormComponent implements OnInit {
             : []),
       ),
       wasCondInfoObtained: new FormControl({
-        value: this.changeLogService.getInitValForDependentPropToggle(
+        value: ChangeLogService.getInitValForDependentPropToggle(
           "wasCondInfoObtained",
           action?.wasCondInfoObtained,
           this.editType.type === "BULK_EDIT",
@@ -3034,7 +3729,11 @@ export class EditFormComponent implements OnInit {
           this.createConductorGroup({ conductor, options: { disabled } }),
         ) ||
           (createEmptyArrays
-            ? [this.createConductorGroup({ options: { disabled } })]
+            ? [
+                this.createConductorGroup({
+                  options: { createEmptyArrays, disabled },
+                }),
+              ]
             : []),
       ),
     }) satisfies FormGroup<
@@ -3055,7 +3754,7 @@ export class EditFormComponent implements OnInit {
       action.hasAccountHolders = action.accountHolders.length > 0;
 
     return new FormGroup({
-      _id: new FormControl({ value: action?._id || uuidv4(), disabled }),
+      _id: new FormControl(action?._id ?? uuidv4()),
       detailsOfDispo: new FormControl({
         value: action?.detailsOfDispo || "",
         disabled,
@@ -3120,7 +3819,7 @@ export class EditFormComponent implements OnInit {
             : []),
       ),
       wasAnyOtherSubInvolved: new FormControl({
-        value: this.changeLogService.getInitValForDependentPropToggle(
+        value: ChangeLogService.getInitValForDependentPropToggle(
           "wasAnyOtherSubInvolved",
           action?.wasAnyOtherSubInvolved,
           this.editType.type === "BULK_EDIT",
@@ -3137,7 +3836,7 @@ export class EditFormComponent implements OnInit {
             : []),
       ),
       wasBenInfoObtained: new FormControl({
-        value: this.changeLogService.getInitValForDependentPropToggle(
+        value: ChangeLogService.getInitValForDependentPropToggle(
           "wasBenInfoObtained",
           action?.wasBenInfoObtained,
           this.editType.type === "BULK_EDIT",
@@ -3165,10 +3864,7 @@ export class EditFormComponent implements OnInit {
   }) {
     const { disabled } = options;
     return new FormGroup({
-      _id: new FormControl({
-        value: holder?._id || uuidv4(),
-        disabled,
-      }),
+      _id: new FormControl(holder?._id ?? uuidv4()),
       partyKey: new FormControl(
         { value: holder?.partyKey || "", disabled },
         Validators.required,
@@ -3201,7 +3897,7 @@ export class EditFormComponent implements OnInit {
   }) {
     const { disabled } = options;
     return new FormGroup({
-      _id: new FormControl({ value: source?._id || uuidv4(), disabled }),
+      _id: new FormControl(source?._id ?? uuidv4()),
       partyKey: new FormControl(
         { value: source?.partyKey || "", disabled },
         Validators.required,
@@ -3238,12 +3934,12 @@ export class EditFormComponent implements OnInit {
     options,
   }: {
     conductor?: Conductor;
-    options: { disabled: boolean };
+    options: { createEmptyArrays?: boolean; disabled: boolean };
   }) {
     const { disabled } = options;
 
     return new FormGroup({
-      _id: new FormControl({ value: conductor?._id || uuidv4(), disabled }),
+      _id: new FormControl(conductor?._id ?? uuidv4()),
       partyKey: new FormControl(
         { value: conductor?.partyKey || "", disabled },
         Validators.required,
@@ -3265,7 +3961,7 @@ export class EditFormComponent implements OnInit {
         Validators.required,
       ),
       wasConductedOnBehalf: new FormControl({
-        value: this.changeLogService.getInitValForDependentPropToggle(
+        value: ChangeLogService.getInitValForDependentPropToggle(
           "wasConductedOnBehalf",
           conductor?.wasConductedOnBehalf,
           this.editType.type === "BULK_EDIT",
@@ -3273,6 +3969,7 @@ export class EditFormComponent implements OnInit {
         ),
         disabled,
       }),
+      // note do not create empty arrays as this toggle is not tied to a appToggleEditField (bulk edit)
       onBehalfOf: new FormArray(
         conductor?.onBehalfOf?.map((behalf) =>
           this.createOnBehalfOfGroup({ behalf, options: { disabled } }),
@@ -3293,7 +3990,7 @@ export class EditFormComponent implements OnInit {
     const { disabled } = options;
 
     return new FormGroup({
-      _id: new FormControl({ value: behalf?._id || uuidv4(), disabled }),
+      _id: new FormControl(behalf?._id ?? uuidv4()),
       partyKey: new FormControl(
         { value: behalf?.partyKey || "", disabled },
         Validators.required,
@@ -3326,7 +4023,7 @@ export class EditFormComponent implements OnInit {
   }) {
     const { disabled } = options;
     return new FormGroup({
-      _id: new FormControl({ value: involved?._id || uuidv4(), disabled }),
+      _id: new FormControl(involved?._id ?? uuidv4()),
       partyKey: new FormControl(
         { value: involved?.partyKey || "", disabled },
         Validators.required,
@@ -3368,7 +4065,7 @@ export class EditFormComponent implements OnInit {
     const { disabled } = options;
 
     return new FormGroup({
-      _id: new FormControl({ value: beneficiary?._id || uuidv4(), disabled }),
+      _id: new FormControl(beneficiary?._id ?? uuidv4()),
       partyKey: new FormControl(
         { value: beneficiary?.partyKey || "", disabled },
         Validators.required,
@@ -3606,7 +4303,6 @@ export class EditFormComponent implements OnInit {
     return EditFormComponent.methodOfTxnOptions;
   }
   protected static methodOfTxnOptions: Record<string, string> = {
-    "": "",
     ABM: "ABM",
     "In-Person": "In-Person",
     Online: "Online",
@@ -3620,7 +4316,6 @@ export class EditFormComponent implements OnInit {
     return EditFormComponent.typeOfFundsOptions;
   }
   protected static typeOfFundsOptions: Record<string, string> = {
-    "": "",
     "Funds Withdrawal": "Funds Withdrawal",
     Cash: "Cash",
     Cheque: "Cheque",
@@ -3636,7 +4331,6 @@ export class EditFormComponent implements OnInit {
     return EditFormComponent.accountTypeOptions;
   }
   protected static accountTypeOptions: Record<string, string> = {
-    "": "",
     Business: "Business",
     Casino: "Casino",
     Personal: "Personal",
@@ -3650,7 +4344,6 @@ export class EditFormComponent implements OnInit {
     return EditFormComponent.amountCurrencyOptions;
   }
   protected static amountCurrencyOptions: Record<string, string> = {
-    "": "",
     CAD: "CAD",
     USD: "USD",
   };
@@ -3662,7 +4355,6 @@ export class EditFormComponent implements OnInit {
     return EditFormComponent.accountCurrencyOptions;
   }
   protected static accountCurrencyOptions: Record<string, string> = {
-    "": "",
     CAD: "CAD",
     USD: "USD",
   };
@@ -3674,7 +4366,6 @@ export class EditFormComponent implements OnInit {
     return EditFormComponent.accountStatusOptions;
   }
   protected static accountStatusOptions: Record<string, string> = {
-    "": "",
     Active: "Active",
     Closed: "Closed",
     Inactive: "Inactive",
@@ -3688,7 +4379,6 @@ export class EditFormComponent implements OnInit {
     return EditFormComponent.directionOfSAOptions;
   }
   protected static directionOfSAOptions: Record<string, string> = {
-    "": "",
     In: "In",
     Out: "Out",
   };
@@ -3700,7 +4390,6 @@ export class EditFormComponent implements OnInit {
     return EditFormComponent.detailsOfDispositionOptions;
   }
   protected static detailsOfDispositionOptions: Record<string, string> = {
-    "": "",
     "Deposit to account": "Deposit to account",
     "Cash Withdrawal": "Cash Withdrawal",
     "Issued Cheque": "Issued Cheque",
@@ -3715,27 +4404,50 @@ export class EditFormComponent implements OnInit {
       relativeTo: this.route,
     });
   }
+
+  // template helpers
+  protected get isSingleEdit() {
+    return this.editType.type === "SINGLE_EDIT";
+  }
+  protected get isBulkEdit() {
+    return this.editType.type === "BULK_EDIT";
+  }
+  protected get isNotAudit() {
+    return this.editType.type !== "AUDIT_REQUEST";
+  }
+  protected get showTransactionDetailsErrorIcon() {
+    if (this.isBulkEdit) return !this.editForm!.valid && this.editForm!.dirty;
+    return !this.editForm!.valid;
+  }
+  protected get showStartingActionsErrorIcon() {
+    if (this.isBulkEdit)
+      return (
+        !this.editForm!.controls.startingActions.valid &&
+        this.editForm!.controls.startingActions.dirty
+      );
+    return !this.editForm!.controls.startingActions.valid;
+  }
+  protected get showCompletingActionsErrorIcon() {
+    if (this.isBulkEdit)
+      return (
+        !this.editForm!.controls.completingActions.valid &&
+        this.editForm!.controls.completingActions.dirty
+      );
+    return !this.editForm!.controls.completingActions.valid;
+  }
+
+  protected get selectedTransactionsForBulkEditLength() {
+    if (this.editType.type !== "BULK_EDIT") {
+      return -1;
+    }
+    return this.editType.payload.length;
+  }
+  protected get selectedTransactionsForBulkEditDisplayText() {
+    return `${this.selectedTransactionsForBulkEditLength} transaction${
+      this.selectedTransactionsForBulkEditLength !== 1 ? "s" : ""
+    } selected`;
+  }
 }
-
-export const singleEditResolver: ResolveFn<EditFormEditType> = (
-  route: ActivatedRouteSnapshot,
-  _: RouterStateSnapshot,
-) => {
-  const sessionStateValue = inject(SessionDataService).getSessionStateValue();
-
-  if (!sessionStateValue) throw new Error("No session found");
-
-  const strTransactionEdited = sessionStateValue.strTransactions.find(
-    (txn) => route.params["transactionId"] === txn.flowOfFundsAmlTransactionId,
-  );
-
-  if (!strTransactionEdited) throw new Error("Transaction not found");
-
-  return {
-    type: "SINGLE_EDIT",
-    payload: strTransactionEdited,
-  };
-};
 
 export type TypedForm<T> = {
   [K in keyof T]-?: Exclude<T[K], undefined | null> extends Array<infer U>
@@ -3775,10 +4487,52 @@ type RecursiveOmit<T, K extends PropertyKey> = T extends object
   ? Omit<{ [P in keyof T]: RecursiveOmit<T[P], K> }, K>
   : T;
 
-type EditFormValueType = ReturnType<
+export type EditFormValueType = ReturnType<
   typeof EditFormComponent.prototype.createEditForm
 >["value"];
 
-type EditFormType = ReturnType<
+export type EditFormType = ReturnType<
   typeof EditFormComponent.prototype.createEditForm
 >;
+
+export const editTypeResolver: ResolveFn<EditFormEditType> = (
+  route: ActivatedRouteSnapshot,
+  _: RouterStateSnapshot,
+) => {
+  const selectedTransactionsForBulkEdit = inject(Router).getCurrentNavigation()
+    ?.extras.state?.["selectedTransactionsForBulkEdit"] as string[] | undefined;
+
+  return inject(SessionDataService).strTransactionData$.pipe(
+    map((strTransactionData) => {
+      const isSingleEdit = !!route.params["transactionId"];
+      const isBulkEdit = !!selectedTransactionsForBulkEdit;
+
+      if (isSingleEdit) {
+        const strTransaction = strTransactionData.find(
+          (txn) =>
+            route.params["transactionId"] === txn.flowOfFundsAmlTransactionId,
+        );
+        if (!strTransaction) throw new Error("Transaction not found");
+        return {
+          type: "SINGLE_EDIT",
+          payload: strTransaction as StrTransactionWithChangeLogs,
+        };
+      }
+      if (isBulkEdit) {
+        const strTransactions = strTransactionData.filter((txn) =>
+          selectedTransactionsForBulkEdit.includes(
+            txn.flowOfFundsAmlTransactionId,
+          ),
+        );
+        console.assert(
+          strTransactions.length === selectedTransactionsForBulkEdit.length,
+        );
+        return {
+          type: "BULK_EDIT",
+          payload: strTransactions as StrTransactionWithChangeLogs[],
+        };
+      }
+      throw new Error("Unknown edit type");
+    }),
+  );
+};

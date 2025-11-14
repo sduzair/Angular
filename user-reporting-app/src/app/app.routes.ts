@@ -4,14 +4,19 @@ import {
   lastUpdatedResolver,
   savingStatusResolver,
 } from "./aml/aml.component";
-import { SessionDataService } from "./aml/session-data.service";
+import { SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE } from "./aml/session-data.fixture";
+import {
+  SESSION_INITIAL_STATE,
+  SessionDataService
+} from "./aml/session-data.service";
 import { PageNotFoundComponent } from "./page-not-found/page-not-found.component";
 import {
   EditFormComponent,
-  singleEditResolver,
+  editTypeResolver,
 } from "./reporting-ui/edit-form/edit-form.component";
 import {
   ReportingUiTableComponent,
+  savingEditsResolver,
   strTransactionsEditedResolver,
 } from "./reporting-ui/reporting-ui-table/reporting-ui-table.component";
 import { ReportingUiComponent } from "./reporting-ui/reporting-ui.component";
@@ -31,7 +36,14 @@ export const routes: Routes = [
   {
     path: "aml/:amlId",
     component: AmlComponent,
-    providers: [SessionDataService],
+    providers: [
+      // { provide: SESSION_INITIAL_STATE, useValue: DEFAULT_SESSION_STATE },
+      {
+        provide: SESSION_INITIAL_STATE,
+        useValue: SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE,
+      },
+      SessionDataService,
+    ],
     resolve: {
       lastUpdated$: lastUpdatedResolver,
       savingStatus$: savingStatusResolver,
@@ -56,14 +68,26 @@ export const routes: Routes = [
           {
             path: "table",
             component: ReportingUiTableComponent,
-            resolve: { strTransactionData$: strTransactionsEditedResolver },
+            resolve: {
+              strTransactionData$: strTransactionsEditedResolver,
+              savingEdits$: savingEditsResolver,
+            },
             data: { reuse: true },
+          },
+          {
+            path: "edit-form/bulk-edit",
+            component: EditFormComponent,
+            resolve: {
+              editType: editTypeResolver,
+            },
+            data: { reuse: false },
+            title: () => "Bulk Edit",
           },
           {
             path: "edit-form/:transactionId",
             component: EditFormComponent,
             resolve: {
-              editType: singleEditResolver,
+              editType: editTypeResolver,
             },
             data: { reuse: false },
             title: (route) => `Edit - ${route.params["transactionId"]}`,
