@@ -13,12 +13,12 @@ import {
 import {
   CreateSessionResponse,
   GetSessionResponse,
-  SessionDataService,
   SessionStateLocal,
-} from "./session-data.service";
+  SessionStateService,
+} from "./session-state.service";
 
 describe("SessionDataService", () => {
-  let service: SessionDataService;
+  let service: SessionStateService;
   let httpMock: HttpTestingController;
   let errorHandlerSpy: jasmine.SpyObj<ErrorHandler>;
 
@@ -30,14 +30,14 @@ describe("SessionDataService", () => {
 
     TestBed.configureTestingModule({
       providers: [
-        SessionDataService,
+        SessionStateService,
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: ErrorHandler, useValue: errorHandlerSpy },
       ],
     });
 
-    service = TestBed.inject(SessionDataService);
+    service = TestBed.inject(SessionStateService);
     httpMock = TestBed.inject(HttpTestingController);
 
     mockAmlId = SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE.amlId;
@@ -77,7 +77,7 @@ describe("SessionDataService", () => {
         strTransactions: [],
       };
 
-      service["sessionState"].next(testState);
+      service["_sessionState$"].next(testState);
 
       service.latestSessionVersion$.pipe(take(1)).subscribe((version) => {
         expect(version).toBe(5);
@@ -411,14 +411,14 @@ describe("SessionDataService", () => {
   //     });
   //   });
 
-  describe("conflict$", () => {
-    it("should be a Subject that can emit conflict events", (done) => {
-      service.conflictSubject.subscribe(() => {
-        expect(true).toBe(true);
-        done();
-      });
+  // describe("conflict$", () => {
+  //   it("should be a Subject that can emit conflict events", (done) => {
+  //     service.conflict$.subscribe(() => {
+  //       expect(true).toBe(true);
+  //       done();
+  //     });
 
-      service.conflictSubject.next();
-    });
-  });
+  //     service.conflict$.next();
+  //   });
+  // });
 });

@@ -1,0 +1,643 @@
+import { HttpClient, HttpErrorResponse } from "@angular/common/http";
+import {
+  ErrorHandler,
+  Injectable,
+  InjectionToken,
+  inject,
+} from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+import { MatSnackBar } from "@angular/material/snack-bar";
+import { BehaviorSubject, Subject, map, merge, of, throwError } from "rxjs";
+import {
+  catchError,
+  concatMap,
+  debounceTime,
+  delay,
+  filter,
+  finalize,
+  scan,
+  share,
+  shareReplay,
+  startWith,
+  switchMap,
+  tap,
+  withLatestFrom,
+} from "rxjs/operators";
+import {
+  ChangeLog,
+  ChangeLogService,
+  ChangeLogWithoutVersion,
+  WithVersion,
+} from "../change-log.service";
+import { EditFormValueType } from "../reporting-ui/edit-form/edit-form.component";
+import {
+  CompletingAction,
+  StartingAction,
+  StrTransactionData,
+  _hiddenValidationType,
+} from "../reporting-ui/reporting-ui-table/reporting-ui-table.component";
+import { DeepPartial } from "../test-helpers";
+
+export const DEFAULT_SESSION_STATE: SessionStateLocal = {
+  version: 0,
+  amlId: "",
+  transactionSearchParams: {
+    accountNumbersSelection: [],
+    partyKeysSelection: [],
+    productTypesSelection: [],
+    reviewPeriodSelection: [],
+    sourceSystemsSelection: [],
+  },
+  strTransactions: [],
+};
+
+export const SESSION_INITIAL_STATE = new InjectionToken<SessionStateLocal>(
+  "SESSION_INITIAL_STATE",
+  {
+    factory: () => DEFAULT_SESSION_STATE,
+  },
+);
+
+@Injectable()
+export class SessionStateService {
+  http = inject(HttpClient);
+  errorHandler = inject(ErrorHandler);
+  private changeLogService = inject(ChangeLogService);
+  private readonly initialState = inject(SESSION_INITIAL_STATE);
+  private snackBar = inject(MatSnackBar);
+
+  private _sessionState$ = new BehaviorSubject<SessionStateLocal>(
+    this.initialState,
+  );
+
+  // todo remove usage - pending tests
+  getSessionStateValue() {
+    return this._sessionState$.value;
+  }
+
+  public sessionState$ = this._sessionState$.asObservable();
+
+  private conflict$ = new Subject<void>();
+  readonly latestSessionVersion$ = this._sessionState$.pipe(
+    map((sessionState) => sessionState?.version),
+  );
+
+  readonly lastUpdated$ = this._sessionState$.pipe(
+    map((sessionState) => sessionState.lastUpdated!),
+    startWith(new Date(0).toISOString().split("T")[0]),
+  );
+
+  private _savingEdits$ = new BehaviorSubject<string[]>([]);
+  savingEdits$ = this._savingEdits$.asObservable();
+  savingStatus$ = this.savingEdits$.pipe(map((txns) => txns.length > 0));
+
+  /**
+   * Used to populate reporting ui table
+   */
+  readonly strTransactionData$ = this._sessionState$.pipe(
+    map(
+      ({
+        strTransactions,
+        lastEditedStrTransactions: editedStrTransactions,
+      }) => {
+        if (editedStrTransactions)
+          return computePartialTransactionDataHandler(
+            strTransactions,
+            (original: StrTransactionWithChangeLogs, changes: ChangeLog[]) =>
+              this.changeLogService.applyChanges(original, changes),
+            editedStrTransactions,
+          );
+
+        return computeFullTransactionDataHandler(
+          strTransactions,
+          (original: StrTransactionWithChangeLogs, changes: ChangeLog[]) =>
+            this.changeLogService.applyChanges(original, changes),
+        );
+      },
+    ),
+    scan((acc, handler) => {
+      return handler(acc);
+    }, [] as StrTransactionWithChangeLogs[]),
+    shareReplay({ bufferSize: 1, refCount: false }), // stream never dies in aml component scope
+  );
+
+  constructor() {
+    // Subscribe immediately to ensure str transaction data accumulates from first emission
+    this.strTransactionData$.subscribe();
+    // Activate the highlight saves pipeline
+    this.highlightEditsSave$.subscribe();
+    // Start accepting pending changes for saving
+    this.updateQueue$.subscribe();
+  }
+
+  fetchSessionByAmlId(amlId: string) {
+    return this.http.get<GetSessionResponse>(`/api/sessions/${amlId}`).pipe(
+      tap(
+        ({
+          amlId,
+          version,
+          data: { transactionSearchParams, strTransactions = [] },
+          updatedAt,
+        }) => {
+          // todo use error handling to display version conflict message
+          this._sessionState$.next({
+            amlId: amlId,
+            version,
+            transactionSearchParams,
+            strTransactions,
+            lastUpdated: updatedAt,
+          });
+        },
+      ),
+    );
+  }
+
+  createSession(amlId: string) {
+    return this.http
+      .post<CreateSessionResponse>("/api/sessions", {
+        amlId: amlId,
+        data: {
+          transactionSearchParams: {
+            accountNumbersSelection: [],
+            partyKeysSelection: [],
+            productTypesSelection: [],
+            reviewPeriodSelection: [],
+            sourceSystemsSelection: [],
+          },
+          strTransactionsEdited: [],
+        },
+      })
+      .pipe(
+        tap((res) => {
+          console.assert(res.version === 0);
+
+          this._sessionState$.next({
+            version: 0,
+            amlId,
+            transactionSearchParams: {
+              accountNumbersSelection: [],
+              partyKeysSelection: [],
+              productTypesSelection: [],
+              reviewPeriodSelection: [],
+              sourceSystemsSelection: [],
+            },
+            strTransactions: [],
+          });
+        }),
+      );
+  }
+
+  private _updateQueue$ = new Subject<
+    | ExtractSubjectType<typeof SessionStateService.prototype._editFormSave$>
+    | { editType: "HIGHLIGHT"; highlightsMap: Map<string, string> }
+  >();
+
+  updateQueue$ = this._updateQueue$.asObservable().pipe(
+    concatMap((edit) => {
+      return of(edit).pipe(
+        withLatestFrom(this.strTransactionData$),
+        map(([edit, strTransactionsData]) => {
+          const { editType } = edit;
+          const pendingChanges: PendingChange[] = [];
+          if (editType === "SINGLE_EDIT") {
+            const {
+              editFormValueBefore,
+              editFormValue,
+              flowOfFundsAmlTransactionId,
+            } = edit;
+            const changeLogs: ChangeLogWithoutVersion[] = [];
+            this.changeLogService.compareProperties(
+              editFormValueBefore,
+              editFormValue,
+              changeLogs,
+            );
+            pendingChanges.push({
+              flowOfFundsAmlTransactionId,
+              pendingChangeLogs: changeLogs,
+            });
+          }
+          if (editType === "BULK_EDIT") {
+            const { transactionsBefore, editFormValue } = edit;
+            transactionsBefore.forEach((transactionBefore) => {
+              const changeLogs: ChangeLogWithoutVersion[] = [];
+              this.changeLogService.compareProperties(
+                transactionBefore,
+                editFormValue,
+                changeLogs,
+                { discriminator: "index" },
+              );
+              pendingChanges.push({
+                flowOfFundsAmlTransactionId:
+                  transactionBefore.flowOfFundsAmlTransactionId,
+                pendingChangeLogs: changeLogs,
+              });
+            });
+          }
+          if (editType === "HIGHLIGHT") {
+            const { highlightsMap } = edit;
+
+            for (const [txnId, newColor] of highlightsMap.entries()) {
+              const transaction = strTransactionsData.find(
+                (txn) => txn.flowOfFundsAmlTransactionId === txnId,
+              );
+
+              if (!transaction) continue;
+
+              const pendingChangeLogs: ChangeLogWithoutVersion[] = [];
+
+              this.changeLogService.compareProperties(
+                {
+                  highlightColor: transaction.highlightColor,
+                } satisfies DeepPartial<StrTransactionWithChangeLogs>,
+                {
+                  highlightColor: newColor,
+                } satisfies DeepPartial<StrTransactionWithChangeLogs>,
+                pendingChangeLogs,
+              );
+
+              if (pendingChangeLogs.length === 0) {
+                const isSameHighlightColor =
+                  transaction.highlightColor === newColor;
+                console.assert(isSameHighlightColor);
+                continue;
+              }
+
+              console.assert(pendingChangeLogs.length === 1);
+
+              pendingChanges.push({
+                flowOfFundsAmlTransactionId: txnId,
+                pendingChangeLogs: [pendingChangeLogs[0]],
+              });
+            }
+          }
+          return { editType, pendingChanges };
+        }),
+        filter(({ pendingChanges }) => pendingChanges.length > 0),
+        switchMap(({ editType, pendingChanges }) => {
+          const {
+            strTransactions = [],
+            transactionSearchParams,
+            version: currentVersion,
+          } = structuredClone(this._sessionState$.value);
+
+          pendingChanges
+            .filter((change) => change.pendingChangeLogs.length > 0)
+            .forEach(({ flowOfFundsAmlTransactionId, pendingChangeLogs }) => {
+              strTransactions
+                .find(
+                  (strTxn) =>
+                    strTxn._hiddenStrTxnId === flowOfFundsAmlTransactionId,
+                )!
+                .changeLogs.push(
+                  ...pendingChangeLogs.map((changeLog) => ({
+                    ...changeLog,
+                    version: currentVersion + 1,
+                  })),
+                );
+            });
+
+          const payload: UpdateSessionRequest = {
+            currentVersion,
+            data: { transactionSearchParams, strTransactions },
+          };
+
+          // note for highlights an update may be in progress
+          const currentSaving = this._savingEdits$.value;
+          const transactionIds = pendingChanges.map(
+            (change) => change.flowOfFundsAmlTransactionId,
+          );
+          this._savingEdits$.next([...currentSaving, ...transactionIds]);
+          // return this.http
+          //   .put<UpdateSessionResponse>(
+          //     `/api/sessions/${this._sessionState$.value.amlId}`,
+          //     payload,
+          //   )
+          //   .pipe(
+          return of({
+            amlId: "9999",
+            newVersion: currentVersion + 1,
+            updatedAt: new Date(0).toISOString().split("T")[0],
+          }).pipe(
+            map((response) => ({ editType, response })),
+            // return throwError(() => new HttpErrorResponse({ status: 500 })).pipe(
+            delay(5000),
+            tap(({ response: { newVersion, updatedAt } }) => {
+              console.assert(newVersion === payload.currentVersion + 1);
+              this._sessionState$.next({
+                amlId: this._sessionState$.value.amlId,
+                version: newVersion,
+                transactionSearchParams,
+                strTransactions,
+                lastEditedStrTransactions: pendingChanges.map(
+                  ({ flowOfFundsAmlTransactionId }) =>
+                    flowOfFundsAmlTransactionId,
+                ),
+                lastUpdated: updatedAt,
+              });
+            }),
+            catchError((error: HttpErrorResponse) => {
+              // on conflict
+              if (error.status === 409) {
+                this.conflict$.next();
+                return this.fetchSessionByAmlId(
+                  this._sessionState$.value.amlId,
+                ).pipe(switchMap(() => throwError(() => error)));
+              }
+
+              return throwError(() => error);
+            }),
+            finalize(() => {
+              // Remove only the IDs from this specific request
+              const remaining = [...this._savingEdits$.value];
+              transactionIds.forEach((id) => {
+                const index = remaining.indexOf(id);
+                if (index > -1) {
+                  remaining.splice(index, 1);
+                }
+              });
+              this._savingEdits$.next(remaining);
+            }),
+            shareReplay({ bufferSize: 1, refCount: false }),
+          );
+        }),
+      );
+    }),
+    share(),
+  );
+
+  private updateStrTransactions(
+    edit: ExtractSubjectType<
+      typeof SessionStateService.prototype._updateQueue$
+    >,
+  ) {
+    this._updateQueue$.next(edit);
+  }
+
+  private _editFormSave$ = new Subject<
+    | {
+        editType: "SINGLE_EDIT";
+        flowOfFundsAmlTransactionId: string;
+        editFormValue: EditFormValueType;
+        editFormValueBefore: EditFormValueType;
+      }
+    | {
+        editType: "BULK_EDIT";
+        editFormValue: EditFormValueType;
+        transactionsBefore: StrTransactionWithChangeLogs[];
+      }
+  >();
+
+  saveEditForm(
+    edit: ExtractSubjectType<
+      typeof SessionStateService.prototype._editFormSave$
+    >,
+  ) {
+    this._editFormSave$.next(edit);
+  }
+
+  editFormSave$ = this._editFormSave$.asObservable().pipe(
+    tap((edit) => {
+      return this.updateStrTransactions(edit);
+    }),
+  );
+
+  // highlights
+  private highlightEdits$ = new Subject<
+    { txnId: string; newColor: string }[]
+  >();
+  private resetHiglightsAccumulator$ = new Subject<void>();
+
+  saveHighlightEdits(
+    highlights: ExtractSubjectType<
+      typeof SessionStateService.prototype.highlightEdits$
+    >,
+  ) {
+    this.highlightEdits$.next(highlights);
+  }
+
+  highlightEditsSave$ = merge(
+    this.highlightEdits$.pipe(
+      takeUntilDestroyed(),
+      map((highlightEdits) => {
+        return {
+          type: "update" as const,
+          data: highlightEdits,
+        };
+      }),
+    ),
+
+    this.resetHiglightsAccumulator$.pipe(
+      map(() => ({ type: "reset" as const })),
+    ),
+  ).pipe(
+    // accumulate highlights that occur within debounce time
+    scan((accumulator, action) => {
+      if (action.type === "reset") {
+        return new Map<string, string>();
+      }
+      const newAccumulator = new Map(accumulator);
+      const highlightEdits = action.data;
+
+      for (const { txnId, newColor } of highlightEdits) {
+        newAccumulator.set(txnId, newColor);
+      }
+
+      return newAccumulator;
+    }, new Map<string, string>()),
+    debounceTime(1000),
+    filter((accumulator) => accumulator.size > 0),
+    tap(() => this.resetHiglightsAccumulator$.next()),
+    tap((highlightsMap) =>
+      this.updateStrTransactions({ editType: "HIGHLIGHT", highlightsMap }),
+    ),
+  );
+}
+
+export interface PendingChange {
+  flowOfFundsAmlTransactionId: string;
+  pendingChangeLogs: ChangeLogWithoutVersion[];
+}
+
+export interface SessionStateLocal {
+  amlId: string;
+  version: number;
+  transactionSearchParams: {
+    partyKeysSelection?: string[] | null;
+    accountNumbersSelection?: string[] | null;
+    sourceSystemsSelection?: string[] | null;
+    productTypesSelection?: string[] | null;
+    reviewPeriodSelection?: ReviewPeriod[] | null;
+  };
+  strTransactions: StrTransactionWithChangeLogs[];
+  lastEditedStrTransactions?: PendingChange["flowOfFundsAmlTransactionId"][];
+  lastUpdated?: string;
+}
+
+export type StrTransactionWithChangeLogs = WithVersion<StrTransactionData> & {
+  changeLogs: ChangeLog[];
+};
+
+export interface StrTransactionChangeLogs {
+  txnId: string;
+  changeLogs: ChangeLog[];
+}
+
+export interface GetSessionResponse {
+  amlId: string;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  userId: string;
+  data: {
+    transactionSearchParams: {
+      partyKeysSelection?: string[] | null;
+      accountNumbersSelection?: string[] | null;
+      sourceSystemsSelection?: string[] | null;
+      productTypesSelection?: string[] | null;
+      reviewPeriodSelection?: ReviewPeriod[] | null;
+    };
+    strTransactions?: StrTransactionWithChangeLogs[];
+  };
+}
+
+interface CreateSessionRequest {
+  amlId: string;
+  data: {
+    transactionSearchParams: {
+      partyKeysSelection?: string[] | null;
+      accountNumbersSelection?: string[] | null;
+      sourceSystemsSelection?: string[] | null;
+      productTypesSelection?: string[] | null;
+      reviewPeriodSelection?: ReviewPeriod[] | null;
+    };
+    strTransactions?: StrTransactionWithChangeLogs[];
+  };
+}
+
+export interface CreateSessionResponse {
+  amlId: string;
+  userId: string;
+  version: number;
+  createdAt: string;
+}
+
+interface UpdateSessionRequest {
+  currentVersion: number;
+  data: {
+    transactionSearchParams: {
+      partyKeysSelection?: string[] | null;
+      accountNumbersSelection?: string[] | null;
+      sourceSystemsSelection?: string[] | null;
+      productTypesSelection?: string[] | null;
+      reviewPeriodSelection?: ReviewPeriod[] | null;
+    };
+    strTransactions?: StrTransactionWithChangeLogs[];
+  };
+}
+
+interface UpdateSessionResponse {
+  amlId: string;
+  newVersion: number;
+  updatedAt: string;
+}
+
+export interface ReviewPeriod {
+  start?: string | null;
+  end?: string | null;
+}
+
+const computeFullTransactionDataHandler = (
+  strTransactions: StrTransactionWithChangeLogs[],
+  applyChanges: typeof ChangeLogService.prototype.applyChanges<StrTransactionWithChangeLogs>,
+) => {
+  return (acc: StrTransactionWithChangeLogs[]) => {
+    return strTransactions
+      .map((strTransaction) => {
+        return applyChanges(strTransaction, strTransaction.changeLogs);
+      })
+      .map(addValidationInfo);
+  };
+};
+
+const computePartialTransactionDataHandler = (
+  strTransactions: StrTransactionWithChangeLogs[],
+  applyChanges: typeof ChangeLogService.prototype.applyChanges<StrTransactionWithChangeLogs>,
+  editedStrTransactions: NonNullable<
+    SessionStateLocal["lastEditedStrTransactions"]
+  >,
+) => {
+  return (acc: StrTransactionWithChangeLogs[]) => {
+    const partialTransactionData = strTransactions
+      .filter(({ flowOfFundsAmlTransactionId }) =>
+        editedStrTransactions.includes(flowOfFundsAmlTransactionId),
+      )
+      .map((strTransaction) => {
+        return applyChanges(strTransaction, strTransaction.changeLogs);
+      });
+
+    return [
+      ...partialTransactionData.map(addValidationInfo),
+      ...acc.filter(
+        ({ flowOfFundsAmlTransactionId }) =>
+          !editedStrTransactions.includes(flowOfFundsAmlTransactionId),
+      ),
+    ];
+  };
+};
+
+function addValidationInfo(transaction: StrTransactionWithChangeLogs) {
+  const errors: _hiddenValidationType[] = [];
+  if (
+    transaction._version &&
+    transaction._version > 0 &&
+    !transaction.changeLogs.every((log) => log.path === "highlightColor")
+  )
+    errors.push("Edited Txn");
+
+  if (transaction.startingActions.some(hasMissingConductors))
+    errors.push("Conductor Missing");
+
+  if (
+    transaction.startingActions.some(hasMissingCibcInfo) ||
+    transaction.completingActions.some(hasMissingCibcInfo)
+  )
+    errors.push("Bank Info Missing");
+
+  transaction._hiddenValidation = errors;
+  return transaction;
+}
+
+function hasMissingConductors(sa: StartingAction) {
+  if (!sa.wasCondInfoObtained) return false;
+
+  if (sa.conductors!.length === 0) return true;
+  if (
+    sa.conductors!.some(
+      ({ givenName, surname, otherOrInitial, nameOfEntity }) =>
+        !givenName && !surname && !otherOrInitial && !nameOfEntity,
+    )
+  )
+    return true;
+
+  return false;
+}
+
+function hasMissingCibcInfo(action: StartingAction | CompletingAction) {
+  if (action.fiuNo !== "010") return false;
+
+  if (
+    !action.branch ||
+    !action.account ||
+    !action.accountType ||
+    (action.accountType === "Other" && !action.accountTypeOther) ||
+    !action.accountCurrency ||
+    !action.accountStatus ||
+    !action.accountOpen ||
+    (action.accountStatus === "Closed" && !action.accountClose)
+  )
+    return true;
+
+  return false;
+}
+
+type ExtractSubjectType<T> = T extends Subject<infer U> ? U : never;

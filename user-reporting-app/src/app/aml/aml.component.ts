@@ -11,7 +11,7 @@ import { MatProgressSpinner } from "@angular/material/progress-spinner";
 import { MatToolbarModule } from "@angular/material/toolbar";
 import { ResolveFn, RouterOutlet } from "@angular/router";
 import { Observable } from "rxjs";
-import { SessionDataService } from "./session-data.service";
+import { SessionStateService } from "./session-state.service";
 
 @Component({
   selector: "app-aml",
@@ -72,12 +72,12 @@ export const lastUpdatedResolver: ResolveFn<Observable<string>> = async (
   _route,
   _state,
 ) => {
-  return inject(SessionDataService).lastUpdated$;
+  return inject(SessionStateService).lastUpdated$;
 };
 
 export const savingStatusResolver: ResolveFn<Observable<boolean>> = async (
   _route,
   _state,
 ) => {
-  return inject(SessionDataService).savingStatus$;
+  return inject(SessionStateService).savingStatus$;
 };

@@ -41,9 +41,9 @@ import { isEqualWith } from "lodash-es";
 import { defer, map, tap } from "rxjs";
 import { v4 as uuidv4 } from "uuid";
 import {
-  SessionDataService,
+  SessionStateService,
   StrTransactionWithChangeLogs,
-} from "../../aml/session-data.service";
+} from "../../aml/session-state.service";
 import { ChangeLogService, WithVersion } from "../../change-log.service";
 import { ClearFieldDirective } from "../../clear-field.directive";
 import { PreemptiveErrorStateMatcher } from "../../transaction-search/transaction-search.component";
@@ -115,7 +115,10 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
             color="primary"
             type="submit"
             form="edit-form"
-            [disabled]="!(editFormHasChanges$ | async)"
+            [disabled]="
+              !(editFormHasChanges$ | async) ||
+              (sessionDataService.savingStatus$ | async)
+            "
             [matBadge]="selectedTransactionsForBulkEditLength"
             [matBadgeHidden]="!isBulkEdit"
           >
@@ -511,6 +514,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                 color="primary"
                 (click)="addStartingAction(!!this.isBulkEdit)"
                 class="mx-1"
+                [attr.data-testid]="'startingActions-add'"
               >
                 <mat-icon>add</mat-icon> Add Starting Action
               </button>
@@ -1217,6 +1221,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                       [appControlToggle]="
                         'startingActions.' + saIndex + '.hasAccountHolders'
                       "
+                      [isBulkEdit]="isBulkEdit"
                       (addControlGroup)="
                         addAccountHolder('startingActions', saIndex)
                       "
@@ -1376,6 +1381,9 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         mat-raised-button
                         color="primary"
                         (click)="addAccountHolder('startingActions', saIndex)"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-accountHolders-add'
+                        "
                       >
                         <mat-icon>add</mat-icon> Add Account Holder
                       </button>
@@ -1408,6 +1416,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                       [appControlToggle]="
                         'startingActions.' + saIndex + '.wasSofInfoObtained'
                       "
+                      [isBulkEdit]="isBulkEdit"
                       (addControlGroup)="addSourceOfFunds(saIndex)"
                     >
                       <div
@@ -1610,6 +1619,9 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         mat-raised-button
                         color="primary"
                         (click)="addSourceOfFunds(saIndex)"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-sourceOfFunds-add'
+                        "
                       >
                         <mat-icon>add</mat-icon> Add Source of Funds
                       </button>
@@ -1644,6 +1656,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                       [appControlToggle]="
                         'startingActions.' + saIndex + '.wasCondInfoObtained'
                       "
+                      [isBulkEdit]="isBulkEdit"
                       (addControlGroup)="addConductor(saIndex)"
                     >
                       <div
@@ -2009,6 +2022,9 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         mat-raised-button
                         color="primary"
                         (click)="addConductor(saIndex)"
+                        [attr.data-testid]="
+                          'startingActions-' + saIndex + '-conductors-add'
+                        "
                       >
                         <mat-icon>add</mat-icon> Add Conductor
                       </button>
@@ -2037,6 +2053,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                 color="primary"
                 (click)="addCompletingAction(!!this.isBulkEdit)"
                 class="mx-1"
+                [attr.data-testid]="'completingActions-add'"
               >
                 <mat-icon>add</mat-icon> Add Completing Action
               </button>
@@ -2760,6 +2777,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                       [appControlToggle]="
                         'completingActions.' + caIndex + '.hasAccountHolders'
                       "
+                      [isBulkEdit]="isBulkEdit"
                       (addControlGroup)="
                         addAccountHolder('completingActions', caIndex)
                       "
@@ -2920,6 +2938,9 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         mat-raised-button
                         color="primary"
                         (click)="addAccountHolder('completingActions', caIndex)"
+                        [attr.data-testid]="
+                          'completingActions-' + caIndex + '-accountHolders-add'
+                        "
                       >
                         <mat-icon>add</mat-icon> Add Account Holder
                       </button>
@@ -2958,6 +2979,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         caIndex +
                         '.wasAnyOtherSubInvolved'
                       "
+                      [isBulkEdit]="isBulkEdit"
                       (addControlGroup)="addInvolvedIn(caIndex)"
                     >
                       <div
@@ -3157,6 +3179,9 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         mat-raised-button
                         color="primary"
                         (click)="addInvolvedIn(caIndex)"
+                        [attr.data-testid]="
+                          'completingActions-' + caIndex + '-involvedIn-add'
+                        "
                       >
                         <mat-icon>add</mat-icon> Add Involved Subject
                       </button>
@@ -3189,6 +3214,7 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                       [appControlToggle]="
                         'completingActions.' + caIndex + '.wasBenInfoObtained'
                       "
+                      [isBulkEdit]="isBulkEdit"
                       (addControlGroup)="addBeneficiary(caIndex)"
                     >
                       <div
@@ -3340,6 +3366,9 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         mat-raised-button
                         color="primary"
                         (click)="addBeneficiary(caIndex)"
+                        [attr.data-testid]="
+                          'completingActions-' + caIndex + '-beneficiaries-add'
+                        "
                       >
                         <mat-icon>add</mat-icon> Add Beneficiary
                       </button>
@@ -3381,6 +3410,7 @@ export class EditFormComponent implements OnInit {
         isBulkEdit: true,
         disabled: true,
       });
+      this.editForm.disable();
     }
   }
 
@@ -3426,44 +3456,46 @@ export class EditFormComponent implements OnInit {
   // ----------------------
   // Form Submission
   // ----------------------
-  protected sessionDataService = inject(SessionDataService);
-  protected isBulkEditSaved = false;
-  _ = this.sessionDataService.editFormSave$
+  protected sessionDataService = inject(SessionStateService);
+  protected isSaved = false;
+  _e = this.sessionDataService.editFormSave$
+    .pipe(takeUntilDestroyed())
+    .subscribe();
+
+  _u = this.sessionDataService.updateQueue$
     .pipe(
       takeUntilDestroyed(),
       tap(({ editType }) => {
-        if (editType === "SINGLE_EDIT") {
-          // Reload current page
-          this.router.navigateByUrl(this.router.url, {
-            onSameUrlNavigation: "reload",
-          });
-        }
+        const messages = {
+          SINGLE_EDIT: "Edit saved!",
+          BULK_EDIT: "Edits saved!",
+          HIGHLIGHT: "Highlights saved!",
+        };
 
-        if (editType === "BULK_EDIT") {
-          this.isBulkEditSaved = true;
-          this.snackBar.open("Edits saved!", "Dismiss", {
-            duration: 5000,
-          });
-        }
+        this.snackBar.open(messages[editType], "Dismiss", {
+          duration: 5000,
+        });
       }),
     )
     .subscribe();
 
   protected onSave(): void {
-    console.log(
-      "🚀 ~ EditFormComponent ~ onSubmit ~ this.userForm!.getRawValue():",
-      this.editForm!.getRawValue(),
-    );
+    // console.log(
+    //   "🚀 ~ EditFormComponent ~ onSubmit ~ this.userForm!.getRawValue():",
+    //   this.editForm!.getRawValue(),
+    // );
 
-    if (this.isBulkEditSaved) {
+    if (this.isSaved) {
       this.snackBar.open("Edits already saved!", "Dismiss", {
         duration: 5000,
       });
       return;
     }
 
+    this.isSaved = true;
+
     if (this.editType.type === "SINGLE_EDIT") {
-      this.sessionDataService.editFormSaveSubject.next({
+      this.sessionDataService.saveEditForm({
         editType: "SINGLE_EDIT",
         flowOfFundsAmlTransactionId:
           this.editType.payload.flowOfFundsAmlTransactionId,
@@ -3473,7 +3505,7 @@ export class EditFormComponent implements OnInit {
     }
 
     if (this.editType.type === "BULK_EDIT") {
-      this.sessionDataService.editFormSaveSubject.next({
+      this.sessionDataService.saveEditForm({
         editType: "BULK_EDIT",
         editFormValue: this.editForm!.getRawValue(),
         transactionsBefore: this.editType.payload,
@@ -4502,7 +4534,7 @@ export const editTypeResolver: ResolveFn<EditFormEditType> = (
   const selectedTransactionsForBulkEdit = inject(Router).getCurrentNavigation()
     ?.extras.state?.["selectedTransactionsForBulkEdit"] as string[] | undefined;
 
-  return inject(SessionDataService).strTransactionData$.pipe(
+  return inject(SessionStateService).strTransactionData$.pipe(
     map((strTransactionData) => {
       const isSingleEdit = !!route.params["transactionId"];
       const isBulkEdit = !!selectedTransactionsForBulkEdit;

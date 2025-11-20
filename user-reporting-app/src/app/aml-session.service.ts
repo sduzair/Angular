@@ -1,7 +1,7 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { map, timer } from "rxjs";
-import { GetSessionResponse } from "./aml/session-data.service";
+import { GetSessionResponse } from "./aml/session-state.service";
 
 @Injectable({ providedIn: "root" })
 export class AmlSessionService {

@@ -25,6 +25,7 @@ import { SPECIAL_EMPTY_VALUE } from "./mark-as-empty.directive";
 })
 export class ControlToggleDirective implements OnInit {
   @Input({ required: true }) appControlToggle!: string;
+  @Input() isBulkEdit = false;
   @Input({ required: false }) appControlToggleValue?: any;
   @Input() appControlRequired = false;
   @Output() addControlGroup = new EventEmitter();
@@ -183,12 +184,19 @@ export class ControlToggleDirective implements OnInit {
         }
 
         // array field depends on checkbox toggle's value
-        // only needs to be enabled as validator required set by default
-        if (isControlToToggleAFormArray && toggleHasValue) {
+        // only needs to be enabled as field validators set as required by default
+        if (isControlToToggleAFormArray && toggleHasValue && !this.isBulkEdit) {
+          this.controlToToggle.enable({ emitEvent: false });
+
+          if (this.controlToToggle.value.length === 0)
+            this.addControlGroup.emit();
+          return;
+        }
+
+        if (isControlToToggleAFormArray && toggleHasValue && this.isBulkEdit) {
           this.controlToToggle.enable({ emitEvent: false });
 
           this.controlToToggle.clear({ emitEvent: false });
-          // if (this.controlToToggle.value.length === 0)
           this.addControlGroup.emit();
           return;
         }

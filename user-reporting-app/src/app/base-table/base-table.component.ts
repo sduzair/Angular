@@ -39,7 +39,6 @@ import { MatToolbarModule } from "@angular/material/toolbar";
 import { of } from "rxjs";
 import { TxnTimePipe } from "../reporting-ui/reporting-ui-table/pad-zero.pipe";
 import { ScrollPositionPreserveDirective } from "../route-cache/scroll-position-preserve.directive";
-import { ClickOutsideTableDirective } from "./click-outside-table.directive";
 import { ReviewPeriodDateDirective } from "../transaction-search/review-period-date.directive";
 import { PersistentAutocompleteTrigger } from "../transaction-view/persistent-autocomplete-trigger.directive";
 import {
@@ -47,6 +46,7 @@ import {
   IFilterForm,
   ISelectionMasterToggle,
 } from "./abstract-base-table";
+import { ClickOutsideTableDirective } from "./click-outside-table.directive";
 
 @Component({
   selector: "app-base-table",
@@ -475,11 +475,12 @@ import {
             <ng-container *ngIf="recentlyOpenRows$ | async as recentlyOpenRows">
               <tr
                 mat-row
-                *matRowDef="let row; columns: this.displayedColumns"
+                *matRowDef="let row; columns: this.displayedColumns; let i = index"
                 [class.recentlyOpenRowHighlight]="
                   isRecentlyOpened(row, recentlyOpenRows)
                 "
-                (click)="filterFormAssignSelectedColorToRow(row, $event)"
+                [class.no-select]="filterFormHighlightSelectedColor !== undefined"
+                (click)="filterFormAssignSelectedColorToRow($event, row, i)"
                 [style.cursor]="
                   filterFormHighlightSelectedColor !== undefined
                     ? 'pointer'
@@ -497,7 +498,7 @@ import {
       [pageSize]="pageSize"
       showFirstLastButtons
       aria-label="Select page of periodic elements"
-      class="col-auto ms-auto"
+      class="col-auto ms-auto table-paginator"
     >
     </mat-paginator>
   `,
@@ -560,31 +561,6 @@ export class BaseTableComponent<
   override filterFormFormGroup!: FormGroup<any>;
 
   override filterFormFilterKeys!: TFilterKeys[];
-  private _data!: TData[];
-  get data(): TData[] {
-    return this._data;
-  }
-
-  @Input()
-  set data(value: TData[]) {
-    this._data = value;
-    if (!this.dataSource) return;
-
-    // todo update page size options if no of records changes
-    if (this.dataSource.data.length !== value.length) {
-      throw new Error("update page size options if no of records changes");
-    }
-
-    this.dataSource.data = value;
-
-    // Mark ALL select filter options caches as dirty
-    const selectFilterKeys = this.filterFormFilterKeys.filter(
-      this.selectFiltersIsSelectFilterKey,
-    );
-    for (const key of selectFilterKeys) {
-      this.selectFiltersIsUniqueOptionsCacheDirty.set(key, true);
-    }
-  }
 
   override dataSource!: MatTableDataSource<TData, MatPaginator>;
 
@@ -597,7 +573,7 @@ export class BaseTableComponent<
   @Input({ required: true })
   override selectionKey!: keyof TSelection;
 
-  @Input({ required: true })
+  @Input()
   hasMasterToggle = false;
 
   isAllSelected(): boolean {

@@ -11,26 +11,48 @@ import {
   selector: "[appClickOutsideTable]",
 })
 export class ClickOutsideTableDirective implements OnDestroy {
+  private documentClickListener!: (ev: Event) => void;
   @Output() appClickOutsideTable = new EventEmitter<void>();
 
   constructor(private el: ElementRef) {}
-  ngOnDestroy(): void {
+
+  private allowedElements = ["color-pallette", "table-paginator"];
+  private notAllowedElements = ["mat-column-actions"];
+
+  ngOnInit() {
+    this.documentClickListener = this.onClick.bind(this);
+    // emission must happen in capture phase in case of table row
+    document.addEventListener("click", this.documentClickListener, {
+      capture: true,
+    });
+  }
+
+  ngOnDestroy() {
+    document.removeEventListener("click", this.documentClickListener, {
+      capture: true,
+    });
     this.appClickOutsideTable.complete();
   }
 
-  private allowedClass = "color-pallette";
-
-  @HostListener("document:click", ["$event.target"])
-  public onClick(targetElement: HTMLElement) {
-    if (!this.el.nativeElement.isConnected || !targetElement.isConnected) {
+  private onClick(ev: Event) {
+    const targetEle = ev.target as HTMLElement;
+    if (!this.el.nativeElement.isConnected || !targetEle.isConnected) {
       return;
     }
 
-    const clickedInside = this.el.nativeElement.contains(targetElement);
-    const clickedInsideAllowed = this.hasParentWithClass(
-      targetElement,
-      this.allowedClass,
+    const clickedInside = this.el.nativeElement.contains(targetEle);
+    const clickedInsideAllowed = this.allowedElements.some((allowedElement) =>
+      this.hasParentWithClass(targetEle, allowedElement),
     );
+
+    const clickedInsideNotAllowed = this.notAllowedElements.some(
+      (notAllowedElement) =>
+        this.hasParentWithClass(targetEle, notAllowedElement),
+    );
+
+    if (clickedInsideNotAllowed) {
+      this.appClickOutsideTable.emit();
+    }
 
     if (clickedInside || clickedInsideAllowed) return;
 
@@ -38,7 +60,7 @@ export class ClickOutsideTableDirective implements OnDestroy {
   }
 
   @HostListener("document:keydown.escape", ["$event"])
-  public onEscapeKey(event: KeyboardEvent) {
+  public onEscapeKey(event: Event) {
     this.appClickOutsideTable.emit();
   }
 

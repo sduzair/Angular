@@ -19,7 +19,7 @@ import {
   RouterStateSnapshot,
 } from "@angular/router";
 import { concat, defer, map, of, tap } from "rxjs";
-import { SessionDataService } from "../aml/session-data.service";
+import { SessionStateService } from "../aml/session-state.service";
 import { ISelectionComparator } from "../base-table/abstract-base-table";
 import {
   AbmSourceData,
@@ -240,7 +240,7 @@ export class TransactionViewComponent
 
 export const transactionSearchResolver: ResolveFn<TransactionSearchResponse> = (
   route: ActivatedRouteSnapshot,
-  state: RouterStateSnapshot,
+  _state: RouterStateSnapshot,
 ) => {
   const amlTransactionSearchService = inject(AmlTransactionSearchService);
   const amlId = route.paramMap.get("amlId")!;
@@ -249,13 +249,14 @@ export const transactionSearchResolver: ResolveFn<TransactionSearchResponse> = (
 
 export const selectionsResolver: ResolveFn<
   { flowOfFundsAmlTransactionId: string }[]
-> = (route: ActivatedRouteSnapshot, state: RouterStateSnapshot) => {
-  const sessionDataService = inject(SessionDataService);
-  const sessionStateValue = sessionDataService.getSessionStateValue();
-  if (!sessionStateValue) throw new Error("No session found");
-  return sessionStateValue.strTransactions.map((txn) => ({
-    flowOfFundsAmlTransactionId: txn.flowOfFundsAmlTransactionId,
-  }));
+> = (_route: ActivatedRouteSnapshot, _state: RouterStateSnapshot) => {
+  return inject(SessionStateService).sessionState$.pipe(
+    map(({ strTransactions }) => {
+      return strTransactions.map((txn) => ({
+        flowOfFundsAmlTransactionId: txn.flowOfFundsAmlTransactionId,
+      }));
+    }),
+  );
 };
 
 export type TableSelectionCompareWithAmlTransactionId = {

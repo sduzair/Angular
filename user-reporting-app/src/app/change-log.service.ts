@@ -197,9 +197,17 @@ export class ChangeLogService {
       change.newValue !== null
     ) {
       throw new Error("add new array item when current has no array");
-    } else if (Array.isArray(current[part]) && Array.isArray(change.newValue)) {
+    } else if (
+      Array.isArray(current[part]) &&
+      current[part].length > 0 &&
+      Array.isArray(change.newValue)
+    ) {
       throw new Error("entire array addition when current is already array");
-    } else if (Array.isArray(current[part]) && change.newValue !== undefined) {
+    } else if (
+      Array.isArray(current[part]) &&
+      change.newValue !== undefined &&
+      !Array.isArray(change.newValue)
+    ) {
       current[part].push(change.newValue);
     } else {
       current[part] = change.newValue;

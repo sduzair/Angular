@@ -1,6 +1,6 @@
 import { StrTransaction } from "../reporting-ui/reporting-ui-table/reporting-ui-table.component";
 import { TransactionSearchResponse } from "../transaction-search/aml-transaction-search.service";
-import { SessionStateLocal } from "./session-data.service";
+import { SessionStateLocal } from "./session-state.service";
 
 export const EDITED_TRANSACTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransaction[] = [
   {

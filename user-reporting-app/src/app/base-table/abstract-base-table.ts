@@ -722,18 +722,49 @@ export abstract class AbstractBaseTable<
   }
   filterFormHighlightSelectedColor?: string | null = undefined;
 
+  lastHighlightedIndex: { pageRowIndex: number; pageIndex: number } | null =
+    null;
   /**
    * Select row color. Note: null signifies removing a color
    *
    * @param {TData} row
    * @param {MouseEvent} event
    */
-  filterFormAssignSelectedColorToRow(row: TData, event: MouseEvent) {
-    if (typeof this.filterFormHighlightSelectedColor === "undefined") return;
+  filterFormAssignSelectedColorToRow(
+    event: MouseEvent,
+    row: TData,
+    pageRowIndex: number,
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    const isHighlightSelected =
+      typeof this.filterFormHighlightSelectedColor !== "undefined";
 
-    const targetRows: TData[] = event.ctrlKey
-      ? this.dataSource.filteredData
-      : [row];
+    if (!isHighlightSelected) return;
+
+    let targetRows: TData[] = [];
+
+    targetRows = [row];
+
+    if (event.shiftKey && this.lastHighlightedIndex != null) {
+      // assuming page size remains same b/w selections
+      const lastHighlightedRowIndex =
+        this.lastHighlightedIndex.pageRowIndex +
+        this.lastHighlightedIndex.pageIndex * this.paginator.pageSize;
+
+      const rowIndex =
+        pageRowIndex + this.paginator.pageIndex * this.paginator.pageSize;
+
+      const start = Math.min(lastHighlightedRowIndex, rowIndex) + 1;
+      const end = Math.max(lastHighlightedRowIndex, rowIndex) - 1;
+      const displayData = this.dataSource.sortData(
+        this.dataSource.filteredData,
+        this.dataSource.sort!,
+      );
+      for (let i = start; i <= end; i++) {
+        targetRows.push(displayData[i]);
+      }
+    }
 
     // Apply selectedColor to target rows
     const targetIds = new Set(
@@ -742,6 +773,7 @@ export abstract class AbstractBaseTable<
       }),
     );
 
+    // this.data setter is not used as cache invalidation not needed when updating highlight color
     this.dataSource.data = this.dataSource.data.map((row) => {
       if (targetIds.has(this.table.trackBy(0, row))) {
         return {
@@ -752,8 +784,25 @@ export abstract class AbstractBaseTable<
       }
       return row;
     });
+
+    this.filterFormHighlightSideEffect(
+      Array.from(targetIds).map((txnId) => ({
+        txnId,
+        newColor: this.filterFormHighlightSelectedColor!,
+      })),
+    );
+
+    this.lastHighlightedIndex = {
+      pageRowIndex,
+      pageIndex: this.paginator.pageIndex,
+    };
     return;
   }
+
+  @Input()
+  filterFormHighlightSideEffect = (
+    highlights: { txnId: string; newColor: string }[],
+  ) => {};
 
   filterFormConjunctionControl = new FormControl<"OR" | "AND">("AND", {
     nonNullable: true,
@@ -765,6 +814,31 @@ export abstract class AbstractBaseTable<
   @ViewChild(MatTable, { static: true }) table!: MatTable<TData>;
   abstract dataSource: MatTableDataSource<TData>;
   abstract dataSourceTrackBy: TrackByFunction<TData>;
+  private _data!: TData[];
+  get data(): TData[] {
+    return this._data;
+  }
+
+  @Input()
+  set data(value: TData[]) {
+    this._data = value;
+    if (!this.dataSource) return;
+
+    // todo update page size options if no of records changes
+    if (this.dataSource.data.length !== value.length) {
+      throw new Error("update page size options if no of records changes");
+    }
+
+    this.dataSource.data = value;
+
+    // Mark ALL select filter options caches as dirty
+    const selectFilterKeys = this.filterFormFilterKeys.filter(
+      this.selectFiltersIsSelectFilterKey,
+    );
+    for (const key of selectFilterKeys) {
+      this.selectFiltersIsUniqueOptionsCacheDirty.set(key, true);
+    }
+  }
 
   // ============================================
   // ISortable Implementation
@@ -994,7 +1068,16 @@ export interface IHighlightable<TData, THighlightKey> {
   filterFormHighlightMapTrackBy: TrackByFunction<[string, string]>;
   filterFormHighlightSelectedColor?: string | null;
 
-  filterFormAssignSelectedColorToRow(row: TData, event: MouseEvent): void;
+  lastHighlightedIndex: { pageRowIndex: number; pageIndex: number } | null;
+  filterFormAssignSelectedColorToRow(
+    event: MouseEvent,
+    row: TData,
+    pageRowIndex: number,
+  ): void;
+  filterFormHighlightSideEffect: (
+    highlights: { txnId: string; newColor: string }[],
+  ) => void;
+
   filterFormConjunctionControl: FormControl<"OR" | "AND">;
 }
 

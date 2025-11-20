@@ -9,6 +9,7 @@ import {
   StartingAction,
   StrTransaction,
 } from "./reporting-ui/reporting-ui-table/reporting-ui-table.component";
+import { DeepPartial } from "./test-helpers";
 
 describe("ChangeLogService", () => {
   let service: ChangeLogService;
@@ -183,8 +184,10 @@ describe("ChangeLogService", () => {
       ).toThrowError("add new array item when current has no array");
     });
 
-    it("should throw for entire array addition when current is already array", () => {
-      transactionBefore.startingActions = [];
+    it("should throw for entire array addition when current is already non zero length array", () => {
+      transactionBefore.startingActions = [
+        { _id: "sa1", typeOfFundsOther: "paycheque" },
+      ];
       const newSa: DeepPartial<StartingAction> = {
         _id: "sa1",
         typeOfFundsOther: "investment",
@@ -1516,11 +1519,3 @@ describe("ChangeLogService", () => {
     });
   });
 });
-
-type DeepPartial<T> = {
-  [P in keyof T]?: Exclude<T[P], null | undefined> extends (infer U)[]
-    ? DeepPartial<U>[] | null
-    : T[P] extends object
-      ? DeepPartial<T[P]> | null
-      : T[P] | null;
-};

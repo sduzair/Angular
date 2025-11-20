@@ -7,8 +7,8 @@ import {
 import { SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE } from "./aml/session-data.fixture";
 import {
   SESSION_INITIAL_STATE,
-  SessionDataService
-} from "./aml/session-data.service";
+  SessionStateService
+} from "./aml/session-state.service";
 import { PageNotFoundComponent } from "./page-not-found/page-not-found.component";
 import {
   EditFormComponent,
@@ -42,7 +42,7 @@ export const routes: Routes = [
         provide: SESSION_INITIAL_STATE,
         useValue: SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE,
       },
-      SessionDataService,
+      SessionStateService,
     ],
     resolve: {
       lastUpdated$: lastUpdatedResolver,

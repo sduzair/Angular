@@ -1,27 +1,29 @@
 import { HarnessLoader } from "@angular/cdk/testing";
 import { TestbedHarnessEnvironment } from "@angular/cdk/testing/testbed";
+import { provideHttpClient } from "@angular/common/http";
+import {
+  HttpTestingController,
+  provideHttpClientTesting,
+} from "@angular/common/http/testing";
 import {
   ANIMATION_MODULE_TYPE,
   Component,
-  DebugElement,
   ErrorHandler,
   inject,
   provideZoneChangeDetection,
 } from "@angular/core";
-import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { TestBed } from "@angular/core/testing";
 import {
   MAT_DATE_FNS_FORMATS,
   provideDateFnsAdapter,
 } from "@angular/material-date-fns-adapter";
+import { MatButtonHarness } from "@angular/material/button/testing";
 import { MatCheckboxHarness } from "@angular/material/checkbox/testing";
 import { MAT_DATE_LOCALE } from "@angular/material/core";
 import { MatDatepickerInputHarness } from "@angular/material/datepicker/testing";
-import { MatExpansionPanelHarness } from "@angular/material/expansion/testing";
 import { MatFormFieldHarness } from "@angular/material/form-field/testing";
 import { MatInputHarness } from "@angular/material/input/testing";
 import { MatSelectHarness } from "@angular/material/select/testing";
-import { MatTabHarness } from "@angular/material/tabs/testing";
-import { By } from "@angular/platform-browser";
 import {
   Router,
   provideRouter,
@@ -31,25 +33,20 @@ import {
 } from "@angular/router";
 import { RouterTestingHarness } from "@angular/router/testing";
 import { enCA } from "date-fns/locale";
-import { defer } from "rxjs";
 import { AmlComponent } from "../../aml/aml.component";
 import {
   SESSION_INITIAL_STATE,
-  SessionDataService,
   SessionStateLocal,
-} from "../../aml/session-data.service";
+  SessionStateService,
+} from "../../aml/session-state.service";
 import { AppErrorHandlerService } from "../../app-error-handler.service";
+import { activateTabs, findEl } from "../../test-helpers";
 import {
   EditFormComponent,
   StrTxnEditForm,
   editTypeResolver,
 } from "./edit-form.component";
 import { TransactionTimeDirective } from "./transaction-time.directive";
-import { provideHttpClient } from "@angular/common/http";
-import {
-  HttpTestingController,
-  provideHttpClientTesting,
-} from "@angular/common/http/testing";
 
 @Component({
   selector: "app-transaction-search",
@@ -63,7 +60,7 @@ describe("EditFormComponent", () => {
     await TestBed.configureTestingModule({
       providers: [
         provideZoneChangeDetection({ eventCoalescing: true }),
-        // note custom routing specific to test
+        // note routing specific to test
         provideRouter(
           [
             {
@@ -79,18 +76,28 @@ describe("EditFormComponent", () => {
                   provide: SESSION_INITIAL_STATE,
                   useValue: SESSION_STATE_FIXTURE,
                 },
-                SessionDataService,
+                SessionStateService,
               ],
               children: [
                 {
                   path: "reporting-ui",
                   children: [
                     {
+                      path: "edit-form/bulk-edit",
+                      component: EditFormComponent,
+                      resolve: {
+                        editType: editTypeResolver,
+                      },
+                      data: { reuse: false },
+                      title: () => "Bulk Edit",
+                    },
+                    {
                       path: "edit-form/:transactionId",
                       component: EditFormComponent,
                       resolve: {
                         editType: editTypeResolver,
                       },
+                      data: { reuse: false },
                       title: (route) =>
                         `Edit - ${route.params["transactionId"]}`,
                     },
@@ -132,10 +139,19 @@ describe("EditFormComponent", () => {
     };
   }
 
-  describe("navigate to edit form component", () => {
+  describe("navigate to edit form component for SINGLE_EDIT", () => {
+    it("should redirect to transaction search when ID is invalid", async () => {
+      const { harness } = await setup();
+      const router = TestBed.inject(Router);
+
+      await expectAsync(
+        harness.navigateByUrl("aml/99999999/reporting-ui/edit-form/asdfasdf"),
+      ).toBeRejectedWithError(/Transaction not found/);
+      expect(router.url).toBe("/transactionsearch");
+    });
+
     async function setupAndNavigate() {
       const { harness, loader } = await setup();
-
       await harness.navigateByUrl(
         "aml/99999999/reporting-ui/edit-form/ABM-01K4WANX6DRN6KCN05PMG7WJHA",
         AmlComponent,
@@ -171,7 +187,93 @@ describe("EditFormComponent", () => {
     it("should verify all form fields populate correctly", async () => {
       const { loader } = await setupAndNavigate();
 
-      const verify = await formVerifierFactory(loader);
+      const verify = await createFieldTraverser(
+        loader,
+        async (
+          testId: string,
+          expectedValue: unknown,
+          loader: HarnessLoader,
+        ) => {
+          const errors = [] as string[];
+          if (isInputField(testId)) {
+            const { control } = await getMatField(loader, testId);
+            const actualValue = await control.getValue();
+            const expectedValueNormalized = String(expectedValue ?? "");
+            if (actualValue !== expectedValueNormalized) {
+              errors.push(
+                `${testId}: Expected "${expectedValueNormalized}", got "${actualValue}"`,
+              );
+            }
+          }
+
+          if (isSelectField(testId)) {
+            const { control } = await getMatField(
+              loader,
+              testId as SelectField,
+            );
+            const actualValue = await control.getValueText();
+            const expectedValueNormalized = String(expectedValue ?? "");
+            if (actualValue !== expectedValueNormalized) {
+              errors.push(
+                `${testId}: Expected "${expectedValueNormalized}", got "${actualValue}"`,
+              );
+            }
+          }
+
+          if (isDateField(testId)) {
+            const { control } = await getMatField(loader, testId as DateField);
+            const actualValue = await control.getValue();
+            const expectedValueNormalized = String(expectedValue ?? "");
+            if (actualValue !== expectedValueNormalized) {
+              errors.push(
+                `${testId}: Expected "${expectedValueNormalized}", got "${actualValue}"`,
+              );
+            }
+          }
+
+          if (isCheckBox(testId)) {
+            const { control } = await getMatField(
+              loader,
+              testId as CheckboxField,
+            );
+            const actualValue = await control.isChecked();
+            const expectedValueNormalized = Boolean(expectedValue);
+            if (actualValue !== expectedValueNormalized) {
+              errors.push(
+                `${testId}: Expected "${expectedValueNormalized}", got "${actualValue}"`,
+              );
+            }
+          }
+
+          if (isTimeField(testId)) {
+            const { control } = await getMatField(loader, testId);
+            const actualValue = await control.getValue();
+            const expectedValueNormalized = String(
+              TransactionTimeDirective.parseAndFormatTime(expectedValue) ?? "",
+            );
+            if (actualValue !== expectedValueNormalized) {
+              errors.push(
+                `${testId}: Expected "${expectedValueNormalized}", got "${actualValue}"`,
+              );
+            }
+          }
+
+          if (
+            !isInputField(testId) &&
+            !isSelectField(testId) &&
+            !isDateField(testId) &&
+            !isCheckBox(testId) &&
+            !isTimeField(testId)
+          ) {
+            throw new Error("unkonwn test id");
+          }
+
+          return errors;
+        },
+      );
+
+      await activateTabs(loader);
+
       const errors = await verify(TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE);
 
       expect(errors.length).toBe(0);
@@ -181,14 +283,177 @@ describe("EditFormComponent", () => {
     });
   });
 
-  it("should redirect to transaction search when ID is invalid", async () => {
-    const { harness } = await setup();
-    const router = TestBed.inject(Router);
+  describe("navigate to edit form component for BULK_EDIT", () => {
+    it("should redirect to transaction search when route extras are missing", async () => {
+      const { harness } = await setup();
+      const router = TestBed.inject(Router);
 
-    await expectAsync(
-      harness.navigateByUrl("aml/99999999/reporting-ui/edit-form/asdfasdf"),
-    ).toBeRejectedWithError(/Transaction not found/);
-    expect(router.url).toBe("/transactionsearch");
+      await expectAsync(
+        harness.navigateByUrl("aml/99999999/reporting-ui/edit-form/bulk-edit"),
+      ).toBeRejectedWithError(/Unknown edit type/);
+      expect(router.url).toBe("/transactionsearch");
+    });
+
+    async function setupAndNavigate() {
+      const { harness, loader } = await setup();
+      const router = TestBed.inject(Router);
+      await router.navigateByUrl(
+        "aml/99999999/reporting-ui/edit-form/bulk-edit",
+        {
+          state: {
+            selectedTransactionsForBulkEdit: ["ABM-01K4WANX6DRN6KCN05PMG7WJHA"],
+          },
+        },
+      );
+
+      return { harness, loader };
+    }
+
+    it("should verify all form fields are disabled", async () => {
+      const { loader } = await setupAndNavigate();
+
+      const verify = await createFieldTraverser(
+        loader,
+        async (
+          testId: string,
+          expectedValue: unknown,
+          loader: HarnessLoader,
+        ) => {
+          const errors = [] as string[];
+
+          if (isInputField(testId)) {
+            const { control } = await getMatField(loader, testId);
+            const isDisabled = await control.isDisabled();
+            if (!isDisabled) {
+              errors.push(
+                `${testId}: Expected field to be disabled, but it was enabled`,
+              );
+            }
+          }
+
+          if (isSelectField(testId)) {
+            const { control } = await getMatField(
+              loader,
+              testId as SelectField,
+            );
+            const isDisabled = await control.isDisabled();
+            if (!isDisabled) {
+              errors.push(
+                `${testId}: Expected field to be disabled, but it was enabled`,
+              );
+            }
+          }
+
+          if (isDateField(testId)) {
+            const { control } = await getMatField(loader, testId as DateField);
+            const isDisabled = await control.isDisabled();
+            if (!isDisabled) {
+              errors.push(
+                `${testId}: Expected field to be disabled, but it was enabled`,
+              );
+            }
+          }
+
+          if (isCheckBox(testId)) {
+            const { control } = await getMatField(
+              loader,
+              testId as CheckboxField,
+            );
+            const isDisabled = await control.isDisabled();
+            if (!isDisabled) {
+              errors.push(
+                `${testId}: Expected field to be disabled, but it was enabled`,
+              );
+            }
+          }
+
+          if (isTimeField(testId)) {
+            const { control } = await getMatField(loader, testId);
+            const isDisabled = await control.isDisabled();
+            if (!isDisabled) {
+              errors.push(
+                `${testId}: Expected field to be disabled, but it was enabled`,
+              );
+            }
+          }
+
+          if (
+            !isInputField(testId) &&
+            !isSelectField(testId) &&
+            !isDateField(testId) &&
+            !isCheckBox(testId) &&
+            !isTimeField(testId)
+          ) {
+            throw new Error("unknown test id");
+          }
+
+          return errors;
+        },
+      );
+
+      await activateTabs(loader);
+
+      const errors = await verify(TRANSACTION_BULK_EDIT_FORM_SRUCTURE);
+
+      expect(errors.length).toBe(0);
+      if (errors.length > 0) {
+        fail(`Form verification failed:\n${errors.join("\n")}`);
+      }
+    });
+
+    it("should verify all add buttons are initially disabled", async () => {
+      const { loader } = await setupAndNavigate();
+      await activateTabs(loader);
+
+      const actionTestIds = ["startingActions-add", "completingActions-add"];
+
+      for (const actionTestId of actionTestIds) {
+        const button = await loader.getHarness(
+          MatButtonHarness.with({
+            selector: getTestIdSelector(actionTestId),
+          }),
+        );
+        expect(button).toBeDefined();
+        button.click();
+
+        const field = await loader.getHarnessOrNull(
+          MatFormFieldHarness.with({
+            selector: getTestIdSelector(
+              actionTestId.replace(/-add$/i, "").concat("-1-amount"),
+            ),
+          }),
+        );
+        expect(field).toBeNull();
+      }
+
+      const buttonTestIds = [
+        "startingActions-0-accountHolders-add",
+        "startingActions-0-sourceOfFunds-add",
+        "startingActions-0-conductors-add",
+        "completingActions-0-accountHolders-add",
+        "completingActions-0-involvedIn-add",
+        "completingActions-0-beneficiaries-add",
+      ];
+
+      for (const buttonTestId of buttonTestIds) {
+        const button = await loader.getHarness(
+          MatButtonHarness.with({
+            selector: getTestIdSelector(buttonTestId),
+          }),
+        );
+        expect(button).toBeDefined();
+        button.click();
+
+        const field = await loader.getHarnessOrNull(
+          MatFormFieldHarness.with({
+            selector: getTestIdSelector(
+              buttonTestId.replace(/-add$/i, "").concat("-1-partyKey"),
+            ),
+          }),
+        );
+        expect(field).toBeNull();
+      }
+    });
   });
 
   afterEach(() => {
@@ -197,9 +462,10 @@ describe("EditFormComponent", () => {
   });
 });
 
-async function formVerifierFactory(loader: HarnessLoader) {
-  await activateTabs();
-
+async function createFieldTraverser(
+  loader: HarnessLoader,
+  verifier: FieldVerifier,
+) {
   return async function verify(obj: any, path = "") {
     const errors: string[] = [];
     for (const [key, val] of Object.entries(obj)) {
@@ -219,129 +485,12 @@ async function formVerifierFactory(loader: HarnessLoader) {
 
       const testId = path ? `${path}-${key}` : key;
 
-      if (isInputField(testId)) {
-        const { control } = await getMatField(loader, testId);
-        const actualValue = await control.getValue();
-        const expectedValue = String(val ?? "");
-        if (actualValue !== expectedValue) {
-          errors.push(
-            `${testId}: Expected "${expectedValue}", got "${actualValue}"`,
-          );
-        }
-      }
-
-      if (isSelectField(testId)) {
-        const { control } = await getMatField(loader, testId as SelectField);
-        const actualValue = await control.getValueText();
-        const expectedValue = String(val ?? "");
-        if (actualValue !== expectedValue) {
-          errors.push(
-            `${testId}: Expected "${expectedValue}", got "${actualValue}"`,
-          );
-        }
-      }
-
-      if (isDateField(testId)) {
-        const { control } = await getMatField(loader, testId as DateField);
-        const actualValue = await control.getValue();
-        const expectedValue = String(val ?? "");
-        if (actualValue !== expectedValue) {
-          errors.push(
-            `${testId}: Expected "${expectedValue}", got "${actualValue}"`,
-          );
-        }
-      }
-
-      if (isCheckBox(testId)) {
-        const { control } = await getMatField(loader, testId as CheckboxField);
-        const actualValue = await control.isChecked();
-        const expectedValue = Boolean(val);
-        if (actualValue !== expectedValue) {
-          errors.push(
-            `${testId}: Expected "${expectedValue}", got "${actualValue}"`,
-          );
-        }
-      }
-
-      if (isTimeField(testId)) {
-        const { control } = await getMatField(loader, testId);
-        const actualValue = await control.getValue();
-        const expectedValue = String(
-          TransactionTimeDirective.parseAndFormatTime(val) ?? "",
-        );
-        if (actualValue !== expectedValue) {
-          errors.push(
-            `${testId}: Expected "${expectedValue}", got "${actualValue}"`,
-          );
-        }
-      }
-
-      if (
-        !isInputField(testId) &&
-        !isSelectField(testId) &&
-        !isDateField(testId) &&
-        !isCheckBox(testId) &&
-        !isTimeField(testId)
-      ) {
-        throw new Error("unkonwn test id");
-      }
+      // Delegate verification to the callback
+      errors.push(...(await verifier(testId, val, loader)));
     }
     return errors;
   };
-
-  /**
-   * mat-tab, mat-expansion-panel elements are hidden by default until activated. The harness can't find fields that aren't rendered in the DOM.
-   * requires mat-tab-group preserveContent
-   */
-  async function activateTabs() {
-    const tabHarnesses = await loader.getAllHarnesses(MatTabHarness);
-    for (const tab of tabHarnesses) {
-      await tab.select();
-    }
-
-    const panels = await loader.getAllHarnesses(MatExpansionPanelHarness);
-    for (const panel of panels) {
-      if (!(await panel.isExpanded())) {
-        await panel.expand();
-      }
-    }
-  }
 }
-
-type SelectField =
-  | "methodOfTxn"
-  | "directionOfSA"
-  | "typeOfFunds"
-  | "currency"
-  | "accountType"
-  | "accountCurrency"
-  | "accountStatus"
-  | "detailsOfDispo"
-  | "currency";
-
-type DateField = "dateOfTxn" | "dateOfPosting" | "accountOpen" | "accountClose";
-
-type CheckboxField =
-  | "hasPostingDate"
-  | "wasTxnAttempted"
-  | "hasAccountHolders"
-  | "wasSofInfoObtained"
-  | "wasCondInfoObtained"
-  | "wasConductedOnBehalf"
-  | "wasAnyOtherSubInvolved"
-  | "wasBenInfoObtained";
-
-type TimeField = "timeOfTxn" | "timeOfPosting";
-
-type InputField = Exclude<string, SelectField | DateField | CheckboxField>;
-
-type FieldControlHarness<T extends string> = T extends SelectField
-  ? MatSelectHarness
-  : T extends DateField
-    ? MatDatepickerInputHarness
-    : T extends CheckboxField
-      ? MatCheckboxHarness
-      : MatInputHarness;
 
 /**
  * Checkboxes are NOT wrapped in mat-form-field
@@ -352,16 +501,20 @@ async function getMatField<
 >(loader: HarnessLoader, testId: T) {
   if (isCheckBox(testId)) {
     const control = (await loader.getHarness(
-      MatCheckboxHarness.with({ selector: `[data-testid="${testId}"]` }),
+      MatCheckboxHarness.with({ selector: getTestIdSelector(testId) }),
     )) as FieldControlHarness<T>;
     return { control, field: null };
   }
 
   const field = await loader.getHarness(
-    MatFormFieldHarness.with({ selector: `[data-testid="${testId}"]` }),
+    MatFormFieldHarness.with({ selector: getTestIdSelector(testId) }),
   );
   const control = (await field.getControl()) as FieldControlHarness<T>;
   return { control, field };
+}
+
+function getTestIdSelector(testId: string) {
+  return `[data-testid="${testId}"]`;
 }
 
 function isTimeField(testId: string): testId is TimeField {
@@ -421,25 +574,46 @@ function isInputField(testId: string): testId is InputField {
   );
 }
 
-function findEl<T>(fixture: ComponentFixture<T>, testId: string): DebugElement {
-  return fixture.debugElement.query(By.css(`[data-testid="${testId}"]`));
-}
+type SelectField =
+  | "methodOfTxn"
+  | "directionOfSA"
+  | "typeOfFunds"
+  | "currency"
+  | "accountType"
+  | "accountCurrency"
+  | "accountStatus"
+  | "detailsOfDispo"
+  | "currency";
 
-/**
- * Create async observable that emits-once and completes
- * after a JS engine turn
- */
-function asyncData<T>(data: T) {
-  return defer(() => Promise.resolve(data));
-}
+type DateField = "dateOfTxn" | "dateOfPosting" | "accountOpen" | "accountClose";
 
-/**
- * Create async observable error that errors
- * after a JS engine turn
- */
-function asyncError<T>(errorObject: any) {
-  return defer(() => Promise.reject(errorObject));
-}
+type CheckboxField =
+  | "hasPostingDate"
+  | "wasTxnAttempted"
+  | "hasAccountHolders"
+  | "wasSofInfoObtained"
+  | "wasCondInfoObtained"
+  | "wasConductedOnBehalf"
+  | "wasAnyOtherSubInvolved"
+  | "wasBenInfoObtained";
+
+type TimeField = "timeOfTxn" | "timeOfPosting";
+
+type InputField = Exclude<string, SelectField | DateField | CheckboxField>;
+
+type FieldControlHarness<T extends string> = T extends SelectField
+  ? MatSelectHarness
+  : T extends DateField
+    ? MatDatepickerInputHarness
+    : T extends CheckboxField
+      ? MatCheckboxHarness
+      : MatInputHarness;
+
+type FieldVerifier = (
+  testId: string,
+  expectedValue: unknown,
+  loader: HarnessLoader,
+) => Promise<string[]>;
 
 const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
   wasTxnAttempted: true,
@@ -642,4 +816,122 @@ const SESSION_STATE_FIXTURE: SessionStateLocal = {
   }),
 
   lastUpdated: "1996-06-13",
+};
+
+const TRANSACTION_BULK_EDIT_FORM_SRUCTURE: StrTxnEditForm = {
+  wasTxnAttempted: null,
+  wasTxnAttemptedReason: null,
+  dateOfTxn: null,
+  timeOfTxn: null,
+  hasPostingDate: null,
+  dateOfPosting: null,
+  timeOfPosting: null,
+  methodOfTxn: null,
+  methodOfTxnOther: null,
+  reportingEntityTxnRefNo: null,
+  purposeOfTxn: null,
+  reportingEntityLocationNo: null,
+  startingActions: [
+    {
+      directionOfSA: null,
+      typeOfFunds: null,
+      typeOfFundsOther: null,
+      amount: null,
+      currency: null,
+      fiuNo: null,
+      branch: null,
+      account: null,
+      accountType: null,
+      accountTypeOther: null,
+      accountOpen: null,
+      accountClose: null,
+      accountStatus: null,
+      accountCurrency: null,
+      howFundsObtained: null,
+      hasAccountHolders: null,
+      accountHolders: [
+        {
+          partyKey: null,
+          surname: null,
+          givenName: null,
+          otherOrInitial: null,
+          nameOfEntity: null,
+        },
+      ],
+      wasSofInfoObtained: null,
+      sourceOfFunds: [
+        {
+          partyKey: null,
+          surname: null,
+          givenName: null,
+          otherOrInitial: null,
+          nameOfEntity: null,
+          accountNumber: null,
+          identifyingNumber: null,
+        },
+      ],
+      wasCondInfoObtained: null,
+      conductors: [
+        {
+          partyKey: null,
+          surname: null,
+          givenName: null,
+          otherOrInitial: null,
+          nameOfEntity: null,
+          wasConductedOnBehalf: null,
+        },
+      ],
+    },
+  ],
+  completingActions: [
+    {
+      detailsOfDispo: null,
+      detailsOfDispoOther: null,
+      amount: null,
+      currency: null,
+      exchangeRate: null,
+      valueInCad: null,
+      fiuNo: null,
+      branch: null,
+      account: null,
+      accountType: null,
+      accountTypeOther: null,
+      accountCurrency: null,
+      accountOpen: null,
+      accountClose: null,
+      accountStatus: null,
+      hasAccountHolders: null,
+      accountHolders: [
+        {
+          partyKey: null,
+          surname: null,
+          givenName: null,
+          otherOrInitial: null,
+          nameOfEntity: null,
+        },
+      ],
+      wasAnyOtherSubInvolved: null,
+      involvedIn: [
+        {
+          partyKey: null,
+          surname: null,
+          givenName: null,
+          otherOrInitial: null,
+          nameOfEntity: null,
+          accountNumber: null,
+          identifyingNumber: null,
+        },
+      ],
+      wasBenInfoObtained: null,
+      beneficiaries: [
+        {
+          partyKey: null,
+          surname: null,
+          givenName: null,
+          otherOrInitial: null,
+          nameOfEntity: null,
+        },
+      ],
+    },
+  ],
 };

@@ -229,3 +229,8 @@ mat-button-toggle.highlight-radio {
     pointer-events: none;
   }
 }
+
+.no-select {
+  -webkit-user-select: none;
+  user-select: none;
+}
