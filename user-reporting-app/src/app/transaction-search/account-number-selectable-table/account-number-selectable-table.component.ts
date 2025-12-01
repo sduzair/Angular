@@ -1,14 +1,14 @@
-import { ChangeDetectionStrategy, Component, forwardRef } from "@angular/core";
-import { AccountNumber } from "../aml-transaction-search.service";
-import { ControlValueAccessor, NG_VALUE_ACCESSOR } from "@angular/forms";
-import { AbstractSelectableTableComponent } from "../abstract-selectable-table/abstract-selectable-table.component";
-import { CommonModule } from "@angular/common";
-import { MatCheckboxModule } from "@angular/material/checkbox";
-import { MatTableModule } from "@angular/material/table";
+import { ChangeDetectionStrategy, Component, forwardRef } from '@angular/core';
+import { AccountNumber } from '../aml-transaction-search.service';
+import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+import { AbstractSelectableTableComponent } from '../abstract-selectable-table/abstract-selectable-table.component';
+
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatTableModule } from '@angular/material/table';
 
 @Component({
-  selector: "app-account-number-selectable-table",
-  imports: [CommonModule, MatCheckboxModule, MatTableModule],
+  selector: 'app-account-number-selectable-table',
+  imports: [MatCheckboxModule, MatTableModule],
   template: `
     <table mat-table [dataSource]="dataSource">
       <!-- Selection Column -->
@@ -18,8 +18,7 @@ import { MatTableModule } from "@angular/material/table";
             [disabled]="disabled"
             (change)="$event ? toggleAllRows() : null"
             [checked]="selection.hasValue() && isAllSelected()"
-            [indeterminate]="selection.hasValue() && !isAllSelected()"
-          >
+            [indeterminate]="selection.hasValue() && !isAllSelected()">
           </mat-checkbox>
         </th>
         <td mat-cell *matCellDef="let row">
@@ -27,8 +26,7 @@ import { MatTableModule } from "@angular/material/table";
             [disabled]="isRowDisabled(row)"
             (click)="$event.stopPropagation()"
             (change)="$event ? toggleRow(row) : null"
-            [checked]="selection.isSelected(row)"
-          >
+            [checked]="selection.isSelected(row)">
           </mat-checkbox>
         </td>
       </ng-container>
@@ -37,10 +35,14 @@ import { MatTableModule } from "@angular/material/table";
       <ng-container matColumnDef="value">
         <th mat-header-cell *matHeaderCellDef>Account No</th>
         <td mat-cell *matCellDef="let element">
-          <span *ngIf="!dataSourceLoadingState">
-            {{ element.value }}
-          </span>
-          <span *ngIf="dataSourceLoadingState" class="sk skw-6 skh-2"></span>
+          @if (!dataSourceLoadingState) {
+            <span>
+              {{ element.value }}
+            </span>
+          }
+          @if (dataSourceLoadingState) {
+            <span class="sk skw-6 skh-2"></span>
+          }
         </td>
       </ng-container>
 
@@ -48,8 +50,7 @@ import { MatTableModule } from "@angular/material/table";
       <tr
         mat-row
         *matRowDef="let row; columns: displayedColumns"
-        [class.disabled-row]="disabled"
-      ></tr>
+        [class.disabled-row]="disabled"></tr>
     </table>
   `,
   providers: [
@@ -59,16 +60,15 @@ import { MatTableModule } from "@angular/material/table";
       multi: true,
     },
   ],
-  styleUrl: "./account-number-selectable-table.component.scss",
+  styleUrl: './account-number-selectable-table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AccountNumberSelectableTableComponent
   extends AbstractSelectableTableComponent<AccountNumber>
   implements ControlValueAccessor
 {
-  protected override displayedColumns: Array<
-    keyof AccountNumber | (string & {})
-  > = ["select", "value"];
+  protected override displayedColumns: (keyof AccountNumber | (string & {}))[] =
+    ['select', 'value'];
 
   protected override getSelectionComparator(): (
     a: AccountNumber,

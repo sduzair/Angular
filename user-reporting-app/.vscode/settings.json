@@ -15,7 +15,6 @@
     "titleBar.inactiveForeground": "#15202b99"
   },
   "peacock.color": "#ab74e8",
-  "editor.defaultFormatter": "biomejs.biome",
   "CSSNavigation.enableIdAndClassNameCompletion": false,
   "CSSNavigation.alwaysIncludeGlobPatterns": [
     "node_modules/@angular/material/prebuilt-themes/rose-red.css",
@@ -25,6 +24,11 @@
     "**/${fileBasenameNoExtension}.css",
     "**/${fileBasenameNoExtension}.scss"
   ],
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
   "[markdown]": {
     "editor.defaultFormatter": "yzhang.markdown-all-in-one"
   },
@@ -75,5 +79,5 @@
       "suffix": "component",
       "fileNameSuffix": ".component"
     }
-  },
+  }
 }

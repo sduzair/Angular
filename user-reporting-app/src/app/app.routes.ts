@@ -1,40 +1,40 @@
-import type { Routes } from "@angular/router";
+import type { Routes } from '@angular/router';
 import {
   AmlComponent,
   lastUpdatedResolver,
   savingStatusResolver,
-} from "./aml/aml.component";
-import { SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE } from "./aml/session-state.fixture";
+} from './aml/aml.component';
+import { SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE } from './aml/session-state.fixture';
 import {
   SESSION_INITIAL_STATE,
   SessionStateService,
-} from "./aml/session-state.service";
-import { PageNotFoundComponent } from "./page-not-found/page-not-found.component";
+} from './aml/session-state.service';
+import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
 import {
   EditFormComponent,
   editTypeResolver,
-} from "./reporting-ui/edit-form/edit-form.component";
+} from './reporting-ui/edit-form/edit-form.component';
 import {
   ReportingUiTableComponent,
   savingEditsResolver,
   strTransactionsEditedResolver,
-} from "./reporting-ui/reporting-ui-table/reporting-ui-table.component";
-import { ReportingUiComponent } from "./reporting-ui/reporting-ui.component";
-import { TransactionSearchComponent } from "./transaction-search/transaction-search.component";
+} from './reporting-ui/reporting-ui-table/reporting-ui-table.component';
+import { ReportingUiComponent } from './reporting-ui/reporting-ui.component';
+import { TransactionSearchComponent } from './transaction-search/transaction-search.component';
 import {
   TransactionViewComponent,
   selectionsResolver,
   transactionSearchResolver,
-} from "./transaction-view/transaction-view.component";
+} from './transaction-view/transaction-view.component';
 
 export const routes: Routes = [
   {
-    path: "transactionsearch",
+    path: 'transactionsearch',
     component: TransactionSearchComponent,
-    title: "Search by AML Id",
+    title: 'Search by AML Id',
   },
   {
-    path: "aml/:amlId",
+    path: 'aml/:amlId',
     component: AmlComponent,
     providers: [
       // { provide: SESSION_INITIAL_STATE, useValue: DEFAULT_SESSION_STATE },
@@ -51,22 +51,22 @@ export const routes: Routes = [
     data: { reuse: true },
     children: [
       {
-        path: "transaction-view",
+        path: 'transaction-view',
         component: TransactionViewComponent,
         resolve: {
           transactionSearch: transactionSearchResolver,
           initSelections: selectionsResolver,
         },
         data: { reuse: true },
-        title: (route) => `Transaction View - ${route.params["amlId"]}`,
+        title: (route) => `Transaction View - ${route.params['amlId']}`,
       },
       {
-        path: "reporting-ui",
+        path: 'reporting-ui',
         component: ReportingUiComponent,
-        title: (route) => `Reporting UI - ${route.params["amlId"]}`,
+        title: (route) => `Reporting UI - ${route.params['amlId']}`,
         children: [
           {
-            path: "table",
+            path: 'table',
             component: ReportingUiTableComponent,
             resolve: {
               strTransactionData$: strTransactionsEditedResolver,
@@ -75,27 +75,27 @@ export const routes: Routes = [
             data: { reuse: true },
           },
           {
-            path: "edit-form/bulk-edit",
+            path: 'edit-form/bulk-edit',
             component: EditFormComponent,
             resolve: {
               editType: editTypeResolver,
             },
             data: { reuse: false },
-            title: () => "Bulk Edit",
+            title: () => 'Bulk Edit',
           },
           {
-            path: "edit-form/:transactionId",
+            path: 'edit-form/:transactionId',
             component: EditFormComponent,
             resolve: {
               editType: editTypeResolver,
             },
             data: { reuse: false },
-            title: (route) => `Edit - ${route.params["transactionId"]}`,
+            title: (route) => `Edit - ${route.params['transactionId']}`,
           },
         ],
       },
     ],
   },
-  { path: "", redirectTo: "/transactionsearch", pathMatch: "full" },
-  { path: "**", component: PageNotFoundComponent },
+  { path: '', redirectTo: '/transactionsearch', pathMatch: 'full' },
+  { path: '**', component: PageNotFoundComponent },
 ];

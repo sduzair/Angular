@@ -1,5 +1,5 @@
-@use "@angular/material" as mat;
-@use "../typography-scaling" as typo;
+@use '@angular/material' as mat;
+@use '../typography-scaling' as typo;
 
 .transaction-search {
   @include mat.all-component-densities(-5);

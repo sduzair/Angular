@@ -1,4 +1,4 @@
-import { AbstractControl, ValidationErrors } from "@angular/forms";
+import { AbstractControl, ValidationErrors } from '@angular/forms';
 
 /**
  * Set error based on predicate - add if true, remove if false
@@ -14,7 +14,7 @@ export function setError(
 ): void {
   console.assert(
     Object.keys(error).length === 1,
-    "Assert only one error key is being set",
+    'Assert only one error key is being set',
   );
   const errorKey = Object.keys(error)[0];
 

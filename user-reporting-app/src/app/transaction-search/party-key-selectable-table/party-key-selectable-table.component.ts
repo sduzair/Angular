@@ -1,14 +1,13 @@
-import { CommonModule } from "@angular/common";
-import { ChangeDetectionStrategy, Component, forwardRef } from "@angular/core";
-import { NG_VALUE_ACCESSOR, ControlValueAccessor } from "@angular/forms";
-import { MatCheckboxModule } from "@angular/material/checkbox";
-import { MatTableModule } from "@angular/material/table";
-import { AbstractSelectableTableComponent } from "../abstract-selectable-table/abstract-selectable-table.component";
-import { PartyKey } from "../aml-transaction-search.service";
+import { ChangeDetectionStrategy, Component, forwardRef } from '@angular/core';
+import { NG_VALUE_ACCESSOR, ControlValueAccessor } from '@angular/forms';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatTableModule } from '@angular/material/table';
+import { AbstractSelectableTableComponent } from '../abstract-selectable-table/abstract-selectable-table.component';
+import { PartyKey } from '../aml-transaction-search.service';
 
 @Component({
-  selector: "app-party-key-selectable-table",
-  imports: [CommonModule, MatCheckboxModule, MatTableModule],
+  selector: 'app-party-key-selectable-table',
+  imports: [MatCheckboxModule, MatTableModule],
   template: `
     <table mat-table [dataSource]="dataSource">
       <!-- Selection Column -->
@@ -18,8 +17,7 @@ import { PartyKey } from "../aml-transaction-search.service";
             [disabled]="disabled"
             (change)="$event ? toggleAllRows() : null"
             [checked]="selection.hasValue() && isAllSelected()"
-            [indeterminate]="selection.hasValue() && !isAllSelected()"
-          >
+            [indeterminate]="selection.hasValue() && !isAllSelected()">
           </mat-checkbox>
         </th>
         <td mat-cell *matCellDef="let row">
@@ -27,8 +25,7 @@ import { PartyKey } from "../aml-transaction-search.service";
             [disabled]="isRowDisabled(row)"
             (click)="$event.stopPropagation()"
             (change)="$event ? toggleRow(row) : null"
-            [checked]="selection.isSelected(row)"
-          >
+            [checked]="selection.isSelected(row)">
           </mat-checkbox>
         </td>
       </ng-container>
@@ -37,13 +34,14 @@ import { PartyKey } from "../aml-transaction-search.service";
       <ng-container matColumnDef="value">
         <th mat-header-cell *matHeaderCellDef>Party Key</th>
         <td mat-cell *matCellDef="let element">
-          <span *ngIf="!dataSourceLoadingState">
-            {{ element.value }}
-          </span>
-          <span
-            *ngIf="dataSourceLoadingState"
-            class="sk skw-6 skh-2"
-          ></span>
+          @if (!dataSourceLoadingState) {
+            <span>
+              {{ element.value }}
+            </span>
+          }
+          @if (dataSourceLoadingState) {
+            <span class="sk skw-6 skh-2"></span>
+          }
         </td>
       </ng-container>
 
@@ -51,8 +49,7 @@ import { PartyKey } from "../aml-transaction-search.service";
       <tr
         mat-row
         *matRowDef="let row; columns: displayedColumns"
-        [class.disabled-row]="disabled"
-      ></tr>
+        [class.disabled-row]="disabled"></tr>
     </table>
   `,
   providers: [
@@ -62,16 +59,16 @@ import { PartyKey } from "../aml-transaction-search.service";
       multi: true,
     },
   ],
-  styleUrl: "./party-key-selectable-table.component.scss",
+  styleUrl: './party-key-selectable-table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PartyKeySelectableTableComponent
   extends AbstractSelectableTableComponent<PartyKey>
   implements ControlValueAccessor
 {
-  protected override displayedColumns: Array<keyof PartyKey | (string & {})> = [
-    "select",
-    "value",
+  protected override displayedColumns: (keyof PartyKey | (string & {}))[] = [
+    'select',
+    'value',
   ];
 
   protected override getSelectionComparator(): (

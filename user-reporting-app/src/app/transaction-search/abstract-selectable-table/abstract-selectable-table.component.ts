@@ -1,10 +1,16 @@
-import { SelectionModel } from "@angular/cdk/collections";
-import { ChangeDetectorRef, Component, Input, OnInit } from "@angular/core";
-import { ControlValueAccessor } from "@angular/forms";
-import { MatTableDataSource } from "@angular/material/table";
+import { SelectionModel } from '@angular/cdk/collections';
+import {
+  ChangeDetectorRef,
+  Component,
+  inject,
+  Input,
+  OnInit,
+} from '@angular/core';
+import { ControlValueAccessor } from '@angular/forms';
+import { MatTableDataSource } from '@angular/material/table';
 
 @Component({
-  template: "",
+  template: '',
 })
 export abstract class AbstractSelectableTableComponent<T>
   implements ControlValueAccessor, OnInit
@@ -16,15 +22,19 @@ export abstract class AbstractSelectableTableComponent<T>
     this.getSelectionComparator(),
   );
   disabled = false;
-  private onChange = (value: T[]) => {};
-  private onTouched = () => {};
+  private onChange = (value: T[]) => {
+    /* empty */
+  };
+  private onTouched = () => {
+    /* empty */
+  };
 
   @Input({ required: true }) dataSource = new MatTableDataSource<T>();
   @Input({ required: true }) dataSourceLoadingState = false;
-  protected abstract displayedColumns: Array<keyof T | (string & {})>;
+  protected abstract displayedColumns: (keyof T | (string & {}))[];
   protected isRowDisabledFn?: (row: T) => boolean = (_) => false;
 
-  constructor(private cdr: ChangeDetectorRef) {}
+  private cdr = inject(ChangeDetectorRef);
 
   // Abstract method for custom comparison logic
   protected abstract getSelectionComparator(): (a: T, b: T) => boolean;
@@ -52,8 +62,8 @@ export abstract class AbstractSelectableTableComponent<T>
 
   ngOnInit() {
     // Always include 'select' as first column if not present
-    if (!this.displayedColumns.includes("select")) {
-      this.displayedColumns = ["select", ...this.displayedColumns];
+    if (!this.displayedColumns.includes('select')) {
+      this.displayedColumns = ['select', ...this.displayedColumns];
     }
 
     this.selection.changed.subscribe(() => {

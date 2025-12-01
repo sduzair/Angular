@@ -1,7 +1,7 @@
-import { TestBed } from "@angular/core/testing";
-import { FormOptionsService } from "./form-options.service";
+import { TestBed } from '@angular/core/testing';
+import { FormOptionsService } from './form-options.service';
 
-describe("FormOptionsService", () => {
+describe('FormOptionsService', () => {
   let service: FormOptionsService;
 
   beforeEach(() => {
@@ -9,7 +9,7 @@ describe("FormOptionsService", () => {
     service = TestBed.inject(FormOptionsService);
   });
 
-  it("should be created", () => {
+  it('should be created', () => {
     expect(service).toBeTruthy();
   });
 });

@@ -1,14 +1,15 @@
-import { HttpClient, HttpErrorResponse } from "@angular/common/http";
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import {
   DestroyRef,
   ErrorHandler,
   Injectable,
   InjectionToken,
   inject,
-} from "@angular/core";
-import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import { MatSnackBar } from "@angular/material/snack-bar";
-import { BehaviorSubject, EMPTY, Subject, map, merge, of } from "rxjs";
+  OnDestroy,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { BehaviorSubject, EMPTY, Subject, map, merge, of } from 'rxjs';
 import {
   catchError,
   concatMap,
@@ -23,27 +24,27 @@ import {
   switchMap,
   tap,
   withLatestFrom,
-} from "rxjs/operators";
+} from 'rxjs/operators';
 import {
   ChangeLog,
   ChangeLogService,
   ChangeLogWithoutVersion,
   WithVersion,
-} from "../change-log.service";
+} from '../change-log.service';
 import {
   hasMissingCibcInfo,
   hasMissingConductorInfo,
-} from "../reporting-ui/edit-form/common-validation";
-import { EditFormValueType } from "../reporting-ui/edit-form/edit-form.component";
+} from '../reporting-ui/edit-form/common-validation';
+import { EditFormValueType } from '../reporting-ui/edit-form/edit-form.component';
 import {
   StrTransactionData,
   _hiddenValidationType,
-} from "../reporting-ui/reporting-ui-table/reporting-ui-table.component";
-import { DeepPartial } from "../test-helpers";
+} from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
+import { DeepPartial } from '../test-helpers';
 
 export const DEFAULT_SESSION_STATE: SessionStateLocal = {
   version: 0,
-  amlId: "",
+  amlId: '',
   transactionSearchParams: {
     accountNumbersSelection: [],
     partyKeysSelection: [],
@@ -55,14 +56,14 @@ export const DEFAULT_SESSION_STATE: SessionStateLocal = {
 };
 
 export const SESSION_INITIAL_STATE = new InjectionToken<SessionStateLocal>(
-  "SESSION_INITIAL_STATE",
+  'SESSION_INITIAL_STATE',
   {
     factory: () => DEFAULT_SESSION_STATE,
   },
 );
 
 @Injectable()
-export class SessionStateService {
+export class SessionStateService implements OnDestroy {
   private destroyRef = inject(DestroyRef);
   http = inject(HttpClient);
   errorHandler = inject(ErrorHandler);
@@ -88,7 +89,7 @@ export class SessionStateService {
 
   readonly lastUpdated$ = this._sessionState$.pipe(
     map((sessionState) => sessionState.lastUpdated!),
-    startWith(new Date(0).toISOString().split("T")[0]),
+    startWith(new Date(0).toISOString().split('T')[0]),
   );
 
   private _savingEdits$ = new BehaviorSubject<string[]>([]);
@@ -141,7 +142,7 @@ export class SessionStateService {
         error: () => {
           console.assert(
             false,
-            "Assert errors are handled gracefully in pipeline",
+            'Assert errors are handled gracefully in pipeline',
           );
         },
       });
@@ -156,14 +157,14 @@ export class SessionStateService {
       error: () => {
         console.assert(
           false,
-          "Assert errors are handled gracefully in pipeline",
+          'Assert errors are handled gracefully in pipeline',
         );
       },
     });
   }
 
   ngOnDestroy(): void {
-    console.log("Service destroyed - cleaning up streams");
+    console.log('Service destroyed - cleaning up streams');
 
     // Complete all Subjects
     this._sessionState$.complete();
@@ -199,7 +200,7 @@ export class SessionStateService {
 
   createSession(amlId: string) {
     return this.http
-      .post<CreateSessionResponse>("/api/sessions", {
+      .post<CreateSessionResponse>('/api/sessions', {
         amlId: amlId,
         data: {
           transactionSearchParams: {
@@ -234,9 +235,9 @@ export class SessionStateService {
 
   private _updateQueue$ = new Subject<
     | ExtractSubjectType<typeof SessionStateService.prototype._editFormSave$>
-    | { editType: "HIGHLIGHT"; highlightsMap: Map<string, string> }
+    | { editType: 'HIGHLIGHT'; highlightsMap: Map<string, string> }
     | {
-        editType: "MANUAL_UPLOAD";
+        editType: 'MANUAL_UPLOAD';
         manualTransactions: StrTransactionWithChangeLogs[];
       }
   >();
@@ -247,18 +248,18 @@ export class SessionStateService {
       const existingSaveIds = this._savingEdits$.value;
       let incomingSaves: string[] = [];
 
-      if (edit.editType === "SINGLE_EDIT") {
+      if (edit.editType === 'SINGLE_EDIT') {
         incomingSaves = [edit.flowOfFundsAmlTransactionId];
       }
-      if (edit.editType === "BULK_EDIT") {
+      if (edit.editType === 'BULK_EDIT') {
         incomingSaves = edit.transactionsBefore.map(
           (txn) => txn.flowOfFundsAmlTransactionId,
         );
       }
-      if (edit.editType === "HIGHLIGHT") {
+      if (edit.editType === 'HIGHLIGHT') {
         incomingSaves = Array.from(edit.highlightsMap.keys());
       }
-      if (edit.editType === "MANUAL_UPLOAD") {
+      if (edit.editType === 'MANUAL_UPLOAD') {
         incomingSaves = edit.manualTransactions.map(
           (txn) => txn.flowOfFundsAmlTransactionId,
         );
@@ -275,7 +276,7 @@ export class SessionStateService {
           const pendingChanges: PendingChange[] = [];
           let newTransactions: StrTransactionWithChangeLogs[] = [];
 
-          if (editType === "SINGLE_EDIT") {
+          if (editType === 'SINGLE_EDIT') {
             const {
               editFormValueBefore,
               editFormValue,
@@ -293,7 +294,7 @@ export class SessionStateService {
             });
           }
 
-          if (editType === "BULK_EDIT") {
+          if (editType === 'BULK_EDIT') {
             const { transactionsBefore, editFormValue } = edit;
             transactionsBefore.forEach((transactionBefore) => {
               const changeLogs: ChangeLogWithoutVersion[] = [];
@@ -301,7 +302,7 @@ export class SessionStateService {
                 transactionBefore,
                 editFormValue,
                 changeLogs,
-                { discriminator: "index" },
+                { discriminator: 'index' },
               );
               pendingChanges.push({
                 flowOfFundsAmlTransactionId:
@@ -311,7 +312,7 @@ export class SessionStateService {
             });
           }
 
-          if (editType === "HIGHLIGHT") {
+          if (editType === 'HIGHLIGHT') {
             const { highlightsMap } = edit;
 
             for (const [txnId, newColor] of highlightsMap.entries()) {
@@ -349,7 +350,7 @@ export class SessionStateService {
             }
           }
 
-          if (editType === "MANUAL_UPLOAD") {
+          if (editType === 'MANUAL_UPLOAD') {
             const { manualTransactions } = edit;
             newTransactions = manualTransactions;
           }
@@ -406,9 +407,9 @@ export class SessionStateService {
             //   )
             //   .pipe(
             return of({
-              amlId: "9999",
+              amlId: '9999',
               newVersion: currentVersion + 1,
-              updatedAt: new Date(0).toISOString().split("T")[0],
+              updatedAt: new Date(0).toISOString().split('T')[0],
             }).pipe(
               map((response) => ({ editType, response })),
               // return throwError(() => new HttpErrorResponse({ status: 500 })).pipe(
@@ -468,13 +469,13 @@ export class SessionStateService {
 
   private _editFormSave$ = new Subject<
     | {
-        editType: "SINGLE_EDIT";
+        editType: 'SINGLE_EDIT';
         flowOfFundsAmlTransactionId: string;
         editFormValue: EditFormValueType;
         editFormValueBefore: EditFormValueType;
       }
     | {
-        editType: "BULK_EDIT";
+        editType: 'BULK_EDIT';
         editFormValue: EditFormValueType;
         transactionsBefore: StrTransactionWithChangeLogs[];
       }
@@ -526,19 +527,19 @@ export class SessionStateService {
     this.highlightEdits$.pipe(
       map((highlightEdits) => {
         return {
-          type: "update" as const,
+          type: 'update' as const,
           data: highlightEdits,
         };
       }),
     ),
 
     this.resetHiglightsAccumulator$.pipe(
-      map(() => ({ type: "reset" as const })),
+      map(() => ({ type: 'reset' as const })),
     ),
   ).pipe(
     // accumulate highlights that occur within debounce time
     scan((accumulator, action) => {
-      if (action.type === "reset") {
+      if (action.type === 'reset') {
         return new Map<string, string>();
       }
       const newAccumulator = new Map(accumulator);
@@ -554,13 +555,13 @@ export class SessionStateService {
     filter((accumulator) => accumulator.size > 0),
     tap(() => this.resetHiglightsAccumulator$.next()),
     tap((highlightsMap) =>
-      this._updateQueue$.next({ editType: "HIGHLIGHT", highlightsMap }),
+      this._updateQueue$.next({ editType: 'HIGHLIGHT', highlightsMap }),
     ),
     takeUntilDestroyed(this.destroyRef),
   );
 
   saveManualTransactions(manualTransactions: StrTransactionWithChangeLogs[]) {
-    this._updateQueue$.next({ editType: "MANUAL_UPLOAD", manualTransactions });
+    this._updateQueue$.next({ editType: 'MANUAL_UPLOAD', manualTransactions });
   }
 }
 
@@ -580,8 +581,8 @@ export interface SessionStateLocal {
     reviewPeriodSelection?: ReviewPeriod[] | null;
   };
   strTransactions: StrTransactionWithChangeLogs[];
-  lastEditedStrTransactions?: PendingChange["flowOfFundsAmlTransactionId"][];
-  newManualTransactions?: StrTransactionWithChangeLogs["flowOfFundsAmlTransactionId"][];
+  lastEditedStrTransactions?: PendingChange['flowOfFundsAmlTransactionId'][];
+  newManualTransactions?: StrTransactionWithChangeLogs['flowOfFundsAmlTransactionId'][];
   lastUpdated?: string;
 }
 
@@ -675,10 +676,10 @@ const computePartialTransactionDataHandler = (
   strTransactions: StrTransactionWithChangeLogs[],
   applyChanges: typeof ChangeLogService.prototype.applyChanges<StrTransactionWithChangeLogs>,
   lastEditedStrTransactions: NonNullable<
-    SessionStateLocal["lastEditedStrTransactions"]
+    SessionStateLocal['lastEditedStrTransactions']
   >,
   newManualTransactions: NonNullable<
-    SessionStateLocal["newManualTransactions"]
+    SessionStateLocal['newManualTransactions']
   >,
 ) => {
   return (acc: StrTransactionWithChangeLogs[]) => {
@@ -715,18 +716,18 @@ export function setRowValidationInfo(
   if (
     transaction._version &&
     transaction._version > 0 &&
-    !transaction.changeLogs.every((log) => log.path === "highlightColor")
+    !transaction.changeLogs.every((log) => log.path === 'highlightColor')
   )
-    errors.push("editedTxn");
+    errors.push('editedTxn');
 
   if (transaction.startingActions.some((sa) => hasMissingConductorInfo(sa)))
-    errors.push("conductorMissing");
+    errors.push('conductorMissing');
 
   if (
     transaction.startingActions.some(hasMissingCibcInfo) ||
     transaction.completingActions.some(hasMissingCibcInfo)
   )
-    errors.push("bankInfoMissing");
+    errors.push('bankInfoMissing');
 
   transaction._hiddenValidation = errors;
 

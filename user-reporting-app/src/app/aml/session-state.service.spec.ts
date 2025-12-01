@@ -1,23 +1,23 @@
-import { provideHttpClient } from "@angular/common/http";
+import { provideHttpClient } from '@angular/common/http';
 import {
-    HttpTestingController,
-    provideHttpClientTesting,
-} from "@angular/common/http/testing";
-import { ErrorHandler } from "@angular/core";
-import { TestBed } from "@angular/core/testing";
-import { take } from "rxjs";
+  HttpTestingController,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
+import { ErrorHandler } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { take } from 'rxjs';
 import {
-    EDITED_TRANSACTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-    SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE,
-} from "./session-state.fixture";
+  EDITED_TRANSACTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+  SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE,
+} from './session-state.fixture';
 import {
-    CreateSessionResponse,
-    GetSessionResponse,
-    SessionStateLocal,
-    SessionStateService,
-} from "./session-state.service";
+  CreateSessionResponse,
+  GetSessionResponse,
+  SessionStateLocal,
+  SessionStateService,
+} from './session-state.service';
 
-describe("SessionDataService", () => {
+describe('SessionDataService', () => {
   let service: SessionStateService;
   let httpMock: HttpTestingController;
   let errorHandlerSpy: jasmine.SpyObj<ErrorHandler>;
@@ -26,7 +26,7 @@ describe("SessionDataService", () => {
   let mockSessionState: SessionStateLocal;
 
   beforeEach(() => {
-    errorHandlerSpy = jasmine.createSpyObj("ErrorHandler", ["handleError"]);
+    errorHandlerSpy = jasmine.createSpyObj('ErrorHandler', ['handleError']);
 
     TestBed.configureTestingModule({
       providers: [
@@ -48,12 +48,12 @@ describe("SessionDataService", () => {
     httpMock.verify();
   });
 
-  it("should be created", () => {
+  it('should be created', () => {
     expect(service).toBeTruthy();
   });
 
-  describe("sessionStateValue", () => {
-    it("should return the current value of sessionState BehaviorSubject", () => {
+  describe('sessionStateValue', () => {
+    it('should return the current value of sessionState BehaviorSubject', () => {
       const sessionStateValue = service.getSessionStateValue();
       expect(sessionStateValue).toBeDefined();
     });
@@ -68,8 +68,8 @@ describe("SessionDataService", () => {
   //   });
   // });
 
-  describe("latestSessionVersion$", () => {
-    it("should emit the latest version from session state", (done) => {
+  describe('latestSessionVersion$', () => {
+    it('should emit the latest version from session state', (done) => {
       const testState: SessionStateLocal = {
         amlId: mockAmlId,
         version: 5,
@@ -77,7 +77,7 @@ describe("SessionDataService", () => {
         strTransactions: [],
       };
 
-      service["_sessionState$"].next(testState);
+      service['_sessionState$'].next(testState);
 
       service.latestSessionVersion$.pipe(take(1)).subscribe((version) => {
         expect(version).toBe(5);
@@ -97,10 +97,10 @@ describe("SessionDataService", () => {
   //   });
   // });
 
-  describe("fetchSessionByAmlId", () => {
-    it("should fetch session data and emit local session", (done) => {
+  describe('fetchSessionByAmlId', () => {
+    it('should fetch session data and emit local session', (done) => {
       const mockGetSessionResponse: GetSessionResponse = {
-        amlId: "999999",
+        amlId: '999999',
         version: 0,
         data: {
           transactionSearchParams: {
@@ -114,16 +114,16 @@ describe("SessionDataService", () => {
             (txn) => ({
               ...txn,
               _hiddenTxnType: txn.flowOfFundsSource,
-              _hiddenAmlId: "999999",
+              _hiddenAmlId: '999999',
               _hiddenStrTxnId: txn.flowOfFundsAmlTransactionId,
               _version: 0,
               changeLogs: [],
             }),
           ),
         },
-        updatedAt: "1996-06-13",
-        createdAt: "1996-06-12",
-        userId: "test-user",
+        updatedAt: '1996-06-13',
+        createdAt: '1996-06-12',
+        userId: 'test-user',
       };
 
       const {
@@ -154,13 +154,13 @@ describe("SessionDataService", () => {
         );
 
       const req = httpMock.expectOne(`/api/sessions/${mockAmlId}`);
-      expect(req.request.method).toBe("GET");
+      expect(req.request.method).toBe('GET');
       req.flush(mockGetSessionResponse);
     });
 
-    it("should handle HTTP errors", (done) => {
+    it('should handle HTTP errors', (done) => {
       service.fetchSessionByAmlId(mockAmlId).subscribe({
-        next: () => fail("should have failed"),
+        next: () => fail('should have failed'),
         error: (error) => {
           expect(error.status).toBe(404);
           done();
@@ -168,17 +168,17 @@ describe("SessionDataService", () => {
       });
 
       const req = httpMock.expectOne(`/api/sessions/${mockAmlId}`);
-      req.flush("Not found", { status: 404, statusText: "Not Found" });
+      req.flush('Not found', { status: 404, statusText: 'Not Found' });
     });
   });
 
-  describe("createSession", () => {
-    it("should create a new session with version 0 and emit local state", (done) => {
+  describe('createSession', () => {
+    it('should create a new session with version 0 and emit local state', (done) => {
       const mockCreateResponse: CreateSessionResponse = {
-        amlId: "999999",
-        userId: "test-user",
+        amlId: '999999',
+        userId: 'test-user',
         version: 0,
-        createdAt: "1996-06-12",
+        createdAt: '1996-06-12',
       };
       const { amlId: mockAmlId, version: mockVersion } = mockCreateResponse;
 
@@ -189,18 +189,18 @@ describe("SessionDataService", () => {
         done();
       });
 
-      const req = httpMock.expectOne("/api/sessions");
-      expect(req.request.method).toBe("POST");
+      const req = httpMock.expectOne('/api/sessions');
+      expect(req.request.method).toBe('POST');
       expect(req.request.body.amlId).toBe(mockAmlId);
       req.flush(mockCreateResponse);
     });
 
-    it("should initialize session state with empty selections", (done) => {
+    it('should initialize session state with empty selections', (done) => {
       const mockCreateResponse: CreateSessionResponse = {
-        amlId: "999999",
-        userId: "test-user",
+        amlId: '999999',
+        userId: 'test-user',
         version: 0,
-        createdAt: "1996-06-12",
+        createdAt: '1996-06-12',
       };
       const { amlId: mockAmlId } = mockCreateResponse;
 
@@ -224,7 +224,7 @@ describe("SessionDataService", () => {
         done();
       });
 
-      const req = httpMock.expectOne("/api/sessions");
+      const req = httpMock.expectOne('/api/sessions');
       req.flush(mockCreateResponse);
     });
   });

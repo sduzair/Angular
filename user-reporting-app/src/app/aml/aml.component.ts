@@ -1,20 +1,20 @@
-import { CommonModule } from "@angular/common";
+import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
   Input,
   inject,
-} from "@angular/core";
-import { MatChip } from "@angular/material/chips";
-import { MatIcon } from "@angular/material/icon";
-import { MatProgressSpinner } from "@angular/material/progress-spinner";
-import { MatToolbarModule } from "@angular/material/toolbar";
-import { ResolveFn, RouterOutlet } from "@angular/router";
-import { Observable } from "rxjs";
-import { SessionStateService } from "./session-state.service";
+} from '@angular/core';
+import { MatChip } from '@angular/material/chips';
+import { MatIcon } from '@angular/material/icon';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { ResolveFn, RouterOutlet } from '@angular/router';
+import { Observable } from 'rxjs';
+import { SessionStateService } from './session-state.service';
 
 @Component({
-  selector: "app-aml",
+  selector: 'app-aml',
   imports: [
     CommonModule,
     RouterOutlet,
@@ -32,20 +32,18 @@ import { SessionStateService } from "./session-state.service";
             <h1>-- TITLE HERE --</h1>
             <div class="flex-fill"></div>
             <mat-chip selected="true" class="last-updated-chip">
-              <ng-container *ngIf="savingStatus$ | async; else updateIcon">
+              @if (savingStatus$ | async) {
                 <mat-progress-spinner
                   diameter="20"
                   mode="indeterminate"
-                  class="last-updated-chip-spinner"
-                ></mat-progress-spinner>
-              </ng-container>
-              <ng-template #updateIcon>
+                  class="last-updated-chip-spinner"></mat-progress-spinner>
+              } @else {
                 <mat-icon class="mat-accent last-updated-chip-spinner"
                   >update</mat-icon
                 >
-              </ng-template>
+              }
               Last Updated:
-              {{ lastUpdated$ | async | date : "short" }}
+              {{ lastUpdated$ | async | date: 'short' }}
             </mat-chip>
           </mat-toolbar-row>
         </mat-toolbar>
@@ -57,7 +55,7 @@ import { SessionStateService } from "./session-state.service";
       </div>
     </div>
   `,
-  styleUrl: "./aml.component.scss",
+  styleUrl: './aml.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AmlComponent {

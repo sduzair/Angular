@@ -1,12 +1,12 @@
-import { CommonModule, CurrencyPipe } from "@angular/common";
-import { ChangeDetectionStrategy, Component, Input } from "@angular/core";
-import { MatButtonModule } from "@angular/material/button";
-import { MatDivider } from "@angular/material/divider";
-import { MatExpansionModule } from "@angular/material/expansion";
-import { StrTransactionWithChangeLogs } from "../../../aml/session-state.service";
+import { CommonModule, CurrencyPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDivider } from '@angular/material/divider';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { StrTransactionWithChangeLogs } from '../../../aml/session-state.service';
 
 @Component({
-  selector: "app-transaction-details-panel",
+  selector: 'app-transaction-details-panel',
   imports: [
     CommonModule,
     MatDivider,
@@ -54,89 +54,83 @@ import { StrTransactionWithChangeLogs } from "../../../aml/session-state.service
 
       <!-- Transfer Details -->
       <!-- <div class="row">
-        <h3 class="mb-0">Transfer Details</h3>
-      </div>
-       -->
+      <h3 class="mb-0">Transfer Details</h3>
+    </div>
+    -->
       <mat-divider class="my-2"></mat-divider>
 
       <div class="row">
-        <div
-          class="col-auto d-flex flex-column"
-          *ngIf="singleStrTransaction.flowOfFundsCreditAmount"
-        >
-          <span class="label text-uppercase">Credit Amount:</span>
-          <span class="value text-break">{{
-            singleStrTransaction.flowOfFundsCreditAmount
-              | currency : singleStrTransaction.flowOfFundsAccountCurrency!
-          }}</span>
-        </div>
+        @if (singleStrTransaction.flowOfFundsCreditAmount) {
+          <div class="col-auto d-flex flex-column">
+            <span class="label text-uppercase">Credit Amount:</span>
+            <span class="value text-break">{{
+              singleStrTransaction.flowOfFundsCreditAmount
+                | currency: singleStrTransaction.flowOfFundsAccountCurrency!
+            }}</span>
+          </div>
+        }
 
-        <div
-          class="col-auto d-flex flex-column"
-          *ngIf="singleStrTransaction.flowOfFundsDebitAmount"
-        >
-          <span class="label text-uppercase">Debit Amount:</span>
-          <span class="value text-break">{{
-            singleStrTransaction.flowOfFundsDebitAmount
-              | currency : singleStrTransaction.flowOfFundsAccountCurrency!
-          }}</span>
-        </div>
+        @if (singleStrTransaction.flowOfFundsDebitAmount) {
+          <div class="col-auto d-flex flex-column">
+            <span class="label text-uppercase">Debit Amount:</span>
+            <span class="value text-break">{{
+              singleStrTransaction.flowOfFundsDebitAmount
+                | currency: singleStrTransaction.flowOfFundsAccountCurrency!
+            }}</span>
+          </div>
+        }
 
         <!-- <div class="col-auto d-flex flex-column">
-          <span class="label text-uppercase">Transaction Currency:</span>
-          <span class="value text-break">{{
-            singleStrTransaction.flowOfFundsTransactionCurrency
-          }}</span>
-        </div>
-
-        <div class="col-auto d-flex flex-column">
-          <span class="label text-uppercase">Transaction Currency Amount:</span>
-          <span class="value text-break">{{
-            singleStrTransaction.flowOfFundsTransactionCurrencyAmount
-          }}</span>
-        </div> -->
+      <span class="label text-uppercase">Transaction Currency:</span>
+      <span class="value text-break">{{
+        singleStrTransaction.flowOfFundsTransactionCurrency
+      }}</span>
+    </div>
+    
+    <div class="col-auto d-flex flex-column">
+      <span class="label text-uppercase">Transaction Currency Amount:</span>
+      <span class="value text-break">{{
+        singleStrTransaction.flowOfFundsTransactionCurrencyAmount
+      }}</span>
+    </div> -->
 
         <div class="col"></div>
 
-        <div
-          class="col-auto d-flex flex-column"
-          *ngIf="singleStrTransaction.flowOfFundsCreditedTransit"
-        >
-          <span class="label text-uppercase">Credited Transit:</span>
-          <span class="value text-break">{{
-            singleStrTransaction.flowOfFundsCreditedTransit
-          }}</span>
-        </div>
+        @if (singleStrTransaction.flowOfFundsCreditedTransit) {
+          <div class="col-auto d-flex flex-column">
+            <span class="label text-uppercase">Credited Transit:</span>
+            <span class="value text-break">{{
+              singleStrTransaction.flowOfFundsCreditedTransit
+            }}</span>
+          </div>
+        }
 
-        <div
-          class="col-auto d-flex flex-column"
-          *ngIf="singleStrTransaction.flowOfFundsCreditedAccount"
-        >
-          <span class="label text-uppercase">Credited Account:</span>
-          <span class="value text-break">{{
-            singleStrTransaction.flowOfFundsCreditedAccount
-          }}</span>
-        </div>
+        @if (singleStrTransaction.flowOfFundsCreditedAccount) {
+          <div class="col-auto d-flex flex-column">
+            <span class="label text-uppercase">Credited Account:</span>
+            <span class="value text-break">{{
+              singleStrTransaction.flowOfFundsCreditedAccount
+            }}</span>
+          </div>
+        }
 
-        <div
-          class="col-auto d-flex flex-column"
-          *ngIf="singleStrTransaction.flowOfFundsDebitedTransit"
-        >
-          <span class="label text-uppercase">Debited Transit:</span>
-          <span class="value text-break">{{
-            singleStrTransaction.flowOfFundsDebitedTransit
-          }}</span>
-        </div>
+        @if (singleStrTransaction.flowOfFundsDebitedTransit) {
+          <div class="col-auto d-flex flex-column">
+            <span class="label text-uppercase">Debited Transit:</span>
+            <span class="value text-break">{{
+              singleStrTransaction.flowOfFundsDebitedTransit
+            }}</span>
+          </div>
+        }
 
-        <div
-          class="col-auto d-flex flex-column"
-          *ngIf="singleStrTransaction.flowOfFundsDebitedAccount"
-        >
-          <span class="label text-uppercase">Debited Account:</span>
-          <span class="value text-break">{{
-            singleStrTransaction.flowOfFundsDebitedAccount
-          }}</span>
-        </div>
+        @if (singleStrTransaction.flowOfFundsDebitedAccount) {
+          <div class="col-auto d-flex flex-column">
+            <span class="label text-uppercase">Debited Account:</span>
+            <span class="value text-break">{{
+              singleStrTransaction.flowOfFundsDebitedAccount
+            }}</span>
+          </div>
+        }
 
         <div class="col-auto d-flex flex-column">
           <span class="label text-uppercase">Source:</span>
@@ -155,9 +149,9 @@ import { StrTransactionWithChangeLogs } from "../../../aml/session-state.service
 
       <!-- Transaction Identifiers -->
       <!-- <div class="row">
-        <h3 class="mb-0">Transaction Identifiers</h3>
-      </div>
-       -->
+    <h3 class="mb-0">Transaction Identifiers</h3>
+    </div>
+    -->
       <mat-divider class="my-2"></mat-divider>
 
       <div class="row">
@@ -193,7 +187,7 @@ import { StrTransactionWithChangeLogs } from "../../../aml/session-state.service
       </div>
     </mat-expansion-panel>
   `,
-  styleUrl: "./transaction-details-panel.component.scss",
+  styleUrl: './transaction-details-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TransactionDetailsPanelComponent {

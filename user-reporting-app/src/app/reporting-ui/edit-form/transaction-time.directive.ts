@@ -1,24 +1,28 @@
-import { Directive, ElementRef, HostListener } from "@angular/core";
-import { ControlValueAccessor, NgControl } from "@angular/forms";
-import { format, isValid, parse } from "date-fns";
+import { Directive, ElementRef, HostListener, inject } from '@angular/core';
+import { ControlValueAccessor, NgControl } from '@angular/forms';
+import { format, isValid, parse } from 'date-fns';
 
 @Directive({
-  selector: "[appTransactionTime]",
+  selector: '[appTransactionTime]',
 })
 export class TransactionTimeDirective implements ControlValueAccessor {
-  private onChange = (_: any) => {};
-  private onTouched = () => {};
+  ngControl = inject(NgControl);
+  private el = inject<ElementRef<HTMLInputElement>>(ElementRef);
 
-  constructor(
-    public ngControl: NgControl,
-    private el: ElementRef<HTMLInputElement>,
-  ) {
+  private onChange = (_: any) => {
+    /* empty */
+  };
+  private onTouched = () => {
+    /* empty */
+  };
+
+  constructor() {
     this.ngControl.valueAccessor = this;
   }
 
   writeValue(value: string | null): void {
     if (!value) {
-      this.el.nativeElement.value = "";
+      this.el.nativeElement.value = '';
       return;
     }
 
@@ -26,13 +30,13 @@ export class TransactionTimeDirective implements ControlValueAccessor {
       TransactionTimeDirective.parseAndFormatTime(value)!;
   }
 
-  @HostListener("input", ["$event"])
+  @HostListener('input', ['$event'])
   onInput(event: Event) {
     const value = (event.target as HTMLInputElement).value;
     this.onChange(TransactionTimeDirective.parseAndFormatTime(value)!);
   }
 
-  @HostListener("blur")
+  @HostListener('blur')
   onBlur() {
     this.onTouched();
   }
@@ -50,19 +54,19 @@ export class TransactionTimeDirective implements ControlValueAccessor {
   static parseAndFormatTime(value: string | unknown) {
     const parsed = TransactionTimeDirective.parse(value);
     if (!isValid(parsed)) return;
-    const formatted = format(parsed, "HH:mm:ss");
+    const formatted = format(parsed, 'HH:mm:ss');
     return formatted;
   }
 
   static parse(value: string | unknown) {
     // Try parsing 'H:mm', 'HH:mm', or 'HH:mm:ss' formats
-    const formats = ["HH:mm:ss", "HH:mm"];
+    const formats = ['HH:mm:ss', 'HH:mm'];
     for (const fmt of formats) {
-      const parsed = parse(String(value ?? ""), fmt, new Date());
+      const parsed = parse(String(value ?? ''), fmt, new Date());
       if (!isValid(parsed)) continue;
       return parsed;
     }
     // return invalid date
-    return new Date("");
+    return new Date('');
   }
 }

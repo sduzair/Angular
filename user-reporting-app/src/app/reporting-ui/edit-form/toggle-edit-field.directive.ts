@@ -4,16 +4,21 @@ import {
   ElementRef,
   HostListener,
   Input,
-  Optional,
   Renderer2,
-} from "@angular/core";
-import { ControlContainer, FormArray } from "@angular/forms";
-import { MatFormField } from "@angular/material/form-field";
+  inject,
+} from '@angular/core';
+import { ControlContainer, FormArray } from '@angular/forms';
+import { MatFormField } from '@angular/material/form-field';
 
 @Directive({
-  selector: "[appToggleEditField]",
+  selector: '[appToggleEditField]',
 })
 export class ToggleEditFieldDirective implements AfterViewChecked {
+  private el = inject(ElementRef);
+  private renderer = inject(Renderer2);
+  private controlContainer = inject(ControlContainer);
+  private formField = inject(MatFormField, { optional: true });
+
   @Input({ required: false }) appToggleEditField?: string;
   get control() {
     if (!this.formField && this.controlContainer.control instanceof FormArray) {
@@ -25,25 +30,18 @@ export class ToggleEditFieldDirective implements AfterViewChecked {
     return this.formField!._control?.ngControl?.control!;
   }
   get iconElement() {
-    return this.el.nativeElement.querySelector("mat-icon");
+    return this.el.nativeElement.querySelector('mat-icon');
   }
 
   get isCheckboxControl() {
     return Boolean(this.appToggleEditField);
   }
 
-  constructor(
-    private el: ElementRef,
-    private renderer: Renderer2,
-    private controlContainer: ControlContainer,
-    @Optional() private formField?: MatFormField,
-  ) {}
-
   ngAfterViewChecked() {
     this.updateIcon();
   }
 
-  @HostListener("click", ["$event"])
+  @HostListener('click', ['$event'])
   onClick($event: Event): void {
     $event.stopPropagation();
 
@@ -63,9 +61,9 @@ export class ToggleEditFieldDirective implements AfterViewChecked {
   private updateIcon() {
     if (!this.iconElement) return;
 
-    const iconName = this.control?.disabled ? "edit" : "cancel";
+    const iconName = this.control?.disabled ? 'edit' : 'cancel';
 
     // Update the icon text content
-    this.renderer.setProperty(this.iconElement, "textContent", iconName);
+    this.renderer.setProperty(this.iconElement, 'textContent', iconName);
   }
 }

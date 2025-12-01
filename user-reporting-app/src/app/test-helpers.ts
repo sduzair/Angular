@@ -1,10 +1,10 @@
-import { HarnessLoader } from "@angular/cdk/testing";
-import { DebugElement } from "@angular/core";
-import { ComponentFixture } from "@angular/core/testing";
-import { MatExpansionPanelHarness } from "@angular/material/expansion/testing";
-import { MatTabHarness } from "@angular/material/tabs/testing";
-import { By } from "@angular/platform-browser";
-import { defer } from "rxjs";
+import { HarnessLoader } from '@angular/cdk/testing';
+import { DebugElement } from '@angular/core';
+import { ComponentFixture } from '@angular/core/testing';
+import { MatExpansionPanelHarness } from '@angular/material/expansion/testing';
+import { MatTabHarness } from '@angular/material/tabs/testing';
+import { By } from '@angular/platform-browser';
+import { defer } from 'rxjs';
 
 export type DeepPartial<T> = {
   [P in keyof T]?: Exclude<T[P], null | undefined> extends (infer U)[]

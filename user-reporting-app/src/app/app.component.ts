@@ -1,17 +1,21 @@
-import { ArrayDataSource } from "@angular/cdk/collections";
-import { CommonModule } from "@angular/common";
-import { ChangeDetectionStrategy, Component, ViewChild } from "@angular/core";
-import { MatButtonModule } from "@angular/material/button";
-import { MatIconModule } from "@angular/material/icon";
-import { MatSidenavModule } from "@angular/material/sidenav";
-import { MatToolbarModule } from "@angular/material/toolbar";
-import { MatTree, MatTreeModule } from "@angular/material/tree";
-import { Router, RouterOutlet } from "@angular/router";
+import { ArrayDataSource } from '@angular/cdk/collections';
+
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  ViewChild,
+} from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatTree, MatTreeModule } from '@angular/material/tree';
+import { Router, RouterOutlet } from '@angular/router';
 
 @Component({
-  selector: "app-root",
+  selector: 'app-root',
   imports: [
-    CommonModule,
     RouterOutlet,
     MatSidenavModule,
     MatToolbarModule,
@@ -21,33 +25,23 @@ import { Router, RouterOutlet } from "@angular/router";
   ],
   template: `
     <!-- app.component.html -->
-    <mat-sidenav-container
-      class="shell d-flex flex-column min-vh-100"
-    >
-      <mat-sidenav
-        mode="side"
-        opened
-        disableClose
-        fixedInViewport
-        class="nav"
-      >
+    <mat-sidenav-container class="shell d-flex flex-column min-vh-100">
+      <mat-sidenav mode="side" opened disableClose fixedInViewport class="nav">
         <mat-toolbar class="mb-3">Poacher UI</mat-toolbar>
 
         <!-- Flat tree using childrenAccessor -->
         <mat-tree
           #tree="matTree"
           [dataSource]="dataSource"
-          [childrenAccessor]="childrenAccessor"
-        >
+          [childrenAccessor]="childrenAccessor">
           <!-- Parent (AML ID) node -->
           <mat-tree-node
             *matTreeNodeDef="let node; when: hasChild"
             matTreeNodePadding
-            class="mt-2"
-          >
+            class="mt-2">
             <button mat-icon-button matTreeNodeToggle aria-label="toggle">
               <mat-icon>
-                {{ tree.isExpanded(node) ? "expand_more" : "chevron_right" }}
+                {{ tree.isExpanded(node) ? 'expand_more' : 'chevron_right' }}
               </mat-icon>
             </button>
             <button mat-icon-button disabled>
@@ -57,30 +51,29 @@ import { Router, RouterOutlet } from "@angular/router";
           </mat-tree-node>
 
           <!-- Leaf nodes (routes) -->
-          <mat-tree-node
-            *matTreeNodeDef="let node"
-            matTreeNodePadding
-          >
+          <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
             <button mat-icon-button>
               <mat-icon>
                 {{ node.matIcon }}
               </mat-icon>
             </button>
-            <a (click)="onLeafClick(node)" class="mat-body-1 mb-0">{{
-              node.name
-            }}</a>
+            <a
+              href="#"
+              (click)="onLeafClick(node); $event.preventDefault()"
+              class="mat-body-1 mb-0">
+              {{ node.name }}
+            </a>
           </mat-tree-node>
         </mat-tree>
       </mat-sidenav>
 
       <mat-sidenav-content
-        class="flex-filled d-flex flex-column justify-content-center overflow-hidden"
-      >
+        class="flex-filled d-flex flex-column justify-content-center overflow-hidden">
         <router-outlet></router-outlet>
       </mat-sidenav-content>
     </mat-sidenav-container>
   `,
-  styleUrl: "./app.component.scss",
+  styleUrl: './app.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppComponent {
@@ -89,41 +82,41 @@ export class AppComponent {
   // Initial dataset
   private data: NavNode[] = [
     {
-      name: "Transaction Search",
-      route: "transactionsearch",
-      matIcon: "search",
+      name: 'Transaction Search',
+      route: 'transactionsearch',
+      matIcon: 'search',
     },
     {
-      name: "AML-12345",
+      name: 'AML-12345',
       children: [
         {
-          name: "Transaction View",
-          route: "/aml/AML-12345/transaction-view",
-          matIcon: "compare_arrows",
+          name: 'Transaction View',
+          route: '/aml/AML-12345/transaction-view',
+          matIcon: 'compare_arrows',
         },
         {
-          name: "Reporting UI",
-          route: "/aml/AML-12345/report",
-          matIcon: "format_list_bulleted",
+          name: 'Reporting UI',
+          route: '/aml/AML-12345/report',
+          matIcon: 'format_list_bulleted',
         },
       ],
-      matIcon: "perm_identity",
+      matIcon: 'perm_identity',
     },
     {
-      name: "AML-12345",
+      name: 'AML-12345',
       children: [
         {
-          name: "Transaction View",
-          route: "/aml/AML-12345/transaction-view",
-          matIcon: "compare_arrows",
+          name: 'Transaction View',
+          route: '/aml/AML-12345/transaction-view',
+          matIcon: 'compare_arrows',
         },
         {
-          name: "Reporting UI",
-          route: "/aml/AML-12345/report",
-          matIcon: "format_list_bulleted",
+          name: 'Reporting UI',
+          route: '/aml/AML-12345/report',
+          matIcon: 'format_list_bulleted',
         },
       ],
-      matIcon: "perm_identity",
+      matIcon: 'perm_identity',
     },
   ];
 
@@ -135,24 +128,24 @@ export class AppComponent {
 
   hasChild = (_: number, node: NavNode) => !!node.children?.length;
 
-  constructor(private router: Router) {}
+  private router = inject(Router);
 
   addAml(amlId: string) {
     const newNode: NavNode = {
       name: amlId,
       children: [
         {
-          name: "Transaction View",
+          name: 'Transaction View',
           route: `/aml/${amlId}/transaction`,
-          matIcon: "compare_arrows",
+          matIcon: 'compare_arrows',
         },
         {
-          name: "Reporting UI",
+          name: 'Reporting UI',
           route: `/aml/${amlId}/report`,
-          matIcon: "format_list_bulleted",
+          matIcon: 'format_list_bulleted',
         },
       ],
-      matIcon: "perm_identity",
+      matIcon: 'perm_identity',
     };
     this.data = [...this.data, newNode];
     this.dataSource = new ArrayDataSource<NavNode>(this.data); // reassign for OnPush

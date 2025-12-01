@@ -1,34 +1,34 @@
-import { HttpClient } from "@angular/common/http";
-import { Injectable } from "@angular/core";
-import { map, timer } from "rxjs";
-import { GetSessionResponse } from "./aml/session-state.service";
+import { HttpClient } from '@angular/common/http';
+import { inject, Injectable } from '@angular/core';
+import { map, timer } from 'rxjs';
+import { GetSessionResponse } from './aml/session-state.service';
 
-@Injectable({ providedIn: "root" })
+@Injectable({ providedIn: 'root' })
 export class AmlSessionService {
-  constructor(private http: HttpClient) {}
+  private http = inject(HttpClient);
   testResponse: GetSessionResponse = {
-    amlId: "99999",
+    amlId: '99999',
     version: 0,
     createdAt: new Date().toUTCString(),
     updatedAt: new Date().toUTCString(),
-    userId: "asdfasfd",
+    userId: 'asdfasfd',
     data: {
       transactionSearchParams: {
-        partyKeysSelection: ["3415674561", "1846597320"],
+        partyKeysSelection: ['3415674561', '1846597320'],
         accountNumbersSelection: [
-          "84255 / 5582195",
-          "31980 / 8692413",
-          "87594 / 5647218",
+          '84255 / 5582195',
+          '31980 / 8692413',
+          '87594 / 5647218',
         ],
-        sourceSystemsSelection: ["ABM", "OLB"],
+        sourceSystemsSelection: ['ABM', 'OLB'],
         productTypesSelection: [
-          "Asset-Based Loan",
-          "Book-Only Net Yield Instrument",
+          'Asset-Based Loan',
+          'Book-Only Net Yield Instrument',
         ],
         reviewPeriodSelection: [
           {
-            start: "2025/09/01",
-            end: "2025/09/01",
+            start: '2025/09/01',
+            end: '2025/09/01',
           },
         ],
       },
@@ -44,9 +44,9 @@ export class AmlSessionService {
   // Accept partial updates to data payload; server should bump version/updatedAt.
   updateSession(
     amlId: string,
-    data: Partial<GetSessionResponse["data"]["transactionSearchParams"]>,
+    data: Partial<GetSessionResponse['data']['transactionSearchParams']>,
   ) {
-    console.log("🚀 ~ AmlSessionService ~ updateSession ~ data:", data);
+    console.log('🚀 ~ AmlSessionService ~ updateSession ~ data:', data);
     return timer(1000).pipe(map(() => this.testResponse));
     //   return this.http.patch<GetSessionResponse>(
     //     `/api/sessions/${encodeURIComponent(amlId)}`,

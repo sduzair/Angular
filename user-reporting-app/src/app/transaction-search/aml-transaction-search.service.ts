@@ -1,14 +1,14 @@
-import { HttpClient } from "@angular/common/http";
-import { Injectable } from "@angular/core";
-import { Observable, map, of, timer } from "rxjs";
-import { transactionSearchResDevOnly } from "../aml/session-state.fixture";
-import { TableSelectionCompareWithAmlTransactionId } from "../transaction-view/transaction-view.component";
+import { HttpClient } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
+import { Observable, map, of, timer } from 'rxjs';
+import { transactionSearchResDevOnly } from '../aml/session-state.fixture';
+import { TableSelectionCompareWithAmlTransactionId } from '../transaction-view/transaction-view.component';
 
 @Injectable({
-  providedIn: "root",
+  providedIn: 'root',
 })
 export class AmlTransactionSearchService {
-  constructor(private http: HttpClient) {}
+  private http = inject(HttpClient);
 
   fetchSourceRefreshTime(): Observable<SourceSysRefreshTime[]> {
     return timer(1000).pipe(
@@ -23,26 +23,26 @@ export class AmlTransactionSearchService {
   }
   static getSourceSystemInfo() {
     return [
-      "Party KYC",
-      "Flow of Funds",
-      "Conductor KYC",
-      "Product Inventory",
-      "Cheque",
-      "ABM",
-      "OLB",
-      "EMT",
-      "BPSA",
-      "CI",
-      "FX",
-      "TSYS",
-      "EFT",
-      "EMTs",
-      "FXCASHPM",
-      "FXMP",
-      "GMT",
-      "OTC",
-      "POS",
-      "Wires",
+      'Party KYC',
+      'Flow of Funds',
+      'Conductor KYC',
+      'Product Inventory',
+      'Cheque',
+      'ABM',
+      'OLB',
+      'EMT',
+      'BPSA',
+      'CI',
+      'FX',
+      'TSYS',
+      'EFT',
+      'EMTs',
+      'FXCASHPM',
+      'FXMP',
+      'GMT',
+      'OTC',
+      'POS',
+      'Wires',
     ];
   }
 
@@ -52,46 +52,46 @@ export class AmlTransactionSearchService {
   }
 }
 
-export type SourceSys = {
+export interface SourceSys {
   value: string;
-};
+}
 
-export type SourceSysRefreshTime = {
+export interface SourceSysRefreshTime {
   value: string;
   refresh?: string | Date;
   isDisabled: boolean;
-};
+}
 
-export type AccountNumber = {
+export interface AccountNumber {
   value: string;
-};
+}
 
-export type PartyKey = {
+export interface PartyKey {
   value: string;
-};
+}
 
-export type TransactionSearchResponse = Array<
+export type TransactionSearchResponse = (
   | {
-      sourceId: "FlowOfFunds";
-      status: "completed" | "failed";
+      sourceId: 'FlowOfFunds';
+      status: 'completed' | 'failed';
       sourceData: FlowOfFundsSourceData[];
     }
   | {
-      sourceId: "ABM";
-      status: "completed" | "failed";
+      sourceId: 'ABM';
+      status: 'completed' | 'failed';
       sourceData: AbmSourceData[];
     }
   | {
-      sourceId: "OLB";
-      status: "completed" | "failed";
+      sourceId: 'OLB';
+      status: 'completed' | 'failed';
       sourceData: OlbSourceData[];
     }
   | {
-      sourceId: "EMT";
-      status: "completed" | "failed";
+      sourceId: 'EMT';
+      status: 'completed' | 'failed';
       sourceData: EmtSourceData[];
     }
->;
+)[];
 
 export type FlowOfFundsSourceData = {
   flowOfFundsAccountCurrency: string;
@@ -422,8 +422,8 @@ export type AbmSourceData = {
   TableSelectionCompareWithAmlTransactionId;
 
 export type SourceData =
-  TransactionSearchResponse[number]["sourceData"][number];
+  TransactionSearchResponse[number]['sourceData'][number];
 
-type TableRecordUiProps = {
+interface TableRecordUiProps {
   _uiPropHighlightColor?: string;
-};
+}

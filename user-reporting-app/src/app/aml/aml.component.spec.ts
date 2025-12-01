@@ -8,9 +8,8 @@ describe('AmlComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [AmlComponent]
-    })
-    .compileComponents();
+      imports: [AmlComponent],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(AmlComponent);
     component = fixture.componentInstance;

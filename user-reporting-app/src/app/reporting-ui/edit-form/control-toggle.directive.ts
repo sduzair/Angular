@@ -4,11 +4,10 @@ import {
   EventEmitter,
   Input,
   OnInit,
-  Optional,
   Output,
   inject,
-} from "@angular/core";
-import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   ControlContainer,
   FormArray,
@@ -16,14 +15,18 @@ import {
   NgControl,
   ValidatorFn,
   Validators,
-} from "@angular/forms";
-import { startWith } from "rxjs";
-import { SPECIAL_EMPTY_VALUE } from "./mark-as-empty.directive";
+} from '@angular/forms';
+import { startWith } from 'rxjs';
+import { SPECIAL_EMPTY_VALUE } from './mark-as-empty.directive';
 
 @Directive({
-  selector: "[appControlToggle]",
+  selector: '[appControlToggle]',
 })
 export class ControlToggleDirective implements OnInit {
+  private formGroupDirective = inject(FormGroupDirective);
+  private controlContainer = inject(ControlContainer);
+  private ngControl = inject(NgControl, { optional: true });
+
   @Input({ required: true }) appControlToggle!: string;
   @Input() isBulkEdit = false;
   @Input({ required: false }) appControlToggleValue?: any;
@@ -54,17 +57,11 @@ export class ControlToggleDirective implements OnInit {
 
   controlToToggleOriginalValidators: [ValidatorFn] | null = null;
 
-  constructor(
-    private formGroupDirective: FormGroupDirective,
-    private controlContainer: ControlContainer,
-    @Optional() private ngControl?: NgControl,
-  ) {}
-
   private destroyRef = inject(DestroyRef);
   ngOnInit() {
     if (!this.controlToWatch || !this.controlToToggle) {
       throw new Error(
-        "ControlToggleDirective: controls not found in the form group",
+        'ControlToggleDirective: controls not found in the form group',
       );
     }
 
@@ -85,7 +82,9 @@ export class ControlToggleDirective implements OnInit {
             this.controlToToggleValueAccessor.writeValue.bind(
               this.controlToToggleValueAccessor,
             );
-          this.controlToToggleValueAccessor.writeValue = () => {};
+          this.controlToToggleValueAccessor.writeValue = () => {
+            /* empty */
+          };
           // Temporarily pause validation
           this.controlToToggleOriginalValidators = this.controlToToggle
             .validator

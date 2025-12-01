@@ -5,25 +5,25 @@ import {
   inject,
   OnDestroy,
   OnInit,
-} from "@angular/core";
-import { Router, NavigationStart, NavigationEnd } from "@angular/router";
-import { filter } from "rxjs";
-import { ScrollPositionService } from "./scroll-position.service";
-import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+} from '@angular/core';
+import { Router, NavigationStart, NavigationEnd } from '@angular/router';
+import { filter } from 'rxjs';
+import { ScrollPositionService } from './scroll-position.service';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Directive({
-  selector: "[appScrollPositionPreserve]",
+  selector: '[appScrollPositionPreserve]',
 })
 export class ScrollPositionPreserveDirective implements OnInit, OnDestroy {
   private elementRef = inject(ElementRef);
   private scrollService = inject(ScrollPositionService);
   private router = inject(Router);
   private destroyRef = inject(DestroyRef);
-  private routeKey = "";
+  private routeKey = '';
 
   ngOnInit(): void {
     // Generate unique route key
-    this.routeKey = this.router.url || "default-route";
+    this.routeKey = this.router.url || 'default-route';
 
     // Listen for navigation events to save scroll before leaving
     this.router.events
@@ -54,7 +54,7 @@ export class ScrollPositionPreserveDirective implements OnInit, OnDestroy {
   }
 
   private saveScrollPositions(): void {
-    const positions: { [key: string]: [number, number] } = {};
+    const positions: Record<string, [number, number]> = {};
 
     this.getScrollableElements().forEach((element, index) => {
       positions[index] = [element.scrollTop, element.scrollLeft];
@@ -78,7 +78,7 @@ export class ScrollPositionPreserveDirective implements OnInit, OnDestroy {
     });
   }
 
-  static SCROLLABLE_ELE = "scroll-position-preserve" as const;
+  static SCROLLABLE_ELE = 'scroll-position-preserve' as const;
 
   private getScrollableElements(): HTMLElement[] {
     const container = this.elementRef.nativeElement as HTMLElement;

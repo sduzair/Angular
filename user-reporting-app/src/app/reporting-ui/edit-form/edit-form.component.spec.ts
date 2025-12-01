@@ -1,69 +1,69 @@
-import { HarnessLoader } from "@angular/cdk/testing";
-import { TestbedHarnessEnvironment } from "@angular/cdk/testing/testbed";
-import { provideHttpClient } from "@angular/common/http";
+import { HarnessLoader } from '@angular/cdk/testing';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { provideHttpClient } from '@angular/common/http';
 import {
   HttpTestingController,
   provideHttpClientTesting,
-} from "@angular/common/http/testing";
+} from '@angular/common/http/testing';
 import {
   ANIMATION_MODULE_TYPE,
   Component,
   ErrorHandler,
   inject,
   provideZoneChangeDetection,
-} from "@angular/core";
-import { TestBed } from "@angular/core/testing";
+} from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import {
   MAT_DATE_FNS_FORMATS,
   provideDateFnsAdapter,
-} from "@angular/material-date-fns-adapter";
-import { MatButtonHarness } from "@angular/material/button/testing";
-import { MatCheckboxHarness } from "@angular/material/checkbox/testing";
-import { MAT_DATE_LOCALE } from "@angular/material/core";
-import { MatDatepickerInputHarness } from "@angular/material/datepicker/testing";
-import { MatFormFieldHarness } from "@angular/material/form-field/testing";
-import { MatInputHarness } from "@angular/material/input/testing";
-import { MatSelectHarness } from "@angular/material/select/testing";
+} from '@angular/material-date-fns-adapter';
+import { MatButtonHarness } from '@angular/material/button/testing';
+import { MatCheckboxHarness } from '@angular/material/checkbox/testing';
+import { MAT_DATE_LOCALE } from '@angular/material/core';
+import { MatDatepickerInputHarness } from '@angular/material/datepicker/testing';
+import { MatFormFieldHarness } from '@angular/material/form-field/testing';
+import { MatInputHarness } from '@angular/material/input/testing';
+import { MatSelectHarness } from '@angular/material/select/testing';
 import {
   Router,
   provideRouter,
   withComponentInputBinding,
   withNavigationErrorHandler,
   withRouterConfig,
-} from "@angular/router";
-import { RouterTestingHarness } from "@angular/router/testing";
-import { enCA } from "date-fns/locale";
-import { of } from "rxjs";
-import { AmlComponent } from "../../aml/aml.component";
+} from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
+import { enCA } from 'date-fns/locale';
+import { of } from 'rxjs';
+import { AmlComponent } from '../../aml/aml.component';
 import {
   SESSION_INITIAL_STATE,
   SessionStateLocal,
   SessionStateService,
-} from "../../aml/session-state.service";
-import { AppErrorHandlerService } from "../../app-error-handler.service";
-import { activateTabs, findEl } from "../../test-helpers";
+} from '../../aml/session-state.service';
+import { AppErrorHandlerService } from '../../app-error-handler.service';
+import { activateTabs, findEl } from '../../test-helpers';
 import {
   EditFormComponent,
   StrTxnEditForm,
   editTypeResolver,
-} from "./edit-form.component";
+} from './edit-form.component';
 import {
   FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
   FormOptionsService,
-} from "./form-options.service";
-import { TransactionTimeDirective } from "./transaction-time.directive";
+} from './form-options.service';
+import { TransactionTimeDirective } from './transaction-time.directive';
 
 @Component({
-  selector: "app-transaction-search",
-  template: "<h1>Transaction Search</h1>",
+  selector: 'app-transaction-search',
+  template: '<h1>Transaction Search</h1>',
   standalone: true,
 })
 class MockTransactionSearchComponent {}
 
-describe("EditFormComponent", () => {
+describe('EditFormComponent', () => {
   async function setup() {
     const formOptionsServiceSpy = jasmine.createSpyObj(
-      "FormOptionsService",
+      'FormOptionsService',
       [],
       {
         formOptions$: of(FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE),
@@ -77,12 +77,12 @@ describe("EditFormComponent", () => {
         provideRouter(
           [
             {
-              path: "transactionsearch",
+              path: 'transactionsearch',
               component: MockTransactionSearchComponent,
-              title: "Search by AML Id",
+              title: 'Search by AML Id',
             },
             {
-              path: "aml/:amlId",
+              path: 'aml/:amlId',
               component: AmlComponent,
               providers: [
                 {
@@ -93,26 +93,26 @@ describe("EditFormComponent", () => {
               ],
               children: [
                 {
-                  path: "reporting-ui",
+                  path: 'reporting-ui',
                   children: [
                     {
-                      path: "edit-form/bulk-edit",
+                      path: 'edit-form/bulk-edit',
                       component: EditFormComponent,
                       resolve: {
                         editType: editTypeResolver,
                       },
                       data: { reuse: false },
-                      title: () => "Bulk Edit",
+                      title: () => 'Bulk Edit',
                     },
                     {
-                      path: "edit-form/:transactionId",
+                      path: 'edit-form/:transactionId',
                       component: EditFormComponent,
                       resolve: {
                         editType: editTypeResolver,
                       },
                       data: { reuse: false },
                       title: (route) =>
-                        `Edit - ${route.params["transactionId"]}`,
+                        `Edit - ${route.params['transactionId']}`,
                     },
                   ],
                 },
@@ -120,11 +120,11 @@ describe("EditFormComponent", () => {
             },
           ],
           withComponentInputBinding(),
-          withRouterConfig({ paramsInheritanceStrategy: "always" }),
+          withRouterConfig({ paramsInheritanceStrategy: 'always' }),
           withNavigationErrorHandler((navError) => {
             const router = inject(Router);
-            console.error("Navigation error:", navError.error);
-            router.navigate(["/transactionsearch"]);
+            console.error('Navigation error:', navError.error);
+            router.navigate(['/transactionsearch']);
           }),
         ),
         provideHttpClient(),
@@ -132,12 +132,12 @@ describe("EditFormComponent", () => {
         // note needed as mat date input harness reads displayed value instead of form model value
         provideDateFnsAdapter({
           ...MAT_DATE_FNS_FORMATS,
-          display: { ...MAT_DATE_FNS_FORMATS.display, dateInput: "yyyy/MM/dd" },
+          display: { ...MAT_DATE_FNS_FORMATS.display, dateInput: 'yyyy/MM/dd' },
         }),
         { provide: MAT_DATE_LOCALE, useValue: enCA },
         { provide: ErrorHandler, useClass: AppErrorHandlerService },
         // note disables animations to prevent scenario of making assertions before animations complete
-        { provide: ANIMATION_MODULE_TYPE, useValue: "NoopAnimations" },
+        { provide: ANIMATION_MODULE_TYPE, useValue: 'NoopAnimations' },
         { provide: FormOptionsService, useValue: formOptionsServiceSpy },
       ],
     }).compileComponents();
@@ -154,44 +154,44 @@ describe("EditFormComponent", () => {
     };
   }
 
-  describe("navigate to edit form component for SINGLE_EDIT", () => {
-    it("should redirect to transaction search when ID is invalid", async () => {
+  describe('navigate to edit form component for SINGLE_EDIT', () => {
+    it('should redirect to transaction search when ID is invalid', async () => {
       const { harness } = await setup();
       const router = TestBed.inject(Router);
 
       await expectAsync(
-        harness.navigateByUrl("aml/99999999/reporting-ui/edit-form/asdfasdf"),
+        harness.navigateByUrl('aml/99999999/reporting-ui/edit-form/asdfasdf'),
       ).toBeRejectedWithError(/Transaction not found/);
-      expect(router.url).toBe("/transactionsearch");
+      expect(router.url).toBe('/transactionsearch');
     });
 
     async function setupAndNavigate() {
       const { harness, loader, formOptionsServiceSpy } = await setup();
       await harness.navigateByUrl(
-        "aml/99999999/reporting-ui/edit-form/ABM-01K4WANX6DRN6KCN05PMG7WJHA",
+        'aml/99999999/reporting-ui/edit-form/ABM-01K4WANX6DRN6KCN05PMG7WJHA',
         AmlComponent,
       );
 
       return { harness, loader, formOptionsServiceSpy };
     }
 
-    it("should create form template", async () => {
+    it('should create form template', async () => {
       const {
         harness: { fixture },
       } = await setupAndNavigate();
 
-      expect(findEl(fixture, "edit-form")).toBeTruthy();
+      expect(findEl(fixture, 'edit-form')).toBeTruthy();
     });
 
-    it("should create an input field", async () => {
+    it('should create an input field', async () => {
       const { loader } = await setupAndNavigate();
 
-      const { control, field } = await getMatField(loader, "dateOfTxn");
+      const { control, field } = await getMatField(loader, 'dateOfTxn');
 
       expect(control).toBeTruthy();
 
       const actualValue = await control!.getValue();
-      const expectedValue = "2024/09/25";
+      const expectedValue = '2024/09/25';
 
       expect(actualValue).toBe(expectedValue);
 
@@ -199,12 +199,12 @@ describe("EditFormComponent", () => {
       expect(isValid).toBe(true);
     });
 
-    it("should populate form options in select fields", async () => {
+    it('should populate form options in select fields', async () => {
       const { loader, formOptionsServiceSpy } = await setupAndNavigate();
 
       const { control } = await getMatField(
         loader,
-        "methodOfTxn" as SelectField,
+        'methodOfTxn' as SelectField,
       );
 
       await control.open();
@@ -223,13 +223,13 @@ describe("EditFormComponent", () => {
       // Verify the formOptions$ property getter was called
       const formOptionsGetter = Object.getOwnPropertyDescriptor(
         formOptionsServiceSpy,
-        "formOptions$",
+        'formOptions$',
       )!.get;
 
       expect(formOptionsGetter).toHaveBeenCalled();
     });
 
-    it("should verify all form fields populate correctly", async () => {
+    it('should verify all form fields populate correctly', async () => {
       const { loader } = await setupAndNavigate();
 
       const verify = await createFieldTraverser(
@@ -243,7 +243,7 @@ describe("EditFormComponent", () => {
           if (isInputField(testId)) {
             const { control } = await getMatField(loader, testId);
             const actualValue = await control.getValue();
-            const expectedValueNormalized = String(expectedValue ?? "");
+            const expectedValueNormalized = String(expectedValue ?? '');
             if (actualValue !== expectedValueNormalized) {
               errors.push(
                 `${testId}: Expected "${expectedValueNormalized}", got "${actualValue}"`,
@@ -257,7 +257,7 @@ describe("EditFormComponent", () => {
               testId as SelectField,
             );
             const actualValue = await control.getValueText();
-            const expectedValueNormalized = String(expectedValue ?? "");
+            const expectedValueNormalized = String(expectedValue ?? '');
             if (actualValue !== expectedValueNormalized) {
               errors.push(
                 `${testId}: Expected "${expectedValueNormalized}", got "${actualValue}"`,
@@ -268,7 +268,7 @@ describe("EditFormComponent", () => {
           if (isDateField(testId)) {
             const { control } = await getMatField(loader, testId as DateField);
             const actualValue = await control.getValue();
-            const expectedValueNormalized = String(expectedValue ?? "");
+            const expectedValueNormalized = String(expectedValue ?? '');
             if (actualValue !== expectedValueNormalized) {
               errors.push(
                 `${testId}: Expected "${expectedValueNormalized}", got "${actualValue}"`,
@@ -294,7 +294,7 @@ describe("EditFormComponent", () => {
             const { control } = await getMatField(loader, testId);
             const actualValue = await control.getValue();
             const expectedValueNormalized = String(
-              TransactionTimeDirective.parseAndFormatTime(expectedValue) ?? "",
+              TransactionTimeDirective.parseAndFormatTime(expectedValue) ?? '',
             );
             if (actualValue !== expectedValueNormalized) {
               errors.push(
@@ -310,7 +310,7 @@ describe("EditFormComponent", () => {
             !isCheckBox(testId) &&
             !isTimeField(testId)
           ) {
-            throw new Error("unkonwn test id");
+            throw new Error('unkonwn test id');
           }
 
           return errors;
@@ -323,30 +323,30 @@ describe("EditFormComponent", () => {
 
       expect(errors.length).toBe(0);
       if (errors.length > 0) {
-        fail(`Form verification failed:\n${errors.join("\n")}`);
+        fail(`Form verification failed:\n${errors.join('\n')}`);
       }
     });
   });
 
-  describe("navigate to edit form component for BULK_EDIT", () => {
-    it("should redirect to transaction search when route extras are missing", async () => {
+  describe('navigate to edit form component for BULK_EDIT', () => {
+    it('should redirect to transaction search when route extras are missing', async () => {
       const { harness } = await setup();
       const router = TestBed.inject(Router);
 
       await expectAsync(
-        harness.navigateByUrl("aml/99999999/reporting-ui/edit-form/bulk-edit"),
+        harness.navigateByUrl('aml/99999999/reporting-ui/edit-form/bulk-edit'),
       ).toBeRejectedWithError(/Unknown edit type/);
-      expect(router.url).toBe("/transactionsearch");
+      expect(router.url).toBe('/transactionsearch');
     });
 
     async function setupAndNavigate() {
       const { harness, loader } = await setup();
       const router = TestBed.inject(Router);
       await router.navigateByUrl(
-        "aml/99999999/reporting-ui/edit-form/bulk-edit",
+        'aml/99999999/reporting-ui/edit-form/bulk-edit',
         {
           state: {
-            selectedTransactionsForBulkEdit: ["ABM-01K4WANX6DRN6KCN05PMG7WJHA"],
+            selectedTransactionsForBulkEdit: ['ABM-01K4WANX6DRN6KCN05PMG7WJHA'],
           },
         },
       );
@@ -354,7 +354,7 @@ describe("EditFormComponent", () => {
       return { harness, loader };
     }
 
-    it("should verify all form fields are disabled", async () => {
+    it('should verify all form fields are disabled', async () => {
       const { loader } = await setupAndNavigate();
 
       const verify = await createFieldTraverser(
@@ -429,7 +429,7 @@ describe("EditFormComponent", () => {
             !isCheckBox(testId) &&
             !isTimeField(testId)
           ) {
-            throw new Error("unknown test id");
+            throw new Error('unknown test id');
           }
 
           return errors;
@@ -442,15 +442,15 @@ describe("EditFormComponent", () => {
 
       expect(errors.length).toBe(0);
       if (errors.length > 0) {
-        fail(`Form verification failed:\n${errors.join("\n")}`);
+        fail(`Form verification failed:\n${errors.join('\n')}`);
       }
     });
 
-    it("should verify all add buttons are initially disabled", async () => {
+    it('should verify all add buttons are initially disabled', async () => {
       const { loader } = await setupAndNavigate();
       await activateTabs(loader);
 
-      const actionTestIds = ["startingActions-add", "completingActions-add"];
+      const actionTestIds = ['startingActions-add', 'completingActions-add'];
 
       for (const actionTestId of actionTestIds) {
         const button = await loader.getHarness(
@@ -464,7 +464,7 @@ describe("EditFormComponent", () => {
         const field = await loader.getHarnessOrNull(
           MatFormFieldHarness.with({
             selector: getTestIdSelector(
-              actionTestId.replace(/-add$/i, "").concat("-1-amount"),
+              actionTestId.replace(/-add$/i, '').concat('-1-amount'),
             ),
           }),
         );
@@ -472,12 +472,12 @@ describe("EditFormComponent", () => {
       }
 
       const buttonTestIds = [
-        "startingActions-0-accountHolders-add",
-        "startingActions-0-sourceOfFunds-add",
-        "startingActions-0-conductors-add",
-        "completingActions-0-accountHolders-add",
-        "completingActions-0-involvedIn-add",
-        "completingActions-0-beneficiaries-add",
+        'startingActions-0-accountHolders-add',
+        'startingActions-0-sourceOfFunds-add',
+        'startingActions-0-conductors-add',
+        'completingActions-0-accountHolders-add',
+        'completingActions-0-involvedIn-add',
+        'completingActions-0-beneficiaries-add',
       ];
 
       for (const buttonTestId of buttonTestIds) {
@@ -492,7 +492,7 @@ describe("EditFormComponent", () => {
         const field = await loader.getHarnessOrNull(
           MatFormFieldHarness.with({
             selector: getTestIdSelector(
-              buttonTestId.replace(/-add$/i, "").concat("-1-partyKey"),
+              buttonTestId.replace(/-add$/i, '').concat('-1-partyKey'),
             ),
           }),
         );
@@ -501,13 +501,13 @@ describe("EditFormComponent", () => {
     });
   });
 
-  describe("integrity checks", () => {
-    it("should always create empty array for null/undefined array props", () => {
-      pending("TODO: implement this test");
+  describe('integrity checks', () => {
+    it('should always create empty array for null/undefined array props', () => {
+      pending('TODO: implement this test');
     });
 
-    it("should always create _id prop for array items", () => {
-      pending("TODO: implement this test");
+    it('should always create _id prop for array items', () => {
+      pending('TODO: implement this test');
     });
   });
 
@@ -521,10 +521,10 @@ async function createFieldTraverser(
   loader: HarnessLoader,
   verifier: FieldVerifier,
 ) {
-  return async function verify(obj: any, path = "") {
+  return async function verify(obj: any, path = '') {
     const errors: string[] = [];
     for (const [key, val] of Object.entries(obj)) {
-      if (key === "flowOfFundsAmlTransactionId" || key === "_id") {
+      if (key === 'flowOfFundsAmlTransactionId' || key === '_id') {
         continue;
       }
 
@@ -573,51 +573,51 @@ function getTestIdSelector(testId: string) {
 }
 
 function isTimeField(testId: string): testId is TimeField {
-  const timeFields: TimeField[] = ["timeOfTxn", "timeOfPosting"];
+  const timeFields: TimeField[] = ['timeOfTxn', 'timeOfPosting'];
 
-  return timeFields.includes(testId.split("-").at(-1) as TimeField);
+  return timeFields.includes(testId.split('-').at(-1) as TimeField);
 }
 
 function isCheckBox(testId: string): testId is CheckboxField {
   const checkboxFields: CheckboxField[] = [
-    "hasPostingDate",
-    "wasTxnAttempted",
-    "hasAccountHolders",
-    "wasSofInfoObtained",
-    "wasCondInfoObtained",
-    "wasConductedOnBehalf",
-    "wasAnyOtherSubInvolved",
-    "wasBenInfoObtained",
+    'hasPostingDate',
+    'wasTxnAttempted',
+    'hasAccountHolders',
+    'wasSofInfoObtained',
+    'wasCondInfoObtained',
+    'wasConductedOnBehalf',
+    'wasAnyOtherSubInvolved',
+    'wasBenInfoObtained',
   ];
 
-  return checkboxFields.includes(testId.split("-").at(-1) as CheckboxField);
+  return checkboxFields.includes(testId.split('-').at(-1) as CheckboxField);
 }
 
 function isSelectField(testId: string): testId is SelectField {
   const selectFields: SelectField[] = [
-    "methodOfTxn",
-    "directionOfSA",
-    "typeOfFunds",
-    "currency",
-    "accountType",
-    "accountCurrency",
-    "accountStatus",
-    "detailsOfDispo",
-    "currency",
+    'methodOfTxn',
+    'directionOfSA',
+    'typeOfFunds',
+    'currency',
+    'accountType',
+    'accountCurrency',
+    'accountStatus',
+    'detailsOfDispo',
+    'currency',
   ];
 
-  return selectFields.includes(testId.split("-").at(-1) as SelectField);
+  return selectFields.includes(testId.split('-').at(-1) as SelectField);
 }
 
 function isDateField(testId: string): testId is DateField {
   const dateFields: DateField[] = [
-    "dateOfTxn",
-    "dateOfPosting",
-    "accountOpen",
-    "accountClose",
+    'dateOfTxn',
+    'dateOfPosting',
+    'accountOpen',
+    'accountClose',
   ];
 
-  return dateFields.includes(testId.split("-").at(-1) as DateField);
+  return dateFields.includes(testId.split('-').at(-1) as DateField);
 }
 
 function isInputField(testId: string): testId is InputField {
@@ -630,29 +630,29 @@ function isInputField(testId: string): testId is InputField {
 }
 
 type SelectField =
-  | "methodOfTxn"
-  | "directionOfSA"
-  | "typeOfFunds"
-  | "currency"
-  | "accountType"
-  | "accountCurrency"
-  | "accountStatus"
-  | "detailsOfDispo"
-  | "currency";
+  | 'methodOfTxn'
+  | 'directionOfSA'
+  | 'typeOfFunds'
+  | 'currency'
+  | 'accountType'
+  | 'accountCurrency'
+  | 'accountStatus'
+  | 'detailsOfDispo'
+  | 'currency';
 
-type DateField = "dateOfTxn" | "dateOfPosting" | "accountOpen" | "accountClose";
+type DateField = 'dateOfTxn' | 'dateOfPosting' | 'accountOpen' | 'accountClose';
 
 type CheckboxField =
-  | "hasPostingDate"
-  | "wasTxnAttempted"
-  | "hasAccountHolders"
-  | "wasSofInfoObtained"
-  | "wasCondInfoObtained"
-  | "wasConductedOnBehalf"
-  | "wasAnyOtherSubInvolved"
-  | "wasBenInfoObtained";
+  | 'hasPostingDate'
+  | 'wasTxnAttempted'
+  | 'hasAccountHolders'
+  | 'wasSofInfoObtained'
+  | 'wasCondInfoObtained'
+  | 'wasConductedOnBehalf'
+  | 'wasAnyOtherSubInvolved'
+  | 'wasBenInfoObtained';
 
-type TimeField = "timeOfTxn" | "timeOfPosting";
+type TimeField = 'timeOfTxn' | 'timeOfPosting';
 
 type InputField = Exclude<string, SelectField | DateField | CheckboxField>;
 
@@ -672,85 +672,85 @@ type FieldVerifier = (
 
 const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
   wasTxnAttempted: true,
-  wasTxnAttemptedReason: "Lack of funds",
-  dateOfTxn: "2024/09/25",
-  timeOfTxn: "8:46:12",
+  wasTxnAttemptedReason: 'Lack of funds',
+  dateOfTxn: '2024/09/25',
+  timeOfTxn: '8:46:12',
   hasPostingDate: true,
-  dateOfPosting: "2024/09/25",
-  timeOfPosting: "10:46:12",
-  methodOfTxn: "Other",
-  methodOfTxnOther: "Mail Order",
-  reportingEntityTxnRefNo: "ABM-01K4WANX6DRN6KCN05PMG7WJHA",
-  purposeOfTxn: "Mortgage Payment",
-  reportingEntityLocationNo: "84255",
+  dateOfPosting: '2024/09/25',
+  timeOfPosting: '10:46:12',
+  methodOfTxn: 'Other',
+  methodOfTxnOther: 'Mail Order',
+  reportingEntityTxnRefNo: 'ABM-01K4WANX6DRN6KCN05PMG7WJHA',
+  purposeOfTxn: 'Mortgage Payment',
+  reportingEntityLocationNo: '84255',
   startingActions: [
     {
-      _id: "afe7448f-fd0d-4079-adb9-34eb5983479b",
-      directionOfSA: "In",
-      typeOfFunds: "Other",
-      typeOfFundsOther: "Quasi Cash Payment",
+      _id: 'afe7448f-fd0d-4079-adb9-34eb5983479b',
+      directionOfSA: 'In',
+      typeOfFunds: 'Other',
+      typeOfFundsOther: 'Quasi Cash Payment',
       amount: 7270,
-      currency: "CAD",
-      fiuNo: "010",
-      branch: "23432",
-      account: "5345239",
-      accountType: "Other",
-      accountTypeOther: "Credit Card",
-      accountOpen: "2004/08/24",
-      accountClose: "2025/08/24",
-      accountStatus: "Active",
-      accountCurrency: "CAD",
-      howFundsObtained: "Gambling",
+      currency: 'CAD',
+      fiuNo: '010',
+      branch: '23432',
+      account: '5345239',
+      accountType: 'Other',
+      accountTypeOther: 'Credit Card',
+      accountOpen: '2004/08/24',
+      accountClose: '2025/08/24',
+      accountStatus: 'Active',
+      accountCurrency: 'CAD',
+      howFundsObtained: 'Gambling',
       hasAccountHolders: true,
       accountHolders: [
         {
-          _id: "26fad9e3-7a4e-46e6-84d0-f75a2f76468c",
-          partyKey: "4415677561",
-          surname: "Fallon",
-          givenName: "Jimmy",
-          otherOrInitial: "M",
-          nameOfEntity: "Jimmy Inc",
+          _id: '26fad9e3-7a4e-46e6-84d0-f75a2f76468c',
+          partyKey: '4415677561',
+          surname: 'Fallon',
+          givenName: 'Jimmy',
+          otherOrInitial: 'M',
+          nameOfEntity: 'Jimmy Inc',
         },
         {
-          _id: "67f65447-30ed-420d-870e-30c2567a51f8",
-          partyKey: "5846601320",
-          surname: "Carter",
-          givenName: "Jimmy",
-          otherOrInitial: "S",
-          nameOfEntity: "Jimmy Inc",
+          _id: '67f65447-30ed-420d-870e-30c2567a51f8',
+          partyKey: '5846601320',
+          surname: 'Carter',
+          givenName: 'Jimmy',
+          otherOrInitial: 'S',
+          nameOfEntity: 'Jimmy Inc',
         },
       ],
       wasSofInfoObtained: true,
       sourceOfFunds: [
         {
-          _id: "47f64447-30ed-420d-470e-30c2564a51f8",
-          partyKey: "5846601320",
-          surname: "Carter",
-          givenName: "Jimmy",
-          otherOrInitial: "S",
-          nameOfEntity: "Jimmy Inc",
-          accountNumber: "222222",
-          identifyingNumber: "333333",
+          _id: '47f64447-30ed-420d-470e-30c2564a51f8',
+          partyKey: '5846601320',
+          surname: 'Carter',
+          givenName: 'Jimmy',
+          otherOrInitial: 'S',
+          nameOfEntity: 'Jimmy Inc',
+          accountNumber: '222222',
+          identifyingNumber: '333333',
         },
       ],
       wasCondInfoObtained: true,
       conductors: [
         {
-          _id: "9855168e-8452-4338-b644-ca73a8b846d2",
-          partyKey: "3415674561",
-          surname: "Carter",
-          givenName: "James",
-          otherOrInitial: "L",
-          nameOfEntity: "James Inc",
+          _id: '9855168e-8452-4338-b644-ca73a8b846d2',
+          partyKey: '3415674561',
+          surname: 'Carter',
+          givenName: 'James',
+          otherOrInitial: 'L',
+          nameOfEntity: 'James Inc',
           wasConductedOnBehalf: true,
           onBehalfOf: [
             {
-              _id: "7055168e-8452-4338-b644-ca73a8b846d2",
-              partyKey: "9414672563",
-              surname: "Smith",
-              givenName: "James",
-              otherOrInitial: "L",
-              nameOfEntity: "Jamed Inc",
+              _id: '7055168e-8452-4338-b644-ca73a8b846d2',
+              partyKey: '9414672563',
+              surname: 'Smith',
+              givenName: 'James',
+              otherOrInitial: 'L',
+              nameOfEntity: 'Jamed Inc',
             },
           ],
         },
@@ -759,71 +759,71 @@ const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
   ],
   completingActions: [
     {
-      _id: "182b9eba-a6ae-4c57-be24-4e14ef4488cb",
-      detailsOfDispo: "Other",
-      detailsOfDispoOther: "Outgoing payment",
+      _id: '182b9eba-a6ae-4c57-be24-4e14ef4488cb',
+      detailsOfDispo: 'Other',
+      detailsOfDispoOther: 'Outgoing payment',
       amount: 7270,
-      currency: "USD",
+      currency: 'USD',
       exchangeRate: 2.3,
       valueInCad: 16721,
-      fiuNo: "010",
-      branch: "84255",
-      account: "5582195",
-      accountType: "Other",
-      accountTypeOther: "Credit card",
-      accountCurrency: "CAD",
-      accountOpen: "2003/08/24",
-      accountClose: "2005/08/24",
-      accountStatus: "Active",
+      fiuNo: '010',
+      branch: '84255',
+      account: '5582195',
+      accountType: 'Other',
+      accountTypeOther: 'Credit card',
+      accountCurrency: 'CAD',
+      accountOpen: '2003/08/24',
+      accountClose: '2005/08/24',
+      accountStatus: 'Active',
       hasAccountHolders: true,
       accountHolders: [
         {
-          _id: "26fad9e3-7a4e-46e6-84d0-f75a2f76468c",
-          partyKey: "3415674561",
-          surname: "Carter",
-          givenName: "James",
-          otherOrInitial: "L",
-          nameOfEntity: "James Inc",
+          _id: '26fad9e3-7a4e-46e6-84d0-f75a2f76468c',
+          partyKey: '3415674561',
+          surname: 'Carter',
+          givenName: 'James',
+          otherOrInitial: 'L',
+          nameOfEntity: 'James Inc',
         },
         {
-          _id: "67f65447-30ed-420d-870e-30c2567a51f8",
-          partyKey: "1846597320",
-          surname: "Nguyen",
-          givenName: "Laura",
-          otherOrInitial: "M",
-          nameOfEntity: "James Inc",
+          _id: '67f65447-30ed-420d-870e-30c2567a51f8',
+          partyKey: '1846597320',
+          surname: 'Nguyen',
+          givenName: 'Laura',
+          otherOrInitial: 'M',
+          nameOfEntity: 'James Inc',
         },
       ],
       wasAnyOtherSubInvolved: true,
       involvedIn: [
         {
-          _id: "37f34437-30e3-420d-473e-30c2563a51f8",
-          partyKey: "2846601320",
-          surname: "Carter",
-          givenName: "Jimmy",
-          otherOrInitial: "S",
-          nameOfEntity: "Jimmy Inc",
-          accountNumber: "222222",
-          identifyingNumber: "333333",
+          _id: '37f34437-30e3-420d-473e-30c2563a51f8',
+          partyKey: '2846601320',
+          surname: 'Carter',
+          givenName: 'Jimmy',
+          otherOrInitial: 'S',
+          nameOfEntity: 'Jimmy Inc',
+          accountNumber: '222222',
+          identifyingNumber: '333333',
         },
       ],
       wasBenInfoObtained: true,
       beneficiaries: [
         {
-          _id: "84413b8a-31c8-4763-acd5-f9a8c3b3b02a",
-          partyKey: "3415674561",
-          surname: "Carter",
-          givenName: "James",
-          otherOrInitial: "L",
-          nameOfEntity: "James Inc",
+          _id: '84413b8a-31c8-4763-acd5-f9a8c3b3b02a',
+          partyKey: '3415674561',
+          surname: 'Carter',
+          givenName: 'James',
+          otherOrInitial: 'L',
+          nameOfEntity: 'James Inc',
         },
         {
-          _id: "3e1463cb-687e-4846-89ba-5eff6d3639a2",
-          partyKey: "1846597320",
-          surname: "Nguyen",
-          givenName: "Laura",
-          otherOrInitial: "M",
-          nameOfEntity: "James Inc",
+          _id: '3e1463cb-687e-4846-89ba-5eff6d3639a2',
+          partyKey: '1846597320',
+          surname: 'Nguyen',
+          givenName: 'Laura',
+          otherOrInitial: 'M',
+          nameOfEntity: 'James Inc',
         },
       ],
     },
@@ -831,7 +831,7 @@ const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
 };
 
 const SESSION_STATE_FIXTURE: SessionStateLocal = {
-  amlId: "9999999",
+  amlId: '9999999',
   version: 0,
   transactionSearchParams: {
     accountNumbersSelection: [],
@@ -843,34 +843,34 @@ const SESSION_STATE_FIXTURE: SessionStateLocal = {
   strTransactions: [TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE].map((txn) => {
     return {
       ...txn,
-      flowOfFundsAccountCurrency: "",
+      flowOfFundsAccountCurrency: '',
       flowOfFundsAmlId: 9999999,
-      flowOfFundsAmlTransactionId: "ABM-01K4WANX6DRN6KCN05PMG7WJHA",
+      flowOfFundsAmlTransactionId: 'ABM-01K4WANX6DRN6KCN05PMG7WJHA',
       flowOfFundsCasePartyKey: 0,
       flowOfFundsConductorPartyKey: 0,
       flowOfFundsCreditAmount: 0,
-      flowOfFundsCreditedAccount: "",
-      flowOfFundsCreditedTransit: "",
+      flowOfFundsCreditedAccount: '',
+      flowOfFundsCreditedTransit: '',
       flowOfFundsDebitAmount: 0,
-      flowOfFundsDebitedAccount: "",
-      flowOfFundsDebitedTransit: "",
-      flowOfFundsPostingDate: "",
-      flowOfFundsSource: "",
-      flowOfFundsSourceTransactionId: "",
-      flowOfFundsTransactionCurrency: "",
+      flowOfFundsDebitedAccount: '',
+      flowOfFundsDebitedTransit: '',
+      flowOfFundsPostingDate: '',
+      flowOfFundsSource: '',
+      flowOfFundsSourceTransactionId: '',
+      flowOfFundsTransactionCurrency: '',
       flowOfFundsTransactionCurrencyAmount: 0,
-      flowOfFundsTransactionDate: "",
-      flowOfFundsTransactionDesc: "",
-      flowOfFundsTransactionTime: "",
-      _hiddenTxnType: "",
-      _hiddenAmlId: "",
-      _hiddenStrTxnId: "",
+      flowOfFundsTransactionDate: '',
+      flowOfFundsTransactionDesc: '',
+      flowOfFundsTransactionTime: '',
+      _hiddenTxnType: '',
+      _hiddenAmlId: '',
+      _hiddenStrTxnId: '',
       _version: 0,
       changeLogs: [],
     };
   }),
 
-  lastUpdated: "1996-06-13",
+  lastUpdated: '1996-06-13',
 };
 
 const TRANSACTION_BULK_EDIT_FORM_SRUCTURE: StrTxnEditForm = {

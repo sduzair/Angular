@@ -1,4 +1,4 @@
-import { CommonModule } from "@angular/common";
+import { CommonModule } from '@angular/common';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -7,7 +7,8 @@ import {
   HostListener,
   OnInit,
   ViewChild,
-} from "@angular/core";
+  inject,
+} from '@angular/core';
 import {
   AbstractControl,
   FormArray,
@@ -18,31 +19,31 @@ import {
   ReactiveFormsModule,
   ValidationErrors,
   Validators,
-} from "@angular/forms";
-import { MatButtonModule } from "@angular/material/button";
-import { MatCardModule } from "@angular/material/card";
+} from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
 import {
   ErrorStateMatcher,
   MAT_DATE_FORMATS,
   MatDateFormats,
-} from "@angular/material/core";
+} from '@angular/material/core';
 import {
   MatDatepicker,
   MatDatepickerModule,
-} from "@angular/material/datepicker";
+} from '@angular/material/datepicker';
 import {
   MAT_FORM_FIELD_DEFAULT_OPTIONS,
   MatFormFieldDefaultOptions,
   MatFormFieldModule,
-} from "@angular/material/form-field";
-import { MatIcon } from "@angular/material/icon";
-import { MatInputModule } from "@angular/material/input";
-import { MatListModule } from "@angular/material/list";
-import { MatSelectModule } from "@angular/material/select";
-import { MatSnackBar } from "@angular/material/snack-bar";
-import { MatTableDataSource, MatTableModule } from "@angular/material/table";
-import { MatToolbar } from "@angular/material/toolbar";
-import { ActivatedRoute, Router } from "@angular/router";
+} from '@angular/material/form-field';
+import { MatIcon } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
+import { MatSelectModule } from '@angular/material/select';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTableDataSource, MatTableModule } from '@angular/material/table';
+import { MatToolbar } from '@angular/material/toolbar';
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   getMonth,
   getYear,
@@ -51,8 +52,8 @@ import {
   isValid,
   setMonth,
   setYear,
-} from "date-fns";
-import { isEqual } from "lodash-es";
+} from 'date-fns';
+import { isEqual } from 'lodash-es';
 import {
   BehaviorSubject,
   Subject,
@@ -69,23 +70,23 @@ import {
   take,
   takeUntil,
   tap,
-} from "rxjs";
-import { AmlSessionService } from "../aml-session.service";
-import { setError } from "../form-helpers";
-import { AccountNumberSelectableTableComponent } from "./account-number-selectable-table/account-number-selectable-table.component";
-import { AmlPartyService } from "./aml-party.service";
-import { AmlProductService } from "./aml-product.service";
+} from 'rxjs';
+import { AmlSessionService } from '../aml-session.service';
+import { setError } from '../form-helpers';
+import { AccountNumberSelectableTableComponent } from './account-number-selectable-table/account-number-selectable-table.component';
+import { AmlPartyService } from './aml-party.service';
+import { AmlProductService } from './aml-product.service';
 import {
   AccountNumber,
   AmlTransactionSearchService,
   PartyKey,
   SourceSys,
   SourceSysRefreshTime,
-} from "./aml-transaction-search.service";
-import { PartyKeySelectableTableComponent } from "./party-key-selectable-table/party-key-selectable-table.component";
-import { ProductTypeSelectableTableComponent } from "./product-type-selectable-table/product-type-selectable-table.component";
-import { ReviewPeriodDateDirective } from "./review-period-date.directive";
-import { SourceRefreshSelectableTableComponent } from "./source-refresh-selectable-table/source-refresh-selectable-table.component";
+} from './aml-transaction-search.service';
+import { PartyKeySelectableTableComponent } from './party-key-selectable-table/party-key-selectable-table.component';
+import { ProductTypeSelectableTableComponent } from './product-type-selectable-table/product-type-selectable-table.component';
+import { ReviewPeriodDateDirective } from './review-period-date.directive';
+import { SourceRefreshSelectableTableComponent } from './source-refresh-selectable-table/source-refresh-selectable-table.component';
 
 export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
   isErrorState(
@@ -98,7 +99,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
 }
 
 @Component({
-  selector: "app-transaction-search",
+  selector: 'app-transaction-search',
   imports: [
     CommonModule,
     MatFormFieldModule,
@@ -132,8 +133,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
               sourceRefreshTimeDataLoadingState ||
               (transactionSearchParamsLoadingState$ | async) ||
               transactionSearchLoading
-            "
-          >
+            ">
             <mat-icon>search</mat-icon>
             Search
           </button>
@@ -151,15 +151,14 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                     <input
                       matInput
                       formControlName="amlId"
-                      placeholder="Enter AML ID"
-                    />
+                      placeholder="Enter AML ID" />
                     <mat-icon matSuffix>search</mat-icon>
-                    <mat-error *ngIf="form.controls.amlId.hasError('required')">
-                      AML ID is required
-                    </mat-error>
-                    <mat-error *ngIf="form.controls.amlId.hasError('pattern')">
-                      AML ID must be numbers only
-                    </mat-error>
+                    @if (form.controls.amlId.hasError('required')) {
+                      <mat-error> AML ID is required </mat-error>
+                    }
+                    @if (form.controls.amlId.hasError('pattern')) {
+                      <mat-error> AML ID must be numbers only </mat-error>
+                    }
                   </mat-form-field>
                   <button
                     type="button"
@@ -171,8 +170,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                       (transactionSearchParamsLoadingState$ | async) ||
                       !form.controls.amlId.valid ||
                       transactionSearchLoading
-                    "
-                  >
+                    ">
                     Load
                   </button>
                 </div>
@@ -187,19 +185,18 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                         <mat-card-title>Parties</mat-card-title>
                         <mat-card-subtitle>
                           <div
-                            class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align"
-                          >
+                            class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
                             <div class="mat-mdc-form-field-error-wrapper px-0">
                               <div class="mat-mdc-form-field-bottom-align">
-                                <mat-error
-                                  *ngIf="
-                                    form.controls.partyKeys.hasError(
-                                      'atleastOneSelection'
-                                    )
-                                  "
-                                >
-                                  Atleast one selection must exist
-                                </mat-error>
+                                @if (
+                                  form.controls.partyKeys.hasError(
+                                    'atleastOneSelection'
+                                  )
+                                ) {
+                                  <mat-error>
+                                    Atleast one selection must exist
+                                  </mat-error>
+                                }
                               </div>
                             </div>
                           </div>
@@ -212,8 +209,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [dataSourceLoadingState]="
                             (transactionSearchParamsLoadingState$ | async) ||
                             false
-                          "
-                        ></app-party-key-selectable-table>
+                          "></app-party-key-selectable-table>
                       </mat-card-content>
                     </mat-card>
                   </div>
@@ -225,19 +221,18 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                         <mat-card-title>Accounts / Products</mat-card-title>
                         <mat-card-subtitle>
                           <div
-                            class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align"
-                          >
+                            class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
                             <div class="mat-mdc-form-field-error-wrapper px-0">
                               <div class="mat-mdc-form-field-bottom-align">
-                                <mat-error
-                                  *ngIf="
-                                    form.controls.accountNumbers.hasError(
-                                      'atleastOneSelection'
-                                    )
-                                  "
-                                >
-                                  Atleast one selection must exist
-                                </mat-error>
+                                @if (
+                                  form.controls.accountNumbers.hasError(
+                                    'atleastOneSelection'
+                                  )
+                                ) {
+                                  <mat-error>
+                                    Atleast one selection must exist
+                                  </mat-error>
+                                }
                               </div>
                             </div>
                           </div>
@@ -250,8 +245,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [dataSourceLoadingState]="
                             (transactionSearchParamsLoadingState$ | async) ||
                             false
-                          "
-                        ></app-account-number-selectable-table>
+                          "></app-account-number-selectable-table>
                       </mat-card-content>
                     </mat-card>
                   </div>
@@ -263,19 +257,18 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                         <mat-card-title>Product Types</mat-card-title>
                         <mat-card-subtitle>
                           <div
-                            class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align"
-                          >
+                            class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
                             <div class="mat-mdc-form-field-error-wrapper px-0">
                               <div class="mat-mdc-form-field-bottom-align">
-                                <mat-error
-                                  *ngIf="
-                                    form.controls.productTypes.hasError(
-                                      'atleastOneSelection'
-                                    )
-                                  "
-                                >
-                                  Atleast one selection must exist
-                                </mat-error>
+                                @if (
+                                  form.controls.productTypes.hasError(
+                                    'atleastOneSelection'
+                                  )
+                                ) {
+                                  <mat-error>
+                                    Atleast one selection must exist
+                                  </mat-error>
+                                }
                               </div>
                             </div>
                           </div>
@@ -288,8 +281,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [dataSourceLoadingState]="
                             (transactionSearchParamsLoadingState$ | async) ||
                             false
-                          "
-                        ></app-product-type-selectable-table>
+                          "></app-product-type-selectable-table>
                       </mat-card-content>
                     </mat-card>
                   </div>
@@ -312,8 +304,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                   | async) ||
                                 isFormDisabled ||
                                 transactionSearchLoading
-                              "
-                            >
+                              ">
                               <mat-icon>library_add</mat-icon>
                               Add
                             </button>
@@ -321,19 +312,18 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                         </mat-card-title>
                         <mat-card-subtitle>
                           <div
-                            class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align"
-                          >
+                            class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
                             <div class="mat-mdc-form-field-error-wrapper px-0">
                               <div class="mat-mdc-form-field-bottom-align">
-                                <mat-error
-                                  *ngIf="
-                                    form.controls.reviewPeriods.hasError(
-                                      'overlappingReviewPeriods'
-                                    )
-                                  "
-                                >
-                                  Review periods must not overlap
-                                </mat-error>
+                                @if (
+                                  form.controls.reviewPeriods.hasError(
+                                    'overlappingReviewPeriods'
+                                  )
+                                ) {
+                                  <mat-error>
+                                    Review periods must not overlap
+                                  </mat-error>
+                                }
                               </div>
                             </div>
                           </div>
@@ -342,151 +332,137 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                       <mat-card-content>
                         <div formArrayName="reviewPeriods">
                           <div>
-                            <div
-                              *ngFor="
-                                let period of form.controls.reviewPeriods
-                                  .controls;
-                                let i = index
-                              "
-                              [formGroupName]="i"
-                            >
-                              <div
-                                class="row review-period-input mt-2 justify-content-evenly"
-                                [class.loading]="
-                                  sourceRefreshTimeDataLoadingState ||
-                                  (transactionSearchParamsLoadingState$
-                                    | async) ||
-                                  false
-                                "
-                              >
-                                <mat-form-field class="col">
-                                  <mat-label>Start MM/YYYY</mat-label>
-                                  <input
-                                    matInput
-                                    [matDatepicker]="startPicker"
-                                    formControlName="start"
-                                    readonly
-                                    appReviewPeriodDate
-                                    [max]="maxDate"
-                                  />
-                                  <mat-datepicker-toggle
-                                    matSuffix
-                                    [for]="startPicker"
-                                  ></mat-datepicker-toggle>
-                                  <mat-datepicker
-                                    #startPicker
-                                    startView="multi-year"
-                                    (yearSelected)="
-                                      chosenYearHandler(
-                                        $event,
-                                        startPicker,
-                                        'start',
-                                        i
-                                      )
-                                    "
-                                    (monthSelected)="
-                                      chosenMonthHandler(
-                                        $event,
-                                        startPicker,
-                                        'start',
-                                        i
-                                      )
-                                    "
-                                  ></mat-datepicker>
-
-                                  <mat-error
-                                    *ngIf="
+                            @for (
+                              period of form.controls.reviewPeriods.controls;
+                              track period;
+                              let i = $index
+                            ) {
+                              <div [formGroupName]="i">
+                                <div
+                                  class="row review-period-input mt-2 justify-content-evenly"
+                                  [class.loading]="
+                                    sourceRefreshTimeDataLoadingState ||
+                                    (transactionSearchParamsLoadingState$
+                                      | async) ||
+                                    false
+                                  ">
+                                  <mat-form-field class="col">
+                                    <mat-label>Start MM/YYYY</mat-label>
+                                    <input
+                                      matInput
+                                      [matDatepicker]="startPicker"
+                                      formControlName="start"
+                                      readonly
+                                      appReviewPeriodDate
+                                      [max]="maxDate" />
+                                    <mat-datepicker-toggle
+                                      matSuffix
+                                      [for]="
+                                        startPicker
+                                      "></mat-datepicker-toggle>
+                                    <mat-datepicker
+                                      #startPicker
+                                      startView="multi-year"
+                                      (yearSelected)="
+                                        chosenYearHandler(
+                                          $event,
+                                          startPicker,
+                                          'start',
+                                          i
+                                        )
+                                      "
+                                      (monthSelected)="
+                                        chosenMonthHandler(
+                                          $event,
+                                          startPicker,
+                                          'start',
+                                          i
+                                        )
+                                      "></mat-datepicker>
+                                    @if (
                                       period.controls.start.hasError('required')
-                                    "
-                                  >
-                                    Start month is required
-                                  </mat-error>
-                                  <mat-error
-                                    *ngIf="
+                                    ) {
+                                      <mat-error>
+                                        Start month is required
+                                      </mat-error>
+                                    }
+                                    @if (
                                       period.controls.start.hasError(
                                         'startBeforeEndReviewPeriod'
                                       )
-                                    "
-                                  >
-                                    Start month must be before end month
-                                  </mat-error>
-                                </mat-form-field>
-                                <span
-                                  class="sk skw-6 skh-7 col-auto flex-grow-1 mx-3"
-                                ></span>
-
-                                <mat-form-field class="col">
-                                  <mat-label>End MM/YYYY</mat-label>
-                                  <input
-                                    matInput
-                                    [matDatepicker]="endPicker"
-                                    formControlName="end"
-                                    readonly
-                                    appReviewPeriodDate
-                                    [max]="maxDate"
-                                  />
-                                  <mat-datepicker-toggle
-                                    matSuffix
-                                    [for]="endPicker"
-                                  ></mat-datepicker-toggle>
-                                  <mat-datepicker
-                                    #endPicker
-                                    startView="multi-year"
-                                    (yearSelected)="
-                                      chosenYearHandler(
-                                        $event,
-                                        endPicker,
-                                        'end',
-                                        i
-                                      )
-                                    "
-                                    (monthSelected)="
-                                      chosenMonthHandler(
-                                        $event,
-                                        endPicker,
-                                        'end',
-                                        i
-                                      )
-                                    "
-                                  ></mat-datepicker>
-
-                                  <mat-error
-                                    *ngIf="
+                                    ) {
+                                      <mat-error>
+                                        Start month must be before end month
+                                      </mat-error>
+                                    }
+                                  </mat-form-field>
+                                  <span
+                                    class="sk skw-6 skh-7 col-auto flex-grow-1 mx-3"></span>
+                                  <mat-form-field class="col">
+                                    <mat-label>End MM/YYYY</mat-label>
+                                    <input
+                                      matInput
+                                      [matDatepicker]="endPicker"
+                                      formControlName="end"
+                                      readonly
+                                      appReviewPeriodDate
+                                      [max]="maxDate" />
+                                    <mat-datepicker-toggle
+                                      matSuffix
+                                      [for]="endPicker"></mat-datepicker-toggle>
+                                    <mat-datepicker
+                                      #endPicker
+                                      startView="multi-year"
+                                      (yearSelected)="
+                                        chosenYearHandler(
+                                          $event,
+                                          endPicker,
+                                          'end',
+                                          i
+                                        )
+                                      "
+                                      (monthSelected)="
+                                        chosenMonthHandler(
+                                          $event,
+                                          endPicker,
+                                          'end',
+                                          i
+                                        )
+                                      "></mat-datepicker>
+                                    @if (
                                       period.controls.end.hasError('required')
-                                    "
-                                  >
-                                    End month is required
-                                  </mat-error>
-                                </mat-form-field>
-                                <span
-                                  class="sk skw-6 skh-7 col-auto flex-grow-1 mx-3"
-                                ></span>
-
-                                <div
-                                  class="col-1 px-0 d-flex align-items-center"
-                                >
-                                  <button
-                                    type="button"
-                                    mat-icon-button
-                                    color="warn"
-                                    (click)="removeReviewPeriod(i)"
-                                    [disabled]="
-                                      form.controls.reviewPeriods.controls
-                                        .length === 1 ||
-                                      isFormDisabled ||
-                                      sourceRefreshTimeDataLoadingState ||
-                                      (transactionSearchParamsLoadingState$
-                                        | async) ||
-                                      transactionSearchLoading
-                                    "
-                                    matTooltip="Remove period"
-                                    class="mb-4"
-                                  >
-                                    <mat-icon>delete</mat-icon>
-                                  </button>
+                                    ) {
+                                      <mat-error>
+                                        End month is required
+                                      </mat-error>
+                                    }
+                                  </mat-form-field>
+                                  <span
+                                    class="sk skw-6 skh-7 col-auto flex-grow-1 mx-3"></span>
+                                  <div
+                                    class="col-1 px-0 d-flex align-items-center">
+                                    <button
+                                      type="button"
+                                      mat-icon-button
+                                      color="warn"
+                                      (click)="removeReviewPeriod(i)"
+                                      [disabled]="
+                                        form.controls.reviewPeriods.controls
+                                          .length === 1 ||
+                                        isFormDisabled ||
+                                        sourceRefreshTimeDataLoadingState ||
+                                        (transactionSearchParamsLoadingState$
+                                          | async) ||
+                                        transactionSearchLoading
+                                      "
+                                      matTooltip="Remove period"
+                                      class="mb-4">
+                                      <mat-icon>delete</mat-icon>
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
+                            }
                           </div>
                         </div>
                       </mat-card-content></mat-card
@@ -502,19 +478,18 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                     <mat-card-title>System Information</mat-card-title>
                     <mat-card-subtitle>
                       <div
-                        class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align"
-                      >
+                        class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
                         <div class="mat-mdc-form-field-error-wrapper px-0">
                           <div class="mat-mdc-form-field-bottom-align">
-                            <mat-error
-                              *ngIf="
-                                form.controls.sourceSystems.hasError(
-                                  'atleastOneSelection'
-                                )
-                              "
-                            >
-                              Atleast one selection must exist
-                            </mat-error>
+                            @if (
+                              form.controls.sourceSystems.hasError(
+                                'atleastOneSelection'
+                              )
+                            ) {
+                              <mat-error>
+                                Atleast one selection must exist
+                              </mat-error>
+                            }
                           </div>
                         </div>
                       </div>
@@ -529,8 +504,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                         sourceRefreshTimeDataLoadingState ||
                         (transactionSearchParamsLoadingState$ | async) ||
                         false
-                      "
-                    ></app-source-refresh-selectable-table>
+                      "></app-source-refresh-selectable-table>
                   </mat-card-content>
                 </mat-card>
               </div>
@@ -540,19 +514,19 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
       </div>
     </div>
   `,
-  styleUrl: "./transaction-search.component.scss",
+  styleUrl: './transaction-search.component.scss',
   providers: [
     {
       provide: MAT_DATE_FORMATS,
       useValue: {
         parse: {
-          dateInput: "MM/yyyy", // e.g. 09/2025
+          dateInput: 'MM/yyyy', // e.g. 09/2025
         },
         display: {
-          dateInput: "MM/yyyy",
-          monthYearLabel: "MMM yyyy",
-          dateA11yLabel: "MMMM yyyy",
-          monthYearA11yLabel: "MMMM yyyy",
+          dateInput: 'MM/yyyy',
+          monthYearLabel: 'MMM yyyy',
+          dateA11yLabel: 'MMMM yyyy',
+          monthYearA11yLabel: 'MMMM yyyy',
         },
       } as MatDateFormats,
     },
@@ -560,19 +534,26 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
     {
       provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
       useValue: {
-        appearance: "outline",
-        floatLabel: "always",
+        appearance: 'outline',
+        floatLabel: 'always',
       } as MatFormFieldDefaultOptions,
     },
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TransactionSearchComponent implements OnInit, AfterViewInit {
+  private route = inject(ActivatedRoute);
+  private amlPartyService = inject(AmlPartyService);
+  private amlTransactionSearchService = inject(AmlTransactionSearchService);
+  private amlSessionService = inject(AmlSessionService);
+  private snackBar = inject(MatSnackBar);
+  private router = inject(Router);
+
   form = new FormGroup(
     {
-      amlId: new FormControl({ value: "", disabled: false }, [
+      amlId: new FormControl({ value: '', disabled: false }, [
         Validators.required,
-        Validators.pattern("^[0-9]+$"),
+        Validators.pattern('^[0-9]+$'),
       ]),
       partyKeys: new FormControl({ value: [] as PartyKey[], disabled: true }, [
         Validators.required,
@@ -599,7 +580,7 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
       ),
     },
     {
-      updateOn: "change",
+      updateOn: 'change',
       validators: [this.transactionSearchParamsExistValidator],
     },
   );
@@ -615,8 +596,8 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
 
   sourceRefreshTimeDataSource = new MatTableDataSource<SourceSysRefreshTime>(
     Array.from({ length: 20 }, () => ({
-      value: "",
-      refresh: "",
+      value: '',
+      refresh: '',
       isDisabled: false,
     })),
   );
@@ -625,18 +606,9 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
     new BehaviorSubject<boolean>(false);
   public transactionSearchParamsLoadingState$ =
     this.transactionSearchParamsLoadingStateSubject.asObservable();
-
-  constructor(
-    private route: ActivatedRoute,
-    private amlPartyService: AmlPartyService,
-    private amlTransactionSearchService: AmlTransactionSearchService,
-    private amlSessionService: AmlSessionService,
-    private snackBar: MatSnackBar,
-    private router: Router,
-  ) {}
   private destroy$ = new Subject<void>();
 
-  @HostListener("window:beforeunload", ["$event"])
+  @HostListener('window:beforeunload', ['$event'])
   ngOnDestroy = ((_$event: Event) => {
     this.destroy$.next();
     this.destroy$.complete();
@@ -670,7 +642,7 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
         skip(1),
         // prevent emission on programmatic patch
         filter(() => !this.suppressTransactionSearchParamsAutosave),
-        tap(() => console.log("for changed")),
+        tap(() => console.log('for changed')),
         debounceTime(2000),
         switchMap(
           ({
@@ -725,10 +697,10 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
       this.form.controls.reviewPeriods.length === 0
     );
   }
-  @ViewChild("amlIdSearchBtn", { read: ElementRef })
+  @ViewChild('amlIdSearchBtn', { read: ElementRef })
   amlIdSearchBtn!: ElementRef<HTMLButtonElement>;
   ngAfterViewInit(): void {
-    fromEvent(this.amlIdSearchBtn.nativeElement, "click")
+    fromEvent(this.amlIdSearchBtn.nativeElement, 'click')
       .pipe(
         map(() => this.form.value.amlId?.trim()),
         filter((amlId) => !!amlId),
@@ -738,11 +710,11 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
           this.accountNumbersDataSource.data = Array.from(
             { length: 5 },
             () => ({
-              value: "",
+              value: '',
             }),
           );
           this.partyKeysDataSource.data = Array.from({ length: 5 }, () => ({
-            value: "",
+            value: '',
           }));
           this.form.controls.reviewPeriods.clear();
           Array.from({ length: 2 }, () => ({})).forEach((_) => {
@@ -834,8 +806,8 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
   onTransactionSearch() {
     if (this.form.invalid) {
       this.snackBar.open(
-        "Please make sure all transaction search inputs are valid before searching",
-        "Dismiss",
+        'Please make sure all transaction search inputs are valid before searching',
+        'Dismiss',
         {
           duration: 5000,
         },
@@ -843,11 +815,11 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
       return;
     }
     console.log(
-      "🚀 ~ TransactionSearchComponent ~ onLoad ~ this.form.value:",
+      '🚀 ~ TransactionSearchComponent ~ onLoad ~ this.form.value:',
       this.form.value,
     );
 
-    this.router.navigate(["/aml", "AML-1234", "transaction-view"]);
+    this.router.navigate(['/aml', 'AML-1234', 'transaction-view']);
   }
 
   transactionSearchParamsExistValidator(
@@ -855,11 +827,11 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
   ): ValidationErrors | null {
     const txnSearchParamsCtrl = control as typeof this.form;
     if (
-      !txnSearchParamsCtrl.contains("partyKeys") ||
-      !txnSearchParamsCtrl.contains("accountNumbers") ||
-      !txnSearchParamsCtrl.contains("sourceSystems") ||
-      !txnSearchParamsCtrl.contains("productTypes") ||
-      !txnSearchParamsCtrl.contains("reviewPeriods")
+      !txnSearchParamsCtrl.contains('partyKeys') ||
+      !txnSearchParamsCtrl.contains('accountNumbers') ||
+      !txnSearchParamsCtrl.contains('sourceSystems') ||
+      !txnSearchParamsCtrl.contains('productTypes') ||
+      !txnSearchParamsCtrl.contains('reviewPeriods')
     ) {
       return { transactionSearchParamsExist: false };
     }
@@ -884,10 +856,10 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
         index,
 
         start: ReviewPeriodDateDirective.parse(
-          period.controls.start.value ?? "",
+          period.controls.start.value ?? '',
         ),
 
-        end: ReviewPeriodDateDirective.parse(period.controls.end.value ?? ""),
+        end: ReviewPeriodDateDirective.parse(period.controls.end.value ?? ''),
       }))
       .filter((p) => isValid(p.start) && isValid(p.end))
       .map((p) => ({
@@ -923,8 +895,8 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
 
   // Create a new review period FormGroup
   createReviewPeriodGroup(
-    start: (typeof this.form.controls.reviewPeriods.controls)[number]["controls"]["start"]["value"] = null,
-    end: (typeof this.form.controls.reviewPeriods.controls)[number]["controls"]["end"]["value"] = null,
+    start: (typeof this.form.controls.reviewPeriods.controls)[number]['controls']['start']['value'] = null,
+    end: (typeof this.form.controls.reviewPeriods.controls)[number]['controls']['end']['value'] = null,
   ): (typeof this.form.controls.reviewPeriods.controls)[number] {
     return new FormGroup(
       {
@@ -942,12 +914,12 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
     const startControl = (
       control as (typeof this.form.controls.reviewPeriods.controls)[number]
     ).controls.start;
-    const start = ReviewPeriodDateDirective.parse(startControl.value ?? "");
+    const start = ReviewPeriodDateDirective.parse(startControl.value ?? '');
 
     const endControl = (
       control as (typeof this.form.controls.reviewPeriods.controls)[number]
     ).controls.end;
-    const end = ReviewPeriodDateDirective.parse(endControl.value ?? "");
+    const end = ReviewPeriodDateDirective.parse(endControl.value ?? '');
 
     if (!isValid(start) || !isValid(end)) {
       return null;
@@ -1033,6 +1005,6 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
   }
 }
 
-export type ProductType = {
+export interface ProductType {
   value: string;
-};
+}

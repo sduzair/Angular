@@ -1,15 +1,15 @@
-import { ChangeDetectionStrategy, Component, forwardRef } from "@angular/core";
-import { ProductType } from "../transaction-search.component";
-import { CommonModule } from "@angular/common";
-import { NG_VALUE_ACCESSOR, ControlValueAccessor } from "@angular/forms";
-import { MatCheckboxModule } from "@angular/material/checkbox";
-import { MatTableModule } from "@angular/material/table";
-import { AbstractSelectableTableComponent } from "../abstract-selectable-table/abstract-selectable-table.component";
-import { SourceRefreshSelectableTableComponent } from "../source-refresh-selectable-table/source-refresh-selectable-table.component";
+import { ChangeDetectionStrategy, Component, forwardRef } from '@angular/core';
+import { ProductType } from '../transaction-search.component';
+
+import { NG_VALUE_ACCESSOR, ControlValueAccessor } from '@angular/forms';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatTableModule } from '@angular/material/table';
+import { AbstractSelectableTableComponent } from '../abstract-selectable-table/abstract-selectable-table.component';
+import { SourceRefreshSelectableTableComponent } from '../source-refresh-selectable-table/source-refresh-selectable-table.component';
 
 @Component({
-  selector: "app-product-type-selectable-table",
-  imports: [CommonModule, MatCheckboxModule, MatTableModule],
+  selector: 'app-product-type-selectable-table',
+  imports: [MatCheckboxModule, MatTableModule],
   template: `
     <table mat-table [dataSource]="dataSource">
       <!-- Selection Column -->
@@ -19,8 +19,7 @@ import { SourceRefreshSelectableTableComponent } from "../source-refresh-selecta
             [disabled]="disabled"
             (change)="$event ? toggleAllRows() : null"
             [checked]="selection.hasValue() && isAllSelected()"
-            [indeterminate]="selection.hasValue() && !isAllSelected()"
-          >
+            [indeterminate]="selection.hasValue() && !isAllSelected()">
           </mat-checkbox>
         </th>
         <td mat-cell *matCellDef="let row">
@@ -28,8 +27,7 @@ import { SourceRefreshSelectableTableComponent } from "../source-refresh-selecta
             [disabled]="isRowDisabled(row)"
             (click)="$event.stopPropagation()"
             (change)="$event ? toggleRow(row) : null"
-            [checked]="selection.isSelected(row)"
-          >
+            [checked]="selection.isSelected(row)">
           </mat-checkbox>
         </td>
       </ng-container>
@@ -38,13 +36,14 @@ import { SourceRefreshSelectableTableComponent } from "../source-refresh-selecta
       <ng-container matColumnDef="value">
         <th mat-header-cell *matHeaderCellDef>Product Type</th>
         <td mat-cell *matCellDef="let element">
-          <span *ngIf="!dataSourceLoadingState">
-            {{ element.value }}
-          </span>
-          <span
-            *ngIf="dataSourceLoadingState"
-            class="sk skw-12 skh-2"
-          ></span>
+          @if (!dataSourceLoadingState) {
+            <span>
+              {{ element.value }}
+            </span>
+          }
+          @if (dataSourceLoadingState) {
+            <span class="sk skw-12 skh-2"></span>
+          }
         </td>
       </ng-container>
 
@@ -52,8 +51,7 @@ import { SourceRefreshSelectableTableComponent } from "../source-refresh-selecta
       <tr
         mat-row
         *matRowDef="let row; columns: displayedColumns"
-        [class.disabled-row]="disabled"
-      ></tr>
+        [class.disabled-row]="disabled"></tr>
     </table>
   `,
   providers: [
@@ -63,16 +61,17 @@ import { SourceRefreshSelectableTableComponent } from "../source-refresh-selecta
       multi: true,
     },
   ],
-  styleUrl: "./product-type-selectable-table.component.scss",
+  styleUrl: './product-type-selectable-table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProductTypeSelectableTableComponent
   extends AbstractSelectableTableComponent<ProductType>
   implements ControlValueAccessor
 {
-  protected override displayedColumns: Array<
-    keyof ProductType | (string & {})
-  > = ["select", "value"];
+  protected override displayedColumns: (keyof ProductType | (string & {}))[] = [
+    'select',
+    'value',
+  ];
 
   protected override getSelectionComparator(): (
     a: ProductType,

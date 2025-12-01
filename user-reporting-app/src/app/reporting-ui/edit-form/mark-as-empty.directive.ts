@@ -4,25 +4,22 @@ import {
   Directive,
   ElementRef,
   HostListener,
-  Optional,
   Renderer2,
   inject,
-} from "@angular/core";
-import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import { NgControl, ValidatorFn } from "@angular/forms";
-import { MatFormField } from "@angular/material/form-field";
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NgControl, ValidatorFn } from '@angular/forms';
+import { MatFormField } from '@angular/material/form-field';
 
-export const SPECIAL_EMPTY_VALUE = "<<marked as empty>>";
+export const SPECIAL_EMPTY_VALUE = '<<marked as empty>>';
 
 @Directive({
-  selector: "[appMarkAsEmpty]",
+  selector: '[appMarkAsEmpty]',
 })
 export class MarkAsEmptyDirective implements AfterViewInit {
-  constructor(
-    @Optional() private formField: MatFormField,
-    private elementRef: ElementRef,
-    private renderer: Renderer2,
-  ) {}
+  private formField = inject(MatFormField, { optional: true })!;
+  private elementRef = inject(ElementRef);
+  private renderer = inject(Renderer2);
 
   private destroy$ = inject(DestroyRef);
   origWriteValue: ((obj: any) => void) | undefined;
@@ -36,7 +33,7 @@ export class MarkAsEmptyDirective implements AfterViewInit {
     return this.formField._control.ngControl?.control!;
   }
 
-  @HostListener("click", ["$event"])
+  @HostListener('click', ['$event'])
   onClick($event: Event): void {
     $event.stopPropagation();
 
@@ -47,7 +44,9 @@ export class MarkAsEmptyDirective implements AfterViewInit {
     this.origWriteValue = this.valueAccessor?.writeValue.bind(
       this.valueAccessor,
     );
-    this.valueAccessor!.writeValue = () => {};
+    this.valueAccessor!.writeValue = () => {
+      /* empty */
+    };
     // Temporarily pause validation
     this.originalValidators = this.control.validator
       ? [this.control.validator]
@@ -68,7 +67,7 @@ export class MarkAsEmptyDirective implements AfterViewInit {
   private matIconElement: HTMLElement | null = null;
   ngAfterViewInit(): void {
     this.matIconElement =
-      this.elementRef.nativeElement.querySelector("mat-icon");
+      this.elementRef.nativeElement.querySelector('mat-icon');
     // Subscribe to value changes to trigger host class update
     this.control.valueChanges
       .pipe(takeUntilDestroyed(this.destroy$))
@@ -79,9 +78,9 @@ export class MarkAsEmptyDirective implements AfterViewInit {
     console.assert(!!this.matIconElement);
 
     if (this.control?.value === SPECIAL_EMPTY_VALUE) {
-      this.renderer.addClass(this.matIconElement, "mat-warn");
+      this.renderer.addClass(this.matIconElement, 'mat-warn');
     } else {
-      this.renderer.removeClass(this.matIconElement, "mat-warn");
+      this.renderer.removeClass(this.matIconElement, 'mat-warn');
     }
   }
 }

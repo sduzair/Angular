@@ -3,15 +3,15 @@ import {
   ChangeLogService,
   ChangeLogWithoutVersion,
   WithVersion,
-} from "./change-log.service";
-import { SPECIAL_EMPTY_VALUE } from "./reporting-ui/edit-form/mark-as-empty.directive";
+} from './change-log.service';
+import { SPECIAL_EMPTY_VALUE } from './reporting-ui/edit-form/mark-as-empty.directive';
 import {
   StartingAction,
   StrTransaction,
-} from "./reporting-ui/reporting-ui-table/reporting-ui-table.component";
-import { DeepPartial } from "./test-helpers";
+} from './reporting-ui/reporting-ui-table/reporting-ui-table.component';
+import { DeepPartial } from './test-helpers';
 
-describe("ChangeLogService", () => {
+describe('ChangeLogService', () => {
   let service: ChangeLogService;
   let transactionBefore: WithVersion<DeepPartial<StrTransaction>> = null!;
   let transactionAfter: WithVersion<DeepPartial<StrTransaction>> = null!;
@@ -20,11 +20,11 @@ describe("ChangeLogService", () => {
     service = new ChangeLogService();
     // Mock StrTransaction structure
     const mockTransaction = {
-      purposeOfTxn: "savings",
+      purposeOfTxn: 'savings',
       startingActions: [
         {
-          _id: "sa1",
-          currency: "CAD",
+          _id: 'sa1',
+          currency: 'CAD',
         },
       ],
       _version: 0,
@@ -33,70 +33,70 @@ describe("ChangeLogService", () => {
     transactionAfter = structuredClone(mockTransaction);
   });
 
-  describe("applyChanges", () => {
-    it("should apply simple property change", () => {
-      transactionBefore.purposeOfTxn = "savings";
+  describe('applyChanges', () => {
+    it('should apply simple property change', () => {
+      transactionBefore.purposeOfTxn = 'savings';
       const changes: ChangeLog[] = [
         {
-          path: "purposeOfTxn",
-          oldValue: "savings",
-          newValue: "grocery",
+          path: 'purposeOfTxn',
+          oldValue: 'savings',
+          newValue: 'grocery',
           version: 1,
         },
       ];
 
       const result = service.applyChanges(transactionBefore, changes);
 
-      expect(result.purposeOfTxn).toBe("grocery");
+      expect(result.purposeOfTxn).toBe('grocery');
       expect(result._version).toBe(1);
     });
 
-    it("should apply simple property change from undefined", () => {
+    it('should apply simple property change from undefined', () => {
       transactionBefore.purposeOfTxn = undefined;
       const changes: ChangeLog[] = [
         {
-          path: "purposeOfTxn",
+          path: 'purposeOfTxn',
           oldValue: undefined,
-          newValue: "trade",
+          newValue: 'trade',
           version: 1,
         },
       ];
 
       const result = service.applyChanges(transactionBefore, changes);
 
-      expect(result.purposeOfTxn).toBe("trade");
+      expect(result.purposeOfTxn).toBe('trade');
       expect(result._version).toBe(1);
     });
 
-    it("should apply array property change", () => {
-      transactionBefore.startingActions![0]!.currency = "CAD";
+    it('should apply array property change', () => {
+      transactionBefore.startingActions![0]!.currency = 'CAD';
       const changes: ChangeLog[] = [
         {
-          path: "startingActions.$idx=0.currency",
-          oldValue: "CAD",
-          newValue: "USD",
+          path: 'startingActions.$idx=0.currency',
+          oldValue: 'CAD',
+          newValue: 'USD',
           version: 1,
         },
       ];
 
       const result = service.applyChanges(transactionBefore, changes);
 
-      expect(result?.startingActions?.[0]?.currency).toBe("USD");
+      expect(result?.startingActions?.[0]?.currency).toBe('USD');
       expect(result._version).toBe(1);
     });
 
-    it("should throw when applying change to non existent item in array", () => {
+    it('should throw when applying change to non existent item in array', () => {
       transactionBefore.startingActions = [
         {
-          _id: "sa1",
-          currency: "CAD",
+          _id: 'sa1',
+          currency: 'CAD',
         },
       ];
       const changes: ChangeLog[] = [
         {
-          path: "startingActions.$id=sa234.currency",
-          oldValue: "CAD",
-          newValue: "USD",
+          path: 'startingActions.$id=sa234.currency',
+          oldValue: 'CAD',
+          newValue: 'USD',
           version: 1,
         },
       ];
@@ -104,55 +104,55 @@ describe("ChangeLogService", () => {
       expect(() =>
         service.applyChanges(transactionBefore, changes),
       ).toThrowError(
-        "unknown target index: accessing non existent item in array",
+        'unknown target index: accessing non existent item in array',
       );
     });
 
-    it("should throw on unknown array segment", () => {
-      transactionBefore.startingActions![0]!.currency = "CAD";
+    it('should throw on unknown array segment', () => {
+      transactionBefore.startingActions![0]!.currency = 'CAD';
       const changes: ChangeLog[] = [
         {
-          path: "startingActions.firstSA.currency",
-          oldValue: "CAD",
-          newValue: "USD",
+          path: 'startingActions.firstSA.currency',
+          oldValue: 'CAD',
+          newValue: 'USD',
           version: 1,
         },
       ];
 
       expect(() =>
         service.applyChanges(transactionBefore, changes),
-      ).toThrowError("unknown array segment");
+      ).toThrowError('unknown array segment');
     });
 
-    it("should throw on array access for nested simple property", () => {
+    it('should throw on array access for nested simple property', () => {
       (
         transactionBefore as unknown as {
           name: { first: string; last: string };
         }
       ).name = {
-        first: "uzair",
-        last: "syed",
+        first: 'uzair',
+        last: 'syed',
       };
 
       const changes: ChangeLog[] = [
         {
-          path: "name.$idx=0.first",
-          oldValue: "uzair",
-          newValue: "jon",
+          path: 'name.$idx=0.first',
+          oldValue: 'uzair',
+          newValue: 'jon',
           version: 1,
         },
       ];
 
       expect(() =>
         service.applyChanges(transactionBefore, changes),
-      ).toThrowError("exptected array invalid array access");
+      ).toThrowError('exptected array invalid array access');
     });
 
-    it("should remove entire array", () => {
-      transactionBefore.startingActions = [{ _id: "sa1", branch: "123" }];
+    it('should remove entire array', () => {
+      transactionBefore.startingActions = [{ _id: 'sa1', branch: '123' }];
       const changes: ChangeLog[] = [
         {
-          path: "startingActions",
+          path: 'startingActions',
           oldValue: transactionBefore.startingActions,
           newValue: undefined,
           version: 1,
@@ -164,15 +164,15 @@ describe("ChangeLogService", () => {
       expect(result._version).toBe(1);
     });
 
-    it("should throw for add new array item when current array prop is undefined", () => {
+    it('should throw for add new array item when current array prop is undefined', () => {
       transactionBefore.startingActions = undefined;
       const newSa: DeepPartial<StartingAction> = {
-        _id: "sa1",
-        typeOfFundsOther: "investment",
+        _id: 'sa1',
+        typeOfFundsOther: 'investment',
       };
       const changes: ChangeLog[] = [
         {
-          path: "startingActions",
+          path: 'startingActions',
           oldValue: undefined,
           newValue: newSa,
           version: 1,
@@ -181,20 +181,20 @@ describe("ChangeLogService", () => {
 
       expect(() =>
         service.applyChanges(transactionBefore, changes),
-      ).toThrowError("add new array item when current array prop is undefined");
+      ).toThrowError('add new array item when current array prop is undefined');
     });
 
-    it("should throw for entire array addition when current is already non zero length array", () => {
+    it('should throw for entire array addition when current is already non zero length array', () => {
       transactionBefore.startingActions = [
-        { _id: "sa1", typeOfFundsOther: "paycheque" },
+        { _id: 'sa1', typeOfFundsOther: 'paycheque' },
       ];
       const newSa: DeepPartial<StartingAction> = {
-        _id: "sa1",
-        typeOfFundsOther: "investment",
+        _id: 'sa1',
+        typeOfFundsOther: 'investment',
       };
       const changes: ChangeLog[] = [
         {
-          path: "startingActions",
+          path: 'startingActions',
           oldValue: undefined,
           newValue: [newSa],
           version: 1,
@@ -203,15 +203,15 @@ describe("ChangeLogService", () => {
 
       expect(() =>
         service.applyChanges(transactionBefore, changes),
-      ).toThrowError("entire array addition when current is already array");
+      ).toThrowError('entire array addition when current is already array');
     });
 
-    it("should add entire array when property is empty", () => {
+    it('should add entire array when property is empty', () => {
       transactionBefore.startingActions = undefined;
-      const newArray = [{ _id: "sa1", branch: "123" }];
+      const newArray = [{ _id: 'sa1', branch: '123' }];
       const changes: ChangeLog[] = [
         {
-          path: "startingActions",
+          path: 'startingActions',
           oldValue: undefined,
           newValue: newArray,
           version: 1,
@@ -226,21 +226,21 @@ describe("ChangeLogService", () => {
       expect(result._version).toBe(1);
     });
 
-    describe("for items with _id as discriminator", () => {
-      it("should add new array item", () => {
+    describe('for items with _id as discriminator', () => {
+      it('should add new array item', () => {
         transactionBefore.startingActions = [
           {
-            _id: "sa1",
-            currency: "CAD",
+            _id: 'sa1',
+            currency: 'CAD',
           },
         ];
         const newSa: DeepPartial<StartingAction> = {
-          _id: "sa2",
-          typeOfFundsOther: "investment",
+          _id: 'sa2',
+          typeOfFundsOther: 'investment',
         };
         const changes: ChangeLog[] = [
           {
-            path: "startingActions",
+            path: 'startingActions',
             oldValue: undefined,
             newValue: newSa,
             version: 1,
@@ -254,19 +254,19 @@ describe("ChangeLogService", () => {
         expect(result._version).toBe(1);
       });
 
-      it("should remove array item", () => {
+      it('should remove array item', () => {
         transactionBefore.startingActions = [
           {
-            _id: "sa1",
-            currency: "CAD",
+            _id: 'sa1',
+            currency: 'CAD',
           },
         ];
         const changes: ChangeLog[] = [
           {
-            path: "startingActions.$id=sa1",
+            path: 'startingActions.$id=sa1',
             oldValue: {
-              _id: "sa1",
-              currency: "CAD",
+              _id: 'sa1',
+              currency: 'CAD',
             },
             newValue: undefined,
             version: 1,
@@ -279,46 +279,46 @@ describe("ChangeLogService", () => {
         expect(result._version).toBe(1);
       });
 
-      it("should modify array item property", () => {
+      it('should modify array item property', () => {
         transactionBefore.startingActions = [
           {
-            _id: "sa1",
-            currency: "CAD",
+            _id: 'sa1',
+            currency: 'CAD',
           },
         ];
         const changes: ChangeLog[] = [
           {
-            path: "startingActions.$id=sa1.currency",
-            oldValue: "CAD",
-            newValue: "USD",
+            path: 'startingActions.$id=sa1.currency',
+            oldValue: 'CAD',
+            newValue: 'USD',
             version: 1,
           },
         ];
 
         const result = service.applyChanges(transactionBefore, changes);
 
-        const sa1 = result.startingActions!.find((a: any) => a!._id === "sa1");
-        expect(sa1?.currency).toBe("USD");
+        const sa1 = result.startingActions!.find((a: any) => a!._id === 'sa1');
+        expect(sa1?.currency).toBe('USD');
         expect(result._version).toBe(1);
       });
     });
 
-    describe("for items with index as discriminator", () => {
-      it("should add new array item", () => {
+    describe('for items with index as discriminator', () => {
+      it('should add new array item', () => {
         transactionBefore.startingActions = [
           {
-            _id: "sa1",
-            currency: "CAD",
+            _id: 'sa1',
+            currency: 'CAD',
           },
         ];
         const saNew: DeepPartial<StartingAction> = {
-          _id: "sa2",
+          _id: 'sa2',
           wasCondInfoObtained: true,
-          conductors: [{ givenName: "nobody" }],
+          conductors: [{ givenName: 'nobody' }],
         };
         const changes: ChangeLog[] = [
           {
-            path: "startingActions",
+            path: 'startingActions',
             oldValue: undefined,
             newValue: saNew,
             version: 1,
@@ -332,19 +332,19 @@ describe("ChangeLogService", () => {
         expect(result._version).toBe(1);
       });
 
-      it("should remove array item", () => {
+      it('should remove array item', () => {
         transactionBefore.startingActions = [
           {
-            _id: "sa1",
-            currency: "CAD",
+            _id: 'sa1',
+            currency: 'CAD',
           },
         ];
         const changes: ChangeLog[] = [
           {
-            path: "startingActions.$idx=0",
+            path: 'startingActions.$idx=0',
             oldValue: {
-              _id: "sa1",
-              currency: "CAD",
+              _id: 'sa1',
+              currency: 'CAD',
             },
             newValue: undefined,
             version: 1,
@@ -357,18 +357,18 @@ describe("ChangeLogService", () => {
         expect(result._version).toBe(1);
       });
 
-      it("should modify array item property", () => {
+      it('should modify array item property', () => {
         transactionBefore.startingActions = [
           {
-            _id: "sa1",
-            currency: "CAD",
+            _id: 'sa1',
+            currency: 'CAD',
           },
         ];
         const changes: ChangeLog[] = [
           {
-            path: "startingActions.$idx=0.currency",
-            oldValue: "CAD",
-            newValue: "USD",
+            path: 'startingActions.$idx=0.currency',
+            oldValue: 'CAD',
+            newValue: 'USD',
             version: 1,
           },
         ];
@@ -376,20 +376,20 @@ describe("ChangeLogService", () => {
         const result = service.applyChanges(transactionBefore, changes);
 
         const sa1 = result.startingActions![0];
-        expect(sa1?.currency).toBe("USD");
+        expect(sa1?.currency).toBe('USD');
         expect(result._version).toBe(1);
       });
     });
 
-    describe("should apply bulk edit change logs", () => {
-      it("existing underlying object set to undefined", () => {
-        transactionBefore.purposeOfTxn = "savings";
-        transactionBefore.startingActions = [{ directionOfSA: "Out" }];
+    describe('should apply bulk edit change logs', () => {
+      it('existing underlying object set to undefined', () => {
+        transactionBefore.purposeOfTxn = 'savings';
+        transactionBefore.startingActions = [{ directionOfSA: 'Out' }];
 
         const changes: ChangeLog[] = [
           {
-            path: "startingActions.$idx=0.directionOfSA",
-            oldValue: "Out",
+            path: 'startingActions.$idx=0.directionOfSA',
+            oldValue: 'Out',
             newValue: undefined,
             version: 1,
           },
@@ -403,10 +403,10 @@ describe("ChangeLogService", () => {
     });
   });
 
-  describe("compareProperties", () => {
-    it("should detect simple property change", () => {
-      transactionBefore.purposeOfTxn = "savings";
-      transactionAfter.purposeOfTxn = "trade";
+  describe('compareProperties', () => {
+    it('should detect simple property change', () => {
+      transactionBefore.purposeOfTxn = 'savings';
+      transactionAfter.purposeOfTxn = 'trade';
 
       const changes: ChangeLogWithoutVersion[] = [];
 
@@ -414,16 +414,16 @@ describe("ChangeLogService", () => {
 
       expect(changes).toEqual([
         {
-          path: "purposeOfTxn",
-          oldValue: "savings",
-          newValue: "trade",
+          path: 'purposeOfTxn',
+          oldValue: 'savings',
+          newValue: 'trade',
         },
       ]);
     });
 
-    it("should detect simple property change from undefined", () => {
+    it('should detect simple property change from undefined', () => {
       transactionBefore.purposeOfTxn = undefined;
-      transactionAfter.purposeOfTxn = "trade";
+      transactionAfter.purposeOfTxn = 'trade';
 
       const changes: ChangeLogWithoutVersion[] = [];
 
@@ -431,16 +431,16 @@ describe("ChangeLogService", () => {
 
       expect(changes).toEqual([
         {
-          path: "purposeOfTxn",
+          path: 'purposeOfTxn',
           oldValue: undefined,
-          newValue: "trade",
+          newValue: 'trade',
         },
       ]);
     });
 
-    it("should detect nested property change", () => {
-      transactionBefore.startingActions = [{ _id: "sa1", amount: 100 }];
-      transactionAfter.startingActions = [{ _id: "sa1", amount: 200 }];
+    it('should detect nested property change', () => {
+      transactionBefore.startingActions = [{ _id: 'sa1', amount: 100 }];
+      transactionAfter.startingActions = [{ _id: 'sa1', amount: 200 }];
 
       const changes: ChangeLogWithoutVersion[] = [];
 
@@ -448,14 +448,14 @@ describe("ChangeLogService", () => {
 
       expect(changes).toEqual([
         {
-          path: "startingActions.$id=sa1.amount",
+          path: 'startingActions.$id=sa1.amount',
           oldValue: 100,
           newValue: 200,
         },
       ]);
     });
 
-    it("should ignore null to undefined property change", () => {
+    it('should ignore null to undefined property change', () => {
       transactionBefore.purposeOfTxn = null;
       transactionAfter.purposeOfTxn = undefined;
 
@@ -466,7 +466,7 @@ describe("ChangeLogService", () => {
       expect(changes).toEqual([]);
     });
 
-    it("should ignore undefined to null property change", () => {
+    it('should ignore undefined to null property change', () => {
       transactionBefore.purposeOfTxn = undefined;
       transactionAfter.purposeOfTxn = null;
 
@@ -477,9 +477,9 @@ describe("ChangeLogService", () => {
       expect(changes).toEqual([]);
     });
 
-    it("should ignore null to empty string property change", () => {
+    it('should ignore null to empty string property change', () => {
       transactionBefore.purposeOfTxn = null;
-      transactionAfter.purposeOfTxn = "";
+      transactionAfter.purposeOfTxn = '';
 
       const changes: ChangeLogWithoutVersion[] = [];
 
@@ -488,8 +488,8 @@ describe("ChangeLogService", () => {
       expect(changes).toEqual([]);
     });
 
-    it("should ignore empty string to null property change", () => {
-      transactionBefore.purposeOfTxn = "";
+    it('should ignore empty string to null property change', () => {
+      transactionBefore.purposeOfTxn = '';
       transactionAfter.purposeOfTxn = null;
 
       const changes: ChangeLogWithoutVersion[] = [];
@@ -499,9 +499,9 @@ describe("ChangeLogService", () => {
       expect(changes).toEqual([]);
     });
 
-    it("should ignore undefined to empty string property change", () => {
+    it('should ignore undefined to empty string property change', () => {
       transactionBefore.purposeOfTxn = undefined;
-      transactionAfter.purposeOfTxn = "";
+      transactionAfter.purposeOfTxn = '';
 
       const changes: ChangeLogWithoutVersion[] = [];
 
@@ -510,8 +510,8 @@ describe("ChangeLogService", () => {
       expect(changes).toEqual([]);
     });
 
-    it("should ignore empty string to undefined property change", () => {
-      transactionBefore.purposeOfTxn = "";
+    it('should ignore empty string to undefined property change', () => {
+      transactionBefore.purposeOfTxn = '';
       transactionAfter.purposeOfTxn = undefined;
 
       const changes: ChangeLogWithoutVersion[] = [];
@@ -521,11 +521,11 @@ describe("ChangeLogService", () => {
       expect(changes).toEqual([]);
     });
 
-    it("should ignore _hidden prefix property changes", () => {
+    it('should ignore _hidden prefix property changes', () => {
       (transactionBefore as unknown as { _hiddenProp: string })._hiddenProp =
-        "oldVal";
+        'oldVal';
       (transactionAfter as unknown as { _hiddenProp: string })._hiddenProp =
-        "newVal";
+        'newVal';
 
       const changes: ChangeLogWithoutVersion[] = [];
 
@@ -534,7 +534,7 @@ describe("ChangeLogService", () => {
       expect(changes).toEqual([]);
     });
 
-    it("should ignore null/undefined to empty array property change", () => {
+    it('should ignore null/undefined to empty array property change', () => {
       transactionBefore.startingActions = undefined;
       transactionAfter.startingActions = [];
 
@@ -545,7 +545,7 @@ describe("ChangeLogService", () => {
       expect(changes).toEqual([]);
     });
 
-    it("should ignore empty array to null/undefined property change", () => {
+    it('should ignore empty array to null/undefined property change', () => {
       transactionBefore.startingActions = [];
       transactionAfter.startingActions = undefined;
 
@@ -556,7 +556,7 @@ describe("ChangeLogService", () => {
       expect(changes).toEqual([]);
     });
 
-    it("should ignore empty array to empty array property change", () => {
+    it('should ignore empty array to empty array property change', () => {
       transactionBefore.startingActions = [];
       transactionAfter.startingActions = [];
 
@@ -569,24 +569,24 @@ describe("ChangeLogService", () => {
 
     // See change log service for dependent properties and their toggles
     // VALID CHANGE FOR DEPENDENCY PROPERTY TOGGLES
-    it("should NOT ignore undefined to boolean false", () => {
+    it('should NOT ignore undefined to boolean false', () => {
       transactionBefore.hasPostingDate = undefined;
       transactionBefore.startingActions = [
-        { _id: "sa1", wasSofInfoObtained: undefined },
+        { _id: 'sa1', wasSofInfoObtained: undefined },
       ];
       transactionAfter.hasPostingDate = false;
       transactionAfter.startingActions = [
-        { _id: "sa1", wasSofInfoObtained: false },
+        { _id: 'sa1', wasSofInfoObtained: false },
       ];
 
       const changes: ChangeLogWithoutVersion[] = [
         {
-          path: "hasPostingDate",
+          path: 'hasPostingDate',
           oldValue: undefined,
           newValue: false,
         },
         {
-          path: "startingActions.$id=sa1.wasSofInfoObtained",
+          path: 'startingActions.$id=sa1.wasSofInfoObtained',
           oldValue: undefined,
           newValue: false,
         },
@@ -598,24 +598,24 @@ describe("ChangeLogService", () => {
     });
 
     // VALID CHANGE FOR DEP PROP TOGGLES
-    it("should NOT ignore null to boolean false", () => {
+    it('should NOT ignore null to boolean false', () => {
       transactionBefore.hasPostingDate = null;
       transactionBefore.startingActions = [
-        { _id: "sa1", wasSofInfoObtained: null },
+        { _id: 'sa1', wasSofInfoObtained: null },
       ];
       transactionAfter.hasPostingDate = false;
       transactionAfter.startingActions = [
-        { _id: "sa1", wasSofInfoObtained: false },
+        { _id: 'sa1', wasSofInfoObtained: false },
       ];
 
       const changes: ChangeLogWithoutVersion[] = [
         {
-          path: "hasPostingDate",
+          path: 'hasPostingDate',
           oldValue: null,
           newValue: false,
         },
         {
-          path: "startingActions.$id=sa1.wasSofInfoObtained",
+          path: 'startingActions.$id=sa1.wasSofInfoObtained',
           oldValue: null,
           newValue: false,
         },
@@ -626,14 +626,14 @@ describe("ChangeLogService", () => {
       expect(changes).toEqual(changes);
     });
 
-    it("should ignore boolean false to undefined", () => {
+    it('should ignore boolean false to undefined', () => {
       transactionBefore.hasPostingDate = false;
       transactionBefore.startingActions = [
-        { _id: "sa1", wasSofInfoObtained: false },
+        { _id: 'sa1', wasSofInfoObtained: false },
       ];
       transactionAfter.hasPostingDate = undefined;
       transactionAfter.startingActions = [
-        { _id: "sa1", wasSofInfoObtained: undefined },
+        { _id: 'sa1', wasSofInfoObtained: undefined },
       ];
 
       const changes: ChangeLogWithoutVersion[] = [];
@@ -643,14 +643,14 @@ describe("ChangeLogService", () => {
       expect(changes).toEqual([]);
     });
 
-    it("should ignore boolean false to null", () => {
+    it('should ignore boolean false to null', () => {
       transactionBefore.hasPostingDate = false;
       transactionBefore.startingActions = [
-        { _id: "sa1", wasSofInfoObtained: false },
+        { _id: 'sa1', wasSofInfoObtained: false },
       ];
       transactionAfter.hasPostingDate = null;
       transactionAfter.startingActions = [
-        { _id: "sa1", wasSofInfoObtained: null },
+        { _id: 'sa1', wasSofInfoObtained: null },
       ];
 
       const changes: ChangeLogWithoutVersion[] = [];
@@ -660,7 +660,7 @@ describe("ChangeLogService", () => {
       expect(changes).toEqual([]);
     });
 
-    it("should not ignore undefined to boolean true", () => {
+    it('should not ignore undefined to boolean true', () => {
       transactionBefore.hasPostingDate = undefined;
       transactionAfter.hasPostingDate = true;
 
@@ -670,14 +670,14 @@ describe("ChangeLogService", () => {
 
       expect(changes).toEqual([
         {
-          path: "hasPostingDate",
+          path: 'hasPostingDate',
           oldValue: undefined,
           newValue: true,
         },
       ]);
     });
 
-    it("should not ignore null to boolean true", () => {
+    it('should not ignore null to boolean true', () => {
       transactionBefore.hasPostingDate = null;
       transactionAfter.hasPostingDate = true;
 
@@ -687,16 +687,16 @@ describe("ChangeLogService", () => {
 
       expect(changes).toEqual([
         {
-          path: "hasPostingDate",
+          path: 'hasPostingDate',
           oldValue: null,
           newValue: true,
         },
       ]);
     });
 
-    it("should detect entire array addition", () => {
+    it('should detect entire array addition', () => {
       transactionBefore.startingActions = undefined;
-      transactionAfter.startingActions = [{ _id: "sa1", branch: "123" }];
+      transactionAfter.startingActions = [{ _id: 'sa1', branch: '123' }];
 
       const changes: ChangeLogWithoutVersion[] = [];
 
@@ -704,15 +704,15 @@ describe("ChangeLogService", () => {
 
       expect(changes).toEqual([
         {
-          path: "startingActions",
+          path: 'startingActions',
           oldValue: undefined,
-          newValue: [{ _id: "sa1", branch: "123" }],
+          newValue: [{ _id: 'sa1', branch: '123' }],
         },
       ]);
     });
 
-    it("should detect entire array removal", () => {
-      transactionBefore.startingActions = [{ _id: "sa1", branch: "123" }];
+    it('should detect entire array removal', () => {
+      transactionBefore.startingActions = [{ _id: 'sa1', branch: '123' }];
       transactionAfter.startingActions = undefined;
 
       const changes: ChangeLogWithoutVersion[] = [];
@@ -721,35 +721,35 @@ describe("ChangeLogService", () => {
 
       expect(changes).toEqual([
         {
-          path: "startingActions",
+          path: 'startingActions',
           oldValue: transactionBefore.startingActions,
           newValue: undefined,
         },
       ]);
     });
 
-    describe("should detect bulk edits", () => {
-      it("should detect removal for dep prop", () => {
+    describe('should detect bulk edits', () => {
+      it('should detect removal for dep prop', () => {
         transactionBefore.startingActions = [
           {
-            _id: "sa1",
+            _id: 'sa1',
             wasCondInfoObtained: true,
-            conductors: [{ _id: "cond1", givenName: "jon" }],
+            conductors: [{ _id: 'cond1', givenName: 'jon' }],
           },
           {
-            _id: "sa2",
+            _id: 'sa2',
             hasAccountHolders: true,
-            accountHolders: [{ _id: "cond1", givenName: "jon" }],
+            accountHolders: [{ _id: 'cond1', givenName: 'jon' }],
           },
         ];
         transactionAfter.startingActions = [
           {
-            _id: "sa1",
+            _id: 'sa1',
             wasCondInfoObtained: false,
             conductors: [],
           },
           {
-            _id: "sa2",
+            _id: 'sa2',
             hasAccountHolders: false,
           },
         ];
@@ -761,57 +761,57 @@ describe("ChangeLogService", () => {
           transactionAfter,
           changes,
           {
-            discriminator: "index",
+            discriminator: 'index',
           },
         );
 
         expect(changes).toEqual(
           jasmine.arrayWithExactContents([
             {
-              path: "startingActions.$idx=0.wasCondInfoObtained",
+              path: 'startingActions.$idx=0.wasCondInfoObtained',
               oldValue: true,
               newValue: false,
             },
             {
-              path: "startingActions.$idx=0.conductors",
-              oldValue: [{ _id: "cond1", givenName: "jon" }],
+              path: 'startingActions.$idx=0.conductors',
+              oldValue: [{ _id: 'cond1', givenName: 'jon' }],
               newValue: undefined,
             },
             {
-              path: "startingActions.$idx=1.hasAccountHolders",
+              path: 'startingActions.$idx=1.hasAccountHolders',
               oldValue: true,
               newValue: false,
             },
             {
-              path: "startingActions.$idx=1.accountHolders",
-              oldValue: [{ _id: "cond1", givenName: "jon" }],
+              path: 'startingActions.$idx=1.accountHolders',
+              oldValue: [{ _id: 'cond1', givenName: 'jon' }],
               newValue: undefined,
             },
           ]),
         );
       });
 
-      it("should ignore removal when dep prop has ignored values", () => {
+      it('should ignore removal when dep prop has ignored values', () => {
         transactionBefore.startingActions = [
           {
-            _id: "sa1",
+            _id: 'sa1',
             wasCondInfoObtained: false,
             conductors: [],
           },
           {
-            _id: "sa2",
+            _id: 'sa2',
             wasCondInfoObtained: false,
             conductors: undefined,
           },
         ];
         transactionAfter.startingActions = [
           {
-            _id: "sa1",
+            _id: 'sa1',
             wasCondInfoObtained: false,
             conductors: null,
           },
           {
-            _id: "sa2",
+            _id: 'sa2',
             wasCondInfoObtained: false,
             conductors: [],
           },
@@ -824,20 +824,20 @@ describe("ChangeLogService", () => {
           transactionAfter,
           changes,
           {
-            discriminator: "index",
+            discriminator: 'index',
           },
         );
 
         expect(changes.length).toEqual(0);
       });
 
-      it("should detect removal for dep simple prop", () => {
+      it('should detect removal for dep simple prop', () => {
         transactionBefore.wasTxnAttempted = true;
-        transactionBefore.wasTxnAttemptedReason = "Bounced cheque";
+        transactionBefore.wasTxnAttemptedReason = 'Bounced cheque';
 
         transactionBefore.hasPostingDate = true;
-        transactionBefore.dateOfPosting = "2024/02/02";
-        transactionBefore.timeOfPosting = "06:32";
+        transactionBefore.dateOfPosting = '2024/02/02';
+        transactionBefore.timeOfPosting = '06:32';
 
         transactionAfter.wasTxnAttempted = false;
         transactionAfter.hasPostingDate = false;
@@ -849,66 +849,66 @@ describe("ChangeLogService", () => {
           transactionAfter,
           changes,
           {
-            discriminator: "index",
+            discriminator: 'index',
           },
         );
 
         expect(changes).toEqual(
           jasmine.arrayWithExactContents([
             {
-              path: "wasTxnAttempted",
+              path: 'wasTxnAttempted',
               oldValue: true,
               newValue: false,
             },
             {
-              path: "wasTxnAttemptedReason",
-              oldValue: "Bounced cheque",
+              path: 'wasTxnAttemptedReason',
+              oldValue: 'Bounced cheque',
               newValue: undefined,
             },
             {
-              path: "hasPostingDate",
+              path: 'hasPostingDate',
               oldValue: true,
               newValue: false,
             },
             {
-              path: "dateOfPosting",
-              oldValue: "2024/02/02",
+              path: 'dateOfPosting',
+              oldValue: '2024/02/02',
               newValue: undefined,
             },
             {
-              path: "timeOfPosting",
-              oldValue: "06:32",
+              path: 'timeOfPosting',
+              oldValue: '06:32',
               newValue: undefined,
             },
           ]),
         );
       });
 
-      it("should detect replacement for dep prop", () => {
+      it('should detect replacement for dep prop', () => {
         transactionBefore.startingActions = [
           {
-            _id: "sa1",
+            _id: 'sa1',
             wasCondInfoObtained: false,
             conductors: [],
           },
           {
-            _id: "sa2",
+            _id: 'sa2',
             wasCondInfoObtained: true,
-            conductors: [{ _id: "cond1", givenName: "mary" }],
+            conductors: [{ _id: 'cond1', givenName: 'mary' }],
           },
         ];
         transactionAfter.startingActions = [
           {
-            _id: "sa1",
+            _id: 'sa1',
             wasCondInfoObtained: true,
-            conductors: [{ _id: "cond1", givenName: "uzair" }],
+            conductors: [{ _id: 'cond1', givenName: 'uzair' }],
           },
           {
-            _id: "sa2",
+            _id: 'sa2',
             wasCondInfoObtained: true,
             conductors: [
-              { _id: "cond1", givenName: "jon" },
-              { _id: "cond2", givenName: "syed" },
+              { _id: 'cond1', givenName: 'jon' },
+              { _id: 'cond2', givenName: 'syed' },
             ],
           },
         ];
@@ -920,60 +920,60 @@ describe("ChangeLogService", () => {
           transactionAfter,
           changes,
           {
-            discriminator: "index",
+            discriminator: 'index',
           },
         );
 
         expect(changes).toEqual(
           jasmine.arrayWithExactContents([
             {
-              path: "startingActions.$idx=0.wasCondInfoObtained",
+              path: 'startingActions.$idx=0.wasCondInfoObtained',
               oldValue: false,
               newValue: true,
             },
             {
-              path: "startingActions.$idx=0.conductors",
+              path: 'startingActions.$idx=0.conductors',
               oldValue: undefined,
-              newValue: [{ _id: "cond1", givenName: "uzair" }],
+              newValue: [{ _id: 'cond1', givenName: 'uzair' }],
             },
             {
-              path: "startingActions.$idx=1.conductors",
-              oldValue: [{ _id: "cond1", givenName: "mary" }],
+              path: 'startingActions.$idx=1.conductors',
+              oldValue: [{ _id: 'cond1', givenName: 'mary' }],
               newValue: undefined,
             },
             {
-              path: "startingActions.$idx=1.conductors",
+              path: 'startingActions.$idx=1.conductors',
               oldValue: undefined,
               newValue: [
-                { _id: "cond1", givenName: "jon" },
-                { _id: "cond2", givenName: "syed" },
+                { _id: 'cond1', givenName: 'jon' },
+                { _id: 'cond2', givenName: 'syed' },
               ],
             },
           ]),
         );
       });
 
-      it("should ignore replacement for dep prop", () => {
+      it('should ignore replacement for dep prop', () => {
         transactionBefore.startingActions = [
           {
-            _id: "sa1",
+            _id: 'sa1',
             wasCondInfoObtained: true,
             conductors: undefined,
           },
           {
-            _id: "sa2",
+            _id: 'sa2',
             wasCondInfoObtained: true,
             conductors: [],
           },
         ];
         transactionAfter.startingActions = [
           {
-            _id: "sa1",
+            _id: 'sa1',
             wasCondInfoObtained: true,
             conductors: [],
           },
           {
-            _id: "sa2",
+            _id: 'sa2',
             wasCondInfoObtained: true,
             conductors: undefined,
           },
@@ -986,19 +986,19 @@ describe("ChangeLogService", () => {
           transactionAfter,
           changes,
           {
-            discriminator: "index",
+            discriminator: 'index',
           },
         );
 
         expect(changes.length).toEqual(0);
       });
 
-      it("should detect replacement for dep simple prop", () => {
+      it('should detect replacement for dep simple prop', () => {
         transactionBefore.wasTxnAttempted = undefined;
         transactionBefore.wasTxnAttemptedReason = undefined;
 
         transactionAfter.wasTxnAttempted = true;
-        transactionAfter.wasTxnAttemptedReason = "Cancelled emt";
+        transactionAfter.wasTxnAttemptedReason = 'Cancelled emt';
 
         const changes: ChangeLogWithoutVersion[] = [];
 
@@ -1007,39 +1007,39 @@ describe("ChangeLogService", () => {
           transactionAfter,
           changes,
           {
-            discriminator: "index",
+            discriminator: 'index',
           },
         );
 
         expect(changes).toEqual(
           jasmine.arrayWithExactContents([
             {
-              path: "wasTxnAttempted",
+              path: 'wasTxnAttempted',
               oldValue: undefined,
               newValue: true,
             },
             {
-              path: "wasTxnAttemptedReason",
+              path: 'wasTxnAttemptedReason',
               oldValue: undefined,
-              newValue: "Cancelled emt",
+              newValue: 'Cancelled emt',
             },
           ]),
         );
       });
 
-      it("should detect null to false for dep prop toggle", () => {
+      it('should detect null to false for dep prop toggle', () => {
         transactionBefore.startingActions = [
           {
-            _id: "sa1",
+            _id: 'sa1',
             hasAccountHolders: null,
             accountHolders: [
               {
-                _id: "6800a853-2d1b-4d03-8bcc-dd8f945f5bee",
-                givenName: "uzair",
+                _id: '6800a853-2d1b-4d03-8bcc-dd8f945f5bee',
+                givenName: 'uzair',
               },
               {
-                _id: "e62bc67a-4c85-4346-9e71-4055dd363cc2",
-                givenName: "mike",
+                _id: 'e62bc67a-4c85-4346-9e71-4055dd363cc2',
+                givenName: 'mike',
               },
             ],
           },
@@ -1047,7 +1047,7 @@ describe("ChangeLogService", () => {
 
         transactionAfter.startingActions = [
           {
-            _id: "sa1",
+            _id: 'sa1',
             hasAccountHolders: false,
             accountHolders: [],
           },
@@ -1060,27 +1060,27 @@ describe("ChangeLogService", () => {
           transactionAfter,
           changes,
           {
-            discriminator: "index",
+            discriminator: 'index',
           },
         );
 
         expect(changes).toEqual(
           jasmine.arrayWithExactContents<ChangeLogWithoutVersion>([
             {
-              path: "startingActions.$idx=0.hasAccountHolders",
+              path: 'startingActions.$idx=0.hasAccountHolders',
               oldValue: null,
               newValue: false,
             },
             {
-              path: "startingActions.$idx=0.accountHolders",
+              path: 'startingActions.$idx=0.accountHolders',
               oldValue: [
                 {
-                  _id: "6800a853-2d1b-4d03-8bcc-dd8f945f5bee",
-                  givenName: "uzair",
+                  _id: '6800a853-2d1b-4d03-8bcc-dd8f945f5bee',
+                  givenName: 'uzair',
                 },
                 {
-                  _id: "e62bc67a-4c85-4346-9e71-4055dd363cc2",
-                  givenName: "mike",
+                  _id: 'e62bc67a-4c85-4346-9e71-4055dd363cc2',
+                  givenName: 'mike',
                 },
               ],
               newValue: undefined,
@@ -1090,12 +1090,12 @@ describe("ChangeLogService", () => {
       });
 
       // bulk edit - tests for properties marked for clearing using a placeholder
-      it("should not clear simple props not marked for clearing", () => {
-        transactionBefore.dateOfTxn = "2024/09/23";
-        transactionBefore.dateOfPosting = "2025/03/03";
+      it('should not clear simple props not marked for clearing', () => {
+        transactionBefore.dateOfTxn = '2024/09/23';
+        transactionBefore.dateOfPosting = '2025/03/03';
 
         transactionAfter.dateOfTxn = null;
-        transactionAfter.dateOfPosting = "";
+        transactionAfter.dateOfPosting = '';
 
         const changes: ChangeLogWithoutVersion[] = [];
 
@@ -1104,15 +1104,15 @@ describe("ChangeLogService", () => {
           transactionAfter,
           changes,
           {
-            discriminator: "index",
+            discriminator: 'index',
           },
         );
 
         expect(changes.length).toEqual(0);
       });
 
-      it("should clear simple props marked for clearing", () => {
-        transactionBefore.dateOfTxn = "2024/09/23";
+      it('should clear simple props marked for clearing', () => {
+        transactionBefore.dateOfTxn = '2024/09/23';
 
         transactionAfter.dateOfTxn = SPECIAL_EMPTY_VALUE;
 
@@ -1123,28 +1123,28 @@ describe("ChangeLogService", () => {
           transactionAfter,
           changes,
           {
-            discriminator: "index",
+            discriminator: 'index',
           },
         );
 
         expect(changes).toEqual(
           jasmine.arrayWithExactContents([
             {
-              path: "dateOfTxn",
-              oldValue: "2024/09/23",
+              path: 'dateOfTxn',
+              oldValue: '2024/09/23',
               newValue: undefined,
             },
           ]),
         );
       });
 
-      it("should clear nested simple props marked for clearing", () => {
+      it('should clear nested simple props marked for clearing', () => {
         transactionBefore.startingActions = [
-          { _id: "sa1", directionOfSA: "Out" },
+          { _id: 'sa1', directionOfSA: 'Out' },
         ];
 
         transactionAfter.startingActions = [
-          { _id: "sa1", directionOfSA: SPECIAL_EMPTY_VALUE },
+          { _id: 'sa1', directionOfSA: SPECIAL_EMPTY_VALUE },
         ];
 
         const changes: ChangeLogWithoutVersion[] = [];
@@ -1154,15 +1154,15 @@ describe("ChangeLogService", () => {
           transactionAfter,
           changes,
           {
-            discriminator: "index",
+            discriminator: 'index',
           },
         );
 
         expect(changes).toEqual(
           jasmine.arrayWithExactContents([
             {
-              path: "startingActions.$idx=0.directionOfSA",
-              oldValue: "Out",
+              path: 'startingActions.$idx=0.directionOfSA',
+              oldValue: 'Out',
               newValue: undefined,
             },
           ]),
@@ -1216,18 +1216,18 @@ describe("ChangeLogService", () => {
       //   );
       // });
 
-      it("should ignore dep propeties if their associated toggle is null", () => {
+      it('should ignore dep propeties if their associated toggle is null', () => {
         transactionBefore.startingActions = [
           {
-            _id: "sa1",
+            _id: 'sa1',
             accountHolders: [
               {
-                _id: "e62bc67a-4c85-4346-9e71-4055dd363cc2",
-                givenName: "jon",
+                _id: 'e62bc67a-4c85-4346-9e71-4055dd363cc2',
+                givenName: 'jon',
               },
               {
-                _id: "6800a853-2d1b-4d03-8bcc-dd8f945f5bee",
-                givenName: "doe",
+                _id: '6800a853-2d1b-4d03-8bcc-dd8f945f5bee',
+                givenName: 'doe',
               },
             ],
           },
@@ -1235,12 +1235,12 @@ describe("ChangeLogService", () => {
 
         transactionAfter.startingActions = [
           {
-            _id: "sa1",
+            _id: 'sa1',
             hasAccountHolders: null,
             accountHolders: [
               {
-                _id: "alskdjfkkk",
-                givenName: "mike",
+                _id: 'alskdjfkkk',
+                givenName: 'mike',
               },
             ],
           },
@@ -1253,33 +1253,33 @@ describe("ChangeLogService", () => {
           transactionAfter,
           changes,
           {
-            discriminator: "index",
+            discriminator: 'index',
           },
         );
 
         expect(changes.length).toEqual(0);
       });
 
-      it("should ignore extra starting actions if underlying object does not have them", () => {
+      it('should ignore extra starting actions if underlying object does not have them', () => {
         transactionBefore.startingActions = [
           {
-            _id: "123",
-            account: "5582195",
+            _id: '123',
+            account: '5582195',
           },
         ];
 
         transactionAfter.startingActions = [
           {
-            _id: "123",
-            account: "9999999",
+            _id: '123',
+            account: '9999999',
           },
           {
-            _id: "124",
-            account: "8930000",
+            _id: '124',
+            account: '8930000',
           },
           {
-            _id: "125",
-            account: "2889333",
+            _id: '125',
+            account: '2889333',
           },
         ];
 
@@ -1290,26 +1290,26 @@ describe("ChangeLogService", () => {
           transactionAfter,
           changes,
           {
-            discriminator: "index",
+            discriminator: 'index',
           },
         );
 
         expect(changes).toEqual([
           {
-            path: "startingActions.$idx=0.account",
-            oldValue: "5582195",
-            newValue: "9999999",
+            path: 'startingActions.$idx=0.account',
+            oldValue: '5582195',
+            newValue: '9999999',
           },
         ]);
       });
     });
 
-    describe("for items with _id as discriminator", () => {
-      it("should detect array item addition", () => {
-        transactionBefore.startingActions = [{ _id: "sa1", branch: "123" }];
+    describe('for items with _id as discriminator', () => {
+      it('should detect array item addition', () => {
+        transactionBefore.startingActions = [{ _id: 'sa1', branch: '123' }];
         transactionAfter.startingActions = [
-          { _id: "sa1", branch: "123" },
-          { _id: "sa2", branch: "321" },
+          { _id: 'sa1', branch: '123' },
+          { _id: 'sa2', branch: '321' },
         ];
 
         const changes: ChangeLogWithoutVersion[] = [];
@@ -1318,16 +1318,16 @@ describe("ChangeLogService", () => {
 
         expect(changes).toEqual([
           {
-            path: "startingActions",
+            path: 'startingActions',
             oldValue: undefined,
-            newValue: { _id: "sa2", branch: "321" },
+            newValue: { _id: 'sa2', branch: '321' },
           },
         ]);
       });
 
-      it("should throw on adding array with no object identifier(s)", () => {
+      it('should throw on adding array with no object identifier(s)', () => {
         transactionBefore.startingActions = undefined;
-        transactionAfter.startingActions = [{ _id: null, branch: "123" }];
+        transactionAfter.startingActions = [{ _id: null, branch: '123' }];
 
         const changes: ChangeLogWithoutVersion[] = [];
         expect(() =>
@@ -1336,14 +1336,14 @@ describe("ChangeLogService", () => {
             transactionAfter,
             changes,
           ),
-        ).toThrowError("array items must have an identifier");
+        ).toThrowError('array items must have an identifier');
       });
 
-      it("should throw on adding item with no identifier", () => {
-        transactionBefore.startingActions = [{ _id: "sa1", branch: "123" }];
+      it('should throw on adding item with no identifier', () => {
+        transactionBefore.startingActions = [{ _id: 'sa1', branch: '123' }];
         transactionAfter.startingActions = [
-          { _id: "sa1", branch: "123" },
-          { _id: "", branch: "321" },
+          { _id: 'sa1', branch: '123' },
+          { _id: '', branch: '321' },
         ];
 
         const changes: ChangeLogWithoutVersion[] = [];
@@ -1353,12 +1353,12 @@ describe("ChangeLogService", () => {
             transactionAfter,
             changes,
           ),
-        ).toThrowError("array items must have an identifier");
+        ).toThrowError('array items must have an identifier');
       });
 
-      it("should detect array item modification", () => {
-        transactionBefore.startingActions = [{ _id: "sa1", amount: 100 }];
-        transactionAfter.startingActions = [{ _id: "sa1", amount: 200 }];
+      it('should detect array item modification', () => {
+        transactionBefore.startingActions = [{ _id: 'sa1', amount: 100 }];
+        transactionAfter.startingActions = [{ _id: 'sa1', amount: 200 }];
 
         const changes: ChangeLogWithoutVersion[] = [];
 
@@ -1366,19 +1366,19 @@ describe("ChangeLogService", () => {
 
         expect(changes).toEqual([
           {
-            path: "startingActions.$id=sa1.amount",
+            path: 'startingActions.$id=sa1.amount',
             oldValue: 100,
             newValue: 200,
           },
         ]);
       });
 
-      it("should detect array item removal", () => {
+      it('should detect array item removal', () => {
         transactionBefore.startingActions = [
-          { _id: "sa1", branch: "123" },
-          { _id: "sa2", branch: "321" },
+          { _id: 'sa1', branch: '123' },
+          { _id: 'sa2', branch: '321' },
         ];
-        transactionAfter.startingActions = [{ _id: "sa1", branch: "123" }];
+        transactionAfter.startingActions = [{ _id: 'sa1', branch: '123' }];
 
         const changes: ChangeLogWithoutVersion[] = [];
 
@@ -1386,7 +1386,7 @@ describe("ChangeLogService", () => {
 
         expect(changes).toEqual([
           {
-            path: "startingActions.$id=sa2",
+            path: 'startingActions.$id=sa2',
             oldValue: transactionBefore.startingActions[1],
             newValue: undefined,
           },
@@ -1394,12 +1394,12 @@ describe("ChangeLogService", () => {
       });
     });
 
-    describe("for items with index as discriminator", () => {
-      it("should ignore array item addition (non dep prop)", () => {
-        transactionBefore.startingActions = [{ _id: "sa1", branch: "123" }];
+    describe('for items with index as discriminator', () => {
+      it('should ignore array item addition (non dep prop)', () => {
+        transactionBefore.startingActions = [{ _id: 'sa1', branch: '123' }];
         transactionAfter.startingActions = [
-          { _id: "sa1", branch: "123" },
-          { _id: "sa2", branch: "321" },
+          { _id: 'sa1', branch: '123' },
+          { _id: 'sa2', branch: '321' },
         ];
 
         const changes: ChangeLogWithoutVersion[] = [];
@@ -1408,15 +1408,15 @@ describe("ChangeLogService", () => {
           transactionBefore,
           transactionAfter,
           changes,
-          { discriminator: "index" },
+          { discriminator: 'index' },
         );
 
         expect(changes.length).toEqual(0);
       });
 
-      it("should detect array item modification", () => {
-        transactionBefore.startingActions = [{ _id: "sa1", amount: 100 }];
-        transactionAfter.startingActions = [{ _id: "sa1", amount: 200 }];
+      it('should detect array item modification', () => {
+        transactionBefore.startingActions = [{ _id: 'sa1', amount: 100 }];
+        transactionAfter.startingActions = [{ _id: 'sa1', amount: 200 }];
 
         const changes: ChangeLogWithoutVersion[] = [];
 
@@ -1425,13 +1425,13 @@ describe("ChangeLogService", () => {
           transactionAfter,
           changes,
           {
-            discriminator: "index",
+            discriminator: 'index',
           },
         );
 
         expect(changes).toEqual([
           {
-            path: "startingActions.$idx=0.amount",
+            path: 'startingActions.$idx=0.amount',
             oldValue: 100,
             newValue: 200,
           },
@@ -1439,9 +1439,9 @@ describe("ChangeLogService", () => {
       });
 
       // object identifier not used when index is discriminator this test verifies consitent creation of ids in form groups
-      it("should throw on array item modification with no object identifier", () => {
-        transactionBefore.startingActions = [{ _id: "sa1", amount: 100 }];
-        transactionAfter.startingActions = [{ _id: "", amount: 200 }];
+      it('should throw on array item modification with no object identifier', () => {
+        transactionBefore.startingActions = [{ _id: 'sa1', amount: 100 }];
+        transactionAfter.startingActions = [{ _id: '', amount: 200 }];
 
         const changes: ChangeLogWithoutVersion[] = [];
 
@@ -1451,18 +1451,18 @@ describe("ChangeLogService", () => {
             transactionAfter,
             changes,
             {
-              discriminator: "index",
+              discriminator: 'index',
             },
           ),
-        ).toThrowError("array items must have an identifier");
+        ).toThrowError('array items must have an identifier');
       });
 
-      it("should detect array item removal", () => {
+      it('should detect array item removal', () => {
         transactionBefore.startingActions = [
-          { _id: "sa1", branch: "123" },
-          { _id: "sa2", branch: "321" },
+          { _id: 'sa1', branch: '123' },
+          { _id: 'sa2', branch: '321' },
         ];
-        transactionAfter.startingActions = [{ _id: "sa1", branch: "123" }];
+        transactionAfter.startingActions = [{ _id: 'sa1', branch: '123' }];
 
         const changes: ChangeLogWithoutVersion[] = [];
 
@@ -1471,28 +1471,28 @@ describe("ChangeLogService", () => {
           transactionAfter,
           changes,
           {
-            discriminator: "index",
+            discriminator: 'index',
           },
         );
 
         expect(changes).toEqual([
           {
-            path: "startingActions.$idx=1",
-            oldValue: { _id: "sa2", branch: "321" },
+            path: 'startingActions.$idx=1',
+            oldValue: { _id: 'sa2', branch: '321' },
             newValue: undefined,
           },
         ]);
       });
     });
 
-    it("should detect multiple changes", () => {
-      transactionBefore.purposeOfTxn = "savings";
-      transactionBefore.startingActions = [{ _id: "sa1", amount: 100 }];
+    it('should detect multiple changes', () => {
+      transactionBefore.purposeOfTxn = 'savings';
+      transactionBefore.startingActions = [{ _id: 'sa1', amount: 100 }];
 
-      transactionAfter.purposeOfTxn = "trade";
+      transactionAfter.purposeOfTxn = 'trade';
       transactionAfter.startingActions = [
-        { _id: "sa1", amount: 200 },
-        { _id: "sa2", branch: "321" },
+        { _id: 'sa1', amount: 200 },
+        { _id: 'sa2', branch: '321' },
       ];
 
       const changes: ChangeLogWithoutVersion[] = [];
@@ -1501,19 +1501,19 @@ describe("ChangeLogService", () => {
 
       expect(changes).toEqual([
         {
-          path: "purposeOfTxn",
-          oldValue: "savings",
-          newValue: "trade",
+          path: 'purposeOfTxn',
+          oldValue: 'savings',
+          newValue: 'trade',
         },
         {
-          path: "startingActions.$id=sa1.amount",
+          path: 'startingActions.$id=sa1.amount',
           oldValue: 100,
           newValue: 200,
         },
         {
-          path: "startingActions",
+          path: 'startingActions',
           oldValue: undefined,
-          newValue: { _id: "sa2", branch: "321" },
+          newValue: { _id: 'sa2', branch: '321' },
         },
       ]);
     });

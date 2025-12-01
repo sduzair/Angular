@@ -1,5 +1,5 @@
-import { StepperSelectionEvent } from "@angular/cdk/stepper";
-import { CommonModule } from "@angular/common";
+import { StepperSelectionEvent } from '@angular/cdk/stepper';
+import { CommonModule } from '@angular/common';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -9,22 +9,22 @@ import {
   OnDestroy,
   ViewChild,
   inject,
-} from "@angular/core";
-import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   AbstractControl,
   FormBuilder,
   ReactiveFormsModule,
   ValidationErrors,
   Validators,
-} from "@angular/forms";
-import { MatButtonModule } from "@angular/material/button";
-import { MatDialogModule, MatDialogRef } from "@angular/material/dialog";
-import { MatFormFieldModule } from "@angular/material/form-field";
-import { MatIcon } from "@angular/material/icon";
-import { MatInputModule } from "@angular/material/input";
-import { MatStepper, MatStepperModule } from "@angular/material/stepper";
-import { WorkSheet, read, utils } from "@e965/xlsx";
+} from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIcon } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatStepper, MatStepperModule } from '@angular/material/stepper';
+import { WorkSheet, read, utils } from '@e965/xlsx';
 import {
   BehaviorSubject,
   catchError,
@@ -38,27 +38,27 @@ import {
   tap,
   throttleTime,
   throwError,
-} from "rxjs";
+} from 'rxjs';
 import {
   SessionStateService,
   StrTransactionWithChangeLogs,
-} from "../../aml/session-state.service";
+} from '../../aml/session-state.service';
 import {
   FormOptions,
   FormOptionsService,
-} from "../edit-form/form-options.service";
+} from '../edit-form/form-options.service';
 import {
   ReportingUiTableComponent,
   _hiddenValidationType,
-} from "../reporting-ui-table/reporting-ui-table.component";
-import { ManualTransactionBuilder } from "./manual-transaction-builder";
+} from '../reporting-ui-table/reporting-ui-table.component';
+import { ManualTransactionBuilder } from './manual-transaction-builder';
 import {
   MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE,
   ManualUploadReviewTableComponent,
-} from "./manual-upload-review-table/manual-upload-review-table.component";
+} from './manual-upload-review-table/manual-upload-review-table.component';
 
 @Component({
-  selector: "app-manual-upload-stepper",
+  selector: 'app-manual-upload-stepper',
   imports: [
     CommonModule,
     MatFormFieldModule,
@@ -79,14 +79,12 @@ import {
         <mat-stepper
           [linear]="true"
           #stepper
-          (selectionChange)="onStepChange($event)"
-        >
+          (selectionChange)="onStepChange($event)">
           <!-- Step 1: Pick File -->
           <mat-step
             [stepControl]="stepperFormGroup.controls.step1PickFile"
             [editable]="stepperFormGroup.invalid"
-            label="Upload File"
-          >
+            label="Upload File">
             <div class="py-4 text-center">
               <div
                 #dropZone
@@ -94,9 +92,8 @@ import {
                 (drop)="onDrop($event)"
                 [ngClass]="{
                   'drop-zone-valid': (isValidExcelFile$ | async) === true,
-                  'drop-zone-invalid': (isValidExcelFile$ | async) === false
-                }"
-              >
+                  'drop-zone-invalid': (isValidExcelFile$ | async) === false,
+                }">
                 <mat-icon class="upload-icon mb-3">cloud_upload</mat-icon>
 
                 <p class="upload-text my-3">Drag and drop your file here or</p>
@@ -108,34 +105,30 @@ import {
                   hidden
                   accept=".csv,.xlsx"
                   (click)="onFileInputClick(fileInput)"
-                  (change)="onFilePicked($event)"
-                />
+                  (change)="onFilePicked($event)" />
 
                 <button
                   mat-raised-button
                   color="primary"
                   type="button"
                   (click)="fileInput.click()"
-                  [disabled]="_processingFile$ | async"
-                >
+                  [disabled]="_processingFile$ | async">
                   Browse Files
                 </button>
 
-                <p
-                  class="file-info d-flex justify-content-center align-items-center gap-2 mt-3"
-                  *ngIf="selectedFile"
-                >
-                  <mat-icon>description</mat-icon>
-                  {{ selectedFile.name }} ({{
-                    (selectedFile.size / 1024).toFixed(2)
-                  }}
-                  KB)
-                </p>
+                @if (selectedFile) {
+                  <p
+                    class="file-info d-flex justify-content-center align-items-center gap-2 mt-3">
+                    <mat-icon>description</mat-icon>
+                    {{ selectedFile.name }} ({{
+                      (selectedFile.size / 1024).toFixed(2)
+                    }}
+                    KB)
+                  </p>
+                }
               </div>
 
-              <p class="help-text mt-3">
-                Supported format: Excel (.xlsx)
-              </p>
+              <p class="help-text mt-3">Supported format: Excel (.xlsx)</p>
             </div>
 
             <div class="d-flex justify-content-end gap-2 mt-4">
@@ -150,8 +143,7 @@ import {
                 [disabled]="
                   !stepperFormGroup.controls.step1PickFile.valid ||
                   (_processingFile$ | async)
-                "
-              >
+                ">
                 Next
               </button>
             </div>
@@ -163,16 +155,16 @@ import {
               stepperFormGroup.controls.step2ReviewTableValidationErrors
             "
             [editable]="stepperFormGroup.invalid"
-            label="Review Data"
-          >
+            label="Review Data">
             <div class="py-4">
               <p>Preview of uploaded data:</p>
 
-              <div *ngIf="parsedData">
-                <app-manual-upload-review-table
-                  [manualStrTransactionData]="parsedData"
-                />
-              </div>
+              @if (parsedData) {
+                <div>
+                  <app-manual-upload-review-table
+                    [manualStrTransactionData]="parsedData" />
+                </div>
+              }
             </div>
 
             <div class="d-flex justify-content-end gap-2 mt-4">
@@ -182,8 +174,10 @@ import {
                 mat-raised-button
                 color="primary"
                 (click)="onUpload(stepper)"
-                [disabled]="!stepperFormGroup.controls.step2ReviewTableValidationErrors.valid || stepperFormGroup.controls.readyForUpload.valid"
-              >
+                [disabled]="
+                  !stepperFormGroup.controls.step2ReviewTableValidationErrors
+                    .valid || stepperFormGroup.controls.readyForUpload.valid
+                ">
                 Upload
               </button>
             </div>
@@ -195,16 +189,16 @@ import {
               <mat-icon class="success-icon">check_circle</mat-icon>
               <h3>Success!</h3>
               <p>Your data has been imported successfully.</p>
-              <p *ngIf="parsedData">
-                {{ parsedData.length }} records were processed.
-              </p>
+              @if (parsedData) {
+                <p>{{ parsedData.length }} records were processed.</p>
+              }
             </div>
           </mat-step>
         </mat-stepper>
       </form>
     </mat-dialog-content>
   `,
-  styleUrl: "./manual-upload-stepper.component.scss",
+  styleUrl: './manual-upload-stepper.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
@@ -215,7 +209,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
   private fb = inject(FormBuilder);
   dialogRef = inject(MatDialogRef<ManualUploadStepperComponent>);
 
-  @ViewChild("dropZone") dropZone!: ElementRef;
+  @ViewChild('dropZone') dropZone!: ElementRef;
   stepperFormGroup = this.fb.nonNullable.group({
     step1PickFile: [null as File | null, Validators.required],
     step2ReviewTableValidationErrors: [
@@ -236,15 +230,15 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    fromEvent<DragEvent>(this.dropZone.nativeElement, "dragover")
+    fromEvent<DragEvent>(this.dropZone.nativeElement, 'dragover')
       .pipe(
         tap((event) => {
           event.preventDefault();
           event.stopPropagation();
           if (this._isValidExcelFile.value === true) {
-            event.dataTransfer!.dropEffect = "copy";
+            event.dataTransfer!.dropEffect = 'copy';
           } else if (this._isValidExcelFile.value === false) {
-            event.dataTransfer!.dropEffect = "none";
+            event.dataTransfer!.dropEffect = 'none';
           }
         }),
         throttleTime(300),
@@ -253,7 +247,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
       )
       .subscribe();
 
-    fromEvent<DragEvent>(this.dropZone.nativeElement, "dragleave")
+    fromEvent<DragEvent>(this.dropZone.nativeElement, 'dragleave')
       .pipe(
         tap((event) => this.onDragLeave(event)),
         takeUntilDestroyed(this.destroyRef),
@@ -278,12 +272,12 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
 
     if (!this.isValidFileType(fileTypes)) {
       this._isValidExcelFile.next(false);
-      event.dataTransfer!.dropEffect = "none";
+      event.dataTransfer!.dropEffect = 'none';
       return;
     }
 
     this._isValidExcelFile.next(true);
-    event.dataTransfer!.dropEffect = "copy";
+    event.dataTransfer!.dropEffect = 'copy';
   }
 
   onFilePicked(event: Event) {
@@ -328,7 +322,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
   }
 
   readonly VALID_TYPES = [
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
   ];
 
   private isValidFileType(fileTypes: string[]) {
@@ -371,7 +365,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
               [] as _hiddenValidationType[],
             ),
           );
-          console.log("Processed transactions:", this.parsedData);
+          console.log('Processed transactions:', this.parsedData);
         },
       });
   }
@@ -387,7 +381,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
         if (
           customProps.manualupload !== MANUAL_UPLOAD_FILE_VERSION.manualupload
         ) {
-          throw new Error("Unknown manual upload file");
+          throw new Error('Unknown manual upload file');
         }
         // Convert to JSON
         return utils.sheet_to_json<Record<ColumnHeaderLabels, string>>(ws, {
@@ -454,19 +448,19 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
   onStepChange(event: StepperSelectionEvent): void {
     switch (event.selectedIndex) {
       case 0: // Step 1: Upload
-        this.dialogRef.updateSize(MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT, "");
+        this.dialogRef.updateSize(MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT, '');
         break;
       case 1: // Step 2: Preview data
-        this.dialogRef.updateSize("920px", ""); // Wider for table
+        this.dialogRef.updateSize('920px', ''); // Wider for table
         break;
       case 2: // Step 3: Success
-        this.dialogRef.updateSize(MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT, "");
+        this.dialogRef.updateSize(MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT, '');
         break;
     }
   }
 }
 
-export const MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT = "600px";
+export const MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT = '600px';
 
 export type ColumnHeaderLabels =
   (typeof ReportingUiTableComponent.displayedColumnsColumnHeaderMap)[keyof typeof ReportingUiTableComponent.displayedColumnsColumnHeaderMap];
@@ -475,13 +469,13 @@ function reviewTableErrorValidation(): (
   control: AbstractControl,
 ) => ValidationErrors | null {
   const blockingValidationErrors = new Set([
-    "invalidDate",
-    "invalidTime",
-    "conductorMissing",
-    "invalidDirectionOfSA",
-    "invalidAmountCurrency",
-    "invalidAccountCurrency",
-    "invalidAccountStatus",
+    'invalidDate',
+    'invalidTime',
+    'conductorMissing',
+    'invalidDirectionOfSA',
+    'invalidAmountCurrency',
+    'invalidAccountCurrency',
+    'invalidAccountStatus',
   ] as _hiddenValidationType[]);
 
   return (control) => {
@@ -510,4 +504,4 @@ function readyForUploadValidator(): (
   };
 }
 
-const MANUAL_UPLOAD_FILE_VERSION = { manualupload: "v0.1" } as const;
+const MANUAL_UPLOAD_FILE_VERSION = { manualupload: 'v0.1' } as const;

@@ -3,7 +3,7 @@ import {
   ErrorHandler,
   inject,
   provideZoneChangeDetection,
-} from "@angular/core";
+} from '@angular/core';
 import {
   RouteReuseStrategy,
   Router,
@@ -11,26 +11,26 @@ import {
   withComponentInputBinding,
   withNavigationErrorHandler,
   withRouterConfig,
-} from "@angular/router";
+} from '@angular/router';
 
-import { provideHttpClient } from "@angular/common/http";
+import { provideHttpClient } from '@angular/common/http';
 import {
   MAT_DATE_FNS_FORMATS,
   provideDateFnsAdapter,
-} from "@angular/material-date-fns-adapter";
-import { MAT_DATE_LOCALE } from "@angular/material/core";
+} from '@angular/material-date-fns-adapter';
+import { MAT_DATE_LOCALE } from '@angular/material/core';
 import {
   MAT_FORM_FIELD_DEFAULT_OPTIONS,
   MatFormFieldDefaultOptions,
-} from "@angular/material/form-field";
-import { enCA } from "date-fns/locale";
-import { AppErrorHandlerService } from "./app-error-handler.service";
-import { routes } from "./app.routes";
-import { CachedRouteReuseStrategy } from "./route-cache/preserve-route-reuse-strategy";
+} from '@angular/material/form-field';
+import { enCA } from 'date-fns/locale';
+import { AppErrorHandlerService } from './app-error-handler.service';
+import { routes } from './app.routes';
+import { CachedRouteReuseStrategy } from './route-cache/preserve-route-reuse-strategy';
 import {
   MAT_DIALOG_DEFAULT_OPTIONS,
   MatDialogConfig,
-} from "@angular/material/dialog";
+} from '@angular/material/dialog';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -39,12 +39,12 @@ export const appConfig: ApplicationConfig = {
       routes,
       withComponentInputBinding(),
       withRouterConfig({
-        paramsInheritanceStrategy: "always",
+        paramsInheritanceStrategy: 'always',
       }),
       withNavigationErrorHandler((navError) => {
         const router = inject(Router);
-        console.error("Navigation error:", navError.error);
-        router.navigate(["/transactionsearch"]);
+        console.error('Navigation error:', navError.error);
+        router.navigate(['/transactionsearch']);
       }),
       // withDebugTracing(), // for debugging router
     ),
@@ -56,14 +56,14 @@ export const appConfig: ApplicationConfig = {
     {
       provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
       useValue: {
-        appearance: "outline",
-        floatLabel: "auto",
+        appearance: 'outline',
+        floatLabel: 'auto',
       } satisfies MatFormFieldDefaultOptions,
     },
     {
       provide: MAT_DIALOG_DEFAULT_OPTIONS,
       useValue: {
-        autoFocus: "dialog",
+        autoFocus: 'dialog',
         restoreFocus: true,
       } satisfies MatDialogConfig,
     },

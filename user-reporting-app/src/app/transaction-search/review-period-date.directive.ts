@@ -1,17 +1,22 @@
-import { Directive, Optional, Self } from "@angular/core";
-import { ControlValueAccessor, NgControl } from "@angular/forms";
-import { MatDatepickerInput } from "@angular/material/datepicker";
-import { isValid, parse, format } from "date-fns/fp";
+import { Directive, inject } from '@angular/core';
+import { ControlValueAccessor, NgControl } from '@angular/forms';
+import { MatDatepickerInput } from '@angular/material/datepicker';
+import { isValid, parse, format } from 'date-fns/fp';
 
 @Directive({
-  selector: "[appReviewPeriodDate]",
+  selector: '[appReviewPeriodDate]',
 })
 export class ReviewPeriodDateDirective implements ControlValueAccessor {
-  private _onChange = (_: any) => {};
-  constructor(
-    public ngControl: NgControl,
-    @Optional() @Self() private datepickerInput: MatDatepickerInput<Date>,
-  ) {
+  ngControl = inject(NgControl);
+  private datepickerInput = inject<MatDatepickerInput<Date>>(
+    MatDatepickerInput,
+    { optional: true, self: true },
+  )!;
+
+  private _onChange = (_: any) => {
+    /* empty */
+  };
+  constructor() {
     this.ngControl.valueAccessor = this;
   }
 
@@ -22,13 +27,13 @@ export class ReviewPeriodDateDirective implements ControlValueAccessor {
       return;
     }
 
-    if (typeof value !== "string") {
-      throw new Error("Expected string type");
+    if (typeof value !== 'string') {
+      throw new Error('Expected string type');
     }
 
     const parsedDate = ReviewPeriodDateDirective.parse(value);
     if (!isValid(parsedDate)) {
-      throw new Error("Parsing error");
+      throw new Error('Parsing error');
     }
 
     this.datepickerInput.value = parsedDate;
@@ -49,6 +54,6 @@ export class ReviewPeriodDateDirective implements ControlValueAccessor {
     this.datepickerInput.disabled = isDisabled;
   }
 
-  static parse = parse(new Date(), "yyyy/MM/dd");
-  static format = format("yyyy/MM/dd");
+  static parse = parse(new Date(), 'yyyy/MM/dd');
+  static format = format('yyyy/MM/dd');
 }

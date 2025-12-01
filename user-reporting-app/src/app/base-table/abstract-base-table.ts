@@ -1,5 +1,5 @@
-import { SelectionModel } from "@angular/cdk/collections";
-import { COMMA, ENTER } from "@angular/cdk/keycodes";
+import { SelectionModel } from '@angular/cdk/collections';
+import { COMMA, ENTER } from '@angular/cdk/keycodes';
 import {
   AfterViewInit,
   Component,
@@ -8,15 +8,15 @@ import {
   TrackByFunction,
   ViewChild,
   inject,
-} from "@angular/core";
-import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import { FormControl, FormGroup } from "@angular/forms";
-import { MatChipGrid, MatChipInputEvent } from "@angular/material/chips";
-import { MatPaginator } from "@angular/material/paginator";
-import { MatSort } from "@angular/material/sort";
-import { MatTable, MatTableDataSource } from "@angular/material/table";
-import { format, isAfter, isBefore, startOfDay } from "date-fns";
-import { isValid } from "date-fns/fp";
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormControl, FormGroup } from '@angular/forms';
+import { MatChipGrid, MatChipInputEvent } from '@angular/material/chips';
+import { MatPaginator } from '@angular/material/paginator';
+import { MatSort } from '@angular/material/sort';
+import { MatTable, MatTableDataSource } from '@angular/material/table';
+import { format, isAfter, isBefore, startOfDay } from 'date-fns';
+import { isValid } from 'date-fns/fp';
 import {
   Observable,
   Subject,
@@ -26,9 +26,9 @@ import {
   of,
   startWith,
   tap,
-} from "rxjs";
-import { TransactionDateDirective } from "../reporting-ui/edit-form/transaction-date.directive";
-import { TransactionTimeDirective } from "../reporting-ui/edit-form/transaction-time.directive";
+} from 'rxjs';
+import { TransactionDateDirective } from '../reporting-ui/edit-form/transaction-date.directive';
+import { TransactionTimeDirective } from '../reporting-ui/edit-form/transaction-time.directive';
 
 /**
  * Generic abstract base class for table components with filtering, pagination and selection capabilities
@@ -37,7 +37,7 @@ import { TransactionTimeDirective } from "../reporting-ui/edit-form/transaction-
  * @template TDataColumn - The type representing valid column names
  * @template TFilterKeys - The type representing valid filter keys
  */
-@Component({ template: "" })
+@Component({ template: '' })
 export abstract class AbstractBaseTable<
   TData extends object,
   TDataColumn extends (keyof TData & string) | (string & {}),
@@ -45,7 +45,8 @@ export abstract class AbstractBaseTable<
   TFilterKeys extends keyof TData & string,
   THighlightKey extends (keyof TData & string) | TFilterKeys,
   TSelection = { [K in keyof TData]: string },
-> implements
+>
+  implements
     IDataColumns<TDataColumn, TData>,
     IDisplayedColumns<TDataColumn, TDisplayColumn>,
     IStickyColumns<TDisplayColumn>,
@@ -79,7 +80,7 @@ export abstract class AbstractBaseTable<
    * @returns {*}
    */
   dataColumnsGetUnsafeValueByPath(obj: TData, path: string): any {
-    const keys = path.split(".");
+    const keys = path.split('.');
 
     return keys.reduce((acc, key) => {
       if (acc === undefined || acc === null) return undefined;
@@ -99,7 +100,7 @@ export abstract class AbstractBaseTable<
    * @returns {string}
    */
   dataColumnsFormatAndNormalizeUnsafevalue(unsafeValue: unknown): string {
-    return String(unsafeValue ?? "").trim();
+    return String(unsafeValue ?? '').trim();
   }
 
   // ============================================================================
@@ -107,7 +108,7 @@ export abstract class AbstractBaseTable<
   // ============================================================================
   abstract displayedColumns: TDisplayColumn[];
   abstract displayedColumnsColumnHeaderMap: Partial<
-    Record<TDataColumn | IFilterForm["filterFormFullTextFilterKey"], string>
+    Record<TDataColumn | IFilterForm['filterFormFullTextFilterKey'], string>
   >;
 
   displayedColumnsTransform(key: string): string {
@@ -129,7 +130,7 @@ export abstract class AbstractBaseTable<
     if (this.selectFiltersValues.includes(key as TDataColumn)) {
       return this.displayedColumnsColumnHeaderMap[key as TDataColumn]!;
     }
-    if (key.startsWith("_hidden")) return "";
+    if (key.startsWith('_hidden')) return '';
     if (this.filterFormIsTextFilterKey(key))
       return this.displayedColumnsColumnHeaderMap[key as TDataColumn]!;
     if (this.filterFormFullTextFilterKey === key)
@@ -137,7 +138,7 @@ export abstract class AbstractBaseTable<
     if (this.filterFormHighlightSelectFilterKey === key)
       return this.displayedColumnsColumnHeaderMap[key as THighlightKey]!;
 
-    throw new Error("Unknown column header");
+    throw new Error('Unknown column header');
   }
 
   // ============================================================================
@@ -178,14 +179,14 @@ export abstract class AbstractBaseTable<
     `select${column.charAt(0).toUpperCase() + column.slice(1)}` as TFilterKeys;
 
   selectFiltersParseFilterKey = (key: string): TDataColumn => {
-    console.assert(key.startsWith("select"));
+    console.assert(key.startsWith('select'));
     const column = key.slice(6); // Remove 'select'
     return (column.charAt(0).toLowerCase() + column.slice(1)) as TDataColumn;
   };
 
   selectFiltersIsSelectFilterKey = (key: string) => {
     return (
-      key.startsWith("select") &&
+      key.startsWith('select') &&
       this.selectFiltersValues.some(
         (col) => col === this.selectFiltersParseFilterKey(key),
       )
@@ -210,7 +211,7 @@ export abstract class AbstractBaseTable<
       const addToValueSet = (unsafeVal: string) => {
         const safeVal =
           this.dataColumnsFormatAndNormalizeUnsafevalue(unsafeVal);
-        if (safeVal === "") return;
+        if (safeVal === '') return;
         uniqueValuesSet.add(safeVal);
       };
 
@@ -225,7 +226,7 @@ export abstract class AbstractBaseTable<
 
     return Array.from(uniqueValuesSet).sort();
   }
-  SELECT_FILTER_BLANK_VALUE = "-- blank --" as const;
+  SELECT_FILTER_BLANK_VALUE = '-- blank --' as const;
   selectFiltersInitialize(data: TData[]): void {
     const selectFilterKeys = this.filterFormFilterKeys.filter(
       this.selectFiltersIsSelectFilterKey,
@@ -248,7 +249,7 @@ export abstract class AbstractBaseTable<
       );
 
       // input for filtering selection options
-      this.selectFiltersInputControl[key] = new FormControl<string>("", {
+      this.selectFiltersInputControl[key] = new FormControl<string>('', {
         nonNullable: true,
       });
 
@@ -263,7 +264,7 @@ export abstract class AbstractBaseTable<
 
       // filtered selection options
       this.selectFiltersOptionsSelectionsFiltered$[key] = combineLatest([
-        this.selectFiltersInputControl[key]!.valueChanges.pipe(startWith("")),
+        this.selectFiltersInputControl[key]!.valueChanges.pipe(startWith('')),
         this.selectFiltersOptionsSelected[key].pipe(
           takeUntilDestroyed(this.destroyRef),
           tap((selected) => {
@@ -295,7 +296,7 @@ export abstract class AbstractBaseTable<
         map(([value, optionsSelected, uniqueOptions = []]) => {
           return uniqueOptions.flatMap((option) => {
             const matchesFilter =
-              value === "" ||
+              value === '' ||
               option.toLowerCase().includes(value.toLowerCase());
 
             if (!matchesFilter) return [];
@@ -328,7 +329,7 @@ export abstract class AbstractBaseTable<
 
     console.assert(
       index >= 0,
-      "Assert chip being removed must exist in chip set",
+      'Assert chip being removed must exist in chip set',
     );
     if (index < 0) return;
 
@@ -390,7 +391,7 @@ export abstract class AbstractBaseTable<
 
   selectFiltersResetSupplementaryControls(filterKey: TFilterKeys) {
     this.selectFiltersOptionsSelectionModel[filterKey]!.clear();
-    this.selectFiltersInputControl[filterKey]!.reset("");
+    this.selectFiltersInputControl[filterKey]!.reset('');
   }
 
   // ============================================================================
@@ -412,7 +413,7 @@ export abstract class AbstractBaseTable<
         return col;
       }
     }
-    throw new Error("Not a valid date filter key");
+    throw new Error('Not a valid date filter key');
   };
 
   dateFiltersIsDateFilterKey = (key: string) =>
@@ -465,7 +466,7 @@ export abstract class AbstractBaseTable<
 
   filterFormIsResetBtnDisabled$ = this.filterFormFilterStateChange$.pipe(
     map(() => {
-      const filter = JSON.parse(this.dataSource.filter || "{}");
+      const filter = JSON.parse(this.dataSource.filter || '{}');
 
       return Object.keys(filter).every(
         (key) => filter[key] == null || (filter[key] as string[]).length === 0,
@@ -509,7 +510,7 @@ export abstract class AbstractBaseTable<
           [this.filterFormFilterFormKeySanitize(key)]: new FormControl(null),
         };
       }, {}),
-      { updateOn: "change" },
+      { updateOn: 'change' },
     );
   }
 
@@ -521,7 +522,7 @@ export abstract class AbstractBaseTable<
     filter: string,
   ) => boolean {
     return (record, filter) => {
-      const searchTerms: { [key: string]: string | string[] | null } =
+      const searchTerms: Record<string, string | string[] | null> =
         JSON.parse(filter);
       const recordPredicate = (searchTermKey: string) => {
         console.assert(
@@ -540,7 +541,7 @@ export abstract class AbstractBaseTable<
             ),
           );
 
-          console.assert(typeof searchTerms[`${keyPath}Start`] === "string");
+          console.assert(typeof searchTerms[`${keyPath}Start`] === 'string');
 
           const startDate =
             searchTerms[`${keyPath}Start`] == null
@@ -564,9 +565,9 @@ export abstract class AbstractBaseTable<
             keyPath,
           );
 
-          if (keyPath === ("_hiddenValidation" as TDataColumn)) {
+          if (keyPath === ('_hiddenValidation' as TDataColumn)) {
             console.assert(Array.isArray(recordValue));
-            if (!Array.isArray(recordValue)) throw new Error("Expected array");
+            if (!Array.isArray(recordValue)) throw new Error('Expected array');
 
             return (searchTerms[searchTermKey] as string[]).some(
               (searchTerm) => {
@@ -584,7 +585,7 @@ export abstract class AbstractBaseTable<
 
           return (searchTerms[searchTermKey] as string[]).some((searchTerm) => {
             if (searchTerm === this.SELECT_FILTER_BLANK_VALUE) {
-              return safeRecordValue === "";
+              return safeRecordValue === '';
             }
             return searchTerm === safeRecordValue;
           });
@@ -594,7 +595,7 @@ export abstract class AbstractBaseTable<
           const safeRecordValue = this.dataColumnsFormatAndNormalizeUnsafevalue(
             this.dataColumnsGetUnsafeValueByPath(record, desanitizedKey),
           );
-          console.assert(typeof searchTerms[searchTermKey] === "string");
+          console.assert(typeof searchTerms[searchTermKey] === 'string');
           return safeRecordValue
             .toLowerCase()
             .includes(
@@ -603,7 +604,7 @@ export abstract class AbstractBaseTable<
         }
 
         if (desanitizedKey === this.filterFormFullTextFilterKey) {
-          console.assert(typeof searchTerms[searchTermKey] === "string");
+          console.assert(typeof searchTerms[searchTermKey] === 'string');
 
           return JSON.stringify(record)
             .toLowerCase()
@@ -613,17 +614,17 @@ export abstract class AbstractBaseTable<
         }
 
         if (desanitizedKey === this.filterFormHighlightSelectFilterKey) {
-          console.assert(typeof searchTerms[searchTermKey] === "string");
+          console.assert(typeof searchTerms[searchTermKey] === 'string');
           return (
             record[this.filterFormHighlightSelectFilterKey] ===
             searchTerms[searchTermKey]
           );
         }
 
-        throw new Error("Unknown filter search term");
+        throw new Error('Unknown filter search term');
       };
 
-      if (this.filterFormConjunctionControl.value === "AND")
+      if (this.filterFormConjunctionControl.value === 'AND')
         return Object.keys(searchTerms)
           .filter(
             (searchTermKey) =>
@@ -632,7 +633,7 @@ export abstract class AbstractBaseTable<
           )
           .every(recordPredicate);
 
-      if (this.filterFormConjunctionControl.value === "OR") {
+      if (this.filterFormConjunctionControl.value === 'OR') {
         const filters = Object.keys(searchTerms).filter(
           (searchTermKey) =>
             searchTerms[searchTermKey] != null &&
@@ -641,7 +642,7 @@ export abstract class AbstractBaseTable<
         return filters.length > 0 ? filters.some(recordPredicate) : true;
       }
 
-      throw new Error("A conjuction type must be satisfied");
+      throw new Error('A conjuction type must be satisfied');
     };
   }
 
@@ -653,9 +654,9 @@ export abstract class AbstractBaseTable<
     }[]
   > = this.filterFormFilterStateChange$.pipe(
     map(() => {
-      const activeFilters = JSON.parse(this.dataSource.filter || "{}") as {
-        [key: string]: string | string[];
-      };
+      const activeFilters = JSON.parse(
+        this.dataSource.filter || '{}',
+      ) as Record<string, string | string[]>;
       return Object.keys(activeFilters).flatMap((sanitizedKey) => {
         const header = this.displayedColumnsTransform(
           this.filterFormFilterFormKeyDesanitize(sanitizedKey),
@@ -669,7 +670,7 @@ export abstract class AbstractBaseTable<
         ) {
           return {
             header,
-            value: format(value as string, "MM/dd/yyyy"),
+            value: format(value as string, 'MM/dd/yyyy'),
             sanitizedKey,
           };
         }
@@ -680,7 +681,7 @@ export abstract class AbstractBaseTable<
         ) {
           return {
             header,
-            value: (value as string[]).join(", "),
+            value: (value as string[]).join(', '),
             sanitizedKey,
           };
         }
@@ -690,11 +691,11 @@ export abstract class AbstractBaseTable<
   );
 
   filterFormFilterFormKeySanitize = (value: TFilterKeys) => {
-    return value.replace(/\./g, "--") as string;
+    return value.replace(/\./g, '--') as string;
   };
 
   filterFormFilterFormKeyDesanitize = (value: string) => {
-    return value.replace(/--/g, ".") as TFilterKeys;
+    return value.replace(/--/g, '.') as TFilterKeys;
   };
 
   filterFormTrackBy(_: number, item: any) {
@@ -707,17 +708,17 @@ export abstract class AbstractBaseTable<
     ) as FormControl;
   }
 
-  filterFormFullTextFilterKey = "fullTextFilterKey" as const;
+  filterFormFullTextFilterKey = 'fullTextFilterKey' as const;
 
   abstract filterFormHighlightSelectFilterKey: THighlightKey;
 
   filterFormHighlightMap: Record<string, string> = {
-    "#FF6B6B": "Red",
-    "#4ECB71": "Green",
-    "#4D96FF": "Blue",
-    "#FFD93D": "Yellow",
-    "#FF8C42": "Orange",
-    "#95A5A6": "Gray",
+    '#FF6B6B': 'Red',
+    '#4ECB71': 'Green',
+    '#4D96FF': 'Blue',
+    '#FFD93D': 'Yellow',
+    '#FF8C42': 'Orange',
+    '#95A5A6': 'Gray',
   };
   filterFormHighlightMapTrackBy(index: number, option: string[]) {
     return option[0];
@@ -740,7 +741,7 @@ export abstract class AbstractBaseTable<
     event.preventDefault();
     event.stopPropagation();
     const isHighlightSelected =
-      typeof this.filterFormHighlightSelectedColor !== "undefined";
+      typeof this.filterFormHighlightSelectedColor !== 'undefined';
 
     if (!isHighlightSelected) return;
 
@@ -804,9 +805,11 @@ export abstract class AbstractBaseTable<
   @Input()
   filterFormHighlightSideEffect = (
     highlights: { txnId: string; newColor: string }[],
-  ) => {};
+  ) => {
+    /* empty */
+  };
 
-  filterFormConjunctionControl = new FormControl<"OR" | "AND">("AND", {
+  filterFormConjunctionControl = new FormControl<'OR' | 'AND'>('AND', {
     nonNullable: true,
   });
 
@@ -862,7 +865,7 @@ export abstract class AbstractBaseTable<
         this.dataColumnsGetUnsafeValueByPath(
           data,
           this.sortingAccessorDateTimeTuples[tupleIndex][0],
-        ) ?? "",
+        ) ?? '',
       );
       if (!isValid(date)) return 0;
 
@@ -873,8 +876,8 @@ export abstract class AbstractBaseTable<
         ),
       );
 
-      const [hours, minutes, seconds] = (time ?? "00:00:00")
-        .split(":")
+      const [hours, minutes, seconds] = (time ?? '00:00:00')
+        .split(':')
         .map(Number);
       return date.setHours(hours, minutes, seconds);
     }
@@ -963,7 +966,7 @@ export abstract class AbstractBaseTable<
   hasMasterToggle = false;
 
   isAllSelected(): boolean {
-    if (!this.hasMasterToggle) throw new Error("Enable master toggle first");
+    if (!this.hasMasterToggle) throw new Error('Enable master toggle first');
 
     const numSelected = this.selection.selected.length;
     const numRows = this.dataSource.filteredData.length;
@@ -971,13 +974,13 @@ export abstract class AbstractBaseTable<
   }
 
   toggleAllRows(): void {
-    if (!this.hasMasterToggle) throw new Error("Enable master toggle first");
+    if (!this.hasMasterToggle) throw new Error('Enable master toggle first');
 
-    this.isAllSelected()
-      ? this.selection.clear()
-      : this.dataSource.filteredData.forEach((row) =>
-          this.selection.select(row as unknown as TSelection),
-        );
+    if (this.isAllSelected()) this.selection.clear();
+    else
+      this.dataSource.filteredData.forEach((row) =>
+        this.selection.select(row as unknown as TSelection),
+      );
   }
 
   hasSelections$ = this.selection.changed.asObservable().pipe(
@@ -991,8 +994,8 @@ export abstract class AbstractBaseTable<
 
     if (this.sortedBy) {
       this.sort.active = this.sortedBy;
-      this.sort.direction = "asc";
-      this.sort.sortChange.emit({ active: this.sortedBy, direction: "asc" });
+      this.sort.direction = 'asc';
+      this.sort.sortChange.emit({ active: this.sortedBy, direction: 'asc' });
     }
   }
   readonly Object: any = Object;
@@ -1043,7 +1046,7 @@ export interface ISelectFilters<
   TData,
   TFilterKeys extends string,
 > {
-  SELECT_FILTER_BLANK_VALUE: "-- blank --";
+  SELECT_FILTER_BLANK_VALUE: '-- blank --';
   selectFiltersValues: TDataColumn[];
   selectFiltersOptionsSelectionsFiltered$: Partial<
     Record<TFilterKeys, Observable<{ value: string; isSelected: boolean }[]>>
@@ -1105,11 +1108,11 @@ export interface IFilterForm<TData = any, TFilterKeys = any> {
   filterFormGroupCreate(): FormGroup;
   filterFormFilterPredicateCreate(): (record: TData, filter: string) => boolean;
   filterFormActiveFilters$: Observable<
-    Array<{
+    {
       header: string;
       value: string | string[];
       sanitizedKey: string;
-    }>
+    }[]
   >;
   filterFormFilterFormKeySanitize(value: TFilterKeys): string;
   filterFormFilterFormKeyDesanitize(value: string): TFilterKeys;
@@ -1117,7 +1120,7 @@ export interface IFilterForm<TData = any, TFilterKeys = any> {
   filterFormIsResetBtnDisabled$: Observable<boolean>;
   filterFormTrackBy(index: number, item: any): any;
   filterFormGetFormControl(filterKey: TFilterKeys): FormControl;
-  filterFormFullTextFilterKey: "fullTextFilterKey";
+  filterFormFullTextFilterKey: 'fullTextFilterKey';
 }
 
 export interface IHighlightable<TData, THighlightKey> {
@@ -1136,7 +1139,7 @@ export interface IHighlightable<TData, THighlightKey> {
     highlights: { txnId: string; newColor: string }[],
   ) => void;
 
-  filterFormConjunctionControl: FormControl<"OR" | "AND">;
+  filterFormConjunctionControl: FormControl<'OR' | 'AND'>;
 }
 
 /**

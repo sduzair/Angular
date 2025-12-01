@@ -1,12 +1,13 @@
-import { Directive, forwardRef } from "@angular/core";
-import { MatAutocompleteTrigger } from "@angular/material/autocomplete";
-import { Observable, merge, of } from "rxjs";
-import { filter, map } from "rxjs/operators";
+import { Directive, forwardRef } from '@angular/core';
+import { MatAutocompleteTrigger } from '@angular/material/autocomplete';
+import { Observable, merge, of } from 'rxjs';
+import { filter, map } from 'rxjs/operators';
 
 @Directive({
   selector:
-    "input[matAutocomplete][persistentAutocomplete], textarea[matAutocomplete][persistentAutocomplete]",
-  exportAs: "persistentAutocompleteTrigger",
+    // eslint-disable-next-line @angular-eslint/directive-selector
+    'input[matAutocomplete][persistentAutocomplete], textarea[matAutocomplete][persistentAutocomplete]',
+  exportAs: 'persistentAutocompleteTrigger',
   providers: [
     {
       provide: MatAutocompleteTrigger,

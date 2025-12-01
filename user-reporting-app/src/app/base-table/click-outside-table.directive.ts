@@ -4,31 +4,33 @@ import {
   EventEmitter,
   HostListener,
   OnDestroy,
+  OnInit,
   Output,
-} from "@angular/core";
+  inject,
+} from '@angular/core';
 
 @Directive({
-  selector: "[appClickOutsideTable]",
+  selector: '[appClickOutsideTable]',
 })
-export class ClickOutsideTableDirective implements OnDestroy {
+export class ClickOutsideTableDirective implements OnInit, OnDestroy {
+  private el = inject(ElementRef);
+
   private documentClickListener!: (ev: Event) => void;
   @Output() appClickOutsideTable = new EventEmitter<void>();
 
-  constructor(private el: ElementRef) {}
-
-  private allowedElements = ["color-pallette", "table-paginator"];
-  private notAllowedElements = ["mat-column-actions"];
+  private allowedElements = ['color-pallette', 'table-paginator'];
+  private notAllowedElements = ['mat-column-actions'];
 
   ngOnInit() {
     this.documentClickListener = this.onClick.bind(this);
     // emission must happen in capture phase in case of table row
-    document.addEventListener("click", this.documentClickListener, {
+    document.addEventListener('click', this.documentClickListener, {
       capture: true,
     });
   }
 
   ngOnDestroy() {
-    document.removeEventListener("click", this.documentClickListener, {
+    document.removeEventListener('click', this.documentClickListener, {
       capture: true,
     });
     this.appClickOutsideTable.complete();
@@ -59,7 +61,7 @@ export class ClickOutsideTableDirective implements OnDestroy {
     this.appClickOutsideTable.emit();
   }
 
-  @HostListener("document:keydown.escape", ["$event"])
+  @HostListener('document:keydown.escape', ['$event'])
   public onEscapeKey(event: Event) {
     this.appClickOutsideTable.emit();
   }

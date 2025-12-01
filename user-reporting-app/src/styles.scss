@@ -1,5 +1,5 @@
-@use "@angular/material" as mat;
-@use "./styles_theme-colors.scss" as my-theme;
+@use '@angular/material' as mat;
+@use './styles_theme-colors.scss' as my-theme;
 
 html {
   @include mat.theme(
@@ -85,7 +85,7 @@ body {
 }
 body {
   margin: 0;
-  font-family: Roboto, "Helvetica Neue", sans-serif;
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
 }
 
 body {

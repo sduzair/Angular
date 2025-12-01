@@ -2,8 +2,8 @@ import {
   CompletingAction,
   ConductorNpdData,
   StartingAction,
-} from "../reporting-ui-table/reporting-ui-table.component";
-import { RecursiveOmit } from "./edit-form.component";
+} from '../reporting-ui-table/reporting-ui-table.component';
+import { RecursiveOmit } from './edit-form.component';
 
 export function hasMissingConductorInfo(
   value: RecursiveOmit<StartingAction, keyof ConductorNpdData>,
@@ -12,7 +12,7 @@ export function hasMissingConductorInfo(
     !value.conductors || (!!value.conductors && value.conductors.length === 0);
   console.assert(
     (!value.wasCondInfoObtained && hasConductors) === false,
-    "Assert if no conductor info obtained then no conductors must be initialized",
+    'Assert if no conductor info obtained then no conductors must be initialized',
   );
 
   if (value.wasCondInfoObtained === false) return false;
@@ -41,18 +41,18 @@ export function hasMissingCibcInfo(
     | RecursiveOmit<StartingAction, keyof ConductorNpdData>
     | CompletingAction,
 ) {
-  if (action.fiuNo !== "010") return false;
+  if (action.fiuNo !== '010') return false;
 
   // todo: check for account holder
   if (
     !action.branch ||
     !action.account ||
     !action.accountType ||
-    (action.accountType === "Other" && !action.accountTypeOther) ||
+    (action.accountType === 'Other' && !action.accountTypeOther) ||
     !action.accountCurrency ||
     !action.accountStatus ||
     !action.accountOpen ||
-    (action.accountStatus === "Closed" && !action.accountClose)
+    (action.accountStatus === 'Closed' && !action.accountClose)
   )
     return true;
 

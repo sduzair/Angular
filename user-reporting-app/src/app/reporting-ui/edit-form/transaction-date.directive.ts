@@ -1,20 +1,23 @@
-import { Directive } from "@angular/core";
-import { ControlValueAccessor, NgControl } from "@angular/forms";
-import { MatDatepickerInput } from "@angular/material/datepicker";
-import { parse, format, isValid } from "date-fns/fp";
+import { Directive, inject } from '@angular/core';
+import { ControlValueAccessor, NgControl } from '@angular/forms';
+import { MatDatepickerInput } from '@angular/material/datepicker';
+import { parse, format, isValid } from 'date-fns/fp';
 
-export const TRANSACTION_DATE_FORMAT = "yyyy/MM/dd";
+export const TRANSACTION_DATE_FORMAT = 'yyyy/MM/dd';
 
 @Directive({
-  selector: "[appTransactionDate]",
+  selector: '[appTransactionDate]',
 })
 export class TransactionDateDirective implements ControlValueAccessor {
-  private _onChange = (_: any) => {};
+  ngControl = inject(NgControl);
+  private datepickerInput =
+    inject<MatDatepickerInput<Date>>(MatDatepickerInput);
 
-  constructor(
-    public ngControl: NgControl,
-    private datepickerInput: MatDatepickerInput<Date>,
-  ) {
+  private _onChange = (_: any) => {
+    /* empty */
+  };
+
+  constructor() {
     this.ngControl.valueAccessor = this;
   }
 
@@ -25,13 +28,13 @@ export class TransactionDateDirective implements ControlValueAccessor {
       return;
     }
 
-    if (typeof value !== "string") {
-      throw new Error("Expected string type");
+    if (typeof value !== 'string') {
+      throw new Error('Expected string type');
     }
 
     const parsedDate = TransactionDateDirective.parse(value);
     if (!isValid(parsedDate)) {
-      throw new Error("Parsing error");
+      throw new Error('Parsing error');
     }
 
     this.datepickerInput.value = parsedDate;

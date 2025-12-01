@@ -1,7 +1,7 @@
-import { Injectable } from "@angular/core";
+import { Injectable } from '@angular/core';
 
 @Injectable({
-  providedIn: "root",
+  providedIn: 'root',
 })
 export class ScrollPositionService {
   private scrollPositions = new Map<string, ScrollPositions>();
@@ -19,6 +19,4 @@ export class ScrollPositionService {
   }
 }
 
-interface ScrollPositions {
-  [elementIndex: string]: [number, number];
-}
+type ScrollPositions = Record<string, [number, number]>;

@@ -1,4 +1,4 @@
-import { CommonModule } from "@angular/common";
+import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -6,37 +6,27 @@ import {
   TrackByFunction,
   ViewChild,
   inject,
-} from "@angular/core";
-import { MatBadgeModule } from "@angular/material/badge";
-import { MatButtonModule } from "@angular/material/button";
-import { MatCheckbox } from "@angular/material/checkbox";
-import { MatChipsModule } from "@angular/material/chips";
-import { MatDialog, MatDialogModule } from "@angular/material/dialog";
-import { MatIconModule } from "@angular/material/icon";
-import { MatTableModule } from "@angular/material/table";
-import { MatToolbarModule } from "@angular/material/toolbar";
-import {
-  ActivatedRoute,
-  ActivatedRouteSnapshot,
-  ResolveFn,
-  Router,
-  RouterStateSnapshot,
-} from "@angular/router";
-import { BehaviorSubject, Observable } from "rxjs";
-import { SessionStateService } from "../../aml/session-state.service";
-import { BaseTableComponent } from "../../base-table/base-table.component";
+} from '@angular/core';
+import { MatBadgeModule } from '@angular/material/badge';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCheckbox } from '@angular/material/checkbox';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatIconModule } from '@angular/material/icon';
+import { MatTableModule } from '@angular/material/table';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { ActivatedRoute, ResolveFn, Router } from '@angular/router';
+import { BehaviorSubject, Observable } from 'rxjs';
+import { SessionStateService } from '../../aml/session-state.service';
+import { BaseTableComponent } from '../../base-table/base-table.component';
 import {
   InvalidFormOptionsErrorKeys,
   InvalidTxnDateTimeErrorKeys,
-} from "../edit-form/edit-form.component";
-import {
-  MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT,
-  ManualUploadStepperComponent,
-} from "../manual-upload-stepper/manual-upload-stepper.component";
-import { CamelToTitlePipe } from "./camel-to-title.pipe";
+} from '../edit-form/edit-form.component';
+import { CamelToTitlePipe } from './camel-to-title.pipe';
 
 @Component({
-  selector: "app-reporting-ui-table",
+  selector: 'app-reporting-ui-table',
   imports: [
     BaseTableComponent,
     CommonModule,
@@ -51,7 +41,7 @@ import { CamelToTitlePipe } from "./camel-to-title.pipe";
     CamelToTitlePipe,
   ],
   template: `
-    <ng-container *ngIf="savingEdits$ | async as savingIds">
+    @if (savingEdits$ | async; as savingIds) {
       <app-base-table
         #baseTable
         [data]="(strTransactionData$ | async) ?? []"
@@ -71,13 +61,11 @@ import { CamelToTitlePipe } from "./camel-to-title.pipe";
         [filterFormHighlightSideEffect]="filterFormHighlightSideEffect"
         [recentlyOpenRows$]="recentlyOpenedRows$"
         [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
-        [sortedBy]="'dateOfTxn'"
-      >
+        [sortedBy]="'dateOfTxn'">
         <button
           mat-raised-button
           ngProjectAs="table-toolbar-ele"
-          (click)="openManualUploadStepper()"
-        >
+          (click)="openManualUploadStepper()">
           <mat-icon>file_upload</mat-icon>
           Manual Upload
         </button>
@@ -86,33 +74,31 @@ import { CamelToTitlePipe } from "./camel-to-title.pipe";
           <th
             mat-header-cell
             *matHeaderCellDef
-            [class.sticky-cell]="baseTable.isStickyColumn('select')"
-          >
-            <div *ngIf="baseTable.hasMasterToggle">
-              <mat-checkbox
-                (change)="$event ? baseTable.toggleAllRows() : null"
-                [checked]="
-                  baseTable.selection.hasValue() && baseTable.isAllSelected()
-                "
-                [indeterminate]="
-                  baseTable.selection.hasValue() && !baseTable.isAllSelected()
-                "
-              >
-              </mat-checkbox>
-            </div>
+            [class.sticky-cell]="baseTable.isStickyColumn('select')">
+            @if (baseTable.hasMasterToggle) {
+              <div>
+                <mat-checkbox
+                  (change)="$event ? baseTable.toggleAllRows() : null"
+                  [checked]="
+                    baseTable.selection.hasValue() && baseTable.isAllSelected()
+                  "
+                  [indeterminate]="
+                    baseTable.selection.hasValue() && !baseTable.isAllSelected()
+                  ">
+                </mat-checkbox>
+              </div>
+            }
           </th>
           <td
             mat-cell
             *matCellDef="let row; let i = index"
-            [class.sticky-cell]="baseTable.isStickyColumn('select')"
-          >
+            [class.sticky-cell]="baseTable.isStickyColumn('select')">
             <div>
               <mat-checkbox
                 (click)="baseTable.onCheckBoxClickMultiToggle($event, row, i)"
                 (change)="$event ? baseTable.toggleRow(row) : null"
                 [checked]="baseTable.selection.isSelected(row)"
-                [disabled]="isEditDisabled(row, savingIds)"
-              >
+                [disabled]="isEditDisabled(row, savingIds)">
               </mat-checkbox>
             </div>
           </td>
@@ -122,19 +108,17 @@ import { CamelToTitlePipe } from "./camel-to-title.pipe";
           <th
             mat-header-cell
             *matHeaderCellDef
-            [class.sticky-cell]="baseTable.isStickyColumn('actions')"
-          >
+            [class.sticky-cell]="baseTable.isStickyColumn('actions')">
             <div>
               <button
                 [disabled]="
-                  !(baseTable.hasSelections$ | async) ||
+                  (baseTable.hasSelections$ | async) === false ||
                   (sessionDataService.savingStatus$ | async)
                 "
                 mat-icon-button
                 (click)="navigateToBulkEdit()"
                 [matBadge]="baseTable.selection.selected.length"
-                [matBadgeHidden]="!baseTable.selection.hasValue()"
-              >
+                [matBadgeHidden]="!baseTable.selection.hasValue()">
                 <mat-icon>edit</mat-icon>
               </button>
               <button mat-icon-button class="invisible">
@@ -147,16 +131,14 @@ import { CamelToTitlePipe } from "./camel-to-title.pipe";
             *matCellDef="let row"
             [ngStyle]="{
               backgroundColor:
-                row[baseTable.filterFormHighlightSelectFilterKey] || ''
+                row[baseTable.filterFormHighlightSelectFilterKey] || '',
             }"
-            [class.sticky-cell]="baseTable.isStickyColumn('actions')"
-          >
+            [class.sticky-cell]="baseTable.isStickyColumn('actions')">
             <div>
               <button
                 mat-icon-button
                 (click)="navigateToEditForm(row)"
-                [disabled]="isEditDisabled(row, savingIds)"
-              >
+                [disabled]="isEditDisabled(row, savingIds)">
                 <mat-icon>edit</mat-icon>
               </button>
               <button mat-icon-button (click)="navigateToAuditForm(row)">
@@ -171,42 +153,45 @@ import { CamelToTitlePipe } from "./camel-to-title.pipe";
             mat-header-cell
             *matHeaderCellDef
             mat-sort-header="_hiddenValidation"
-            [class.sticky-cell]="baseTable.isStickyColumn('_hiddenValidation')"
-          >
+            [class.sticky-cell]="baseTable.isStickyColumn('_hiddenValidation')">
             <div></div>
           </th>
           <td
             mat-cell
             *matCellDef="let row"
-            [class.sticky-cell]="baseTable.isStickyColumn('_hiddenValidation')"
-          >
+            [class.sticky-cell]="baseTable.isStickyColumn('_hiddenValidation')">
             <mat-chip-set>
-              <mat-chip
-                *ngFor="let ch of row._hiddenValidation"
-                [style.--mdc-chip-elevated-container-color]="
-                  getColorForValidationChip(ch)
-                "
-                [style.--mdc-chip-label-text-color]="
-                  getFontColorForValidationChip(ch)
-                "
-              >
-                {{ ch | camelToTitle }}
-              </mat-chip>
+              @for (ch of row._hiddenValidation; track ch) {
+                <mat-chip
+                  [style.--mdc-chip-elevated-container-color]="
+                    getColorForValidationChip(ch)
+                  "
+                  [style.--mdc-chip-label-text-color]="
+                    getFontColorForValidationChip(ch)
+                  ">
+                  {{ ch | camelToTitle }}
+                </mat-chip>
+              }
             </mat-chip-set>
           </td>
         </ng-container>
       </app-base-table>
-    </ng-container>
+    }
   `,
-  styleUrl: "./reporting-ui-table.component.scss",
+  styleUrl: './reporting-ui-table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReportingUiTableComponent {
   private dialog = inject(MatDialog);
-  openManualUploadStepper() {
+  async openManualUploadStepper() {
+    const {
+      ManualUploadStepperComponent,
+      MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT,
+    } =
+      await import('../manual-upload-stepper/manual-upload-stepper.component');
     this.dialog.open(ManualUploadStepperComponent, {
       width: MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT,
-      panelClass: "upload-stepper-dialog",
+      panelClass: 'upload-stepper-dialog',
     });
   }
   @Input()
@@ -263,64 +248,64 @@ export class ReportingUiTableComponent {
   // }
 
   dataColumnsValues: StrTransactionDataColumnKey[] = [
-    "highlightColor",
-    "_hiddenValidation",
-    "dateOfTxn",
-    "timeOfTxn",
-    "dateOfPosting",
-    "timeOfPosting",
-    "_hiddenTxnType",
-    "methodOfTxn",
-    "reportingEntityLocationNo",
+    'highlightColor',
+    '_hiddenValidation',
+    'dateOfTxn',
+    'timeOfTxn',
+    'dateOfPosting',
+    'timeOfPosting',
+    '_hiddenTxnType',
+    'methodOfTxn',
+    'reportingEntityLocationNo',
 
-    "startingActions.0.directionOfSA",
-    "startingActions.0.typeOfFunds",
-    "startingActions.0.amount",
-    "startingActions.0.currency",
+    'startingActions.0.directionOfSA',
+    'startingActions.0.typeOfFunds',
+    'startingActions.0.amount',
+    'startingActions.0.currency',
 
-    "startingActions.0.fiuNo",
-    "startingActions.0.branch",
-    "startingActions.0.account",
-    "startingActions.0.accountType",
-    "startingActions.0.accountCurrency",
-    "startingActions.0.accountStatus",
-    "startingActions.0.accountOpen",
-    "startingActions.0.accountClose",
+    'startingActions.0.fiuNo',
+    'startingActions.0.branch',
+    'startingActions.0.account',
+    'startingActions.0.accountType',
+    'startingActions.0.accountCurrency',
+    'startingActions.0.accountStatus',
+    'startingActions.0.accountOpen',
+    'startingActions.0.accountClose',
 
-    "startingActions.0.conductors.0.partyKey",
-    "startingActions.0.conductors.0.givenName",
-    "startingActions.0.conductors.0.surname",
-    "startingActions.0.conductors.0.otherOrInitial",
-    "startingActions.0.conductors.0.nameOfEntity",
+    'startingActions.0.conductors.0.partyKey',
+    'startingActions.0.conductors.0.givenName',
+    'startingActions.0.conductors.0.surname',
+    'startingActions.0.conductors.0.otherOrInitial',
+    'startingActions.0.conductors.0.nameOfEntity',
 
-    "completingActions.0.detailsOfDispo",
-    "completingActions.0.amount",
-    "completingActions.0.currency",
+    'completingActions.0.detailsOfDispo',
+    'completingActions.0.amount',
+    'completingActions.0.currency',
 
-    "completingActions.0.fiuNo",
-    "completingActions.0.branch",
-    "completingActions.0.account",
-    "completingActions.0.accountType",
-    "completingActions.0.accountCurrency",
-    "completingActions.0.accountStatus",
-    "completingActions.0.accountOpen",
-    "completingActions.0.accountClose",
+    'completingActions.0.fiuNo',
+    'completingActions.0.branch',
+    'completingActions.0.account',
+    'completingActions.0.accountType',
+    'completingActions.0.accountCurrency',
+    'completingActions.0.accountStatus',
+    'completingActions.0.accountOpen',
+    'completingActions.0.accountClose',
 
-    "completingActions.0.beneficiaries.0.partyKey",
-    "completingActions.0.beneficiaries.0.givenName",
-    "completingActions.0.beneficiaries.0.surname",
-    "completingActions.0.beneficiaries.0.otherOrInitial",
-    "completingActions.0.beneficiaries.0.nameOfEntity",
-    "_hiddenAmlId",
-    "reportingEntityTxnRefNo",
+    'completingActions.0.beneficiaries.0.partyKey',
+    'completingActions.0.beneficiaries.0.givenName',
+    'completingActions.0.beneficiaries.0.surname',
+    'completingActions.0.beneficiaries.0.otherOrInitial',
+    'completingActions.0.beneficiaries.0.nameOfEntity',
+    '_hiddenAmlId',
+    'reportingEntityTxnRefNo',
   ];
 
-  dataColumnsIgnoreValues = ["highlightColor"];
-  dataColumnsProjected = ["_hiddenValidation"];
+  dataColumnsIgnoreValues = ['highlightColor'];
+  dataColumnsProjected = ['_hiddenValidation'];
 
-  displayedColumns: ("select" | "actions" | StrTransactionDataColumnKey)[] = [
-    "select" as const,
-    "actions" as const,
+  displayedColumns: ('select' | 'actions' | StrTransactionDataColumnKey)[] = [
+    'select' as const,
+    'actions' as const,
   ];
 
   get displayedColumnsColumnHeaderMap() {
@@ -328,154 +313,154 @@ export class ReportingUiTableComponent {
   }
 
   static displayedColumnsColumnHeaderMap = {
-    highlightColor: "Highlight" as const,
-    wasTxnAttempted: "Was the transaction attempted?" as const,
-    wasTxnAttemptedReason: "Reason transaction was not completed" as const,
-    methodOfTxn: "Method of Txn" as const,
-    methodOfTxnOther: "Method of Txn Other" as const,
+    highlightColor: 'Highlight' as const,
+    wasTxnAttempted: 'Was the transaction attempted?' as const,
+    wasTxnAttemptedReason: 'Reason transaction was not completed' as const,
+    methodOfTxn: 'Method of Txn' as const,
+    methodOfTxnOther: 'Method of Txn Other' as const,
 
-    purposeOfTxn: "Purpose of Txn" as const,
-    reportingEntityLocationNo: "Reporting Entity" as const,
-    dateOfTxn: "Txn Date" as const,
-    timeOfTxn: "Txn Time" as const,
-    dateOfPosting: "Post Date" as const,
-    timeOfPosting: "Post Time" as const,
-    "startingActions.0.directionOfSA": "Direction" as const,
-    "startingActions.0.typeOfFunds": "Funds Type" as const,
-    "startingActions.0.typeOfFundsOther": "Funds Type Other" as const,
-    "startingActions.0.amount": "Debit Amount" as const,
-    "startingActions.0.currency": "Debit Currency" as const,
+    purposeOfTxn: 'Purpose of Txn' as const,
+    reportingEntityLocationNo: 'Reporting Entity' as const,
+    dateOfTxn: 'Txn Date' as const,
+    timeOfTxn: 'Txn Time' as const,
+    dateOfPosting: 'Post Date' as const,
+    timeOfPosting: 'Post Time' as const,
+    'startingActions.0.directionOfSA': 'Direction' as const,
+    'startingActions.0.typeOfFunds': 'Funds Type' as const,
+    'startingActions.0.typeOfFundsOther': 'Funds Type Other' as const,
+    'startingActions.0.amount': 'Debit Amount' as const,
+    'startingActions.0.currency': 'Debit Currency' as const,
 
-    "startingActions.0.fiuNo": "Debit FIU" as const,
-    "startingActions.0.branch": "Debit Branch" as const,
-    "startingActions.0.account": "Debit Account" as const,
-    "startingActions.0.accountType": "Debit Account Type" as const,
-    "startingActions.0.accountTypeOther": "Debit Account Type Other" as const,
-    "startingActions.0.accountCurrency": "Debit Account Currency" as const,
-    "startingActions.0.accountStatus": "Debit Account Status" as const,
-    "startingActions.0.howFundsObtained": "How Funds Were Obtained?" as const,
-    "startingActions.0.accountOpen": "Debit Account Open" as const,
-    "startingActions.0.accountClose": "Debit Account Close" as const,
+    'startingActions.0.fiuNo': 'Debit FIU' as const,
+    'startingActions.0.branch': 'Debit Branch' as const,
+    'startingActions.0.account': 'Debit Account' as const,
+    'startingActions.0.accountType': 'Debit Account Type' as const,
+    'startingActions.0.accountTypeOther': 'Debit Account Type Other' as const,
+    'startingActions.0.accountCurrency': 'Debit Account Currency' as const,
+    'startingActions.0.accountStatus': 'Debit Account Status' as const,
+    'startingActions.0.howFundsObtained': 'How Funds Were Obtained?' as const,
+    'startingActions.0.accountOpen': 'Debit Account Open' as const,
+    'startingActions.0.accountClose': 'Debit Account Close' as const,
 
-    "startingActions.0.conductors.0.partyKey": "Conductor Party Key" as const,
-    "startingActions.0.conductors.0.givenName": "Conductor Given Name" as const,
-    "startingActions.0.conductors.0.surname": "Conductor Surname" as const,
-    "startingActions.0.conductors.0.otherOrInitial":
-      "Conductor Other Name" as const,
-    "startingActions.0.conductors.0.nameOfEntity":
-      "Conductor Entity Name" as const,
+    'startingActions.0.conductors.0.partyKey': 'Conductor Party Key' as const,
+    'startingActions.0.conductors.0.givenName': 'Conductor Given Name' as const,
+    'startingActions.0.conductors.0.surname': 'Conductor Surname' as const,
+    'startingActions.0.conductors.0.otherOrInitial':
+      'Conductor Other Name' as const,
+    'startingActions.0.conductors.0.nameOfEntity':
+      'Conductor Entity Name' as const,
 
-    "completingActions.0.detailsOfDispo": "Disposition Details" as const,
-    "completingActions.0.detailsOfDispoOther":
-      "Disposition Details Other" as const,
-    "completingActions.0.amount": "Credit Amount" as const,
-    "completingActions.0.currency": "Credit Currency" as const,
+    'completingActions.0.detailsOfDispo': 'Disposition Details' as const,
+    'completingActions.0.detailsOfDispoOther':
+      'Disposition Details Other' as const,
+    'completingActions.0.amount': 'Credit Amount' as const,
+    'completingActions.0.currency': 'Credit Currency' as const,
 
-    "completingActions.0.fiuNo": "Credit FIU" as const,
-    "completingActions.0.branch": "Credit Branch" as const,
-    "completingActions.0.account": "Credit Account" as const,
-    "completingActions.0.accountType": "Credit Account Type" as const,
-    "completingActions.0.accountTypeOther":
-      "Credit Account Type Other" as const,
-    "completingActions.0.accountCurrency": "Credit Account Currency" as const,
-    "completingActions.0.accountStatus": "Credit Account Status" as const,
-    "completingActions.0.accountOpen": "Credit Account Open" as const,
-    "completingActions.0.accountClose": "Credit Account Close" as const,
+    'completingActions.0.fiuNo': 'Credit FIU' as const,
+    'completingActions.0.branch': 'Credit Branch' as const,
+    'completingActions.0.account': 'Credit Account' as const,
+    'completingActions.0.accountType': 'Credit Account Type' as const,
+    'completingActions.0.accountTypeOther':
+      'Credit Account Type Other' as const,
+    'completingActions.0.accountCurrency': 'Credit Account Currency' as const,
+    'completingActions.0.accountStatus': 'Credit Account Status' as const,
+    'completingActions.0.accountOpen': 'Credit Account Open' as const,
+    'completingActions.0.accountClose': 'Credit Account Close' as const,
 
-    "completingActions.0.beneficiaries.0.partyKey":
-      "Beneficiary Party Key" as const,
-    "completingActions.0.beneficiaries.0.givenName":
-      "Beneficiary Given Name" as const,
-    "completingActions.0.beneficiaries.0.surname":
-      "Beneficiary Surname" as const,
-    "completingActions.0.beneficiaries.0.otherOrInitial":
-      "Beneficiary Other Name" as const,
-    "completingActions.0.beneficiaries.0.nameOfEntity":
-      "Beneficiary Entity Name" as const,
-    "completingActions.0.wasAnyOtherSubInvolved":
-      "Was there any other person or entity involved in the completing action?" as const,
-    reportingEntityTxnRefNo: "Transaction Reference No" as const,
-    _hiddenValidation: "Validation Info" as const,
-    _hiddenTxnType: "Txn Type" as const,
-    _hiddenAmlId: "AML Id" as const,
-    fullTextFilterKey: "Full Text" as const,
+    'completingActions.0.beneficiaries.0.partyKey':
+      'Beneficiary Party Key' as const,
+    'completingActions.0.beneficiaries.0.givenName':
+      'Beneficiary Given Name' as const,
+    'completingActions.0.beneficiaries.0.surname':
+      'Beneficiary Surname' as const,
+    'completingActions.0.beneficiaries.0.otherOrInitial':
+      'Beneficiary Other Name' as const,
+    'completingActions.0.beneficiaries.0.nameOfEntity':
+      'Beneficiary Entity Name' as const,
+    'completingActions.0.wasAnyOtherSubInvolved':
+      'Was there any other person or entity involved in the completing action?' as const,
+    reportingEntityTxnRefNo: 'Transaction Reference No' as const,
+    _hiddenValidation: 'Validation Info' as const,
+    _hiddenTxnType: 'Txn Type' as const,
+    _hiddenAmlId: 'AML Id' as const,
+    fullTextFilterKey: 'Full Text' as const,
   } satisfies Partial<
-    Record<"fullTextFilterKey" | StrTransactionDataColumnKey, unknown>
+    Record<'fullTextFilterKey' | StrTransactionDataColumnKey, unknown>
   >;
 
-  stickyColumns: (StrTransactionDataColumnKey | "actions" | "select")[] = [
-    "actions",
-    "select",
-    "_mongoid",
-    "_hiddenValidation",
+  stickyColumns: (StrTransactionDataColumnKey | 'actions' | 'select')[] = [
+    'actions',
+    'select',
+    '_mongoid',
+    '_hiddenValidation',
   ];
 
   selectFiltersValues: StrTransactionDataColumnKey[] = [
-    "highlightColor",
-    "_hiddenValidation",
-    "methodOfTxn",
-    "reportingEntityLocationNo",
+    'highlightColor',
+    '_hiddenValidation',
+    'methodOfTxn',
+    'reportingEntityLocationNo',
 
-    "startingActions.0.directionOfSA",
-    "startingActions.0.typeOfFunds",
-    "startingActions.0.amount",
-    "startingActions.0.currency",
+    'startingActions.0.directionOfSA',
+    'startingActions.0.typeOfFunds',
+    'startingActions.0.amount',
+    'startingActions.0.currency',
 
-    "startingActions.0.fiuNo",
-    "startingActions.0.branch",
-    "startingActions.0.account",
-    "startingActions.0.accountType",
-    "startingActions.0.accountCurrency",
-    "startingActions.0.accountStatus",
+    'startingActions.0.fiuNo',
+    'startingActions.0.branch',
+    'startingActions.0.account',
+    'startingActions.0.accountType',
+    'startingActions.0.accountCurrency',
+    'startingActions.0.accountStatus',
 
-    "startingActions.0.conductors.0.partyKey",
-    "startingActions.0.conductors.0.givenName",
-    "startingActions.0.conductors.0.surname",
-    "startingActions.0.conductors.0.otherOrInitial",
-    "startingActions.0.conductors.0.nameOfEntity",
+    'startingActions.0.conductors.0.partyKey',
+    'startingActions.0.conductors.0.givenName',
+    'startingActions.0.conductors.0.surname',
+    'startingActions.0.conductors.0.otherOrInitial',
+    'startingActions.0.conductors.0.nameOfEntity',
 
-    "completingActions.0.detailsOfDispo",
-    "completingActions.0.amount",
-    "completingActions.0.currency",
+    'completingActions.0.detailsOfDispo',
+    'completingActions.0.amount',
+    'completingActions.0.currency',
 
-    "completingActions.0.fiuNo",
-    "completingActions.0.branch",
-    "completingActions.0.account",
-    "completingActions.0.accountType",
-    "completingActions.0.accountCurrency",
-    "completingActions.0.accountStatus",
+    'completingActions.0.fiuNo',
+    'completingActions.0.branch',
+    'completingActions.0.account',
+    'completingActions.0.accountType',
+    'completingActions.0.accountCurrency',
+    'completingActions.0.accountStatus',
 
-    "completingActions.0.beneficiaries.0.partyKey",
-    "completingActions.0.beneficiaries.0.givenName",
-    "completingActions.0.beneficiaries.0.surname",
-    "completingActions.0.beneficiaries.0.otherOrInitial",
-    "completingActions.0.beneficiaries.0.nameOfEntity",
-    "_hiddenTxnType",
-    "_hiddenAmlId",
+    'completingActions.0.beneficiaries.0.partyKey',
+    'completingActions.0.beneficiaries.0.givenName',
+    'completingActions.0.beneficiaries.0.surname',
+    'completingActions.0.beneficiaries.0.otherOrInitial',
+    'completingActions.0.beneficiaries.0.nameOfEntity',
+    '_hiddenTxnType',
+    '_hiddenAmlId',
   ];
 
   dateFiltersValues: StrTransactionDataColumnKey[] = [
-    "dateOfTxn",
-    "dateOfPosting",
+    'dateOfTxn',
+    'dateOfPosting',
   ];
 
   dateFiltersValuesIgnore: StrTransactionDataColumnKey[] = [
-    "timeOfTxn",
-    "timeOfPosting",
-    "startingActions.0.accountOpen",
-    "startingActions.0.accountClose",
-    "completingActions.0.accountOpen",
-    "completingActions.0.accountClose",
+    'timeOfTxn',
+    'timeOfPosting',
+    'startingActions.0.accountOpen',
+    'startingActions.0.accountClose',
+    'completingActions.0.accountOpen',
+    'completingActions.0.accountClose',
   ];
 
   displayedColumnsTime: StrTransactionDataColumnKey[] = [
-    "timeOfTxn",
-    "timeOfPosting",
+    'timeOfTxn',
+    'timeOfPosting',
   ];
 
   sortingAccessorDateTimeTuples: StrTransactionDataColumnKey[][] = [
-    ["dateOfTxn", "timeOfTxn"],
-    ["dateOfPosting", "timeOfPosting"],
+    ['dateOfTxn', 'timeOfTxn'],
+    ['dateOfPosting', 'timeOfPosting'],
   ];
 
   sessionDataService = inject(SessionStateService);
@@ -497,21 +482,21 @@ export class ReportingUiTableComponent {
 
   static getColorForValidationChip(error: _hiddenValidationType): string {
     const colors: Record<_hiddenValidationType, string> = {
-      conductorMissing: "#dc3545",
-      bankInfoMissing: "#ba005c",
-      editedTxn: "#0d6efd",
-      invalidMethodOfTxn: "#0d6efd",
-      invalidTypeOfFunds: "#0d6efd",
-      invalidAccountType: "#0d6efd",
-      invalidAmountCurrency: "#0d6efd",
-      invalidAccountCurrency: "#0d6efd",
-      invalidAccountStatus: "#0d6efd",
-      invalidDirectionOfSA: "#0d6efd",
-      invalidDetailsOfDisposition: "#0d6efd",
-      invalidDate: "#0d6efd",
-      invalidTime: "#0d6efd",
+      conductorMissing: '#dc3545',
+      bankInfoMissing: '#ba005c',
+      editedTxn: '#0d6efd',
+      invalidMethodOfTxn: '#0d6efd',
+      invalidTypeOfFunds: '#0d6efd',
+      invalidAccountType: '#0d6efd',
+      invalidAmountCurrency: '#0d6efd',
+      invalidAccountCurrency: '#0d6efd',
+      invalidAccountStatus: '#0d6efd',
+      invalidDirectionOfSA: '#0d6efd',
+      invalidDetailsOfDisposition: '#0d6efd',
+      invalidDate: '#0d6efd',
+      invalidTime: '#0d6efd',
     };
-    if (!error) return "#007bff"; // fallback color
+    if (!error) return '#007bff'; // fallback color
     return colors[error];
   }
 
@@ -519,7 +504,7 @@ export class ReportingUiTableComponent {
     const backgroundColor =
       ReportingUiTableComponent.getColorForValidationChip(error);
     // Convert hex to RGB
-    const hex = backgroundColor.replace("#", "");
+    const hex = backgroundColor.replace('#', '');
     const r = Number.parseInt(hex.substring(0, 2), 16);
     const g = Number.parseInt(hex.substring(2, 4), 16);
     const b = Number.parseInt(hex.substring(4, 6), 16);
@@ -528,7 +513,7 @@ export class ReportingUiTableComponent {
     const brightness = (r * 299 + g * 587 + b * 114) / 1000;
 
     // Return white for dark backgrounds, black for light backgrounds
-    return brightness > 125 ? "#000000" : "#ffffff";
+    return brightness > 125 ? '#000000' : '#ffffff';
   }
 
   private route = inject(ActivatedRoute);
@@ -543,12 +528,12 @@ export class ReportingUiTableComponent {
     );
   }
 
-  @ViewChild("baseTable") baseTable!: BaseTableComponent<
+  @ViewChild('baseTable') baseTable!: BaseTableComponent<
     StrTransactionData,
     string,
-    "select" | "actions" | StrTransactionDataColumnKey,
+    'select' | 'actions' | StrTransactionDataColumnKey,
     any,
-    "highlightColor",
+    'highlightColor',
     { flowOfFundsAmlTransactionId: any }
   >;
 
@@ -558,7 +543,7 @@ export class ReportingUiTableComponent {
         (strTxn) => strTxn.flowOfFundsAmlTransactionId,
       );
     this.recentlyOpenedRowsSubject.next(selectedTransactionsForBulkEdit);
-    this.router.navigate(["../edit-form/bulk-edit"], {
+    this.router.navigate(['../edit-form/bulk-edit'], {
       relativeTo: this.route,
       state: {
         selectedTransactionsForBulkEdit,
@@ -586,21 +571,20 @@ export class ReportingUiTableComponent {
 
 export const strTransactionsEditedResolver: ResolveFn<
   Observable<StrTransactionData[]>
-> = async (route: ActivatedRouteSnapshot, _: RouterStateSnapshot) => {
+> = async () => {
   return inject(SessionStateService).strTransactionData$;
 };
 
-export const savingEditsResolver: ResolveFn<Observable<string[]>> = async (
-  _route: ActivatedRouteSnapshot,
-  _: RouterStateSnapshot,
-) => {
+export const savingEditsResolver: ResolveFn<
+  Observable<string[]>
+> = async () => {
   return inject(SessionStateService).savingEdits$;
 };
 
 export type _hiddenValidationType =
-  | "editedTxn"
-  | "conductorMissing"
-  | "bankInfoMissing"
+  | 'editedTxn'
+  | 'conductorMissing'
+  | 'bankInfoMissing'
   | InvalidFormOptionsErrorKeys
   | InvalidTxnDateTimeErrorKeys;
 
@@ -632,7 +616,7 @@ export type StrTransaction = {
   highlightColor?: string | null;
 } & StrTxnFlowOfFunds;
 
-export type StrTxnFlowOfFunds = {
+export interface StrTxnFlowOfFunds {
   flowOfFundsAccountCurrency: string | null;
   flowOfFundsAmlId: number;
   flowOfFundsAmlTransactionId: string;
@@ -652,7 +636,7 @@ export type StrTxnFlowOfFunds = {
   flowOfFundsTransactionDate: string | null;
   flowOfFundsTransactionDesc: string;
   flowOfFundsTransactionTime: string | null;
-};
+}
 
 export interface StartingAction {
   _id?: string;
@@ -698,7 +682,7 @@ export type Conductor = {
   onBehalfOf?: OnBehalfOf[] | null;
 } & ConductorNpdData;
 
-export type ConductorNpdData = {
+export interface ConductorNpdData {
   npdTypeOfDevice?: string | null;
   npdTypeOfDeviceOther?: string | null;
   npdDeviceIdNo?: string | null;
@@ -706,7 +690,7 @@ export type ConductorNpdData = {
   npdIp?: string | null;
   npdDateTimeSession?: string | null;
   npdTimeZone?: string | null;
-};
+}
 
 export interface SourceOfFunds {
   _id?: string;
@@ -775,15 +759,15 @@ export interface Beneficiary {
 
 export type StrTransactionDataColumnKey =
   | keyof StrTransactionData
-  | keyof AddPrefixToObject<StartingAction, "startingActions.0.">
-  | keyof AddPrefixToObject<CompletingAction, "completingActions.0.">
+  | keyof AddPrefixToObject<StartingAction, 'startingActions.0.'>
+  | keyof AddPrefixToObject<CompletingAction, 'completingActions.0.'>
   | keyof AddPrefixToObject<
-      NonNullable<StartingAction["conductors"]>[number],
-      "startingActions.0.conductors.0."
+      NonNullable<StartingAction['conductors']>[number],
+      'startingActions.0.conductors.0.'
     >
   | keyof AddPrefixToObject<
-      NonNullable<CompletingAction["beneficiaries"]>[number],
-      "completingActions.0.beneficiaries.0."
+      NonNullable<CompletingAction['beneficiaries']>[number],
+      'completingActions.0.beneficiaries.0.'
     >
   | (string & {});
 

@@ -1,8 +1,8 @@
-import { Injectable } from "@angular/core";
-import { delay, Observable, of, shareReplay } from "rxjs";
+import { Injectable } from '@angular/core';
+import { delay, Observable, of, shareReplay } from 'rxjs';
 
 @Injectable({
-  providedIn: "root",
+  providedIn: 'root',
 })
 export class FormOptionsService {
   formOptions$ = this.fetchFormOptions().pipe(shareReplay(1));
@@ -20,48 +20,48 @@ export type FormOptions =
 
 export const FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE = {
   methodOfTxn: {
-    ABM: "ABM",
-    "In-Person": "In-Person",
-    Online: "Online",
-    Other: "Other",
+    ABM: 'ABM',
+    'In-Person': 'In-Person',
+    Online: 'Online',
+    Other: 'Other',
   },
   typeOfFunds: {
-    "Funds Withdrawal": "Funds Withdrawal",
-    Cash: "Cash",
-    Cheque: "Cheque",
-    "Domestic Funds Transfer": "Domestic Funds Transfer",
-    "Email Monel Transfer": "Email Monel Transfer",
-    Other: "Other",
+    'Funds Withdrawal': 'Funds Withdrawal',
+    Cash: 'Cash',
+    Cheque: 'Cheque',
+    'Domestic Funds Transfer': 'Domestic Funds Transfer',
+    'Email Monel Transfer': 'Email Monel Transfer',
+    Other: 'Other',
   },
   accountType: {
-    Business: "Business",
-    Casino: "Casino",
-    Personal: "Personal",
-    Other: "Other",
+    Business: 'Business',
+    Casino: 'Casino',
+    Personal: 'Personal',
+    Other: 'Other',
   },
   amountCurrency: {
-    CAD: "CAD",
-    USD: "USD",
+    CAD: 'CAD',
+    USD: 'USD',
   },
   accountCurrency: {
-    CAD: "CAD",
-    USD: "USD",
+    CAD: 'CAD',
+    USD: 'USD',
   },
   accountStatus: {
-    Active: "Active",
-    Closed: "Closed",
-    Inactive: "Inactive",
-    Dorment: "Dorment",
+    Active: 'Active',
+    Closed: 'Closed',
+    Inactive: 'Inactive',
+    Dorment: 'Dorment',
   },
   directionOfSA: {
-    In: "In",
-    Out: "Out",
+    In: 'In',
+    Out: 'Out',
   },
   detailsOfDisposition: {
-    "Deposit to account": "Deposit to account",
-    "Cash Withdrawal": "Cash Withdrawal",
-    "Issued Cheque": "Issued Cheque",
-    "Outgoing Email Transfer": "Outgoing Email Transfer",
-    Other: "Other",
+    'Deposit to account': 'Deposit to account',
+    'Cash Withdrawal': 'Cash Withdrawal',
+    'Issued Cheque': 'Issued Cheque',
+    'Outgoing Email Transfer': 'Outgoing Email Transfer',
+    Other: 'Other',
   },
 } as const;
