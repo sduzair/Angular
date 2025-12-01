@@ -33,6 +33,7 @@ import {
 } from "@angular/router";
 import { RouterTestingHarness } from "@angular/router/testing";
 import { enCA } from "date-fns/locale";
+import { of } from "rxjs";
 import { AmlComponent } from "../../aml/aml.component";
 import {
   SESSION_INITIAL_STATE,
@@ -46,6 +47,10 @@ import {
   StrTxnEditForm,
   editTypeResolver,
 } from "./edit-form.component";
+import {
+  FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+  FormOptionsService,
+} from "./form-options.service";
 import { TransactionTimeDirective } from "./transaction-time.directive";
 
 @Component({
@@ -57,6 +62,14 @@ class MockTransactionSearchComponent {}
 
 describe("EditFormComponent", () => {
   async function setup() {
+    const formOptionsServiceSpy = jasmine.createSpyObj(
+      "FormOptionsService",
+      [],
+      {
+        formOptions$: of(FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE),
+      },
+    );
+
     await TestBed.configureTestingModule({
       providers: [
         provideZoneChangeDetection({ eventCoalescing: true }),
@@ -125,17 +138,19 @@ describe("EditFormComponent", () => {
         { provide: ErrorHandler, useClass: AppErrorHandlerService },
         // note disables animations to prevent scenario of making assertions before animations complete
         { provide: ANIMATION_MODULE_TYPE, useValue: "NoopAnimations" },
+        { provide: FormOptionsService, useValue: formOptionsServiceSpy },
       ],
     }).compileComponents();
 
     const harness = await RouterTestingHarness.create();
     const loader = TestbedHarnessEnvironment.loader(harness.fixture);
-    // todo add edit form save tests that invoke http requests
+    // todo: add edit form save tests that invoke http requests
     const httpTesting = TestBed.inject(HttpTestingController);
     return {
       harness,
       loader,
       httpTesting,
+      formOptionsServiceSpy,
     };
   }
 
@@ -151,13 +166,13 @@ describe("EditFormComponent", () => {
     });
 
     async function setupAndNavigate() {
-      const { harness, loader } = await setup();
+      const { harness, loader, formOptionsServiceSpy } = await setup();
       await harness.navigateByUrl(
         "aml/99999999/reporting-ui/edit-form/ABM-01K4WANX6DRN6KCN05PMG7WJHA",
         AmlComponent,
       );
 
-      return { harness, loader };
+      return { harness, loader, formOptionsServiceSpy };
     }
 
     it("should create form template", async () => {
@@ -182,6 +197,36 @@ describe("EditFormComponent", () => {
 
       const isValid = await field!.isControlValid();
       expect(isValid).toBe(true);
+    });
+
+    it("should populate form options in select fields", async () => {
+      const { loader, formOptionsServiceSpy } = await setupAndNavigate();
+
+      const { control } = await getMatField(
+        loader,
+        "methodOfTxn" as SelectField,
+      );
+
+      await control.open();
+      const options = await control.getOptions();
+
+      const expectedOptions = Object.keys(
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE.methodOfTxn,
+      );
+      expect(options.length).toBe(expectedOptions.length);
+      const optionTexts = await Promise.all(
+        options.map((option) => option.getText()),
+      );
+
+      expect(optionTexts).toEqual(expectedOptions);
+
+      // Verify the formOptions$ property getter was called
+      const formOptionsGetter = Object.getOwnPropertyDescriptor(
+        formOptionsServiceSpy,
+        "formOptions$",
+      )!.get;
+
+      expect(formOptionsGetter).toHaveBeenCalled();
     });
 
     it("should verify all form fields populate correctly", async () => {
@@ -453,6 +498,16 @@ describe("EditFormComponent", () => {
         );
         expect(field).toBeNull();
       }
+    });
+  });
+
+  describe("integrity checks", () => {
+    it("should always create empty array for null/undefined array props", () => {
+      pending("TODO: implement this test");
+    });
+
+    it("should always create _id prop for array items", () => {
+      pending("TODO: implement this test");
     });
   });
 

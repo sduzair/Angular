@@ -27,6 +27,10 @@ import { enCA } from "date-fns/locale";
 import { AppErrorHandlerService } from "./app-error-handler.service";
 import { routes } from "./app.routes";
 import { CachedRouteReuseStrategy } from "./route-cache/preserve-route-reuse-strategy";
+import {
+  MAT_DIALOG_DEFAULT_OPTIONS,
+  MatDialogConfig,
+} from "@angular/material/dialog";
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -54,7 +58,14 @@ export const appConfig: ApplicationConfig = {
       useValue: {
         appearance: "outline",
         floatLabel: "auto",
-      } as MatFormFieldDefaultOptions,
+      } satisfies MatFormFieldDefaultOptions,
+    },
+    {
+      provide: MAT_DIALOG_DEFAULT_OPTIONS,
+      useValue: {
+        autoFocus: "dialog",
+        restoreFocus: true,
+      } satisfies MatDialogConfig,
     },
   ],
 };

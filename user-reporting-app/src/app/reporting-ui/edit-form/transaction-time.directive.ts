@@ -48,14 +48,21 @@ export class TransactionTimeDirective implements ControlValueAccessor {
   }
 
   static parseAndFormatTime(value: string | unknown) {
+    const parsed = TransactionTimeDirective.parse(value);
+    if (!isValid(parsed)) return;
+    const formatted = format(parsed, "HH:mm:ss");
+    return formatted;
+  }
+
+  static parse(value: string | unknown) {
     // Try parsing 'H:mm', 'HH:mm', or 'HH:mm:ss' formats
     const formats = ["HH:mm:ss", "HH:mm"];
     for (const fmt of formats) {
       const parsed = parse(String(value ?? ""), fmt, new Date());
       if (!isValid(parsed)) continue;
-      const formatted = format(parsed, "HH:mm:ss");
-      return formatted;
+      return parsed;
     }
-    return;
+    // return invalid date
+    return new Date("");
   }
 }

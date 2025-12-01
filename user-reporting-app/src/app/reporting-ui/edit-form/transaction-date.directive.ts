@@ -3,6 +3,8 @@ import { ControlValueAccessor, NgControl } from "@angular/forms";
 import { MatDatepickerInput } from "@angular/material/datepicker";
 import { parse, format, isValid } from "date-fns/fp";
 
+export const TRANSACTION_DATE_FORMAT = "yyyy/MM/dd";
+
 @Directive({
   selector: "[appTransactionDate]",
 })
@@ -50,6 +52,6 @@ export class TransactionDateDirective implements ControlValueAccessor {
     this.datepickerInput.disabled = isDisabled;
   }
 
-  static parse = parse(new Date(), "yyyy/MM/dd");
-  static format = format("yyyy/MM/dd");
+  static parse = parse(new Date(), TRANSACTION_DATE_FORMAT);
+  static format = format(TRANSACTION_DATE_FORMAT);
 }

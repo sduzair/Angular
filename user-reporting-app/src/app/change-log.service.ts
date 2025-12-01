@@ -59,7 +59,7 @@ export class ChangeLogService {
           discriminator: "_id",
         });
       } else {
-        if (!this.hasObjectIdentifier(updatedItem)) {
+        if (!ChangeLogService.hasObjectIdentifier(updatedItem)) {
           throw new Error("array items must have an identifier");
         }
         changes.push({ path, oldValue: undefined, newValue: updatedItem });
@@ -93,7 +93,7 @@ export class ChangeLogService {
       const originalItem = arr1[i];
       const updatedItem = arr2[i];
 
-      if (!!updatedItem && !this.hasObjectIdentifier(updatedItem)) {
+      if (!!updatedItem && !ChangeLogService.hasObjectIdentifier(updatedItem)) {
         throw new Error("array items must have an identifier");
       }
       if (i < arr1.length && i < arr2.length) {
@@ -115,8 +115,9 @@ export class ChangeLogService {
 
   // Main applyChanges function using path traversal closure
   applyChanges<T extends WithVersion>(original: T, changes: ChangeLog[]): T {
-    // Enforce immutability on record data to synchronize UI features like highlights
-    const result = structuredClone(original); // todo breaks table selection model refs
+    // Immutability does not affect syncing UI features like highlights as rows are id-based
+    // Immutable clone preserves original on error
+    const result = structuredClone(original);
 
     changes.forEach((change) => {
       const pathSegments = change.path.split(".");
@@ -196,7 +197,9 @@ export class ChangeLogService {
       typeof change.newValue === "object" &&
       change.newValue !== null
     ) {
-      throw new Error("add new array item when current has no array");
+      throw new Error(
+        "add new array item when current array prop is undefined",
+      );
     } else if (
       Array.isArray(current[part]) &&
       current[part].length > 0 &&
@@ -252,7 +255,7 @@ export class ChangeLogService {
         return;
       }
       if (!val1 && Array.isArray(val2) && val2.length !== 0) {
-        if (!val2.every(this.hasObjectIdentifier)) {
+        if (!val2.every(ChangeLogService.hasObjectIdentifier)) {
           throw new Error("array items must have an identifier");
         }
         changes.push({
@@ -296,7 +299,10 @@ export class ChangeLogService {
         }
 
         if (!isIgnoredChange(undefined, val2)) {
-          if (Array.isArray(val2) && !val2.every(this.hasObjectIdentifier)) {
+          if (
+            Array.isArray(val2) &&
+            !val2.every(ChangeLogService.hasObjectIdentifier)
+          ) {
             throw new Error("array items must have an identifier");
           }
           changes.push({
@@ -367,7 +373,7 @@ export class ChangeLogService {
     timeOfPosting: "hasPostingDate" as const,
   };
 
-  private hasObjectIdentifier(obj: unknown) {
+  static hasObjectIdentifier(obj: unknown) {
     return (
       typeof obj === "object" && obj !== null && "_id" in obj && !!obj["_id"]
     );

@@ -8,10 +8,14 @@ import {
 } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import {
+  AbstractControl,
+  AsyncValidatorFn,
   FormArray,
   FormControl,
   FormGroup,
   ReactiveFormsModule,
+  ValidationErrors,
+  ValidatorFn,
   Validators,
 } from "@angular/forms";
 import { MatBadgeModule } from "@angular/material/badge";
@@ -37,15 +41,18 @@ import {
   Router,
   RouterStateSnapshot,
 } from "@angular/router";
+import { isValid } from "date-fns";
 import { isEqualWith } from "lodash-es";
-import { defer, map, tap } from "rxjs";
-import { v4 as uuidv4 } from "uuid";
+import { Observable, defer, map, of, take, tap } from "rxjs";
+import { finalize } from "rxjs/operators";
+import { ulid } from "ulid";
 import {
   SessionStateService,
   StrTransactionWithChangeLogs,
 } from "../../aml/session-state.service";
 import { ChangeLogService, WithVersion } from "../../change-log.service";
 import { ClearFieldDirective } from "../../clear-field.directive";
+import { setError } from "../../form-helpers";
 import { PreemptiveErrorStateMatcher } from "../../transaction-search/transaction-search.component";
 import {
   AccountHolder,
@@ -61,7 +68,12 @@ import {
   StrTransactionData,
   StrTxnFlowOfFunds,
 } from "../reporting-ui-table/reporting-ui-table.component";
+import {
+  hasMissingCibcInfo,
+  hasMissingConductorInfo,
+} from "./common-validation";
 import { ControlToggleDirective } from "./control-toggle.directive";
+import { FormOptions, FormOptionsService } from "./form-options.service";
 import { MarkAsEmptyDirective } from "./mark-as-empty.directive";
 import { ToggleEditFieldDirective } from "./toggle-edit-field.directive";
 import { TransactionDateDirective } from "./transaction-date.directive";
@@ -327,14 +339,32 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                     </mat-form-field>
                   </div>
                   <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
-                    <mat-form-field class="col" data-testid="methodOfTxn">
+                    <div
+                      class="col"
+                      [class.d-none]="!isFormOptionsLoading"
+                      [class.d-flex]="isFormOptionsLoading"
+                    >
+                      <span
+                        class="sk skw-6 skh-7 col-auto flex-grow-1"
+                        [class.d-none]="!isFormOptionsLoading"
+                        [class.d-inline-block]="isFormOptionsLoading"
+                      ></span>
+                    </div>
+                    <mat-form-field
+                      class="col"
+                      data-testid="methodOfTxn"
+                      [class.d-none]="isFormOptionsLoading"
+                    >
                       <mat-label>Method of Transaction</mat-label>
                       <mat-select formControlName="methodOfTxn">
                         <mat-option
-                          *ngFor="let key of methodOfTxnOptionsKeys"
-                          [value]="methodOfTxnOptions[key]"
+                          *ngFor="
+                            let opt of (formOptions$ | async)?.methodOfTxn
+                              | keyvalue
+                          "
+                          [value]="opt.key"
                         >
-                          {{ key }}
+                          {{ opt.key }}
                         </mat-option>
                       </mat-select>
                       <button
@@ -543,19 +573,34 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                       </mat-panel-title>
                     </mat-expansion-panel-header>
                     <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
+                      <div
+                        class="col"
+                        [class.d-none]="!isFormOptionsLoading"
+                        [class.d-flex]="isFormOptionsLoading"
+                      >
+                        <span
+                          class="sk skw-6 skh-7 col-auto flex-grow-1"
+                          [class.d-none]="!isFormOptionsLoading"
+                          [class.d-inline-block]="isFormOptionsLoading"
+                        ></span>
+                      </div>
                       <mat-form-field
                         class="col"
                         [attr.data-testid]="
                           'startingActions-' + saIndex + '-directionOfSA'
                         "
+                        [class.d-none]="isFormOptionsLoading"
                       >
                         <mat-label>Direction</mat-label>
                         <mat-select formControlName="directionOfSA">
                           <mat-option
-                            *ngFor="let key of directionOfSAOptionsKeys"
-                            [value]="directionOfSAOptions[key]"
+                            *ngFor="
+                              let opt of (formOptions$ | async)?.directionOfSA
+                                | keyvalue
+                            "
+                            [value]="opt.key"
                           >
-                            {{ key }}
+                            {{ opt.key }}
                           </mat-option>
                         </mat-select>
                         <button
@@ -586,19 +631,34 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
+                      <div
+                        class="col"
+                        [class.d-none]="!isFormOptionsLoading"
+                        [class.d-flex]="isFormOptionsLoading"
+                      >
+                        <span
+                          class="sk skw-6 skh-7 col-auto flex-grow-1"
+                          [class.d-none]="!isFormOptionsLoading"
+                          [class.d-inline-block]="isFormOptionsLoading"
+                        ></span>
+                      </div>
                       <mat-form-field
                         class="col"
                         [attr.data-testid]="
                           'startingActions-' + saIndex + '-typeOfFunds'
                         "
+                        [class.d-none]="isFormOptionsLoading"
                       >
                         <mat-label>Type of Funds</mat-label>
                         <mat-select formControlName="typeOfFunds">
                           <mat-option
-                            *ngFor="let key of typeofFundsOptionsKeys"
-                            [value]="typeofFundsOptions[key]"
+                            *ngFor="
+                              let opt of (formOptions$ | async)?.typeOfFunds
+                                | keyvalue
+                            "
+                            [value]="opt.key"
                           >
-                            {{ key }}
+                            {{ opt.key }}
                           </mat-option>
                         </mat-select>
                         <button
@@ -697,19 +757,34 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
+                      <div
+                        class="col"
+                        [class.d-none]="!isFormOptionsLoading"
+                        [class.d-flex]="isFormOptionsLoading"
+                      >
+                        <span
+                          class="sk skw-6 skh-7 col-auto flex-grow-1"
+                          [class.d-none]="!isFormOptionsLoading"
+                          [class.d-inline-block]="isFormOptionsLoading"
+                        ></span>
+                      </div>
                       <mat-form-field
                         class="col"
                         [attr.data-testid]="
                           'startingActions-' + saIndex + '-currency'
                         "
+                        [class.d-none]="isFormOptionsLoading"
                       >
                         <mat-label>Currency</mat-label>
                         <mat-select formControlName="currency">
                           <mat-option
-                            *ngFor="let key of amountCurrencyOptionsKeys"
-                            [value]="amountCurrencyOptions[key]"
+                            *ngFor="
+                              let opt of (formOptions$ | async)?.amountCurrency
+                                | keyvalue
+                            "
+                            [value]="opt.key"
                           >
-                            {{ key }}
+                            {{ opt.key }}
                           </mat-option>
                         </mat-select>
                         <button
@@ -870,11 +945,23 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                     </div>
                     <!-- Account Information -->
                     <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
+                      <div
+                        class="col"
+                        [class.d-none]="!isFormOptionsLoading"
+                        [class.d-flex]="isFormOptionsLoading"
+                      >
+                        <span
+                          class="sk skw-6 skh-7 col-auto flex-grow-1"
+                          [class.d-none]="!isFormOptionsLoading"
+                          [class.d-inline-block]="isFormOptionsLoading"
+                        ></span>
+                      </div>
                       <mat-form-field
                         class="col"
                         [attr.data-testid]="
                           'startingActions-' + saIndex + '-accountType'
                         "
+                        [class.d-none]="isFormOptionsLoading"
                       >
                         <mat-label>Account Type</mat-label>
                         <mat-select
@@ -886,10 +973,13 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           [appControlRequired]="true"
                         >
                           <mat-option
-                            *ngFor="let key of accountTypeOptionsKeys"
-                            [value]="accountTypeOptions[key]"
+                            *ngFor="
+                              let opt of (formOptions$ | async)?.accountType
+                                | keyvalue
+                            "
+                            [value]="opt.key"
                           >
-                            {{ key }}
+                            {{ opt.key }}
                           </mat-option>
                         </mat-select>
                         <button
@@ -945,11 +1035,23 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
+                      <div
+                        class="col"
+                        [class.d-none]="!isFormOptionsLoading"
+                        [class.d-flex]="isFormOptionsLoading"
+                      >
+                        <span
+                          class="sk skw-6 skh-7 col-auto flex-grow-1"
+                          [class.d-none]="!isFormOptionsLoading"
+                          [class.d-inline-block]="isFormOptionsLoading"
+                        ></span>
+                      </div>
                       <mat-form-field
                         class="col"
                         [attr.data-testid]="
                           'startingActions-' + saIndex + '-accountCurrency'
                         "
+                        [class.d-none]="isFormOptionsLoading"
                       >
                         <mat-label>Account Currency</mat-label>
                         <mat-select
@@ -961,10 +1063,13 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           [appControlRequired]="true"
                         >
                           <mat-option
-                            *ngFor="let key of accountCurrencyOptionsKeys"
-                            [value]="accountCurrencyOptions[key]"
+                            *ngFor="
+                              let opt of (formOptions$ | async)?.accountCurrency
+                                | keyvalue
+                            "
+                            [value]="opt.key"
                           >
-                            {{ key }}
+                            {{ opt.key }}
                           </mat-option>
                         </mat-select>
                         <button
@@ -995,11 +1100,23 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           <mat-icon>clear</mat-icon>
                         </button>
                       </mat-form-field>
+                      <div
+                        class="col"
+                        [class.d-none]="!isFormOptionsLoading"
+                        [class.d-flex]="isFormOptionsLoading"
+                      >
+                        <span
+                          class="sk skw-6 skh-7 col-auto flex-grow-1"
+                          [class.d-none]="!isFormOptionsLoading"
+                          [class.d-inline-block]="isFormOptionsLoading"
+                        ></span>
+                      </div>
                       <mat-form-field
                         class="col"
                         [attr.data-testid]="
                           'startingActions-' + saIndex + '-accountStatus'
                         "
+                        [class.d-none]="isFormOptionsLoading"
                       >
                         <mat-label>Account Status</mat-label>
                         <mat-select
@@ -1011,10 +1128,13 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           [appControlRequired]="true"
                         >
                           <mat-option
-                            *ngFor="let key of accountStatusOptionsKeys"
-                            [value]="accountStatusOptions[key]"
+                            *ngFor="
+                              let opt of (formOptions$ | async)?.accountStatus
+                                | keyvalue
+                            "
+                            [value]="opt.key"
                           >
-                            {{ key }}
+                            {{ opt.key }}
                           </mat-option>
                         </mat-select>
                         <button
@@ -2086,19 +2206,34 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
 
                     <!-- Disposition Details -->
                     <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
+                      <div
+                        class="col"
+                        [class.d-none]="!isFormOptionsLoading"
+                        [class.d-flex]="isFormOptionsLoading"
+                      >
+                        <span
+                          class="sk skw-6 skh-7 col-auto flex-grow-1"
+                          [class.d-none]="!isFormOptionsLoading"
+                          [class.d-inline-block]="isFormOptionsLoading"
+                        ></span>
+                      </div>
                       <mat-form-field
                         class="col"
                         [attr.data-testid]="
                           'completingActions-' + caIndex + '-detailsOfDispo'
                         "
+                        [class.d-none]="isFormOptionsLoading"
                       >
                         <mat-label>Details of Disposition</mat-label>
                         <mat-select formControlName="detailsOfDispo">
                           <mat-option
-                            *ngFor="let key of detailsOfDispositionOptionsKeys"
-                            [value]="detailsOfDispositionOptions[key]"
+                            *ngFor="
+                              let opt of (formOptions$ | async)
+                                ?.detailsOfDisposition | keyvalue
+                            "
+                            [value]="opt.key"
                           >
-                            {{ key }}
+                            {{ opt.key }}
                           </mat-option>
                         </mat-select>
                         <button
@@ -2202,19 +2337,34 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         </button>
                       </mat-form-field>
 
+                      <div
+                        class="col"
+                        [class.d-none]="!isFormOptionsLoading"
+                        [class.d-flex]="isFormOptionsLoading"
+                      >
+                        <span
+                          class="sk skw-6 skh-7 col-auto flex-grow-1"
+                          [class.d-none]="!isFormOptionsLoading"
+                          [class.d-inline-block]="isFormOptionsLoading"
+                        ></span>
+                      </div>
                       <mat-form-field
                         class="col"
                         [attr.data-testid]="
                           'completingActions-' + caIndex + '-currency'
                         "
+                        [class.d-none]="isFormOptionsLoading"
                       >
                         <mat-label>Currency</mat-label>
                         <mat-select formControlName="currency">
                           <mat-option
-                            *ngFor="let key of amountCurrencyOptionsKeys"
-                            [value]="amountCurrencyOptions[key]"
+                            *ngFor="
+                              let opt of (formOptions$ | async)?.amountCurrency
+                                | keyvalue
+                            "
+                            [value]="opt.key"
                           >
-                            {{ key }}
+                            {{ opt.key }}
                           </mat-option>
                         </mat-select>
                         <button
@@ -2459,11 +2609,23 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
 
                     <!-- Account Information -->
                     <div class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
+                      <div
+                        class="col"
+                        [class.d-none]="!isFormOptionsLoading"
+                        [class.d-flex]="isFormOptionsLoading"
+                      >
+                        <span
+                          class="sk skw-6 skh-7 col-auto flex-grow-1"
+                          [class.d-none]="!isFormOptionsLoading"
+                          [class.d-inline-block]="isFormOptionsLoading"
+                        ></span>
+                      </div>
                       <mat-form-field
                         class="col"
                         [attr.data-testid]="
                           'completingActions-' + caIndex + '-accountType'
                         "
+                        [class.d-none]="isFormOptionsLoading"
                       >
                         <mat-label>Account Type</mat-label>
                         <mat-select
@@ -2475,10 +2637,13 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           [appControlRequired]="true"
                         >
                           <mat-option
-                            *ngFor="let key of accountTypeOptionsKeys"
-                            [value]="accountTypeOptions[key]"
+                            *ngFor="
+                              let opt of (formOptions$ | async)?.accountType
+                                | keyvalue
+                            "
+                            [value]="opt.key"
                           >
-                            {{ key }}
+                            {{ opt.key }}
                           </mat-option>
                         </mat-select>
                         <button
@@ -2536,11 +2701,23 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         </button>
                       </mat-form-field>
 
+                      <div
+                        class="col"
+                        [class.d-none]="!isFormOptionsLoading"
+                        [class.d-flex]="isFormOptionsLoading"
+                      >
+                        <span
+                          class="sk skw-6 skh-7 col-auto flex-grow-1"
+                          [class.d-none]="!isFormOptionsLoading"
+                          [class.d-inline-block]="isFormOptionsLoading"
+                        ></span>
+                      </div>
                       <mat-form-field
                         class="col"
                         [attr.data-testid]="
                           'completingActions-' + caIndex + '-accountCurrency'
                         "
+                        [class.d-none]="isFormOptionsLoading"
                       >
                         <mat-label>Account Currency</mat-label>
                         <mat-select
@@ -2552,10 +2729,13 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           [appControlRequired]="true"
                         >
                           <mat-option
-                            *ngFor="let key of accountCurrencyOptionsKeys"
-                            [value]="accountCurrencyOptions[key]"
+                            *ngFor="
+                              let opt of (formOptions$ | async)?.accountCurrency
+                                | keyvalue
+                            "
+                            [value]="opt.key"
                           >
-                            {{ key }}
+                            {{ opt.key }}
                           </mat-option>
                         </mat-select>
                         <button
@@ -2587,11 +2767,23 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                         </button>
                       </mat-form-field>
 
+                      <div
+                        class="col"
+                        [class.d-none]="!isFormOptionsLoading"
+                        [class.d-flex]="isFormOptionsLoading"
+                      >
+                        <span
+                          class="sk skw-6 skh-7 col-auto flex-grow-1"
+                          [class.d-none]="!isFormOptionsLoading"
+                          [class.d-inline-block]="isFormOptionsLoading"
+                        ></span>
+                      </div>
                       <mat-form-field
                         class="col"
                         [attr.data-testid]="
                           'completingActions-' + caIndex + '-accountStatus'
                         "
+                        [class.d-none]="isFormOptionsLoading"
                       >
                         <mat-label>Account Status</mat-label>
                         <mat-select
@@ -2603,10 +2795,13 @@ import { TransactionTimeDirective } from "./transaction-time.directive";
                           [appControlRequired]="true"
                         >
                           <mat-option
-                            *ngFor="let key of accountStatusOptionsKeys"
-                            [value]="accountStatusOptions[key]"
+                            *ngFor="
+                              let opt of (formOptions$ | async)?.accountStatus
+                                | keyvalue
+                            "
+                            [value]="opt.key"
                           >
-                            {{ key }}
+                            {{ opt.key }}
                           </mat-option>
                         </mat-select>
                         <button
@@ -3403,11 +3598,12 @@ export class EditFormComponent implements OnInit {
     if (this.editType.type === "SINGLE_EDIT") {
       this.editForm = this.initializeEditForm({
         initValue: this.editType.payload,
+        editType: "SINGLE_EDIT",
       });
     }
     if (this.editType.type === "BULK_EDIT") {
       this.editForm = this.initializeEditForm({
-        isBulkEdit: true,
+        editType: "BULK_EDIT",
         disabled: true,
       });
       this.editForm.disable();
@@ -3416,16 +3612,16 @@ export class EditFormComponent implements OnInit {
 
   private initializeEditForm({
     initValue,
-    isBulkEdit = false,
+    editType,
     disabled = false,
   }: {
     initValue?: StrTransactionData;
-    isBulkEdit?: boolean;
+    editType: EditType;
     disabled?: boolean;
   }) {
     const editForm = this.createEditForm({
       txn: initValue,
-      options: { disabled, isBulkEdit },
+      options: { disabled, editType },
     });
     this.editFormValueBefore = structuredClone(editForm.getRawValue());
     return editForm;
@@ -3470,7 +3666,8 @@ export class EditFormComponent implements OnInit {
           SINGLE_EDIT: "Edit saved!",
           BULK_EDIT: "Edits saved!",
           HIGHLIGHT: "Highlights saved!",
-        };
+          MANUAL_UPLOAD: "Manual Upload saved!",
+        } satisfies Record<typeof editType, string>;
 
         this.snackBar.open(messages[editType], "Dismiss", {
           duration: 5000,
@@ -3511,47 +3708,17 @@ export class EditFormComponent implements OnInit {
         transactionsBefore: this.editType.payload,
       });
     }
-
-    // this.editForm$.pipe(take(1)).subscribe((form) => {
-    //   if (!this.isBulkEdit) {
-    //     this.crossTabEditService.saveEditResponseToLocalStorage(
-    //       this.sessionId,
-    //       {
-    //         type: "EDIT_RESULT",
-    //         payload: {
-    //           strTxnId: this.strTxnBeforeEdit!._mongoid,
-    //           changeLogs: changes,
-    //         },
-    //       },
-    //     );
-    //   } else {
-    //     this.crossTabEditService.saveEditResponseToLocalStorage(
-    //       this.sessionId,
-    //       {
-    //         type: "BULK_EDIT_RESULT",
-    //         payload: this.strTxnBeforeBulkEdit.map((txnBefore) => {
-    //           const changes: ChangeLogWithoutVersion[] = [];
-    //           this.changeLogService.compareProperties(
-    //             txnBefore,
-    //             form.getRawValue(),
-    //             changes,
-    //             { discriminator: "index" },
-    //           );
-    //           return { changeLogs: changes, strTxnId: txnBefore._mongoid };
-    //         }),
-    //       },
-    //     );
-    //   }
   }
 
   createEditForm({
     txn,
-    options,
+    options = { editType: "SINGLE_EDIT", disabled: false },
   }: {
     txn?: WithVersion<StrTransaction> | StrTransaction | null;
-    options: { isBulkEdit?: boolean; disabled: boolean };
+    options?: { editType: EditType; disabled: boolean };
   }) {
-    const { isBulkEdit: createEmptyArrays = false, disabled } = options;
+    const { editType, disabled } = options;
+    const createEmptyArrays = editType === "BULK_EDIT";
 
     const editForm = new FormGroup({
       _version: new FormControl<number>({
@@ -3562,8 +3729,8 @@ export class EditFormComponent implements OnInit {
         value: ChangeLogService.getInitValForDependentPropToggle(
           "wasTxnAttempted",
           txn?.wasTxnAttempted,
-          this.editType.type === "BULK_EDIT",
-          this.editType.type === "AUDIT_REQUEST",
+          editType === "BULK_EDIT",
+          editType === "AUDIT_REQUEST",
         ),
         disabled,
       }),
@@ -3571,10 +3738,10 @@ export class EditFormComponent implements OnInit {
         { value: txn?.wasTxnAttemptedReason || "", disabled },
         Validators.required,
       ),
-      dateOfTxn: new FormControl(
-        { value: txn?.dateOfTxn || "", disabled },
+      dateOfTxn: new FormControl({ value: txn?.dateOfTxn || "", disabled }, [
         Validators.required,
-      ),
+        dateValidator(),
+      ]),
       timeOfTxn: new FormControl(
         { value: txn?.timeOfTxn || "", disabled },
         Validators.required,
@@ -3583,14 +3750,14 @@ export class EditFormComponent implements OnInit {
         value: ChangeLogService.getInitValForDependentPropToggle(
           "hasPostingDate",
           txn?.hasPostingDate,
-          this.editType.type === "BULK_EDIT",
-          this.editType.type === "AUDIT_REQUEST",
+          editType === "BULK_EDIT",
+          editType === "AUDIT_REQUEST",
         ),
         disabled,
       }),
       dateOfPosting: new FormControl(
         { value: txn?.dateOfPosting || "", disabled },
-        Validators.required,
+        [Validators.required, dateValidator()],
       ),
       timeOfPosting: new FormControl(
         { value: txn?.timeOfPosting || "", disabled },
@@ -3599,6 +3766,7 @@ export class EditFormComponent implements OnInit {
       methodOfTxn: new FormControl(
         { value: txn?.methodOfTxn || "", disabled },
         Validators.required,
+        this.methodOfTxnValidator(),
       ),
       methodOfTxnOther: new FormControl(
         { value: txn?.methodOfTxnOther || "", disabled },
@@ -3618,24 +3786,30 @@ export class EditFormComponent implements OnInit {
       ),
       startingActions: new FormArray(
         txn?.startingActions?.map((action) =>
-          this.createStartingActionGroup({ action, options: { disabled } }),
+          this.createStartingActionGroup({
+            action,
+            options: { editType, disabled },
+          }),
         ) ||
           (createEmptyArrays
             ? [
                 this.createStartingActionGroup({
-                  options: { createEmptyArrays, disabled },
+                  options: { editType, disabled },
                 }),
               ]
             : []),
       ),
       completingActions: new FormArray(
         txn?.completingActions?.map((action) =>
-          this.createCompletingActionGroup({ action, options: { disabled } }),
+          this.createCompletingActionGroup({
+            action,
+            options: { editType, disabled },
+          }),
         ) ||
           (createEmptyArrays
             ? [
                 this.createCompletingActionGroup({
-                  options: { createEmptyArrays, disabled },
+                  options: { editType, disabled },
                 }),
               ]
             : []),
@@ -3648,243 +3822,343 @@ export class EditFormComponent implements OnInit {
   // --------------------------
   // Form Group Creation Methods
   // --------------------------
-  private createStartingActionGroup({
+  createStartingActionGroup({
     action,
     options,
   }: {
     action?: StartingAction;
-    options: { createEmptyArrays?: boolean; disabled: boolean };
+    options: { editType: EditType; disabled: boolean };
   }) {
-    const { createEmptyArrays = false, disabled } = options;
+    const { editType, disabled } = options;
+    const createEmptyArrays = editType === "BULK_EDIT";
 
     if (action?.accountHolders)
       action.hasAccountHolders = action.accountHolders.length > 0;
 
-    return new FormGroup({
-      _id: new FormControl(action?._id ?? uuidv4()),
-      directionOfSA: new FormControl({
-        value: action?.directionOfSA || "",
-        disabled,
-      }),
-      typeOfFunds: new FormControl({
-        value: action?.typeOfFunds || "",
-        disabled,
-      }),
-      typeOfFundsOther: new FormControl(
-        { value: action?.typeOfFundsOther || "", disabled },
-        Validators.required,
-      ),
-      amount: new FormControl(
-        { value: action?.amount || null, disabled },
-        Validators.required,
-      ),
-      currency: new FormControl({ value: action?.currency || "", disabled }),
-      fiuNo: new FormControl({ value: action?.fiuNo || "", disabled }),
-      branch: new FormControl({ value: action?.branch || "", disabled }, [
-        Validators.minLength(5),
-        Validators.maxLength(5),
-      ]),
-      account: new FormControl({ value: action?.account || "", disabled }),
-      accountType: new FormControl({
-        value: action?.accountType || "",
-        disabled,
-      }),
-      accountTypeOther: new FormControl(
-        { value: action?.accountTypeOther || "", disabled },
-        Validators.required,
-      ),
-      accountOpen: new FormControl({
-        value: action?.accountOpen || "",
-        disabled,
-      }),
-      accountClose: new FormControl({
-        value: action?.accountClose || "",
-        disabled,
-      }),
-      accountStatus: new FormControl({
-        value: action?.accountStatus || "",
-        disabled,
-      }),
-      howFundsObtained: new FormControl({
-        value: action?.howFundsObtained || "",
-        disabled,
-      }),
-      accountCurrency: new FormControl({
-        value: action?.accountCurrency || "",
-        disabled,
-      }),
-      hasAccountHolders: new FormControl({
-        value: ChangeLogService.getInitValForDependentPropToggle(
-          "hasAccountHolders",
-          action?.hasAccountHolders,
-          this.editType.type === "BULK_EDIT",
-          this.editType.type === "AUDIT_REQUEST",
+    return new FormGroup(
+      {
+        _id: new FormControl(action?._id ?? ulid()),
+        directionOfSA: new FormControl(
+          {
+            value: action?.directionOfSA || "",
+            disabled,
+          },
+          [],
+          this.directionOfSAValidator(),
         ),
-        disabled,
-      }),
-      accountHolders: new FormArray(
-        action?.accountHolders?.map((holder) =>
-          this.createAccountHolderGroup({ holder, options: { disabled } }),
-        ) ||
-          (createEmptyArrays
-            ? [this.createAccountHolderGroup({ options: { disabled } })]
-            : []),
-      ),
-      wasSofInfoObtained: new FormControl({
-        value: ChangeLogService.getInitValForDependentPropToggle(
-          "wasSofInfoObtained",
-          action?.wasSofInfoObtained,
-          this.editType.type === "BULK_EDIT",
-          this.editType.type === "AUDIT_REQUEST",
+        typeOfFunds: new FormControl(
+          {
+            value: action?.typeOfFunds || "",
+            disabled,
+          },
+          [],
+          this.typeOfFundsValidator(),
         ),
-        disabled,
-      }),
-      sourceOfFunds: new FormArray(
-        action?.sourceOfFunds?.map((source) =>
-          this.createSourceOfFundsGroup({ source, options: { disabled } }),
-        ) ||
-          (createEmptyArrays
-            ? [this.createSourceOfFundsGroup({ options: { disabled } })]
-            : []),
-      ),
-      wasCondInfoObtained: new FormControl({
-        value: ChangeLogService.getInitValForDependentPropToggle(
-          "wasCondInfoObtained",
-          action?.wasCondInfoObtained,
-          this.editType.type === "BULK_EDIT",
-          this.editType.type === "AUDIT_REQUEST",
+        typeOfFundsOther: new FormControl(
+          { value: action?.typeOfFundsOther || "", disabled },
+          Validators.required,
         ),
-        disabled,
-      }),
-      conductors: new FormArray(
-        action?.conductors?.map((conductor) =>
-          this.createConductorGroup({ conductor, options: { disabled } }),
-        ) ||
-          (createEmptyArrays
-            ? [
-                this.createConductorGroup({
-                  options: { createEmptyArrays, disabled },
-                }),
-              ]
-            : []),
-      ),
-    }) satisfies FormGroup<
+        amount: new FormControl(
+          { value: action?.amount || null, disabled },
+          Validators.required,
+        ),
+        currency: new FormControl(
+          { value: action?.currency || "", disabled },
+          [],
+          this.amountCurrencyValidator(),
+        ),
+        fiuNo: new FormControl({ value: action?.fiuNo || "", disabled }),
+        branch: new FormControl({ value: action?.branch || "", disabled }, [
+          Validators.minLength(5),
+          Validators.maxLength(5),
+        ]),
+        account: new FormControl({ value: action?.account || "", disabled }),
+        accountType: new FormControl(
+          {
+            value: action?.accountType || "",
+            disabled,
+          },
+          [],
+          this.accountTypeValidator(),
+        ),
+        accountTypeOther: new FormControl(
+          { value: action?.accountTypeOther || "", disabled },
+          Validators.required,
+        ),
+        accountOpen: new FormControl({
+          value: action?.accountOpen || "",
+          disabled,
+        }),
+        accountClose: new FormControl({
+          value: action?.accountClose || "",
+          disabled,
+        }),
+        accountStatus: new FormControl(
+          {
+            value: action?.accountStatus || "",
+            disabled,
+          },
+          [],
+          this.accountStatusValidator(),
+        ),
+        howFundsObtained: new FormControl({
+          value: action?.howFundsObtained || "",
+          disabled,
+        }),
+        accountCurrency: new FormControl(
+          {
+            value: action?.accountCurrency || "",
+            disabled,
+          },
+          [],
+          this.accountCurrencyValidator(),
+        ),
+        hasAccountHolders: new FormControl({
+          value: ChangeLogService.getInitValForDependentPropToggle(
+            "hasAccountHolders",
+            action?.hasAccountHolders,
+            editType === "BULK_EDIT",
+            editType === "AUDIT_REQUEST",
+          ),
+          disabled,
+        }),
+        accountHolders: new FormArray(
+          action?.accountHolders?.map((holder) =>
+            this.createAccountHolderGroup({
+              holder,
+              options: { disabled },
+            }),
+          ) ||
+            (createEmptyArrays
+              ? [
+                  this.createAccountHolderGroup({
+                    options: { disabled },
+                  }),
+                ]
+              : []),
+        ),
+        wasSofInfoObtained: new FormControl({
+          value: ChangeLogService.getInitValForDependentPropToggle(
+            "wasSofInfoObtained",
+            action?.wasSofInfoObtained,
+            editType === "BULK_EDIT",
+            editType === "AUDIT_REQUEST",
+          ),
+          disabled,
+        }),
+        sourceOfFunds: new FormArray(
+          action?.sourceOfFunds?.map((source) =>
+            this.createSourceOfFundsGroup({
+              source,
+              options: { disabled },
+            }),
+          ) ||
+            (createEmptyArrays
+              ? [
+                  this.createSourceOfFundsGroup({
+                    options: { disabled },
+                  }),
+                ]
+              : []),
+        ),
+        wasCondInfoObtained: new FormControl({
+          value: ChangeLogService.getInitValForDependentPropToggle(
+            "wasCondInfoObtained",
+            action?.wasCondInfoObtained,
+            editType === "BULK_EDIT",
+            editType === "AUDIT_REQUEST",
+          ),
+          disabled,
+        }),
+        conductors: new FormArray(
+          action?.conductors?.map((conductor) =>
+            this.createConductorGroup({
+              conductor,
+              options: { editType, disabled },
+            }),
+          ) ||
+            (createEmptyArrays
+              ? [
+                  this.createConductorGroup({
+                    options: { editType, disabled },
+                  }),
+                ]
+              : []),
+        ),
+      },
+      [
+        cibcInfoValidator(),
+        accountHolderValidator(),
+        sourceOfFundsValidator(),
+        conductorValidator(),
+      ],
+    ) satisfies FormGroup<
       TypedForm<RecursiveOmit<StartingAction, keyof ConductorNpdData>>
     >;
   }
 
-  private createCompletingActionGroup({
+  createCompletingActionGroup({
     action,
     options,
   }: {
     action?: CompletingAction;
-    options: { createEmptyArrays?: boolean; disabled: boolean };
+    options: { editType: EditType; disabled: boolean };
   }) {
-    const { createEmptyArrays = false, disabled } = options;
+    const { editType, disabled } = options;
+    const createEmptyArrays = editType === "BULK_EDIT";
 
     if (action?.accountHolders)
       action.hasAccountHolders = action.accountHolders.length > 0;
 
-    return new FormGroup({
-      _id: new FormControl(action?._id ?? uuidv4()),
-      detailsOfDispo: new FormControl({
-        value: action?.detailsOfDispo || "",
-        disabled,
-      }),
-      detailsOfDispoOther: new FormControl(
-        { value: action?.detailsOfDispoOther || "", disabled },
-        Validators.required,
-      ),
-      amount: new FormControl(
-        { value: action?.amount || null, disabled },
-        Validators.required,
-      ),
-      currency: new FormControl({ value: action?.currency || "", disabled }),
-      exchangeRate: new FormControl({
-        value: action?.exchangeRate || null,
-        disabled,
-      }),
-      valueInCad: new FormControl({
-        value: action?.valueInCad || null,
-        disabled,
-      }),
-      fiuNo: new FormControl({ value: action?.fiuNo || "", disabled }),
-      branch: new FormControl({ value: action?.branch || "", disabled }, [
-        Validators.minLength(5),
-        Validators.maxLength(5),
-      ]),
-      account: new FormControl({ value: action?.account || "", disabled }),
-      accountType: new FormControl({
-        value: action?.accountType || "",
-        disabled,
-      }),
-      accountTypeOther: new FormControl(
-        { value: action?.accountTypeOther || "", disabled },
-        Validators.required,
-      ),
-      accountCurrency: new FormControl({
-        value: action?.accountCurrency || "",
-        disabled,
-      }),
-      accountOpen: new FormControl({
-        value: action?.accountOpen || "",
-        disabled,
-      }),
-      accountClose: new FormControl({
-        value: action?.accountClose || "",
-        disabled,
-      }),
-      accountStatus: new FormControl({
-        value: action?.accountStatus || "",
-        disabled,
-      }),
-      hasAccountHolders: new FormControl({
-        value: action?.hasAccountHolders ?? null,
-        disabled,
-      }),
-      accountHolders: new FormArray(
-        action?.accountHolders?.map((holder) =>
-          this.createAccountHolderGroup({ holder, options: { disabled } }),
-        ) ||
-          (createEmptyArrays
-            ? [this.createAccountHolderGroup({ options: { disabled } })]
-            : []),
-      ),
-      wasAnyOtherSubInvolved: new FormControl({
-        value: ChangeLogService.getInitValForDependentPropToggle(
-          "wasAnyOtherSubInvolved",
-          action?.wasAnyOtherSubInvolved,
-          this.editType.type === "BULK_EDIT",
-          this.editType.type === "AUDIT_REQUEST",
+    return new FormGroup(
+      {
+        _id: new FormControl(action?._id ?? ulid()),
+        detailsOfDispo: new FormControl(
+          {
+            value: action?.detailsOfDispo || "",
+            disabled,
+          },
+          [],
+          this.detailsOfDispositionValidator(),
         ),
-        disabled,
-      }),
-      involvedIn: new FormArray(
-        action?.involvedIn?.map((involved) =>
-          this.createInvolvedInGroup({ involved, options: { disabled } }),
-        ) ||
-          (createEmptyArrays
-            ? [this.createInvolvedInGroup({ options: { disabled } })]
-            : []),
-      ),
-      wasBenInfoObtained: new FormControl({
-        value: ChangeLogService.getInitValForDependentPropToggle(
-          "wasBenInfoObtained",
-          action?.wasBenInfoObtained,
-          this.editType.type === "BULK_EDIT",
-          this.editType.type === "AUDIT_REQUEST",
+        detailsOfDispoOther: new FormControl(
+          { value: action?.detailsOfDispoOther || "", disabled },
+          Validators.required,
         ),
-        disabled,
-      }),
-      beneficiaries: new FormArray(
-        action?.beneficiaries?.map((beneficiary) =>
-          this.createBeneficiaryGroup({ beneficiary, options: { disabled } }),
-        ) ||
-          (createEmptyArrays
-            ? [this.createBeneficiaryGroup({ options: { disabled } })]
-            : []),
-      ),
-    }) satisfies FormGroup<TypedForm<CompletingAction>>;
+        amount: new FormControl(
+          { value: action?.amount || null, disabled },
+          Validators.required,
+        ),
+        currency: new FormControl(
+          { value: action?.currency || "", disabled },
+          [],
+          this.amountCurrencyValidator(),
+        ),
+        exchangeRate: new FormControl({
+          value: action?.exchangeRate || null,
+          disabled,
+        }),
+        valueInCad: new FormControl({
+          value: action?.valueInCad || null,
+          disabled,
+        }),
+        fiuNo: new FormControl({ value: action?.fiuNo || "", disabled }),
+        branch: new FormControl({ value: action?.branch || "", disabled }, [
+          Validators.minLength(5),
+          Validators.maxLength(5),
+        ]),
+        account: new FormControl({ value: action?.account || "", disabled }),
+        accountType: new FormControl(
+          {
+            value: action?.accountType || "",
+            disabled,
+          },
+          [],
+          this.accountTypeValidator(),
+        ),
+        accountTypeOther: new FormControl(
+          { value: action?.accountTypeOther || "", disabled },
+          Validators.required,
+        ),
+        accountCurrency: new FormControl(
+          {
+            value: action?.accountCurrency || "",
+            disabled,
+          },
+          [],
+          this.accountCurrencyValidator(),
+        ),
+        accountOpen: new FormControl({
+          value: action?.accountOpen || "",
+          disabled,
+        }),
+        accountClose: new FormControl({
+          value: action?.accountClose || "",
+          disabled,
+        }),
+        accountStatus: new FormControl(
+          {
+            value: action?.accountStatus || "",
+            disabled,
+          },
+          [],
+          this.accountStatusValidator(),
+        ),
+        hasAccountHolders: new FormControl({
+          value: action?.hasAccountHolders ?? null,
+          disabled,
+        }),
+        accountHolders: new FormArray(
+          action?.accountHolders?.map((holder) =>
+            this.createAccountHolderGroup({
+              holder,
+              options: { disabled },
+            }),
+          ) ||
+            (createEmptyArrays
+              ? [
+                  this.createAccountHolderGroup({
+                    options: { disabled },
+                  }),
+                ]
+              : []),
+        ),
+        wasAnyOtherSubInvolved: new FormControl({
+          value: ChangeLogService.getInitValForDependentPropToggle(
+            "wasAnyOtherSubInvolved",
+            action?.wasAnyOtherSubInvolved,
+            editType === "BULK_EDIT",
+            editType === "AUDIT_REQUEST",
+          ),
+          disabled,
+        }),
+        involvedIn: new FormArray(
+          action?.involvedIn?.map((involved) =>
+            this.createInvolvedInGroup({
+              involved,
+              options: { disabled },
+            }),
+          ) ||
+            (createEmptyArrays
+              ? [
+                  this.createInvolvedInGroup({
+                    options: { disabled },
+                  }),
+                ]
+              : []),
+        ),
+        wasBenInfoObtained: new FormControl({
+          value: ChangeLogService.getInitValForDependentPropToggle(
+            "wasBenInfoObtained",
+            action?.wasBenInfoObtained,
+            editType === "BULK_EDIT",
+            editType === "AUDIT_REQUEST",
+          ),
+          disabled,
+        }),
+        beneficiaries: new FormArray(
+          action?.beneficiaries?.map((beneficiary) =>
+            this.createBeneficiaryGroup({
+              beneficiary,
+              options: { disabled },
+            }),
+          ) ||
+            (createEmptyArrays
+              ? [
+                  this.createBeneficiaryGroup({
+                    options: { disabled },
+                  }),
+                ]
+              : []),
+        ),
+      },
+      [
+        cibcInfoValidator(),
+        accountHolderValidator(),
+        involedInValidator(),
+        beneficiaryValidator(),
+      ],
+    ) satisfies FormGroup<TypedForm<CompletingAction>>;
   }
 
   private createAccountHolderGroup({
@@ -3896,27 +4170,18 @@ export class EditFormComponent implements OnInit {
   }) {
     const { disabled } = options;
     return new FormGroup({
-      _id: new FormControl(holder?._id ?? uuidv4()),
-      partyKey: new FormControl(
-        { value: holder?.partyKey || "", disabled },
-        Validators.required,
-      ),
-      givenName: new FormControl(
-        { value: holder?.givenName || "", disabled },
-        Validators.required,
-      ),
-      otherOrInitial: new FormControl(
-        { value: holder?.otherOrInitial || "", disabled },
-        Validators.required,
-      ),
-      surname: new FormControl(
-        { value: holder?.surname || "", disabled },
-        Validators.required,
-      ),
-      nameOfEntity: new FormControl(
-        { value: holder?.nameOfEntity || "", disabled },
-        Validators.required,
-      ),
+      _id: new FormControl(holder?._id ?? ulid()),
+      partyKey: new FormControl({ value: holder?.partyKey || "", disabled }),
+      givenName: new FormControl({ value: holder?.givenName || "", disabled }),
+      otherOrInitial: new FormControl({
+        value: holder?.otherOrInitial || "",
+        disabled,
+      }),
+      surname: new FormControl({ value: holder?.surname || "", disabled }),
+      nameOfEntity: new FormControl({
+        value: holder?.nameOfEntity || "",
+        disabled,
+      }),
     }) satisfies FormGroup<TypedForm<AccountHolder>>;
   }
 
@@ -3929,35 +4194,26 @@ export class EditFormComponent implements OnInit {
   }) {
     const { disabled } = options;
     return new FormGroup({
-      _id: new FormControl(source?._id ?? uuidv4()),
-      partyKey: new FormControl(
-        { value: source?.partyKey || "", disabled },
-        Validators.required,
-      ),
-      givenName: new FormControl(
-        { value: source?.givenName || "", disabled },
-        Validators.required,
-      ),
-      otherOrInitial: new FormControl(
-        { value: source?.otherOrInitial || "", disabled },
-        Validators.required,
-      ),
-      surname: new FormControl(
-        { value: source?.surname || "", disabled },
-        Validators.required,
-      ),
-      nameOfEntity: new FormControl(
-        { value: source?.nameOfEntity || "", disabled },
-        Validators.required,
-      ),
-      accountNumber: new FormControl(
-        { value: source?.accountNumber || "", disabled },
-        Validators.required,
-      ),
-      identifyingNumber: new FormControl(
-        { value: source?.identifyingNumber || "", disabled },
-        Validators.required,
-      ),
+      _id: new FormControl(source?._id ?? ulid()),
+      partyKey: new FormControl({ value: source?.partyKey || "", disabled }),
+      givenName: new FormControl({ value: source?.givenName || "", disabled }),
+      otherOrInitial: new FormControl({
+        value: source?.otherOrInitial || "",
+        disabled,
+      }),
+      surname: new FormControl({ value: source?.surname || "", disabled }),
+      nameOfEntity: new FormControl({
+        value: source?.nameOfEntity || "",
+        disabled,
+      }),
+      accountNumber: new FormControl({
+        value: source?.accountNumber || "",
+        disabled,
+      }),
+      identifyingNumber: new FormControl({
+        value: source?.identifyingNumber || "",
+        disabled,
+      }),
     }) satisfies FormGroup<TypedForm<SourceOfFunds>>;
   }
 
@@ -3966,45 +4222,42 @@ export class EditFormComponent implements OnInit {
     options,
   }: {
     conductor?: Conductor;
-    options: { createEmptyArrays?: boolean; disabled: boolean };
+    options: { editType: EditType; disabled: boolean };
   }) {
-    const { disabled } = options;
+    const { editType, disabled } = options;
 
     return new FormGroup({
-      _id: new FormControl(conductor?._id ?? uuidv4()),
-      partyKey: new FormControl(
-        { value: conductor?.partyKey || "", disabled },
-        Validators.required,
-      ),
-      givenName: new FormControl(
-        { value: conductor?.givenName || "", disabled },
-        Validators.required,
-      ),
-      otherOrInitial: new FormControl(
-        { value: conductor?.otherOrInitial || "", disabled },
-        Validators.required,
-      ),
-      surname: new FormControl(
-        { value: conductor?.surname || "", disabled },
-        Validators.required,
-      ),
-      nameOfEntity: new FormControl(
-        { value: conductor?.nameOfEntity || "", disabled },
-        Validators.required,
-      ),
+      _id: new FormControl(conductor?._id ?? ulid()),
+      partyKey: new FormControl({ value: conductor?.partyKey || "", disabled }),
+      givenName: new FormControl({
+        value: conductor?.givenName || "",
+        disabled,
+      }),
+      otherOrInitial: new FormControl({
+        value: conductor?.otherOrInitial || "",
+        disabled,
+      }),
+      surname: new FormControl({ value: conductor?.surname || "", disabled }),
+      nameOfEntity: new FormControl({
+        value: conductor?.nameOfEntity || "",
+        disabled,
+      }),
       wasConductedOnBehalf: new FormControl({
         value: ChangeLogService.getInitValForDependentPropToggle(
           "wasConductedOnBehalf",
           conductor?.wasConductedOnBehalf,
-          this.editType.type === "BULK_EDIT",
-          this.editType.type === "AUDIT_REQUEST",
+          editType === "BULK_EDIT",
+          editType === "AUDIT_REQUEST",
         ),
         disabled,
       }),
       // note do not create empty arrays as this toggle is not tied to a appToggleEditField (bulk edit)
       onBehalfOf: new FormArray(
         conductor?.onBehalfOf?.map((behalf) =>
-          this.createOnBehalfOfGroup({ behalf, options: { disabled } }),
+          this.createOnBehalfOfGroup({
+            behalf,
+            options: { disabled },
+          }),
         ) || [],
       ),
     }) satisfies FormGroup<
@@ -4022,27 +4275,18 @@ export class EditFormComponent implements OnInit {
     const { disabled } = options;
 
     return new FormGroup({
-      _id: new FormControl(behalf?._id ?? uuidv4()),
-      partyKey: new FormControl(
-        { value: behalf?.partyKey || "", disabled },
-        Validators.required,
-      ),
-      givenName: new FormControl(
-        { value: behalf?.givenName || "", disabled },
-        Validators.required,
-      ),
-      otherOrInitial: new FormControl(
-        { value: behalf?.otherOrInitial || "", disabled },
-        Validators.required,
-      ),
-      surname: new FormControl(
-        { value: behalf?.surname || "", disabled },
-        Validators.required,
-      ),
-      nameOfEntity: new FormControl(
-        { value: behalf?.nameOfEntity || "", disabled },
-        Validators.required,
-      ),
+      _id: new FormControl(behalf?._id ?? ulid()),
+      partyKey: new FormControl({ value: behalf?.partyKey || "", disabled }),
+      givenName: new FormControl({ value: behalf?.givenName || "", disabled }),
+      otherOrInitial: new FormControl({
+        value: behalf?.otherOrInitial || "",
+        disabled,
+      }),
+      surname: new FormControl({ value: behalf?.surname || "", disabled }),
+      nameOfEntity: new FormControl({
+        value: behalf?.nameOfEntity || "",
+        disabled,
+      }),
     }) satisfies FormGroup<TypedForm<OnBehalfOf>>;
   }
 
@@ -4055,27 +4299,21 @@ export class EditFormComponent implements OnInit {
   }) {
     const { disabled } = options;
     return new FormGroup({
-      _id: new FormControl(involved?._id ?? uuidv4()),
-      partyKey: new FormControl(
-        { value: involved?.partyKey || "", disabled },
-        Validators.required,
-      ),
-      givenName: new FormControl(
-        { value: involved?.givenName || "", disabled },
-        Validators.required,
-      ),
-      otherOrInitial: new FormControl(
-        { value: involved?.otherOrInitial || "", disabled },
-        Validators.required,
-      ),
-      surname: new FormControl(
-        { value: involved?.surname || "", disabled },
-        Validators.required,
-      ),
-      nameOfEntity: new FormControl(
-        { value: involved?.nameOfEntity || "", disabled },
-        Validators.required,
-      ),
+      _id: new FormControl(involved?._id ?? ulid()),
+      partyKey: new FormControl({ value: involved?.partyKey || "", disabled }),
+      givenName: new FormControl({
+        value: involved?.givenName || "",
+        disabled,
+      }),
+      otherOrInitial: new FormControl({
+        value: involved?.otherOrInitial || "",
+        disabled,
+      }),
+      surname: new FormControl({ value: involved?.surname || "", disabled }),
+      nameOfEntity: new FormControl({
+        value: involved?.nameOfEntity || "",
+        disabled,
+      }),
       accountNumber: new FormControl({
         value: involved?.accountNumber || "",
         disabled,
@@ -4097,27 +4335,24 @@ export class EditFormComponent implements OnInit {
     const { disabled } = options;
 
     return new FormGroup({
-      _id: new FormControl(beneficiary?._id ?? uuidv4()),
-      partyKey: new FormControl(
-        { value: beneficiary?.partyKey || "", disabled },
-        Validators.required,
-      ),
-      givenName: new FormControl(
-        { value: beneficiary?.givenName || "", disabled },
-        Validators.required,
-      ),
-      otherOrInitial: new FormControl(
-        { value: beneficiary?.otherOrInitial || "", disabled },
-        Validators.required,
-      ),
-      surname: new FormControl(
-        { value: beneficiary?.surname || "", disabled },
-        Validators.required,
-      ),
-      nameOfEntity: new FormControl(
-        { value: beneficiary?.nameOfEntity || "", disabled },
-        Validators.required,
-      ),
+      _id: new FormControl(beneficiary?._id ?? ulid()),
+      partyKey: new FormControl({
+        value: beneficiary?.partyKey || "",
+        disabled,
+      }),
+      givenName: new FormControl({
+        value: beneficiary?.givenName || "",
+        disabled,
+      }),
+      otherOrInitial: new FormControl({
+        value: beneficiary?.otherOrInitial || "",
+        disabled,
+      }),
+      surname: new FormControl({ value: beneficiary?.surname || "", disabled }),
+      nameOfEntity: new FormControl({
+        value: beneficiary?.nameOfEntity || "",
+        disabled,
+      }),
     }) satisfies FormGroup<TypedForm<Beneficiary>>;
   }
 
@@ -4127,7 +4362,7 @@ export class EditFormComponent implements OnInit {
   // Starting Actions
   protected addStartingAction(isBulk: boolean): void {
     const newSaGroup = this.createStartingActionGroup({
-      options: { createEmptyArrays: isBulk, disabled: false },
+      options: { editType: "BULK_EDIT", disabled: false },
     });
     if (this.editForm!.controls.startingActions.disabled) return;
 
@@ -4146,7 +4381,7 @@ export class EditFormComponent implements OnInit {
   // Completing Actions
   protected addCompletingAction(isBulk: boolean): void {
     const newCaGroup = this.createCompletingActionGroup({
-      options: { createEmptyArrays: isBulk, disabled: false },
+      options: { editType: "BULK_EDIT", disabled: false },
     });
     if (this.editForm!.controls.completingActions.disabled) return;
 
@@ -4177,7 +4412,9 @@ export class EditFormComponent implements OnInit {
     if (!action.controls.hasAccountHolders.value) return;
 
     action.controls.accountHolders!.push(
-      this.createAccountHolderGroup({ options: { disabled: false } }),
+      this.createAccountHolderGroup({
+        options: { disabled: false },
+      }),
     );
     action.controls.accountHolders!.markAllAsTouched();
   }
@@ -4206,7 +4443,9 @@ export class EditFormComponent implements OnInit {
     if (!startingAction.controls.wasSofInfoObtained.value) return;
 
     startingAction.controls.sourceOfFunds.push(
-      this.createSourceOfFundsGroup({ options: { disabled: false } }),
+      this.createSourceOfFundsGroup({
+        options: { disabled: false },
+      }),
     );
     startingAction.controls.sourceOfFunds.markAllAsTouched();
   }
@@ -4227,7 +4466,9 @@ export class EditFormComponent implements OnInit {
     if (!startingAction.controls.wasCondInfoObtained.value) return;
 
     startingAction.controls.conductors.push(
-      this.createConductorGroup({ options: { disabled: false } }),
+      this.createConductorGroup({
+        options: { editType: this.editType.type, disabled: false },
+      }),
     );
     startingAction.controls.conductors.markAllAsTouched();
   }
@@ -4257,7 +4498,9 @@ export class EditFormComponent implements OnInit {
     startingAction.controls.conductors
       .at(conductorIndex)
       .controls.onBehalfOf.push(
-        this.createOnBehalfOfGroup({ options: { disabled: false } }),
+        this.createOnBehalfOfGroup({
+          options: { disabled: false },
+        }),
       );
     startingAction.controls.conductors
       .at(conductorIndex)
@@ -4314,7 +4557,9 @@ export class EditFormComponent implements OnInit {
     if (!completingAction.controls.wasBenInfoObtained.value) return;
 
     completingAction.controls.beneficiaries!.push(
-      this.createBeneficiaryGroup({ options: { disabled: false } }),
+      this.createBeneficiaryGroup({
+        options: { disabled: false },
+      }),
     );
     completingAction.controls.beneficiaries!.markAllAsTouched();
   }
@@ -4328,109 +4573,216 @@ export class EditFormComponent implements OnInit {
     completingAction.controls.beneficiaries!.removeAt(index);
   }
 
-  protected get methodOfTxnOptionsKeys() {
-    return Object.keys(EditFormComponent.methodOfTxnOptions);
-  }
-  protected get methodOfTxnOptions() {
-    return EditFormComponent.methodOfTxnOptions;
-  }
-  protected static methodOfTxnOptions: Record<string, string> = {
-    ABM: "ABM",
-    "In-Person": "In-Person",
-    Online: "Online",
-    Other: "Other",
-  };
+  private formOptionsService = inject(FormOptionsService);
+  isFormOptionsLoading = true;
+  formOptions$ = this.formOptionsService.formOptions$.pipe(
+    finalize(() => {
+      this.isFormOptionsLoading = false;
+    }),
+  );
 
-  protected get typeofFundsOptionsKeys() {
-    return Object.keys(EditFormComponent.typeOfFundsOptions);
-  }
-  protected get typeofFundsOptions() {
-    return EditFormComponent.typeOfFundsOptions;
-  }
-  protected static typeOfFundsOptions: Record<string, string> = {
-    "Funds Withdrawal": "Funds Withdrawal",
-    Cash: "Cash",
-    Cheque: "Cheque",
-    "Domestic Funds Transfer": "Domestic Funds Transfer",
-    "Email Monel Transfer": "Email Monel Transfer",
-    Other: "Other",
-  };
+  /**
+   * Async validator for methodOfTxn field
+   */
+  methodOfTxnValidator(): AsyncValidatorFn {
+    return (control: AbstractControl): Observable<ValidationErrors | null> => {
+      if (!control.value) {
+        return of(null);
+      }
 
-  protected get accountTypeOptionsKeys() {
-    return Object.keys(EditFormComponent.accountTypeOptions);
+      return this.formOptionsService.formOptions$.pipe(
+        take(1),
+        map((formOptions) => {
+          return EditFormComponent.validateFormOptions(
+            control.value,
+            formOptions,
+            "methodOfTxn",
+          );
+        }),
+      );
+    };
   }
-  protected get accountTypeOptions() {
-    return EditFormComponent.accountTypeOptions;
-  }
-  protected static accountTypeOptions: Record<string, string> = {
-    Business: "Business",
-    Casino: "Casino",
-    Personal: "Personal",
-    Other: "Other",
-  };
 
-  protected get amountCurrencyOptionsKeys() {
-    return Object.keys(EditFormComponent.amountCurrencyOptions);
-  }
-  protected get amountCurrencyOptions() {
-    return EditFormComponent.amountCurrencyOptions;
-  }
-  protected static amountCurrencyOptions: Record<string, string> = {
-    CAD: "CAD",
-    USD: "USD",
-  };
+  /**
+   * Async validator for typeOfFunds field
+   */
+  typeOfFundsValidator(): AsyncValidatorFn {
+    return (control: AbstractControl): Observable<ValidationErrors | null> => {
+      if (!control.value) {
+        return of(null);
+      }
 
-  protected get accountCurrencyOptionsKeys() {
-    return Object.keys(EditFormComponent.accountCurrencyOptions);
+      return this.formOptionsService.formOptions$.pipe(
+        take(1),
+        map((formOptions) => {
+          return EditFormComponent.validateFormOptions(
+            control.value,
+            formOptions,
+            "typeOfFunds",
+          );
+        }),
+      );
+    };
   }
-  protected get accountCurrencyOptions() {
-    return EditFormComponent.accountCurrencyOptions;
-  }
-  protected static accountCurrencyOptions: Record<string, string> = {
-    CAD: "CAD",
-    USD: "USD",
-  };
 
-  protected get accountStatusOptionsKeys() {
-    return Object.keys(EditFormComponent.accountStatusOptions);
-  }
-  protected get accountStatusOptions() {
-    return EditFormComponent.accountStatusOptions;
-  }
-  protected static accountStatusOptions: Record<string, string> = {
-    Active: "Active",
-    Closed: "Closed",
-    Inactive: "Inactive",
-    Dorment: "Dorment",
-  };
+  /**
+   * Async validator for amountCurrency field
+   */
+  amountCurrencyValidator(): AsyncValidatorFn {
+    return (control: AbstractControl): Observable<ValidationErrors | null> => {
+      if (!control.value) {
+        return of(null);
+      }
 
-  protected get directionOfSAOptionsKeys() {
-    return Object.keys(EditFormComponent.directionOfSAOptions);
+      return this.formOptionsService.formOptions$.pipe(
+        take(1),
+        map((formOptions) => {
+          return EditFormComponent.validateFormOptions(
+            control.value,
+            formOptions,
+            "amountCurrency",
+          );
+        }),
+      );
+    };
   }
-  protected get directionOfSAOptions() {
-    return EditFormComponent.directionOfSAOptions;
-  }
-  protected static directionOfSAOptions: Record<string, string> = {
-    In: "In",
-    Out: "Out",
-  };
 
-  protected get detailsOfDispositionOptionsKeys() {
-    return Object.keys(EditFormComponent.detailsOfDispositionOptions);
+  /**
+   * Async validator for accountType field
+   */
+  accountTypeValidator(): AsyncValidatorFn {
+    return (control: AbstractControl): Observable<ValidationErrors | null> => {
+      if (!control.value) {
+        return of(null);
+      }
+
+      return this.formOptionsService.formOptions$.pipe(
+        take(1),
+        map((formOptions) => {
+          return EditFormComponent.validateFormOptions(
+            control.value,
+            formOptions,
+            "accountType",
+          );
+        }),
+      );
+    };
   }
-  protected get detailsOfDispositionOptions() {
-    return EditFormComponent.detailsOfDispositionOptions;
+
+  /**
+   * Async validator for accountCurrency field
+   */
+  accountCurrencyValidator(): AsyncValidatorFn {
+    return (control: AbstractControl): Observable<ValidationErrors | null> => {
+      if (!control.value) {
+        return of(null);
+      }
+
+      return this.formOptionsService.formOptions$.pipe(
+        take(1),
+        map((formOptions) => {
+          return EditFormComponent.validateFormOptions(
+            control.value,
+            formOptions,
+            "accountCurrency",
+          );
+        }),
+      );
+    };
   }
-  protected static detailsOfDispositionOptions: Record<string, string> = {
-    "Deposit to account": "Deposit to account",
-    "Cash Withdrawal": "Cash Withdrawal",
-    "Issued Cheque": "Issued Cheque",
-    "Outgoing Email Transfer": "Outgoing Email Transfer",
-    Other: "Other",
-  };
+
+  /**
+   * Async validator for accountStatus field
+   */
+  accountStatusValidator(): AsyncValidatorFn {
+    return (control: AbstractControl): Observable<ValidationErrors | null> => {
+      if (!control.value) {
+        return of(null);
+      }
+
+      return this.formOptionsService.formOptions$.pipe(
+        take(1),
+        map((formOptions) => {
+          return EditFormComponent.validateFormOptions(
+            control.value,
+            formOptions,
+            "accountStatus",
+          );
+        }),
+      );
+    };
+  }
+
+  /**
+   * Async validator for directionOfSA field
+   */
+  directionOfSAValidator(): AsyncValidatorFn {
+    return (control: AbstractControl): Observable<ValidationErrors | null> => {
+      if (!control.value) {
+        return of(null);
+      }
+
+      return this.formOptionsService.formOptions$.pipe(
+        take(1),
+        map((formOptions) => {
+          return EditFormComponent.validateFormOptions(
+            control.value,
+            formOptions,
+            "directionOfSA",
+          );
+        }),
+      );
+    };
+  }
+
+  /**
+   * Async validator for detailsOfDisposition field
+   */
+  detailsOfDispositionValidator(): AsyncValidatorFn {
+    return (control: AbstractControl): Observable<ValidationErrors | null> => {
+      if (!control.value) {
+        return of(null);
+      }
+
+      return this.formOptionsService.formOptions$.pipe(
+        take(1),
+        map((formOptions) => {
+          return EditFormComponent.validateFormOptions(
+            control.value,
+            formOptions,
+            "detailsOfDisposition",
+          );
+        }),
+      );
+    };
+  }
+
+  /**
+   * Generic validation method for form options fields
+   */
+  static validateFormOptions(
+    value: any,
+    formOptions: FormOptions,
+    optionsKey: keyof FormOptions,
+  ): InvalidFormOptionsErrors | null {
+    const validValues = Object.keys(formOptions[optionsKey]);
+
+    if (!validValues.includes(value)) {
+      return {
+        [`invalid${optionsKey.charAt(0).toUpperCase()}${optionsKey.slice(1)}` as InvalidFormOptionsErrorKeys]:
+          {
+            value: value,
+            validValues,
+          },
+      } as InvalidFormOptionsErrors;
+    }
+
+    return null;
+  }
 
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+
   protected navigateBack() {
     this.router.navigate(["../../table"], {
       relativeTo: this.route,
@@ -4481,51 +4833,90 @@ export class EditFormComponent implements OnInit {
   }
 }
 
-export type TypedForm<T> = {
-  [K in keyof T]-?: Exclude<T[K], undefined | null> extends Array<infer U>
-    ? FormArray<
-        U extends object ? FormGroup<TypedForm<U>> : FormControl<U | null>
-      >
-    : Exclude<T[K], undefined | null> extends object
-      ? FormGroup<TypedForm<T[K]>>
-      : FormControl<Exclude<T[K], undefined> | null>;
-};
+function dateValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const { value } = control;
 
-export type StrTxnEditForm = RecursiveOmit<
-  StrTransaction,
-  | keyof StrTxnFlowOfFunds
-  | "highlightColor"
-  | keyof ConductorNpdData
-  | "_hiddenFullName"
-  | "_hiddenSaAmount"
->;
+    if (!control.value) return null;
 
-export type EditFormEditType =
-  | {
-      type: "SINGLE_EDIT";
-      payload: StrTransactionWithChangeLogs;
+    if (!isValidDate(value)) return { invalidDate: true };
+
+    return null;
+  };
+}
+
+export function isValidDate(value: any) {
+  const parsedDate = TransactionDateDirective.parse(value);
+  if (!isValid(parsedDate)) {
+    return false;
+  }
+  return true;
+}
+
+function cibcInfoValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const value = control.value as
+      | RecursiveOmit<StartingAction, keyof ConductorNpdData>
+      | CompletingAction;
+
+    if (hasMissingCibcInfo(value)) {
+      return { missingCibcInfo: true };
     }
-  | {
-      type: "BULK_EDIT";
-      payload: StrTransactionWithChangeLogs[];
-    }
-  | {
-      type: "AUDIT_REQUEST";
-      payload: StrTransactionWithChangeLogs;
-    };
+    return null;
+  };
+}
 
-// note does not properly omit keys from union types
-type RecursiveOmit<T, K extends PropertyKey> = T extends object
-  ? Omit<{ [P in keyof T]: RecursiveOmit<T[P], K> }, K>
-  : T;
+function conductorValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const saControl = control as FormGroup<
+      TypedForm<RecursiveOmit<StartingAction, keyof ConductorNpdData>>
+    >;
+    const value = saControl.value as RecursiveOmit<
+      StartingAction,
+      keyof ConductorNpdData
+    >;
 
-export type EditFormValueType = ReturnType<
-  typeof EditFormComponent.prototype.createEditForm
->["value"];
+    if (!value) return null;
 
-export type EditFormType = ReturnType<
-  typeof EditFormComponent.prototype.createEditForm
->;
+    setError(
+      saControl.controls.wasCondInfoObtained,
+      {
+        missingConductorInfo: true,
+      },
+      () => hasMissingConductorInfo(value),
+    );
+
+    return null;
+  };
+}
+
+// todo:
+function accountHolderValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    return null;
+  };
+}
+
+// todo:
+function sourceOfFundsValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    return null;
+  };
+}
+
+// todo:
+function involedInValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    return null;
+  };
+}
+
+// todo:
+function beneficiaryValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    return null;
+  };
+}
 
 export const editTypeResolver: ResolveFn<EditFormEditType> = (
   route: ActivatedRouteSnapshot,
@@ -4568,3 +4959,65 @@ export const editTypeResolver: ResolveFn<EditFormEditType> = (
     }),
   );
 };
+
+export type TypedForm<T> = {
+  [K in keyof T]-?: Exclude<T[K], undefined | null> extends Array<infer U>
+    ? FormArray<
+        U extends object ? FormGroup<TypedForm<U>> : FormControl<U | null>
+      >
+    : Exclude<T[K], undefined | null> extends object
+      ? FormGroup<TypedForm<T[K]>>
+      : FormControl<Exclude<T[K], undefined> | null>;
+};
+
+export type StrTxnEditForm = RecursiveOmit<
+  StrTransaction,
+  | keyof StrTxnFlowOfFunds
+  | "highlightColor"
+  | keyof ConductorNpdData
+  | "_hiddenFullName"
+  | "_hiddenSaAmount"
+>;
+
+export type EditFormEditType =
+  | {
+      type: "SINGLE_EDIT";
+      payload: StrTransactionWithChangeLogs;
+    }
+  | {
+      type: "BULK_EDIT";
+      payload: StrTransactionWithChangeLogs[];
+    }
+  | {
+      type: "AUDIT_REQUEST";
+      payload: StrTransactionWithChangeLogs;
+    };
+
+type EditType = EditFormEditType extends { type: infer T } ? T : never;
+
+// note does not properly omit keys from union types
+export type RecursiveOmit<T, K extends PropertyKey> = T extends object
+  ? Omit<{ [P in keyof T]: RecursiveOmit<T[P], K> }, K>
+  : T;
+
+export type EditFormValueType = ReturnType<
+  typeof EditFormComponent.prototype.createEditForm
+>["value"];
+
+export type EditFormType = ReturnType<
+  typeof EditFormComponent.prototype.createEditForm
+>;
+
+type InvalidFormOptionsErrors = {
+  [K in InvalidFormOptionsErrorKeys]: {
+    [P in K]: {
+      value: any;
+      validValues: string[];
+    };
+  };
+}[InvalidFormOptionsErrorKeys];
+
+export type InvalidFormOptionsErrorKeys =
+  `invalid${Capitalize<keyof FormOptions & string>}`;
+
+export type InvalidTxnDateTimeErrorKeys = "invalidDate" | "invalidTime";

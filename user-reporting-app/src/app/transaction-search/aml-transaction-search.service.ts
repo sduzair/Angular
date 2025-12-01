@@ -1,7 +1,7 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable, map, of, timer } from "rxjs";
-import { transactionSearchResDevOnly } from "../aml/session-data.fixture";
+import { transactionSearchResDevOnly } from "../aml/session-state.fixture";
 import { TableSelectionCompareWithAmlTransactionId } from "../transaction-view/transaction-view.component";
 
 @Injectable({

@@ -71,6 +71,7 @@ import {
   tap,
 } from "rxjs";
 import { AmlSessionService } from "../aml-session.service";
+import { setError } from "../form-helpers";
 import { AccountNumberSelectableTableComponent } from "./account-number-selectable-table/account-number-selectable-table.component";
 import { AmlPartyService } from "./aml-party.service";
 import { AmlProductService } from "./aml-product.service";
@@ -828,7 +829,7 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
       .subscribe();
   }
 
-  // todo implement loading state in view
+  // todo: implement loading state in view
   transactionSearchLoading!: boolean;
   onTransactionSearch() {
     if (this.form.invalid) {
@@ -952,22 +953,13 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
       return null;
     }
 
-    const { startBeforeEndReviewPeriod, ...nonInvalidRangeErrors } =
-      startControl.errors ||
-      ({} as ValidationErrors | { startBeforeEndReviewPeriod: boolean });
-
-    if (Object.keys(nonInvalidRangeErrors).length === 0) {
-      startControl.setErrors(null); // needed because any object except null signifies error
-    } else {
-      startControl.setErrors(nonInvalidRangeErrors);
-    }
-
-    if (!isBefore(start, end) && !isEqual(start, end)) {
-      startControl.setErrors({
+    setError(
+      startControl,
+      {
         startBeforeEndReviewPeriod: true,
-        ...nonInvalidRangeErrors,
-      });
-    }
+      },
+      () => !isBefore(start, end) && !isEqual(start, end),
+    );
 
     return null;
   }

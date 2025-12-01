@@ -4,10 +4,10 @@ import {
   lastUpdatedResolver,
   savingStatusResolver,
 } from "./aml/aml.component";
-import { SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE } from "./aml/session-data.fixture";
+import { SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE } from "./aml/session-state.fixture";
 import {
   SESSION_INITIAL_STATE,
-  SessionStateService
+  SessionStateService,
 } from "./aml/session-state.service";
 import { PageNotFoundComponent } from "./page-not-found/page-not-found.component";
 import {

@@ -1,15 +1,17 @@
-import { SelectionModel } from "@angular/cdk/collections";
 import { CommonModule } from "@angular/common";
 import {
   ChangeDetectionStrategy,
   Component,
   Input,
   TrackByFunction,
+  ViewChild,
   inject,
 } from "@angular/core";
 import { MatBadgeModule } from "@angular/material/badge";
 import { MatButtonModule } from "@angular/material/button";
 import { MatCheckbox } from "@angular/material/checkbox";
+import { MatChipsModule } from "@angular/material/chips";
+import { MatDialog, MatDialogModule } from "@angular/material/dialog";
 import { MatIconModule } from "@angular/material/icon";
 import { MatTableModule } from "@angular/material/table";
 import { MatToolbarModule } from "@angular/material/toolbar";
@@ -20,9 +22,18 @@ import {
   Router,
   RouterStateSnapshot,
 } from "@angular/router";
-import { BehaviorSubject, Observable, map, startWith } from "rxjs";
+import { BehaviorSubject, Observable } from "rxjs";
 import { SessionStateService } from "../../aml/session-state.service";
 import { BaseTableComponent } from "../../base-table/base-table.component";
+import {
+  InvalidFormOptionsErrorKeys,
+  InvalidTxnDateTimeErrorKeys,
+} from "../edit-form/edit-form.component";
+import {
+  MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT,
+  ManualUploadStepperComponent,
+} from "../manual-upload-stepper/manual-upload-stepper.component";
+import { CamelToTitlePipe } from "./camel-to-title.pipe";
 
 @Component({
   selector: "app-reporting-ui-table",
@@ -35,6 +46,9 @@ import { BaseTableComponent } from "../../base-table/base-table.component";
     MatIconModule,
     MatButtonModule,
     MatBadgeModule,
+    MatDialogModule,
+    MatChipsModule,
+    CamelToTitlePipe,
   ],
   template: `
     <ng-container *ngIf="savingEdits$ | async as savingIds">
@@ -52,7 +66,6 @@ import { BaseTableComponent } from "../../base-table/base-table.component";
         [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
         [displayedColumnsTime]="displayedColumnsTime"
         [dataSourceTrackBy]="dataSourceTrackBy"
-        [selection]="selection"
         [selectionKey]="'flowOfFundsAmlTransactionId'"
         [filterFormHighlightSelectFilterKey]="'highlightColor'"
         [filterFormHighlightSideEffect]="filterFormHighlightSideEffect"
@@ -60,6 +73,14 @@ import { BaseTableComponent } from "../../base-table/base-table.component";
         [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
         [sortedBy]="'dateOfTxn'"
       >
+        <button
+          mat-raised-button
+          ngProjectAs="table-toolbar-ele"
+          (click)="openManualUploadStepper()"
+        >
+          <mat-icon>file_upload</mat-icon>
+          Manual Upload
+        </button>
         <!-- Selection Model -->
         <ng-container matColumnDef="select">
           <th
@@ -70,9 +91,11 @@ import { BaseTableComponent } from "../../base-table/base-table.component";
             <div *ngIf="baseTable.hasMasterToggle">
               <mat-checkbox
                 (change)="$event ? baseTable.toggleAllRows() : null"
-                [checked]="selection.hasValue() && baseTable.isAllSelected()"
+                [checked]="
+                  baseTable.selection.hasValue() && baseTable.isAllSelected()
+                "
                 [indeterminate]="
-                  selection.hasValue() && !baseTable.isAllSelected()
+                  baseTable.selection.hasValue() && !baseTable.isAllSelected()
                 "
               >
               </mat-checkbox>
@@ -87,7 +110,7 @@ import { BaseTableComponent } from "../../base-table/base-table.component";
               <mat-checkbox
                 (click)="baseTable.onCheckBoxClickMultiToggle($event, row, i)"
                 (change)="$event ? baseTable.toggleRow(row) : null"
-                [checked]="selection.isSelected(row)"
+                [checked]="baseTable.selection.isSelected(row)"
                 [disabled]="isEditDisabled(row, savingIds)"
               >
               </mat-checkbox>
@@ -104,13 +127,13 @@ import { BaseTableComponent } from "../../base-table/base-table.component";
             <div>
               <button
                 [disabled]="
-                  (this.isBulkEditBtnDisabled$ | async) ||
+                  !(baseTable.hasSelections$ | async) ||
                   (sessionDataService.savingStatus$ | async)
                 "
                 mat-icon-button
                 (click)="navigateToBulkEdit()"
-                [matBadge]="selection.selected.length"
-                [matBadgeHidden]="!selection.hasValue()"
+                [matBadge]="baseTable.selection.selected.length"
+                [matBadgeHidden]="!baseTable.selection.hasValue()"
               >
                 <mat-icon>edit</mat-icon>
               </button>
@@ -157,13 +180,19 @@ import { BaseTableComponent } from "../../base-table/base-table.component";
             *matCellDef="let row"
             [class.sticky-cell]="baseTable.isStickyColumn('_hiddenValidation')"
           >
-            <div>
-              <ng-container *ngFor="let ch of row._hiddenValidation">
-                <span [style.background-color]="getColorForValidation(ch)">
-                  {{ ch[0].toUpperCase() }}
-                </span>
-              </ng-container>
-            </div>
+            <mat-chip-set>
+              <mat-chip
+                *ngFor="let ch of row._hiddenValidation"
+                [style.--mdc-chip-elevated-container-color]="
+                  getColorForValidationChip(ch)
+                "
+                [style.--mdc-chip-label-text-color]="
+                  getFontColorForValidationChip(ch)
+                "
+              >
+                {{ ch | camelToTitle }}
+              </mat-chip>
+            </mat-chip-set>
           </td>
         </ng-container>
       </app-base-table>
@@ -173,6 +202,13 @@ import { BaseTableComponent } from "../../base-table/base-table.component";
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ReportingUiTableComponent {
+  private dialog = inject(MatDialog);
+  openManualUploadStepper() {
+    this.dialog.open(ManualUploadStepperComponent, {
+      width: MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT,
+      panelClass: "upload-stepper-dialog",
+    });
+  }
   @Input()
   strTransactionData$!: Observable<StrTransactionData[]>;
   @Input()
@@ -225,19 +261,6 @@ export class ReportingUiTableComponent {
   //   });
   //   return;
   // }
-
-  selection = new SelectionModel(true, [], true, this.selectionComparator);
-  selectionComparator(
-    o1: { flowOfFundsAmlTransactionId: string },
-    o2: { flowOfFundsAmlTransactionId: string },
-  ): boolean {
-    return o1.flowOfFundsAmlTransactionId === o2.flowOfFundsAmlTransactionId;
-  }
-
-  isBulkEditBtnDisabled$ = this.selection.changed.asObservable().pipe(
-    map(() => this.selection.selected.length === 0),
-    startWith(true),
-  );
 
   dataColumnsValues: StrTransactionDataColumnKey[] = [
     "highlightColor",
@@ -295,69 +318,90 @@ export class ReportingUiTableComponent {
   dataColumnsIgnoreValues = ["highlightColor"];
   dataColumnsProjected = ["_hiddenValidation"];
 
-  displayedColumns = ["select" as const, "actions" as const];
+  displayedColumns: ("select" | "actions" | StrTransactionDataColumnKey)[] = [
+    "select" as const,
+    "actions" as const,
+  ];
 
-  displayedColumnsColumnHeaderMap: Partial<
-    Record<"fullTextFilterKey" | StrTransactionDataColumnKey, string>
-  > = {
-    highlightColor: "Highlight",
-    wasTxnAttempted: "Was the transaction attempted?",
-    wasTxnAttemptedReason: "Reason transaction was not completed",
-    methodOfTxn: "Method of Txn",
-    purposeOfTxn: "Purpose of Txn",
-    reportingEntityLocationNo: "Reporting Entity",
-    dateOfTxn: "Txn Date",
-    timeOfTxn: "Txn Time",
-    dateOfPosting: "Post Date",
-    timeOfPosting: "Post Time",
-    "startingActions.0.directionOfSA": "Direction",
-    "startingActions.0.typeOfFunds": "Funds Type",
-    "startingActions.0.amount": "Debit Amount",
-    "startingActions.0.currency": "Debit Currency",
+  get displayedColumnsColumnHeaderMap() {
+    return ReportingUiTableComponent.displayedColumnsColumnHeaderMap;
+  }
 
-    "startingActions.0.fiuNo": "Debit FIU",
-    "startingActions.0.branch": "Debit Branch",
-    "startingActions.0.account": "Debit Account",
-    "startingActions.0.accountType": "Debit Account Type",
-    "startingActions.0.accountCurrency": "Debit Account Currency",
-    "startingActions.0.accountStatus": "Debit Account Status",
-    "startingActions.0.accountOpen": "Debit Account Open",
-    "startingActions.0.accountClose": "Debit Account Close",
+  static displayedColumnsColumnHeaderMap = {
+    highlightColor: "Highlight" as const,
+    wasTxnAttempted: "Was the transaction attempted?" as const,
+    wasTxnAttemptedReason: "Reason transaction was not completed" as const,
+    methodOfTxn: "Method of Txn" as const,
+    methodOfTxnOther: "Method of Txn Other" as const,
 
-    "startingActions.0.conductors.0.partyKey": "Conductor Party Key",
-    "startingActions.0.conductors.0.givenName": "Conductor Given Name",
-    "startingActions.0.conductors.0.surname": "Conductor Surname",
-    "startingActions.0.conductors.0.otherOrInitial": "Conductor Other Name",
-    "startingActions.0.conductors.0.nameOfEntity": "Conductor Entity Name",
+    purposeOfTxn: "Purpose of Txn" as const,
+    reportingEntityLocationNo: "Reporting Entity" as const,
+    dateOfTxn: "Txn Date" as const,
+    timeOfTxn: "Txn Time" as const,
+    dateOfPosting: "Post Date" as const,
+    timeOfPosting: "Post Time" as const,
+    "startingActions.0.directionOfSA": "Direction" as const,
+    "startingActions.0.typeOfFunds": "Funds Type" as const,
+    "startingActions.0.typeOfFundsOther": "Funds Type Other" as const,
+    "startingActions.0.amount": "Debit Amount" as const,
+    "startingActions.0.currency": "Debit Currency" as const,
 
-    "completingActions.0.detailsOfDispo": "Disposition Details",
-    "completingActions.0.amount": "Credit Amount",
-    "completingActions.0.currency": "Credit Currency",
+    "startingActions.0.fiuNo": "Debit FIU" as const,
+    "startingActions.0.branch": "Debit Branch" as const,
+    "startingActions.0.account": "Debit Account" as const,
+    "startingActions.0.accountType": "Debit Account Type" as const,
+    "startingActions.0.accountTypeOther": "Debit Account Type Other" as const,
+    "startingActions.0.accountCurrency": "Debit Account Currency" as const,
+    "startingActions.0.accountStatus": "Debit Account Status" as const,
+    "startingActions.0.howFundsObtained": "How Funds Were Obtained?" as const,
+    "startingActions.0.accountOpen": "Debit Account Open" as const,
+    "startingActions.0.accountClose": "Debit Account Close" as const,
 
-    "completingActions.0.fiuNo": "Credit FIU",
-    "completingActions.0.branch": "Credit Branch",
-    "completingActions.0.account": "Credit Account",
-    "completingActions.0.accountType": "Credit Account Type",
-    "completingActions.0.accountCurrency": "Credit Account Currency",
-    "completingActions.0.accountStatus": "Credit Account Status",
-    "completingActions.0.accountOpen": "Credit Account Open",
-    "completingActions.0.accountClose": "Credit Account Close",
+    "startingActions.0.conductors.0.partyKey": "Conductor Party Key" as const,
+    "startingActions.0.conductors.0.givenName": "Conductor Given Name" as const,
+    "startingActions.0.conductors.0.surname": "Conductor Surname" as const,
+    "startingActions.0.conductors.0.otherOrInitial":
+      "Conductor Other Name" as const,
+    "startingActions.0.conductors.0.nameOfEntity":
+      "Conductor Entity Name" as const,
 
-    "completingActions.0.beneficiaries.0.partyKey": "Beneficiary Party Key",
-    "completingActions.0.beneficiaries.0.givenName": "Beneficiary Given Name",
-    "completingActions.0.beneficiaries.0.surname": "Beneficiary Surname",
+    "completingActions.0.detailsOfDispo": "Disposition Details" as const,
+    "completingActions.0.detailsOfDispoOther":
+      "Disposition Details Other" as const,
+    "completingActions.0.amount": "Credit Amount" as const,
+    "completingActions.0.currency": "Credit Currency" as const,
+
+    "completingActions.0.fiuNo": "Credit FIU" as const,
+    "completingActions.0.branch": "Credit Branch" as const,
+    "completingActions.0.account": "Credit Account" as const,
+    "completingActions.0.accountType": "Credit Account Type" as const,
+    "completingActions.0.accountTypeOther":
+      "Credit Account Type Other" as const,
+    "completingActions.0.accountCurrency": "Credit Account Currency" as const,
+    "completingActions.0.accountStatus": "Credit Account Status" as const,
+    "completingActions.0.accountOpen": "Credit Account Open" as const,
+    "completingActions.0.accountClose": "Credit Account Close" as const,
+
+    "completingActions.0.beneficiaries.0.partyKey":
+      "Beneficiary Party Key" as const,
+    "completingActions.0.beneficiaries.0.givenName":
+      "Beneficiary Given Name" as const,
+    "completingActions.0.beneficiaries.0.surname":
+      "Beneficiary Surname" as const,
     "completingActions.0.beneficiaries.0.otherOrInitial":
-      "Beneficiary Other Name",
+      "Beneficiary Other Name" as const,
     "completingActions.0.beneficiaries.0.nameOfEntity":
-      "Beneficiary Entity Name",
+      "Beneficiary Entity Name" as const,
     "completingActions.0.wasAnyOtherSubInvolved":
-      "Was there any other person or entity involved in the completing action?",
-    reportingEntityTxnRefNo: "Transaction Reference No",
-    _hiddenValidation: "Validation Info",
-    _hiddenTxnType: "Txn Type",
-    _hiddenAmlId: "AML Id",
-    fullTextFilterKey: "Full Text",
-  };
+      "Was there any other person or entity involved in the completing action?" as const,
+    reportingEntityTxnRefNo: "Transaction Reference No" as const,
+    _hiddenValidation: "Validation Info" as const,
+    _hiddenTxnType: "Txn Type" as const,
+    _hiddenAmlId: "AML Id" as const,
+    fullTextFilterKey: "Full Text" as const,
+  } satisfies Partial<
+    Record<"fullTextFilterKey" | StrTransactionDataColumnKey, unknown>
+  >;
 
   stickyColumns: (StrTransactionDataColumnKey | "actions" | "select")[] = [
     "actions",
@@ -451,14 +495,40 @@ export class ReportingUiTableComponent {
     // );
   }
 
-  getColorForValidation(error: _hiddenValidationType): string {
+  static getColorForValidationChip(error: _hiddenValidationType): string {
     const colors: Record<_hiddenValidationType, string> = {
-      "Conductor Missing": "#dc3545",
-      "Bank Info Missing": "#ba005c",
-      "Edited Txn": "#0d6efd",
+      conductorMissing: "#dc3545",
+      bankInfoMissing: "#ba005c",
+      editedTxn: "#0d6efd",
+      invalidMethodOfTxn: "#0d6efd",
+      invalidTypeOfFunds: "#0d6efd",
+      invalidAccountType: "#0d6efd",
+      invalidAmountCurrency: "#0d6efd",
+      invalidAccountCurrency: "#0d6efd",
+      invalidAccountStatus: "#0d6efd",
+      invalidDirectionOfSA: "#0d6efd",
+      invalidDetailsOfDisposition: "#0d6efd",
+      invalidDate: "#0d6efd",
+      invalidTime: "#0d6efd",
     };
     if (!error) return "#007bff"; // fallback color
     return colors[error];
+  }
+
+  static getFontColorForValidationChip(error: _hiddenValidationType): string {
+    const backgroundColor =
+      ReportingUiTableComponent.getColorForValidationChip(error);
+    // Convert hex to RGB
+    const hex = backgroundColor.replace("#", "");
+    const r = Number.parseInt(hex.substring(0, 2), 16);
+    const g = Number.parseInt(hex.substring(2, 4), 16);
+    const b = Number.parseInt(hex.substring(4, 6), 16);
+
+    // Calculate perceived brightness using YIQ formula
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+
+    // Return white for dark backgrounds, black for light backgrounds
+    return brightness > 125 ? "#000000" : "#ffffff";
   }
 
   private route = inject(ActivatedRoute);
@@ -473,10 +543,20 @@ export class ReportingUiTableComponent {
     );
   }
 
+  @ViewChild("baseTable") baseTable!: BaseTableComponent<
+    StrTransactionData,
+    string,
+    "select" | "actions" | StrTransactionDataColumnKey,
+    any,
+    "highlightColor",
+    { flowOfFundsAmlTransactionId: any }
+  >;
+
   navigateToBulkEdit() {
-    const selectedTransactionsForBulkEdit = this.selection.selected.map(
-      (strTxn) => strTxn.flowOfFundsAmlTransactionId,
-    );
+    const selectedTransactionsForBulkEdit =
+      this.baseTable.selection.selected.map(
+        (strTxn) => strTxn.flowOfFundsAmlTransactionId,
+      );
     this.recentlyOpenedRowsSubject.next(selectedTransactionsForBulkEdit);
     this.router.navigate(["../edit-form/bulk-edit"], {
       relativeTo: this.route,
@@ -494,12 +574,35 @@ export class ReportingUiTableComponent {
     //   strTxn: record,
     // });
   }
+
+  // template helpers
+  getColorForValidationChip(error: _hiddenValidationType): string {
+    return ReportingUiTableComponent.getColorForValidationChip(error);
+  }
+  getFontColorForValidationChip(error: _hiddenValidationType): string {
+    return ReportingUiTableComponent.getFontColorForValidationChip(error);
+  }
 }
 
+export const strTransactionsEditedResolver: ResolveFn<
+  Observable<StrTransactionData[]>
+> = async (route: ActivatedRouteSnapshot, _: RouterStateSnapshot) => {
+  return inject(SessionStateService).strTransactionData$;
+};
+
+export const savingEditsResolver: ResolveFn<Observable<string[]>> = async (
+  _route: ActivatedRouteSnapshot,
+  _: RouterStateSnapshot,
+) => {
+  return inject(SessionStateService).savingEdits$;
+};
+
 export type _hiddenValidationType =
-  | "Edited Txn"
-  | "Conductor Missing"
-  | "Bank Info Missing";
+  | "editedTxn"
+  | "conductorMissing"
+  | "bankInfoMissing"
+  | InvalidFormOptionsErrorKeys
+  | InvalidTxnDateTimeErrorKeys;
 
 // Hidden props prefixed with '_hidden' are ignored by the change logging service.
 export type StrTransactionData = StrTransaction & {
@@ -533,22 +636,22 @@ export type StrTxnFlowOfFunds = {
   flowOfFundsAccountCurrency: string | null;
   flowOfFundsAmlId: number;
   flowOfFundsAmlTransactionId: string;
-  flowOfFundsCasePartyKey: number;
-  flowOfFundsConductorPartyKey: number;
+  flowOfFundsCasePartyKey: number | null;
+  flowOfFundsConductorPartyKey: number | null;
   flowOfFundsCreditAmount: number | null;
   flowOfFundsCreditedAccount: string | null;
   flowOfFundsCreditedTransit: string | null;
   flowOfFundsDebitAmount: number | null;
   flowOfFundsDebitedAccount: string | null;
   flowOfFundsDebitedTransit: string | null;
-  flowOfFundsPostingDate: string;
+  flowOfFundsPostingDate: string | null;
   flowOfFundsSource: string;
-  flowOfFundsSourceTransactionId: string;
-  flowOfFundsTransactionCurrency: string;
-  flowOfFundsTransactionCurrencyAmount: number;
-  flowOfFundsTransactionDate: string;
+  flowOfFundsSourceTransactionId: string | null;
+  flowOfFundsTransactionCurrency: string | null;
+  flowOfFundsTransactionCurrencyAmount: number | null;
+  flowOfFundsTransactionDate: string | null;
   flowOfFundsTransactionDesc: string;
-  flowOfFundsTransactionTime: string;
+  flowOfFundsTransactionTime: string | null;
 };
 
 export interface StartingAction {
@@ -686,17 +789,4 @@ export type StrTransactionDataColumnKey =
 
 export type AddPrefixToObject<T, P extends string> = {
   [K in keyof T as K extends string ? `${P}${K}` : never]: T[K];
-};
-
-export const strTransactionsEditedResolver: ResolveFn<
-  Observable<StrTransactionData[]>
-> = async (route: ActivatedRouteSnapshot, _: RouterStateSnapshot) => {
-  return inject(SessionStateService).strTransactionData$;
-};
-
-export const savingEditsResolver: ResolveFn<Observable<string[]>> = async (
-  _route: ActivatedRouteSnapshot,
-  _: RouterStateSnapshot,
-) => {
-  return inject(SessionStateService).savingEdits$;
 };

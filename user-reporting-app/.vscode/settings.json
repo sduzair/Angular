@@ -18,7 +18,8 @@
   "editor.defaultFormatter": "biomejs.biome",
   "CSSNavigation.enableIdAndClassNameCompletion": false,
   "CSSNavigation.alwaysIncludeGlobPatterns": [
-    "node_modules/@angular/material/prebuilt-themes/rose-red.css"
+    "node_modules/@angular/material/prebuilt-themes/rose-red.css",
+    "node_modules/bootstrap/dist/css/bootstrap-utilities.css"
   ],
   "css.styleSheets": [
     "**/${fileBasenameNoExtension}.css",

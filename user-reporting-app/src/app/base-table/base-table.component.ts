@@ -1,4 +1,3 @@
-import { SelectionModel } from "@angular/cdk/collections";
 import { CommonModule, DatePipe } from "@angular/common";
 import {
   AfterContentInit,
@@ -36,7 +35,6 @@ import {
   MatTableModule,
 } from "@angular/material/table";
 import { MatToolbarModule } from "@angular/material/toolbar";
-import { of } from "rxjs";
 import { TxnTimePipe } from "../reporting-ui/reporting-ui-table/pad-zero.pipe";
 import { ScrollPositionPreserveDirective } from "../route-cache/scroll-position-preserve.directive";
 import { ReviewPeriodDateDirective } from "../transaction-search/review-period-date.directive";
@@ -82,7 +80,7 @@ import { ClickOutsideTableDirective } from "./click-outside-table.directive";
     ScrollPositionPreserveDirective,
   ],
   template: `
-    <mat-toolbar class="col">
+    <mat-toolbar *ngIf="showToolbar" class="col">
       <mat-toolbar-row class="px-0 header-toolbar-row">
         <!-- Active Filter Chips -->
         <mat-chip-set aria-label="Active filters" class="filter-chips">
@@ -116,6 +114,9 @@ import { ClickOutsideTableDirective } from "./click-outside-table.directive";
             </button>
           </mat-chip>
         </mat-chip-set>
+
+        <ng-content select="table-toolbar-ele"></ng-content>
+
         <mat-chip-set class="color-pallette">
           <mat-chip
             *ngFor="
@@ -521,7 +522,7 @@ export class BaseTableComponent<
     THighlightKey,
     TSelection
   >
-  implements OnInit, ISelectionMasterToggle<TData>, AfterContentInit
+  implements OnInit, ISelectionMasterToggle, AfterContentInit
 {
   @Input({ required: true })
   override dataColumnsValues!: TDataColumn[];
@@ -567,39 +568,14 @@ export class BaseTableComponent<
   @Input({ required: true })
   override dataSourceTrackBy!: TrackByFunction<TData>;
 
-  @Input({ required: true })
-  override selection!: SelectionModel<TSelection>;
-
-  @Input({ required: true })
-  override selectionKey!: keyof TSelection;
-
   @Input()
-  hasMasterToggle = false;
-
-  isAllSelected(): boolean {
-    if (!this.hasMasterToggle)
-      throw new Error("Master selection toggle is disabled");
-
-    const numSelected = this.selection.selected.length;
-    const numRows = this.dataSource.filteredData.length;
-    return numSelected === numRows;
-  }
-
-  toggleAllRows(): void {
-    if (!this.hasMasterToggle)
-      throw new Error("Master selection toggle is disabled");
-
-    this.isAllSelected()
-      ? this.selection.clear()
-      : this.dataSource.filteredData.forEach((row) =>
-          this.selection.select(row as unknown as TSelection),
-        );
-  }
-
-  @Input({ required: true })
-  override filterFormHighlightSelectFilterKey!: THighlightKey;
+  override filterFormHighlightSelectFilterKey = "" as THighlightKey;
 
   @ContentChildren(MatColumnDef) columnDefs!: QueryList<MatColumnDef>;
+
+  @Input()
+  showToolbar = true;
+
   ngAfterContentInit(): void {
     this.columnDefs.forEach((colDef) => this.table.addColumnDef(colDef));
   }
@@ -621,13 +597,5 @@ export class BaseTableComponent<
     this.updatePageSizeOptions(this.dataSource.data.length);
     this.selectFiltersInitialize(this.dataSource.data);
     this.dataSource.filterPredicate = this.filterFormFilterPredicateCreate();
-  }
-
-  @Input() recentlyOpenRows$ = of([] as string[]);
-
-  isRecentlyOpened(row: TData, recentlyOpenRows: string[]) {
-    return recentlyOpenRows.includes(
-      row[this.selectionKey as unknown as keyof TData] as string,
-    );
   }
 }

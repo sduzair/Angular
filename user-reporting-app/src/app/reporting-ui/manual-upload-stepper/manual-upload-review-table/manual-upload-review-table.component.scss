@@ -1,0 +1,12 @@
+::ng-deep
+  .manual-upload-review-table
+  mat-drawer-content.mat-drawer-content
+  > div {
+  min-height: 39dvh;
+  height: 39dvh;
+}
+
+.mat-column-_hiddenValidation mat-chip-set {
+  max-width: 300px;
+  width: max-content;
+}

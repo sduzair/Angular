@@ -190,3 +190,7 @@ html {
 .mat-mdc-option.mdc-list-item {
   min-height: 40px;
 }
+
+.upload-stepper-dialog {
+  --mat-dialog-container-max-width: 920px;
+}

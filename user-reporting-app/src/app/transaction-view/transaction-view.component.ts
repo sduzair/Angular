@@ -20,7 +20,6 @@ import {
 } from "@angular/router";
 import { concat, defer, map, of, tap } from "rxjs";
 import { SessionStateService } from "../aml/session-state.service";
-import { ISelectionComparator } from "../base-table/abstract-base-table";
 import {
   AbmSourceData,
   AmlTransactionSearchService,
@@ -115,9 +114,7 @@ import { OlbTableComponent } from "./olb-table/olb-table.component";
   styleUrl: "./transaction-view.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TransactionViewComponent
-  implements ISelectionComparator<TableSelectionCompareWithAmlTransactionId>
-{
+export class TransactionViewComponent {
   /**
    * Initialized by router component input binding
    */

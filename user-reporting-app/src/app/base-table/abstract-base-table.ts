@@ -23,6 +23,7 @@ import {
   combineLatest,
   filter,
   map,
+  of,
   startWith,
   tap,
 } from "rxjs";
@@ -56,6 +57,7 @@ export abstract class AbstractBaseTable<
     ISortable<TData, TDataColumn>,
     ISelection<TData, TSelection>,
     IHighlightable<TData, THighlightKey>,
+    IRecentlyOpenedRows<TData>,
     AfterViewInit
 {
   destroyRef = inject(DestroyRef);
@@ -511,9 +513,9 @@ export abstract class AbstractBaseTable<
     );
   }
 
-  // todo invert filter
-  // todo selection filter
-  // todo hidden validation info
+  // todo: invert filter
+  // todo: selection filter
+  // todo: hidden validation info
   filterFormFilterPredicateCreate(): (
     record: TData,
     filter: string,
@@ -824,9 +826,8 @@ export abstract class AbstractBaseTable<
     this._data = value;
     if (!this.dataSource) return;
 
-    // todo update page size options if no of records changes
     if (this.dataSource.data.length !== value.length) {
-      throw new Error("update page size options if no of records changes");
+      this.updatePageSizeOptions(value.length);
     }
 
     this.dataSource.data = value;
@@ -904,8 +905,19 @@ export abstract class AbstractBaseTable<
   // ============================================
   // ISelection Implementation
   // ============================================
-  abstract selection: SelectionModel<TSelection>;
-  abstract selectionKey: keyof TSelection;
+
+  @Input()
+  selection = new SelectionModel<TSelection>(true, [], true, (o1, o2) =>
+    this.selectionComparator(o1, o2),
+  );
+
+  @Input()
+  selectionKey!: keyof TSelection;
+
+  selectionComparator(o1: TSelection, o2: TSelection): boolean {
+    return o1[this.selectionKey] === o2[this.selectionKey];
+  }
+
   lastSelectedIndex: { pageRowIndex: number; pageIndex: number } | null = null;
 
   toggleRow(row: any): void {
@@ -947,6 +959,32 @@ export abstract class AbstractBaseTable<
     };
   }
 
+  @Input()
+  hasMasterToggle = false;
+
+  isAllSelected(): boolean {
+    if (!this.hasMasterToggle) throw new Error("Enable master toggle first");
+
+    const numSelected = this.selection.selected.length;
+    const numRows = this.dataSource.filteredData.length;
+    return numSelected === numRows;
+  }
+
+  toggleAllRows(): void {
+    if (!this.hasMasterToggle) throw new Error("Enable master toggle first");
+
+    this.isAllSelected()
+      ? this.selection.clear()
+      : this.dataSource.filteredData.forEach((row) =>
+          this.selection.select(row as unknown as TSelection),
+        );
+  }
+
+  hasSelections$ = this.selection.changed.asObservable().pipe(
+    map(() => this.selection.selected.length > 0),
+    startWith(false),
+  );
+
   ngAfterViewInit() {
     this.dataSource.paginator = this.paginator!;
     this.dataSource.sort = this.sort!;
@@ -958,6 +996,26 @@ export abstract class AbstractBaseTable<
     }
   }
   readonly Object: any = Object;
+
+  // ============================================================================
+  // IRecentlyOpenedRows Implementation
+  // ============================================================================
+  @Input() recentlyOpenRows$ = of([] as string[]);
+
+  isRecentlyOpened(row: TData, recentlyOpenRows: string[]) {
+    return recentlyOpenRows.includes(
+      row[this.selectionKey as unknown as keyof TData] as string,
+    );
+  }
+}
+
+/**
+ * Interface for recently opened rows functionality
+ */
+interface IRecentlyOpenedRows<TData> {
+  recentlyOpenRows$: Observable<string[]>;
+
+  isRecentlyOpened(row: TData, recentlyOpenRows: string[]): boolean;
 }
 
 /**
@@ -1140,18 +1198,13 @@ export interface ISelection<TData, TSelection> {
 }
 
 /**
- * Interface for row selection comparator
- */
-export interface ISelectionComparator<TData> {
-  selectionComparator(o1: TData, o2: TData): boolean;
-}
-
-/**
  * Interface for row selection master toggle
  */
-export interface ISelectionMasterToggle<TData> {
+export interface ISelectionMasterToggle {
+  hasMasterToggle: boolean;
   isAllSelected(): boolean;
   toggleAllRows(): void;
+  hasSelections$: Observable<boolean>;
 }
 
 /**

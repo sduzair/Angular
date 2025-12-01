@@ -41,52 +41,16 @@
   }
 }
 
-.sticky-cell.mat-column-_hiddenValidation {
-  position: sticky;
-  z-index: 999 !important;
-  left: 145px; // Match select + actions column width
-  padding: 0;
-
-  // &::after {
-  //   content: "";
-  //   position: absolute;
-  //   right: 0;
-  //   top: 0;
-  //   bottom: 0;
-  //   width: var(--mat-table-row-item-outline-width, 1px);
-  //   background: var(
-  //     --mat-table-row-item-outline-color,
-  //     var(--mat-sys-outline, rgba(0, 0, 0, 0.12))
-  //   );
-  // }
-}
-
-.mat-column-_hiddenValidation span {
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  color: white;
-  font-weight: bold;
-  font-size: 15px;
-  font-family: var(--mat-sys-body-medium-font, Roboto, sans-serif);
-  user-select: none;
-}
-
 .sticky-cell > div {
   margin: 0px 8px;
   text-align: center;
 }
 
-td.mat-column-_hiddenValidation > div {
-  white-space: nowrap;
-  display: flex;
-  justify-content: center;
-  gap: 0.3em;
-}
-
 .sticky-cell button {
   cursor: pointer;
+}
+
+.mat-column-_hiddenValidation mat-chip-set {
+  max-width: 300px;
+  width: max-content;
 }

@@ -164,7 +164,7 @@ describe("ChangeLogService", () => {
       expect(result._version).toBe(1);
     });
 
-    it("should throw for add new array item when current has no array", () => {
+    it("should throw for add new array item when current array prop is undefined", () => {
       transactionBefore.startingActions = undefined;
       const newSa: DeepPartial<StartingAction> = {
         _id: "sa1",
@@ -181,7 +181,7 @@ describe("ChangeLogService", () => {
 
       expect(() =>
         service.applyChanges(transactionBefore, changes),
-      ).toThrowError("add new array item when current has no array");
+      ).toThrowError("add new array item when current array prop is undefined");
     });
 
     it("should throw for entire array addition when current is already non zero length array", () => {
