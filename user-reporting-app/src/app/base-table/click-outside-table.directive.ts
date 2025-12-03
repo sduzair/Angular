@@ -67,12 +67,15 @@ export class ClickOutsideTableDirective implements OnInit, OnDestroy {
   }
 
   private hasParentWithClass(element: HTMLElement, className: string): boolean {
-    while (element) {
-      if (element.classList?.contains(className)) {
+    let currentElement: HTMLElement | null = element;
+
+    while (currentElement) {
+      if (currentElement.classList?.contains(className)) {
         return true;
       }
-      element = element.parentElement as HTMLElement;
+      currentElement = currentElement.parentElement;
     }
+
     return false;
   }
 }

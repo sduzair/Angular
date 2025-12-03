@@ -5,9 +5,7 @@ import {
   Input,
   OnInit,
   inject,
-  OnDestroy,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   AbstractControl,
   AsyncValidatorFn,
@@ -44,7 +42,7 @@ import {
 } from '@angular/router';
 import { isValid } from 'date-fns';
 import { isEqualWith } from 'lodash-es';
-import { Observable, defer, map, of, take, tap } from 'rxjs';
+import { Observable, defer, map, of, take } from 'rxjs';
 import { finalize } from 'rxjs/operators';
 import { ulid } from 'ulid';
 import {
@@ -75,7 +73,10 @@ import {
 } from './common-validation';
 import { ControlToggleDirective } from './control-toggle.directive';
 import { FormOptions, FormOptionsService } from './form-options.service';
-import { MarkAsEmptyDirective } from './mark-as-empty.directive';
+import {
+  MarkAsEmptyDirective,
+  SPECIAL_EMPTY_VALUE,
+} from './mark-as-empty.directive';
 import { ToggleEditFieldDirective } from './toggle-edit-field.directive';
 import { TransactionDateDirective } from './transaction-date.directive';
 import { TransactionDetailsPanelComponent } from './transaction-details-panel/transaction-details-panel.component';
@@ -343,7 +344,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                           @for (
                             opt of (formOptions$ | async)?.methodOfTxn
                               | keyvalue;
-                            track opt
+                            track opt.key
                           ) {
                             <mat-option [value]="opt.key">
                               {{ opt.key }}
@@ -562,7 +563,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               @for (
                                 opt of (formOptions$ | async)?.directionOfSA
                                   | keyvalue;
-                                track opt
+                                track opt.key
                               ) {
                                 <mat-option [value]="opt.key">
                                   {{ opt.key }}
@@ -616,7 +617,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               @for (
                                 opt of (formOptions$ | async)?.typeOfFunds
                                   | keyvalue;
-                                track opt
+                                track opt.key
                               ) {
                                 <mat-option [value]="opt.key">
                                   {{ opt.key }}
@@ -731,7 +732,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               @for (
                                 opt of (formOptions$ | async)?.amountCurrency
                                   | keyvalue;
-                                track opt
+                                track opt.key
                               ) {
                                 <mat-option [value]="opt.key">
                                   {{ opt.key }}
@@ -805,14 +806,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               'startingActions-' + saIndex + '-branch'
                             ">
                             <mat-label>Branch</mat-label>
-                            <input
-                              matInput
-                              formControlName="branch"
-                              [appControlToggle]="
-                                'startingActions.' + saIndex + '.fiuNo'
-                              "
-                              appControlToggleValue="010"
-                              [appControlRequired]="true" />
+                            <input matInput formControlName="branch" />
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
@@ -844,14 +838,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               'startingActions-' + saIndex + '-account'
                             ">
                             <mat-label>Account Number</mat-label>
-                            <input
-                              matInput
-                              formControlName="account"
-                              [appControlToggle]="
-                                'startingActions.' + saIndex + '.fiuNo'
-                              "
-                              appControlToggleValue="010"
-                              [appControlRequired]="true" />
+                            <input matInput formControlName="account" />
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
@@ -899,17 +886,11 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                             "
                             [class.d-none]="isFormOptionsLoading">
                             <mat-label>Account Type</mat-label>
-                            <mat-select
-                              formControlName="accountType"
-                              [appControlToggle]="
-                                'startingActions.' + saIndex + '.fiuNo'
-                              "
-                              appControlToggleValue="010"
-                              [appControlRequired]="true">
+                            <mat-select formControlName="accountType">
                               @for (
                                 opt of (formOptions$ | async)?.accountType
                                   | keyvalue;
-                                track opt
+                                track opt.key
                               ) {
                                 <mat-option [value]="opt.key">
                                   {{ opt.key }}
@@ -981,17 +962,11 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                             "
                             [class.d-none]="isFormOptionsLoading">
                             <mat-label>Account Currency</mat-label>
-                            <mat-select
-                              formControlName="accountCurrency"
-                              [appControlToggle]="
-                                'startingActions.' + saIndex + '.fiuNo'
-                              "
-                              appControlToggleValue="010"
-                              [appControlRequired]="true">
+                            <mat-select formControlName="accountCurrency">
                               @for (
                                 opt of (formOptions$ | async)?.accountCurrency
                                   | keyvalue;
-                                track opt
+                                track opt.key
                               ) {
                                 <mat-option [value]="opt.key">
                                   {{ opt.key }}
@@ -1041,17 +1016,11 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                             "
                             [class.d-none]="isFormOptionsLoading">
                             <mat-label>Account Status</mat-label>
-                            <mat-select
-                              formControlName="accountStatus"
-                              [appControlToggle]="
-                                'startingActions.' + saIndex + '.fiuNo'
-                              "
-                              appControlToggleValue="010"
-                              [appControlRequired]="true">
+                            <mat-select formControlName="accountStatus">
                               @for (
                                 opt of (formOptions$ | async)?.accountStatus
                                   | keyvalue;
-                                track opt
+                                track opt.key
                               ) {
                                 <mat-option [value]="opt.key">
                                   {{ opt.key }}
@@ -1097,12 +1066,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matInput
                               formControlName="accountOpen"
                               [matDatepicker]="accountOpenPicker"
-                              appTransactionDate
-                              [appControlToggle]="
-                                'startingActions.' + saIndex + '.fiuNo'
-                              "
-                              appControlToggleValue="010"
-                              [appControlRequired]="true" />
+                              appTransactionDate />
                             <mat-datepicker-toggle
                               matIconSuffix
                               [for]="accountOpenPicker"></mat-datepicker-toggle>
@@ -1142,12 +1106,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matInput
                               formControlName="accountClose"
                               [matDatepicker]="accountClosePicker"
-                              appTransactionDate
-                              [appControlToggle]="
-                                'startingActions.' + saIndex + '.accountStatus'
-                              "
-                              appControlToggleValue="Closed"
-                              [appControlRequired]="true" />
+                              appTransactionDate />
                             <mat-datepicker-toggle
                               matIconSuffix
                               [for]="
@@ -2077,7 +2036,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               @for (
                                 opt of (formOptions$ | async)
                                   ?.detailsOfDisposition | keyvalue;
-                                track opt
+                                track opt.key
                               ) {
                                 <mat-option [value]="opt.key">
                                   {{ opt.key }}
@@ -2196,7 +2155,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               @for (
                                 opt of (formOptions$ | async)?.amountCurrency
                                   | keyvalue;
-                                track opt
+                                track opt.key
                               ) {
                                 <mat-option [value]="opt.key">
                                   {{ opt.key }}
@@ -2340,14 +2299,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               'completingActions-' + caIndex + '-branch'
                             ">
                             <mat-label>Branch</mat-label>
-                            <input
-                              matInput
-                              formControlName="branch"
-                              [appControlToggle]="
-                                'completingActions.' + caIndex + '.fiuNo'
-                              "
-                              appControlToggleValue="010"
-                              [appControlRequired]="true" />
+                            <input matInput formControlName="branch" />
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
@@ -2379,14 +2331,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               'completingActions-' + caIndex + '-account'
                             ">
                             <mat-label>Account Number</mat-label>
-                            <input
-                              matInput
-                              formControlName="account"
-                              [appControlToggle]="
-                                'completingActions.' + caIndex + '.fiuNo'
-                              "
-                              appControlToggleValue="010"
-                              [appControlRequired]="true" />
+                            <input matInput formControlName="account" />
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
@@ -2434,17 +2379,11 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                             "
                             [class.d-none]="isFormOptionsLoading">
                             <mat-label>Account Type</mat-label>
-                            <mat-select
-                              formControlName="accountType"
-                              [appControlToggle]="
-                                'completingActions.' + caIndex + '.fiuNo'
-                              "
-                              appControlToggleValue="010"
-                              [appControlRequired]="true">
+                            <mat-select formControlName="accountType">
                               @for (
                                 opt of (formOptions$ | async)?.accountType
                                   | keyvalue;
-                                track opt
+                                track opt.key
                               ) {
                                 <mat-option [value]="opt.key">
                                   {{ opt.key }}
@@ -2520,17 +2459,11 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                             "
                             [class.d-none]="isFormOptionsLoading">
                             <mat-label>Account Currency</mat-label>
-                            <mat-select
-                              formControlName="accountCurrency"
-                              [appControlToggle]="
-                                'completingActions.' + caIndex + '.fiuNo'
-                              "
-                              appControlToggleValue="010"
-                              [appControlRequired]="true">
+                            <mat-select formControlName="accountCurrency">
                               @for (
                                 opt of (formOptions$ | async)?.accountCurrency
                                   | keyvalue;
-                                track opt
+                                track opt.key
                               ) {
                                 <mat-option [value]="opt.key">
                                   {{ opt.key }}
@@ -2580,17 +2513,11 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                             "
                             [class.d-none]="isFormOptionsLoading">
                             <mat-label>Account Status</mat-label>
-                            <mat-select
-                              formControlName="accountStatus"
-                              [appControlToggle]="
-                                'completingActions.' + caIndex + '.fiuNo'
-                              "
-                              appControlToggleValue="010"
-                              [appControlRequired]="true">
+                            <mat-select formControlName="accountStatus">
                               @for (
                                 opt of (formOptions$ | async)?.accountStatus
                                   | keyvalue;
-                                track opt
+                                track opt.key
                               ) {
                                 <mat-option [value]="opt.key">
                                   {{ opt.key }}
@@ -2636,12 +2563,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matInput
                               formControlName="accountOpen"
                               [matDatepicker]="accountOpenPicker"
-                              appTransactionDate
-                              [appControlToggle]="
-                                'completingActions.' + caIndex + '.fiuNo'
-                              "
-                              appControlToggleValue="010"
-                              [appControlRequired]="true" />
+                              appTransactionDate />
                             <mat-datepicker-toggle
                               matIconSuffix
                               [for]="accountOpenPicker"></mat-datepicker-toggle>
@@ -2681,14 +2603,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matInput
                               formControlName="accountClose"
                               [matDatepicker]="accountClosePicker"
-                              appTransactionDate
-                              [appControlToggle]="
-                                'completingActions.' +
-                                caIndex +
-                                '.accountStatus'
-                              "
-                              appControlToggleValue="Closed"
-                              [appControlRequired]="true" />
+                              appTransactionDate />
                             <mat-datepicker-toggle
                               matIconSuffix
                               [for]="
@@ -3559,8 +3474,9 @@ export class EditFormComponent implements OnInit {
     const { editType, disabled } = options;
     const createEmptyArrays = editType === 'BULK_EDIT';
 
-    if (action?.accountHolders)
-      action.hasAccountHolders = action.accountHolders.length > 0;
+    const sAction = action;
+    if (sAction?.accountHolders)
+      sAction.hasAccountHolders = sAction.accountHolders.length > 0;
 
     return new FormGroup(
       {
@@ -3734,8 +3650,9 @@ export class EditFormComponent implements OnInit {
     const { editType, disabled } = options;
     const createEmptyArrays = editType === 'BULK_EDIT';
 
-    if (action?.accountHolders)
-      action.hasAccountHolders = action.accountHolders.length > 0;
+    const cAction = action;
+    if (cAction?.accountHolders)
+      cAction.hasAccountHolders = cAction.accountHolders.length > 0;
 
     return new FormGroup(
       {
@@ -4313,7 +4230,7 @@ export class EditFormComponent implements OnInit {
    */
   methodOfTxnValidator(): AsyncValidatorFn {
     return (control: AbstractControl): Observable<ValidationErrors | null> => {
-      if (!control.value) {
+      if (!control.value || control.value === SPECIAL_EMPTY_VALUE) {
         return of(null);
       }
 
@@ -4335,7 +4252,7 @@ export class EditFormComponent implements OnInit {
    */
   typeOfFundsValidator(): AsyncValidatorFn {
     return (control: AbstractControl): Observable<ValidationErrors | null> => {
-      if (!control.value) {
+      if (!control.value || control.value === SPECIAL_EMPTY_VALUE) {
         return of(null);
       }
 
@@ -4357,7 +4274,7 @@ export class EditFormComponent implements OnInit {
    */
   amountCurrencyValidator(): AsyncValidatorFn {
     return (control: AbstractControl): Observable<ValidationErrors | null> => {
-      if (!control.value) {
+      if (!control.value || control.value === SPECIAL_EMPTY_VALUE) {
         return of(null);
       }
 
@@ -4379,7 +4296,7 @@ export class EditFormComponent implements OnInit {
    */
   accountTypeValidator(): AsyncValidatorFn {
     return (control: AbstractControl): Observable<ValidationErrors | null> => {
-      if (!control.value) {
+      if (!control.value || control.value === SPECIAL_EMPTY_VALUE) {
         return of(null);
       }
 
@@ -4401,7 +4318,7 @@ export class EditFormComponent implements OnInit {
    */
   accountCurrencyValidator(): AsyncValidatorFn {
     return (control: AbstractControl): Observable<ValidationErrors | null> => {
-      if (!control.value) {
+      if (!control.value || control.value === SPECIAL_EMPTY_VALUE) {
         return of(null);
       }
 
@@ -4423,7 +4340,7 @@ export class EditFormComponent implements OnInit {
    */
   accountStatusValidator(): AsyncValidatorFn {
     return (control: AbstractControl): Observable<ValidationErrors | null> => {
-      if (!control.value) {
+      if (!control.value || control.value === SPECIAL_EMPTY_VALUE) {
         return of(null);
       }
 
@@ -4445,7 +4362,7 @@ export class EditFormComponent implements OnInit {
    */
   directionOfSAValidator(): AsyncValidatorFn {
     return (control: AbstractControl): Observable<ValidationErrors | null> => {
-      if (!control.value) {
+      if (!control.value || control.value === SPECIAL_EMPTY_VALUE) {
         return of(null);
       }
 
@@ -4467,7 +4384,7 @@ export class EditFormComponent implements OnInit {
    */
   detailsOfDispositionValidator(): AsyncValidatorFn {
     return (control: AbstractControl): Observable<ValidationErrors | null> => {
-      if (!control.value) {
+      if (!control.value || control.value === SPECIAL_EMPTY_VALUE) {
         return of(null);
       }
 

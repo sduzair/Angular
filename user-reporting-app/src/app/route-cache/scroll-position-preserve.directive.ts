@@ -72,9 +72,12 @@ export class ScrollPositionPreserveDirective implements OnInit, OnDestroy {
     const scrollableElements = this.getScrollableElements();
     scrollableElements.forEach((element, index) => {
       if (positions[index] !== undefined) {
+        // eslint-disable-next-line no-param-reassign
         element.scrollTop = positions[index][0];
+        // eslint-disable-next-line no-param-reassign
         element.scrollLeft = positions[index][1];
       }
+      return element;
     });
   }
 

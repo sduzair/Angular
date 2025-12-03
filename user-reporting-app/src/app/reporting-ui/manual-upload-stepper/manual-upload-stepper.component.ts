@@ -205,6 +205,7 @@ import {
 })
 export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
   onFileInputClick(fileInput: HTMLInputElement) {
+    // eslint-disable-next-line no-param-reassign
     fileInput.value = null as unknown as string;
   }
   private destroyRef = inject(DestroyRef);
@@ -238,8 +239,10 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
           event.preventDefault();
           event.stopPropagation();
           if (this._isValidExcelFile.value === true) {
+            // eslint-disable-next-line no-param-reassign
             event.dataTransfer!.dropEffect = 'copy';
           } else if (this._isValidExcelFile.value === false) {
+            // eslint-disable-next-line no-param-reassign
             event.dataTransfer!.dropEffect = 'none';
           }
         }),
@@ -270,18 +273,19 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
   }
 
   onDragOver(event: DragEvent): void {
+    const dragEvent = event;
     const fileTypes = Array.from(
       event.dataTransfer ? event.dataTransfer.items : [],
     ).map((item) => item.type);
 
     if (!this.isValidFileType(fileTypes)) {
       this._isValidExcelFile.next(false);
-      event.dataTransfer!.dropEffect = 'none';
+      dragEvent.dataTransfer!.dropEffect = 'none';
       return;
     }
 
     this._isValidExcelFile.next(true);
-    event.dataTransfer!.dropEffect = 'copy';
+    dragEvent.dataTransfer!.dropEffect = 'copy';
   }
 
   onFilePicked(event: Event) {

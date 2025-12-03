@@ -186,6 +186,7 @@ export class ChangeLogService {
     targetIndex: number | null,
     part: string,
   ) {
+    const changeClone = structuredClone(change);
     if (
       change.newValue === undefined &&
       Array.isArray(parent) &&
@@ -212,9 +213,10 @@ export class ChangeLogService {
       change.newValue !== undefined &&
       !Array.isArray(change.newValue)
     ) {
-      current[part].push(change.newValue);
+      current[part].push(changeClone.newValue);
     } else {
-      current[part] = change.newValue;
+      // eslint-disable-next-line no-param-reassign
+      current[part] = changeClone.newValue;
     }
   }
 
@@ -269,25 +271,26 @@ export class ChangeLogService {
       if (discriminator === 'index' && ['_mongoid', '_id'].includes(key)) {
         return;
       }
-      // clear props that are not marked for clear
+      // ignore props that are not marked for clear except for dep to other props
       if (
         discriminator === 'index' &&
         typeof val2 !== 'boolean' &&
         !val2 &&
-        !this.isDependentProp(key)
+        !ChangeLogService.isDependentProp(key) &&
+        !ChangeLogService.isDependentToOtherProp(key)
       ) {
         return;
       }
       if (
         discriminator === 'index' &&
-        this.isDependentProp(key) &&
+        ChangeLogService.isDependentProp(key) &&
         obj2[ChangeLogService.depPropToToggleMap[key]] == null
       ) {
         return;
       }
       if (
         discriminator === 'index' &&
-        this.isDependentProp(key) &&
+        ChangeLogService.isDependentProp(key) &&
         obj2[ChangeLogService.depPropToToggleMap[key]] === true
       ) {
         // replace
@@ -316,7 +319,7 @@ export class ChangeLogService {
       }
       if (
         discriminator === 'index' &&
-        this.isDependentProp(key) &&
+        ChangeLogService.isDependentProp(key) &&
         obj2[ChangeLogService.depPropToToggleMap[key]] === false
       ) {
         if (isIgnoredChange(val1, undefined)) {
@@ -331,6 +334,24 @@ export class ChangeLogService {
         return;
       }
       if (discriminator === 'index' && val2 === SPECIAL_EMPTY_VALUE) {
+        if (isIgnoredChange(val1, undefined)) {
+          return;
+        }
+        changes.push({
+          path: currentPath,
+          oldValue: val1,
+          newValue: undefined,
+        });
+        return;
+      }
+      if (
+        discriminator === 'index' &&
+        val2 !== SPECIAL_EMPTY_VALUE &&
+        ChangeLogService.isDependentToOtherProp(key) &&
+        !!obj1[ChangeLogService.depToOtherPropToggleMap[key]] &&
+        obj1[ChangeLogService.depToOtherPropToggleMap[key]] !==
+          SPECIAL_EMPTY_VALUE
+      ) {
         if (isIgnoredChange(val1, undefined)) {
           return;
         }
@@ -364,23 +385,17 @@ export class ChangeLogService {
   }
 
   static depPropToToggleMap = {
-    accountHolders: 'hasAccountHolders' as const,
-    sourceOfFunds: 'wasSofInfoObtained' as const,
-    conductors: 'wasCondInfoObtained' as const,
-    involvedIn: 'wasAnyOtherSubInvolved' as const,
-    beneficiaries: 'wasBenInfoObtained' as const,
-    wasTxnAttemptedReason: 'wasTxnAttempted' as const,
-    dateOfPosting: 'hasPostingDate' as const,
-    timeOfPosting: 'hasPostingDate' as const,
-  };
+    accountHolders: 'hasAccountHolders',
+    sourceOfFunds: 'wasSofInfoObtained',
+    conductors: 'wasCondInfoObtained',
+    involvedIn: 'wasAnyOtherSubInvolved',
+    beneficiaries: 'wasBenInfoObtained',
+    wasTxnAttemptedReason: 'wasTxnAttempted',
+    dateOfPosting: 'hasPostingDate',
+    timeOfPosting: 'hasPostingDate',
+  } as const;
 
-  static hasObjectIdentifier(obj: unknown) {
-    return (
-      typeof obj === 'object' && obj !== null && '_id' in obj && !!obj['_id']
-    );
-  }
-
-  isDependentProp(
+  static isDependentProp(
     key: string,
   ): key is keyof typeof ChangeLogService.depPropToToggleMap {
     return Object.keys(ChangeLogService.depPropToToggleMap).includes(key);
@@ -414,6 +429,25 @@ export class ChangeLogService {
     if (isBulkEdit) return null;
 
     return true;
+  }
+
+  static depToOtherPropToggleMap = {
+    methodOfTxnOther: 'methodOfTxn',
+    typeOfFundsOther: 'typeOfFunds',
+    accountTypeOther: 'accountType',
+    detailsOfDispoOther: 'detailsOfDispo',
+  } as const;
+
+  static isDependentToOtherProp(
+    key: string,
+  ): key is keyof typeof ChangeLogService.depToOtherPropToggleMap {
+    return Object.keys(ChangeLogService.depToOtherPropToggleMap).includes(key);
+  }
+
+  static hasObjectIdentifier(obj: unknown) {
+    return (
+      typeof obj === 'object' && obj !== null && '_id' in obj && !!obj['_id']
+    );
   }
 }
 

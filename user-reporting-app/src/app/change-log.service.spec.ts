@@ -401,6 +401,38 @@ describe('ChangeLogService', () => {
         expect(result._version).toBe(1);
       });
     });
+
+    it('should immutably apply change logs', () => {
+      transactionBefore.startingActions = [
+        {
+          _id: 'sa1',
+          currency: 'CAD',
+        },
+      ];
+      const newSa: DeepPartial<StartingAction> = {
+        _id: 'sa2',
+        typeOfFundsOther: 'investment',
+      };
+      const changes: ChangeLog[] = [
+        {
+          path: 'startingActions',
+          oldValue: undefined,
+          newValue: newSa,
+          version: 1,
+        },
+      ];
+      const originalChanges = structuredClone(changes);
+
+      const result = service.applyChanges(transactionBefore, changes);
+
+      expect(result?.startingActions?.length).toBe(2);
+      expect(result?.startingActions![1]).toEqual(newSa);
+      expect(result._version).toBe(1);
+
+      // mutates change log value if not handled immutably
+      result.startingActions![1].typeOfFundsOther = 'cheque';
+      expect(changes).toEqual(originalChanges);
+    });
   });
 
   describe('compareProperties', () => {
@@ -1479,6 +1511,39 @@ describe('ChangeLogService', () => {
           {
             path: 'startingActions.$idx=1',
             oldValue: { _id: 'sa2', branch: '321' },
+            newValue: undefined,
+          },
+        ]);
+      });
+
+      it('should remove dep to other property when toggle is updated', () => {
+        transactionBefore.startingActions = [
+          { _id: 'sa1', typeOfFunds: 'Other', typeOfFundsOther: 'Quasi cash' },
+        ];
+        transactionAfter.startingActions = [
+          { _id: 'sa1', typeOfFunds: 'Cash' },
+        ];
+
+        const changes: ChangeLogWithoutVersion[] = [];
+
+        service.compareProperties(
+          transactionBefore,
+          transactionAfter,
+          changes,
+          {
+            discriminator: 'index',
+          },
+        );
+
+        expect(changes).toEqual([
+          {
+            path: 'startingActions.$idx=0.typeOfFunds',
+            oldValue: 'Other',
+            newValue: 'Cash',
+          },
+          {
+            path: 'startingActions.$idx=0.typeOfFundsOther',
+            oldValue: 'Quasi cash',
             newValue: undefined,
           },
         ]);

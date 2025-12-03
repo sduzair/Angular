@@ -64,6 +64,7 @@ export default defineConfig([
       // TypeScript best practices
       '@typescript-eslint/no-non-null-asserted-optional-chain': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
+      'no-param-reassign': ['error', { props: true }],
 
       // Lazy-loading
       'no-restricted-imports': [

@@ -702,14 +702,7 @@ export abstract class AbstractBaseTable<
     return value.replace(/--/g, '.') as TFilterKeys;
   };
 
-  filterFormTrackBy(_: number, item: unknown) {
-    if (
-      typeof item !== 'object' ||
-      item === null ||
-      'sanitizedKey' in item === false
-    )
-      throw new Error();
-
+  filterFormTrackBy(_: number, item: any) {
     return item.sanitizedKey;
   }
 

@@ -414,17 +414,18 @@ export class SessionStateService implements OnDestroy {
             pendingChanges
               .filter((change) => change.pendingChangeLogs.length > 0)
               .forEach(({ flowOfFundsAmlTransactionId, pendingChangeLogs }) => {
-                strTransactions
-                  .find(
-                    (strTxn) =>
-                      strTxn._hiddenStrTxnId === flowOfFundsAmlTransactionId,
-                  )!
-                  .changeLogs.push(
-                    ...pendingChangeLogs.map((changeLog) => ({
-                      ...changeLog,
-                      version: currentVersion + 1,
-                    })),
-                  );
+                const txn = strTransactions.find(
+                  (strTxn) =>
+                    strTxn.flowOfFundsAmlTransactionId ===
+                    flowOfFundsAmlTransactionId,
+                )!;
+
+                txn.changeLogs.push(
+                  ...pendingChangeLogs.map((changeLog) => ({
+                    ...changeLog,
+                    version: currentVersion + 1,
+                  })),
+                );
               });
 
             // Add new transactions for MANUAL_UPLOAD
@@ -450,7 +451,7 @@ export class SessionStateService implements OnDestroy {
             }).pipe(
               map((response) => ({ editType, response })),
               // return throwError(() => new HttpErrorResponse({ status: 500 })).pipe(
-              delay(5000),
+              delay(200),
               tap(({ response: { newVersion, updatedAt } }) => {
                 console.assert(newVersion === payload.currentVersion + 1);
                 this._sessionState$.next({
@@ -759,9 +760,7 @@ export function setRowValidationInfo(
   )
     errors.push('bankInfoMissing');
 
-  transaction._hiddenValidation = errors;
-
-  return transaction;
+  return { ...transaction, _hiddenValidation: errors };
 }
 
 type ExtractSubjectType<T> = T extends Subject<infer U> ? U : never;

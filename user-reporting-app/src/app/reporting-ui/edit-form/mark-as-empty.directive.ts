@@ -47,20 +47,22 @@ export class MarkAsEmptyDirective implements AfterViewInit {
     this.valueAccessor!.writeValue = () => {
       /* empty */
     };
+
     // Temporarily pause validation
     this.originalValidators = this.control.validator
       ? [this.control.validator]
       : null;
     this.control.clearValidators();
 
+    // Set special empty val on control
     this.control.setValue(SPECIAL_EMPTY_VALUE, { emitEvent: false });
+    this.control.markAsDirty();
     this.control.updateValueAndValidity();
 
     // Restore view updates and validation
     setTimeout(() => {
       this.valueAccessor!.writeValue = this.origWriteValue!;
       this.control.setValidators(this.originalValidators!);
-      // control.updateValueAndValidity();
     });
   }
 

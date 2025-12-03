@@ -6434,7 +6434,7 @@ snapshots:
 
   '@npmcli/fs@4.0.0':
     dependencies:
-      semver: 7.7.1
+      semver: 7.7.3
 
   '@npmcli/git@6.0.3':
     dependencies:
@@ -8580,7 +8580,7 @@ snapshots:
 
   make-dir@4.0.0:
     dependencies:
-      semver: 7.7.1
+      semver: 7.7.3
 
   make-fetch-happen@14.0.3:
     dependencies:
@@ -8780,7 +8780,7 @@ snapshots:
       make-fetch-happen: 14.0.3
       nopt: 8.1.0
       proc-log: 5.0.0
-      semver: 7.7.1
+      semver: 7.7.3
       tar: 7.4.3
       tinyglobby: 0.2.13
       which: 5.0.0
