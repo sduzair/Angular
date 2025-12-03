@@ -63,6 +63,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
         [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
         [sortedBy]="'dateOfTxn'">
         <button
+          type="button"
           mat-raised-button
           ngProjectAs="table-toolbar-ele"
           (click)="openManualUploadStepper()">
@@ -111,6 +112,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
             [class.sticky-cell]="baseTable.isStickyColumn('actions')">
             <div>
               <button
+                type="button"
                 [disabled]="
                   (baseTable.hasSelections$ | async) === false ||
                   (sessionDataService.savingStatus$ | async)
@@ -121,7 +123,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
                 [matBadgeHidden]="!baseTable.selection.hasValue()">
                 <mat-icon>edit</mat-icon>
               </button>
-              <button mat-icon-button class="invisible">
+              <button type="button" mat-icon-button class="invisible">
                 <mat-icon>history</mat-icon>
               </button>
             </div>
@@ -136,12 +138,16 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
             [class.sticky-cell]="baseTable.isStickyColumn('actions')">
             <div>
               <button
+                type="button"
                 mat-icon-button
                 (click)="navigateToEditForm(row)"
                 [disabled]="isEditDisabled(row, savingIds)">
                 <mat-icon>edit</mat-icon>
               </button>
-              <button mat-icon-button (click)="navigateToAuditForm(row)">
+              <button
+                type="button"
+                mat-icon-button
+                (click)="navigateToAuditForm(row)">
                 <mat-icon>history</mat-icon>
               </button>
             </div>
@@ -532,9 +538,9 @@ export class ReportingUiTableComponent {
     StrTransactionData,
     string,
     'select' | 'actions' | StrTransactionDataColumnKey,
-    any,
+    never,
     'highlightColor',
-    { flowOfFundsAmlTransactionId: any }
+    { flowOfFundsAmlTransactionId: never }
   >;
 
   navigateToBulkEdit() {

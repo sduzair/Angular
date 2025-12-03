@@ -22,7 +22,7 @@ export class MarkAsEmptyDirective implements AfterViewInit {
   private renderer = inject(Renderer2);
 
   private destroy$ = inject(DestroyRef);
-  origWriteValue: ((obj: any) => void) | undefined;
+  origWriteValue: ((obj: unknown) => void) | undefined;
   originalValidators: [ValidatorFn] | null = null;
 
   get valueAccessor() {

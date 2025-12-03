@@ -1,7 +1,7 @@
 import { Directive, inject } from '@angular/core';
 import { ControlValueAccessor, NgControl } from '@angular/forms';
 import { MatDatepickerInput } from '@angular/material/datepicker';
-import { parse, format, isValid } from 'date-fns/fp';
+import { format, isValid, parse } from 'date-fns/fp';
 
 export const TRANSACTION_DATE_FORMAT = 'yyyy/MM/dd';
 
@@ -13,6 +13,7 @@ export class TransactionDateDirective implements ControlValueAccessor {
   private datepickerInput =
     inject<MatDatepickerInput<Date>>(MatDatepickerInput);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _onChange = (_: any) => {
     /* empty */
   };
@@ -40,14 +41,14 @@ export class TransactionDateDirective implements ControlValueAccessor {
     this.datepickerInput.value = parsedDate;
   }
 
-  registerOnChange(fn: (_: any) => void): void {
+  registerOnChange(fn: (_: unknown) => void): void {
     this._onChange = (date: Date | null) => {
       const formatted = date ? TransactionDateDirective.format(date) : null;
       fn(formatted);
     };
     this.datepickerInput.registerOnChange(this._onChange);
   }
-  registerOnTouched(fn: any): void {
+  registerOnTouched(fn: () => void): void {
     this.datepickerInput.registerOnTouched(fn);
   }
 

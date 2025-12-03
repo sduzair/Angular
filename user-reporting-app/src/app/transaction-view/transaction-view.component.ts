@@ -6,8 +6,6 @@ import {
   Input,
   inject,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormControl } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatChip } from '@angular/material/chips';
 import { MatSelectModule } from '@angular/material/select';
@@ -18,7 +16,7 @@ import {
   ResolveFn,
   RouterStateSnapshot,
 } from '@angular/router';
-import { concat, defer, map, of, tap } from 'rxjs';
+import { map, shareReplay, startWith } from 'rxjs';
 import { SessionStateService } from '../aml/session-state.service';
 import {
   AbmSourceData,
@@ -26,7 +24,6 @@ import {
   EmtSourceData,
   FlowOfFundsSourceData,
   OlbSourceData,
-  SourceData,
   TransactionSearchResponse,
 } from '../transaction-search/aml-transaction-search.service';
 import { AbmTableComponent } from './abm-table/abm-table.component';
@@ -54,6 +51,7 @@ import { OlbTableComponent } from './olb-table/olb-table.component';
         <mat-toolbar-row class="px-0 header-toolbar-row">
           <div class="flex-fill"></div>
           <button
+            type="button"
             color="primary"
             mat-flat-button
             [disabled]="(selectionControlHasChanges$ | async) === false">
@@ -111,17 +109,8 @@ import { OlbTableComponent } from './olb-table/olb-table.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TransactionViewComponent {
-  /**
-   * Initialized by router component input binding
-   */
-  @Input()
-  transactionSearch!: TransactionSearchResponse;
-
-  /**
-   * Initialized by router component input binding
-   */
-  @Input()
-  readonly initSelections!: { flowOfFundsAmlTransactionId: string }[];
+  @Input() transactionSearch!: TransactionSearchResponse;
+  @Input() readonly initSelections!: { flowOfFundsAmlTransactionId: string }[];
 
   fofSourceData: FlowOfFundsSourceData[] = this.transactionSearch.find(
     (res) => res.sourceId === 'FlowOfFunds',
@@ -139,18 +128,6 @@ export class TransactionViewComponent {
     (res) => res.sourceId === 'EMT',
   )?.sourceData!;
 
-  constructor() {
-    this.selection.changed
-      .asObservable()
-      .pipe(
-        takeUntilDestroyed(),
-        tap(() => {
-          this.selectionControl.setValue(this.selection.selected);
-        }),
-      )
-      .subscribe();
-  }
-
   selection = new SelectionModel(
     true,
     this.initSelections,
@@ -165,69 +142,61 @@ export class TransactionViewComponent {
     return o1.flowOfFundsAmlTransactionId === o2.flowOfFundsAmlTransactionId;
   }
 
-  selectionControl = new FormControl(this.selection.selected, {
-    nonNullable: true,
-  });
-
-  fofSourceDataSelectionCount$ = concat(
-    defer(() => of(this.selectionControl.value)),
-    this.selectionControl.valueChanges,
-  ).pipe(map((selectionTxns) => (selectionTxns as SourceData[]).length));
-
-  abmSourceDataSelectionCount$ = concat(
-    defer(() => of(this.selectionControl.value)),
-    this.selectionControl.valueChanges,
-  ).pipe(
-    map((selectionTxns) => {
-      return selectionTxns.filter((txn) =>
-        txn.flowOfFundsAmlTransactionId.startsWith('ABM'),
-      ).length;
-    }),
+  private selectedItems$ = this.selection.changed.pipe(
+    startWith(null), // Emit initial value immediately
+    map(() => this.selection.selected),
+    shareReplay({ bufferSize: 1, refCount: true }), // Share among multiple subscribers
   );
 
-  olbSourceDataSelectionCount$ = concat(
-    defer(() => of(this.selectionControl.value)),
-    this.selectionControl.valueChanges,
-  ).pipe(
-    map((selectionTxns) => {
-      return selectionTxns.filter((txn) =>
-        txn.flowOfFundsAmlTransactionId.startsWith('OLB'),
-      ).length;
-    }),
+  fofSourceDataSelectionCount$ = this.selectedItems$.pipe(
+    map((selections) => selections.length),
   );
 
-  emtSourceDataSelectionCount$ = concat(
-    defer(() => of(this.selectionControl.value)),
-    this.selectionControl.valueChanges,
-  ).pipe(
-    map((selectionTxns) => {
-      return selectionTxns.filter(
-        (txn) =>
-          txn.flowOfFundsAmlTransactionId.startsWith('OLB') &&
-          this.emtSourceData.findIndex(
-            (emt) =>
-              emt.flowOfFundsAmlTransactionId ===
-              (txn as EmtSourceData).flowOfFundsAmlTransactionId,
-          ) >= 0,
-      ).length;
-    }),
+  abmSourceDataSelectionCount$ = this.selectedItems$.pipe(
+    map(
+      (selections) =>
+        selections.filter((txn) =>
+          txn.flowOfFundsAmlTransactionId.startsWith('ABM'),
+        ).length,
+    ),
   );
 
-  selectionsLastSaved = new Set(
-    this.selection.selected.map((sel) => sel.flowOfFundsAmlTransactionId),
+  olbSourceDataSelectionCount$ = this.selectedItems$.pipe(
+    map(
+      (selections) =>
+        selections.filter((txn) =>
+          txn.flowOfFundsAmlTransactionId.startsWith('OLB'),
+        ).length,
+    ),
   );
-  selectionControlHasChanges$ = concat(
-    defer(() => of(this.selectionControl.value)),
-    this.selectionControl.valueChanges,
-  ).pipe(
-    map((currentSelections) => {
-      return (
+
+  emtSourceDataSelectionCount$ = this.selectedItems$.pipe(
+    map(
+      (selections) =>
+        selections.filter(
+          (txn) =>
+            txn.flowOfFundsAmlTransactionId.startsWith('OLB') &&
+            this.emtSourceData.findIndex(
+              (emt) =>
+                emt.flowOfFundsAmlTransactionId ===
+                (txn as EmtSourceData).flowOfFundsAmlTransactionId,
+            ) >= 0,
+        ).length,
+    ),
+  );
+
+  private selectionsLastSaved = new Set(
+    this.initSelections.map((sel) => sel.flowOfFundsAmlTransactionId),
+  );
+
+  selectionControlHasChanges$ = this.selectedItems$.pipe(
+    map(
+      (currentSelections) =>
         currentSelections.length !== this.selectionsLastSaved.size ||
         !currentSelections.every((sel) =>
           this.selectionsLastSaved.has(sel.flowOfFundsAmlTransactionId),
-        )
-      );
-    }),
+        ),
+    ),
   );
 }
 

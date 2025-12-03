@@ -7,6 +7,7 @@ import {
 } from '@angular/common/http/testing';
 import {
   ANIMATION_MODULE_TYPE,
+  ChangeDetectionStrategy,
   Component,
   ErrorHandler,
   inject,
@@ -57,6 +58,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
   selector: 'app-transaction-search',
   template: '<h1>Transaction Search</h1>',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 class MockTransactionSearchComponent {}
 
@@ -521,6 +523,7 @@ async function createFieldTraverser(
   loader: HarnessLoader,
   verifier: FieldVerifier,
 ) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return async function verify(obj: any, path = '') {
     const errors: string[] = [];
     for (const [key, val] of Object.entries(obj)) {

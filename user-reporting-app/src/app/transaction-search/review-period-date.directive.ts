@@ -1,7 +1,7 @@
 import { Directive, inject } from '@angular/core';
 import { ControlValueAccessor, NgControl } from '@angular/forms';
 import { MatDatepickerInput } from '@angular/material/datepicker';
-import { isValid, parse, format } from 'date-fns/fp';
+import { format, isValid, parse } from 'date-fns/fp';
 
 @Directive({
   selector: '[appReviewPeriodDate]',
@@ -13,6 +13,7 @@ export class ReviewPeriodDateDirective implements ControlValueAccessor {
     { optional: true, self: true },
   )!;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _onChange = (_: any) => {
     /* empty */
   };
@@ -39,14 +40,14 @@ export class ReviewPeriodDateDirective implements ControlValueAccessor {
     this.datepickerInput.value = parsedDate;
   }
 
-  registerOnChange(fn: (_: any) => void): void {
+  registerOnChange(fn: (_: unknown) => void): void {
     this._onChange = (date: Date | null) => {
       const formatted = date ? ReviewPeriodDateDirective.format(date) : null;
       fn(formatted);
     };
     this.datepickerInput.registerOnChange(this._onChange);
   }
-  registerOnTouched(fn: any): void {
+  registerOnTouched(fn: () => void): void {
     this.datepickerInput.registerOnTouched(fn);
   }
 

@@ -39,12 +39,16 @@ import { Router, RouterOutlet } from '@angular/router';
             *matTreeNodeDef="let node; when: hasChild"
             matTreeNodePadding
             class="mt-2">
-            <button mat-icon-button matTreeNodeToggle aria-label="toggle">
+            <button
+              type="button"
+              mat-icon-button
+              matTreeNodeToggle
+              aria-label="toggle">
               <mat-icon>
                 {{ tree.isExpanded(node) ? 'expand_more' : 'chevron_right' }}
               </mat-icon>
             </button>
-            <button mat-icon-button disabled>
+            <button type="button" mat-icon-button disabled>
               <mat-icon>perm_identity</mat-icon>
             </button>
             <span class="mat-body-1 mb-0">{{ node.name }}</span>
@@ -52,7 +56,7 @@ import { Router, RouterOutlet } from '@angular/router';
 
           <!-- Leaf nodes (routes) -->
           <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
-            <button mat-icon-button>
+            <button type="button" mat-icon-button>
               <mat-icon>
                 {{ node.matIcon }}
               </mat-icon>

@@ -104,7 +104,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                 } @else {
                   {{ filter.value }}
                 }
-                <button matChipRemove>
+                <button type="button" matChipRemove>
                   <mat-icon>cancel</mat-icon>
                 </button>
               </mat-chip>
@@ -129,7 +129,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
               <mat-icon>cancel</mat-icon>
             </mat-chip>
           </mat-chip-set>
-          <button mat-raised-button (click)="drawer.toggle()">
+          <button type="button" mat-raised-button (click)="drawer.toggle()">
             <mat-icon>filter_list</mat-icon>
             Filter
           </button>
@@ -166,7 +166,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                 <mat-button-toggle value="OR">OR</mat-button-toggle>
               </mat-button-toggle-group>
               <div class="flex-fill"></div>
-              <button mat-icon-button (click)="drawer.toggle()">
+              <button type="button" mat-icon-button (click)="drawer.toggle()">
                 <mat-icon>close</mat-icon>
               </button>
             </mat-toolbar-row>
@@ -189,6 +189,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                       this.filterFormFilterFormKeySanitize(filterKey)
                     " />
                   <button
+                    type="button"
                     matSuffix
                     mat-icon-button
                     (click)="
@@ -212,6 +213,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                       this.filterFormFilterFormKeySanitize(filterKey)
                     " />
                   <button
+                    type="button"
                     matSuffix
                     mat-icon-button
                     (click)="
@@ -239,6 +241,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                     [for]="picker"></mat-datepicker-toggle>
                   <mat-datepicker #picker></mat-datepicker>
                   <button
+                    type="button"
                     matSuffix
                     mat-icon-button
                     (click)="
@@ -336,6 +339,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                     }
                   </mat-autocomplete>
                   <button
+                    type="button"
                     matSuffix
                     mat-icon-button
                     (click)="
@@ -522,7 +526,7 @@ export class BaseTableComponent<
   @Input({ required: true })
   override displayedColumnsTime!: TDataColumn[];
 
-  override filterFormFormGroup!: FormGroup<any>;
+  override filterFormFormGroup!: FormGroup;
 
   override filterFormFilterKeys!: TFilterKeys[];
 

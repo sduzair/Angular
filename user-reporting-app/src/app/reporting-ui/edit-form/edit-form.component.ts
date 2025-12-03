@@ -5,6 +5,7 @@ import {
   Input,
   OnInit,
   inject,
+  OnDestroy,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
@@ -113,7 +114,11 @@ import { TransactionTimeDirective } from './transaction-time.directive';
   template: `
     <div class="container px-0 mb-5">
       <mat-toolbar class="justify-content-end px-0">
-        <button mat-icon-button (click)="navigateBack()" aria-label="Go back">
+        <button
+          type="button"
+          mat-icon-button
+          (click)="navigateBack()"
+          aria-label="Go back">
           <mat-icon>arrow_back</mat-icon>
         </button>
         <div class="flex-fill"></div>
@@ -3316,9 +3321,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
             </mat-tab>
           </mat-tab-group>
           <pre class="overlay-pre">
-                                                                                          Form values: {{
-              editForm.getRawValue() | json
-            }}</pre
+            Form values: {{ editForm.getRawValue() | json }}
+          </pre
           >
         </form>
       }
@@ -3398,27 +3402,6 @@ export class EditFormComponent implements OnInit {
   // ----------------------
   protected sessionDataService = inject(SessionStateService);
   protected isSaved = false;
-  _e = this.sessionDataService.editFormSave$
-    .pipe(takeUntilDestroyed())
-    .subscribe();
-
-  _u = this.sessionDataService.updateQueue$
-    .pipe(
-      takeUntilDestroyed(),
-      tap(({ editType }) => {
-        const messages = {
-          SINGLE_EDIT: 'Edit saved!',
-          BULK_EDIT: 'Edits saved!',
-          HIGHLIGHT: 'Highlights saved!',
-          MANUAL_UPLOAD: 'Manual Upload saved!',
-        } satisfies Record<typeof editType, string>;
-
-        this.snackBar.open(messages[editType], 'Dismiss', {
-          duration: 5000,
-        });
-      }),
-    )
-    .subscribe();
 
   protected onSave(): void {
     // console.log(
@@ -4147,7 +4130,7 @@ export class EditFormComponent implements OnInit {
     actionIndex: number,
   ): void {
     const action = (
-      this.editForm!.get(actionControlName) as any as
+      this.editForm!.get(actionControlName) as unknown as
         | FormArray<FormGroup<TypedForm<StartingAction>>>
         | FormArray<FormGroup<TypedForm<CompletingAction>>>
     ).at(actionIndex);
@@ -4169,7 +4152,7 @@ export class EditFormComponent implements OnInit {
     index: number,
   ): void {
     const action = (
-      this.editForm!.get(actionControlName) as any as
+      this.editForm!.get(actionControlName) as unknown as
         | FormArray<FormGroup<TypedForm<StartingAction>>>
         | FormArray<FormGroup<TypedForm<CompletingAction>>>
     ).at(actionIndex);
@@ -4505,7 +4488,7 @@ export class EditFormComponent implements OnInit {
    * Generic validation method for form options fields
    */
   static validateFormOptions(
-    value: any,
+    value: string,
     formOptions: FormOptions,
     optionsKey: keyof FormOptions,
   ): InvalidFormOptionsErrors | null {
@@ -4589,7 +4572,7 @@ function dateValidator(): ValidatorFn {
   };
 }
 
-export function isValidDate(value: any) {
+export function isValidDate(value: string) {
   const parsedDate = TransactionDateDirective.parse(value);
   if (!isValid(parsedDate)) {
     return false;
@@ -4756,7 +4739,7 @@ type InvalidFormOptionsErrors = {
   [K in InvalidFormOptionsErrorKeys]: Record<
     K,
     {
-      value: any;
+      value: string;
       validValues: string[];
     }
   >;

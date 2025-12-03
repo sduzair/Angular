@@ -297,7 +297,7 @@ describe('ChangeLogService', () => {
 
         const result = service.applyChanges(transactionBefore, changes);
 
-        const sa1 = result.startingActions!.find((a: any) => a!._id === 'sa1');
+        const sa1 = result.startingActions!.find((a) => a!._id === 'sa1');
         expect(sa1?.currency).toBe('USD');
         expect(result._version).toBe(1);
       });

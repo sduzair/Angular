@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Directive, forwardRef } from '@angular/core';
 import { MatAutocompleteTrigger } from '@angular/material/autocomplete';
 import { Observable, merge, of } from 'rxjs';

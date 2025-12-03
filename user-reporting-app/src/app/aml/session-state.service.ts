@@ -4,12 +4,20 @@ import {
   ErrorHandler,
   Injectable,
   InjectionToken,
-  inject,
   OnDestroy,
+  inject,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { BehaviorSubject, EMPTY, Subject, map, merge, of } from 'rxjs';
+import {
+  BehaviorSubject,
+  EMPTY,
+  Observable,
+  Subject,
+  map,
+  merge,
+  of,
+} from 'rxjs';
 import {
   catchError,
   concatMap,
@@ -17,6 +25,7 @@ import {
   delay,
   filter,
   finalize,
+  pairwise,
   scan,
   share,
   shareReplay,
@@ -96,6 +105,25 @@ export class SessionStateService implements OnDestroy {
   savingEdits$ = this._savingEdits$.asObservable();
   savingStatus$ = this.savingEdits$.pipe(map((txns) => txns.length > 0));
 
+  // Derived observable for completed saves
+  private completedEdits$ = this.savingEdits$.pipe(
+    pairwise(),
+    map(([prev, curr]) => {
+      // IDs that were being saved but are now complete
+      return prev.filter((id) => !curr.includes(id));
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  whenCompleted(ids: string[]): Observable<string[]> {
+    return this.completedEdits$.pipe(
+      filter(
+        (completed) =>
+          completed.length > 0 && ids.every((id) => completed.includes(id)),
+      ),
+    );
+  }
+
   /**
    * Used to populate reporting ui table
    */
@@ -171,7 +199,6 @@ export class SessionStateService implements OnDestroy {
     this.conflict$.complete();
     this._savingEdits$.complete();
     this._updateQueue$.complete();
-    this._editFormSave$.complete();
     this.highlightEdits$.complete();
     this.resetHiglightsAccumulator$.complete();
   }
@@ -234,7 +261,17 @@ export class SessionStateService implements OnDestroy {
   }
 
   private _updateQueue$ = new Subject<
-    | ExtractSubjectType<typeof SessionStateService.prototype._editFormSave$>
+    | {
+        editType: 'SINGLE_EDIT';
+        flowOfFundsAmlTransactionId: string;
+        editFormValue: EditFormValueType;
+        editFormValueBefore: EditFormValueType;
+      }
+    | {
+        editType: 'BULK_EDIT';
+        editFormValue: EditFormValueType;
+        transactionsBefore: StrTransactionWithChangeLogs[];
+      }
     | { editType: 'HIGHLIGHT'; highlightsMap: Map<string, string> }
     | {
         editType: 'MANUAL_UPLOAD';
@@ -463,23 +500,22 @@ export class SessionStateService implements OnDestroy {
         }),
       );
     }),
+    tap(({ editType }) => {
+      const messages = {
+        SINGLE_EDIT: 'Edit saved!',
+        BULK_EDIT: 'Edits saved!',
+        HIGHLIGHT: '',
+        MANUAL_UPLOAD: '',
+      } satisfies Record<typeof editType, string>;
+
+      if (!messages[editType]) return;
+      this.snackBar.open(messages[editType], 'Dismiss', {
+        duration: 5000,
+      });
+    }),
     takeUntilDestroyed(this.destroyRef),
     share(),
   );
-
-  private _editFormSave$ = new Subject<
-    | {
-        editType: 'SINGLE_EDIT';
-        flowOfFundsAmlTransactionId: string;
-        editFormValue: EditFormValueType;
-        editFormValueBefore: EditFormValueType;
-      }
-    | {
-        editType: 'BULK_EDIT';
-        editFormValue: EditFormValueType;
-        transactionsBefore: StrTransactionWithChangeLogs[];
-      }
-  >();
 
   /**
    * Remove only the incoming save ids specific to edit emission
@@ -497,17 +533,11 @@ export class SessionStateService implements OnDestroy {
 
   saveEditForm(
     edit: ExtractSubjectType<
-      typeof SessionStateService.prototype._editFormSave$
+      typeof SessionStateService.prototype._updateQueue$
     >,
   ) {
-    this._editFormSave$.next(edit);
+    this._updateQueue$.next(edit);
   }
-
-  editFormSave$ = this._editFormSave$.asObservable().pipe(
-    tap((edit) => {
-      return this._updateQueue$.next(edit);
-    }),
-  );
 
   // highlights
   private highlightEdits$ = new Subject<

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Injectable } from '@angular/core';
 import { SPECIAL_EMPTY_VALUE } from './reporting-ui/edit-form/mark-as-empty.directive';
 

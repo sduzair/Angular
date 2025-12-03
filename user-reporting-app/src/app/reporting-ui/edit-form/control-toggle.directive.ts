@@ -29,9 +29,9 @@ export class ControlToggleDirective implements OnInit {
 
   @Input({ required: true }) appControlToggle!: string;
   @Input() isBulkEdit = false;
-  @Input({ required: false }) appControlToggleValue?: any;
+  @Input({ required: false }) appControlToggleValue?: unknown;
   @Input() appControlRequired = false;
-  @Output() addControlGroup = new EventEmitter();
+  @Output() readonly addControlGroup = new EventEmitter();
 
   // @HostBinding("readOnly") get isReadonly(): boolean {
   //   return this.controlToToggle.value === SPECIAL_EMPTY_VALUE;
@@ -53,7 +53,7 @@ export class ControlToggleDirective implements OnInit {
     return this.ngControl!.valueAccessor!;
   }
 
-  controlToToggleOrigWriteValue: ((obj: any) => void) | undefined;
+  controlToToggleOrigWriteValue: ((obj: unknown) => void) | undefined;
 
   controlToToggleOriginalValidators: [ValidatorFn] | null = null;
 

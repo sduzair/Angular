@@ -33,7 +33,7 @@ export function asyncData<T>(data: T) {
  * Create async observable error that errors
  * after a JS engine turn
  */
-export function asyncError<T>(errorObject: any) {
+export function asyncError<T>(errorObject: unknown) {
   return defer(() => Promise.reject(errorObject));
 }
 

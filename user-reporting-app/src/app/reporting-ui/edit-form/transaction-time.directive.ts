@@ -9,6 +9,7 @@ export class TransactionTimeDirective implements ControlValueAccessor {
   ngControl = inject(NgControl);
   private el = inject<ElementRef<HTMLInputElement>>(ElementRef);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private onChange = (_: any) => {
     /* empty */
   };
@@ -41,10 +42,10 @@ export class TransactionTimeDirective implements ControlValueAccessor {
     this.onTouched();
   }
 
-  registerOnChange(fn: any): void {
+  registerOnChange(fn: () => void): void {
     this.onChange = fn;
   }
-  registerOnTouched(fn: any): void {
+  registerOnTouched(fn: () => void): void {
     this.onTouched = fn;
   }
   setDisabledState?(isDisabled: boolean): void {

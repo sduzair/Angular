@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable rxjs-angular-x/prefer-composition */
+/* eslint-disable rxjs-angular-x/prefer-async-pipe */
 import { SelectionModel } from '@angular/cdk/collections';
 import { COMMA, ENTER } from '@angular/cdk/keycodes';
 import {
@@ -8,6 +11,7 @@ import {
   TrackByFunction,
   ViewChild,
   inject,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup } from '@angular/forms';
@@ -37,7 +41,7 @@ import { TransactionTimeDirective } from '../reporting-ui/edit-form/transaction-
  * @template TDataColumn - The type representing valid column names
  * @template TFilterKeys - The type representing valid filter keys
  */
-@Component({ template: '' })
+@Component({ template: '', changeDetection: ChangeDetectionStrategy.OnPush })
 export abstract class AbstractBaseTable<
   TData extends object,
   TDataColumn extends (keyof TData & string) | (string & {}),
@@ -497,7 +501,7 @@ export abstract class AbstractBaseTable<
         if (this.selectFiltersValues.includes(column))
           return [this.selectFiltersGenerateFilterKeys(column)];
 
-        return [column] as any as TFilterKeys[];
+        return [column] as never as TFilterKeys[];
       }),
     ];
   }
@@ -698,7 +702,14 @@ export abstract class AbstractBaseTable<
     return value.replace(/--/g, '.') as TFilterKeys;
   };
 
-  filterFormTrackBy(_: number, item: any) {
+  filterFormTrackBy(_: number, item: unknown) {
+    if (
+      typeof item !== 'object' ||
+      item === null ||
+      'sanitizedKey' in item === false
+    )
+      throw new Error();
+
     return item.sanitizedKey;
   }
 

@@ -16,7 +16,7 @@ export class ClickOutsideTableDirective implements OnInit, OnDestroy {
   private el = inject(ElementRef);
 
   private documentClickListener!: (ev: Event) => void;
-  @Output() appClickOutsideTable = new EventEmitter<void>();
+  @Output() readonly appClickOutsideTable = new EventEmitter<void>();
 
   private allowedElements = ['color-pallette', 'table-paginator'];
   private notAllowedElements = ['mat-column-actions'];

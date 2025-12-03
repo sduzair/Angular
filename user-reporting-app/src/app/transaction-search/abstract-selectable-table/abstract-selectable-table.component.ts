@@ -1,17 +1,22 @@
 import { SelectionModel } from '@angular/cdk/collections';
 import {
+  ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  DestroyRef,
   inject,
   Input,
   OnInit,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ControlValueAccessor } from '@angular/forms';
 import { MatTableDataSource } from '@angular/material/table';
 
 @Component({
   template: '',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
+// eslint-disable-next-line rxjs-angular-x/prefer-composition
 export abstract class AbstractSelectableTableComponent<T>
   implements ControlValueAccessor, OnInit
 {
@@ -60,16 +65,20 @@ export abstract class AbstractSelectableTableComponent<T>
     this.cdr.markForCheck();
   }
 
+  private destroyRef = inject(DestroyRef);
   ngOnInit() {
     // Always include 'select' as first column if not present
     if (!this.displayedColumns.includes('select')) {
       this.displayedColumns = ['select', ...this.displayedColumns];
     }
 
-    this.selection.changed.subscribe(() => {
-      this.onChange(this.selection.selected);
-      this.onTouched();
-    });
+    this.selection.changed
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
+      .subscribe(() => {
+        this.onChange(this.selection.selected);
+        this.onTouched();
+      });
   }
 
   toggleRow(row: T) {

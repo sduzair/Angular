@@ -3,6 +3,7 @@ import {
   AfterViewInit,
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   HostListener,
   OnInit,
@@ -87,6 +88,7 @@ import { PartyKeySelectableTableComponent } from './party-key-selectable-table/p
 import { ProductTypeSelectableTableComponent } from './product-type-selectable-table/product-type-selectable-table.component';
 import { ReviewPeriodDateDirective } from './review-period-date.directive';
 import { SourceRefreshSelectableTableComponent } from './source-refresh-selectable-table/source-refresh-selectable-table.component';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
   isErrorState(
@@ -541,6 +543,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
+// eslint-disable-next-line rxjs-angular-x/prefer-composition
 export class TransactionSearchComponent implements OnInit, AfterViewInit {
   private route = inject(ActivatedRoute);
   private amlPartyService = inject(AmlPartyService);
@@ -606,25 +609,19 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
     new BehaviorSubject<boolean>(false);
   public transactionSearchParamsLoadingState$ =
     this.transactionSearchParamsLoadingStateSubject.asObservable();
-  private destroy$ = new Subject<void>();
-
-  @HostListener('window:beforeunload', ['$event'])
-  ngOnDestroy = ((_$event: Event) => {
-    this.destroy$.next();
-    this.destroy$.complete();
-
-    // removePageFromOpenTabs(this.route.snapshot);
-  }) as () => void;
+  private destroyRef = inject(DestroyRef);
 
   @ViewChild(FormGroupDirective)
   private formDif!: FormGroupDirective;
 
   // Needed due to known caveat when emitEvent false: controls emitting regardless https://github.com/angular/components/issues/20218
   private suppressTransactionSearchParamsAutosave = false;
+
   ngOnInit(): void {
     this.amlTransactionSearchService
       .fetchSourceRefreshTime()
-      .pipe(take(1))
+      .pipe(take(1), takeUntilDestroyed(this.destroyRef))
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
       .subscribe((res) => {
         this.sourceRefreshTimeDataSource.data = res;
         this.sourceRefreshTimeDataLoadingState = false;
@@ -664,8 +661,9 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
             );
           },
         ),
-        takeUntil(this.destroy$),
+        takeUntilDestroyed(this.destroyRef),
       )
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
       .subscribe();
 
     this.form.controls.amlId.valueChanges
@@ -683,7 +681,9 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
             this.suppressTransactionSearchParamsAutosave = false;
           });
         }),
+        takeUntilDestroyed(this.destroyRef),
       )
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
       .subscribe();
   }
   get isFormDisabled() {
@@ -796,8 +796,9 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
             }),
           ),
         ),
-        takeUntil(this.destroy$),
+        takeUntilDestroyed(this.destroyRef),
       )
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
       .subscribe();
   }
 
@@ -959,7 +960,7 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
   ) {
     const ctrlValue = this.form.controls.reviewPeriods
       .at(index)
-      .get(controlName)?.value as any as Date;
+      .get(controlName)?.value as unknown as Date;
 
     this.form.controls.reviewPeriods
       .at(index)
@@ -985,7 +986,7 @@ export class TransactionSearchComponent implements OnInit, AfterViewInit {
   ) {
     const ctrlValue = this.form.controls.reviewPeriods
       .at(index)
-      .get(controlName)?.value as any as Date;
+      .get(controlName)?.value as unknown as Date;
 
     this.form.controls.reviewPeriods
       .at(index)

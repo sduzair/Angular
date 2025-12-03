@@ -176,7 +176,9 @@ import {
                 (click)="onUpload(stepper)"
                 [disabled]="
                   !stepperFormGroup.controls.step2ReviewTableValidationErrors
-                    .valid || stepperFormGroup.controls.readyForUpload.valid
+                    .valid ||
+                  stepperFormGroup.controls.readyForUpload.valid ||
+                  (sessionDataService.savingStatus$ | async)
                 ">
                 Upload
               </button>
@@ -203,7 +205,7 @@ import {
 })
 export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
   onFileInputClick(fileInput: HTMLInputElement) {
-    fileInput.value = null as any as string;
+    fileInput.value = null as unknown as string;
   }
   private destroyRef = inject(DestroyRef);
   private fb = inject(FormBuilder);
@@ -245,6 +247,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
         tap((event) => this.onDragOver(event)),
         takeUntilDestroyed(this.destroyRef),
       )
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
       .subscribe();
 
     fromEvent<DragEvent>(this.dropZone.nativeElement, 'dragleave')
@@ -252,6 +255,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
         tap((event) => this.onDragLeave(event)),
         takeUntilDestroyed(this.destroyRef),
       )
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
       .subscribe();
   }
 
@@ -353,6 +357,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
         finalize(() => this._processingFile$.next(false)),
         takeUntilDestroyed(this.destroyRef),
       )
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
       .subscribe({
         next: (strTxns = []) => {
           this.parsedData = strTxns;
@@ -419,21 +424,18 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
     return transaction;
   }
 
-  private sessionDataService = inject(SessionStateService);
+  protected sessionDataService = inject(SessionStateService);
   onUpload(stepper: MatStepper) {
     this.stepperFormGroup.controls.readyForUpload.setValue(true);
     this.sessionDataService.saveManualTransactions(this.parsedData);
     // After successful upload, move to next step
-    this.sessionDataService.savingEdits$
+    this.sessionDataService
+      .whenCompleted(this.parsedData.map((d) => d.flowOfFundsAmlTransactionId))
       .pipe(
-        filter((currentSaves) =>
-          this.parsedData.every(
-            ({ flowOfFundsAmlTransactionId }) =>
-              !currentSaves.includes(flowOfFundsAmlTransactionId),
-          ),
-        ),
         tap(() => stepper.next()),
+        takeUntilDestroyed(this.destroyRef),
       )
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
       .subscribe();
   }
 
