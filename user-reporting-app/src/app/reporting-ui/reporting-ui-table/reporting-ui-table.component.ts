@@ -560,10 +560,9 @@ export class ReportingUiTableComponent {
   navigateToAuditForm(record: StrTransactionData) {
     this.recentlyOpenedRowsSubject.next([record.flowOfFundsAmlTransactionId]);
 
-    // this.crossTabEditService.openEditFormTab({
-    //   editType: "AUDIT_REQUEST",
-    //   strTxn: record,
-    // });
+    this.router.navigate([`../audit/${record.flowOfFundsAmlTransactionId}`], {
+      relativeTo: this.route,
+    });
   }
 
   // template helpers

@@ -87,6 +87,7 @@ export class ChangeLogService {
     path: string,
   ) {
     // const maxLength = Math.max(arr1.length, arr2.length);
+    // ignore extra items in incoming changes
     const maxLength = arr1.length;
 
     Array.from({ length: maxLength }).forEach((_, i) => {
@@ -417,7 +418,8 @@ export class ChangeLogService {
     isBulkEdit: boolean,
     useRaw: boolean,
   ): any {
-    // If no toggle mapped, just return current
+    // error: useRaw preseents null as checked to ask user to set the field appears as error
+    // just return current if not a dep prop toggle
     if (!ChangeLogService.isDependentPropToggle(key) || useRaw) {
       return val as string | null | undefined;
     }

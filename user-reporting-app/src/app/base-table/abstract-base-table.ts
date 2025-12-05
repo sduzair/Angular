@@ -5,13 +5,13 @@ import { SelectionModel } from '@angular/cdk/collections';
 import { COMMA, ENTER } from '@angular/cdk/keycodes';
 import {
   AfterViewInit,
+  ChangeDetectionStrategy,
   Component,
   DestroyRef,
   Input,
   TrackByFunction,
   ViewChild,
   inject,
-  ChangeDetectionStrategy,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup } from '@angular/forms';
@@ -197,13 +197,6 @@ export abstract class AbstractBaseTable<
     );
   };
 
-  selectFiltersTrackByOption(
-    _index: number,
-    option: { value: string; isSelected: boolean },
-  ) {
-    return option.value;
-  }
-
   selectFiltersComputeUniqueFilterOptions(data: TData[], key: TFilterKeys) {
     const uniqueValuesSet = new Set<string>([this.SELECT_FILTER_BLANK_VALUE]);
     for (const record of data) {
@@ -358,10 +351,6 @@ export abstract class AbstractBaseTable<
 
     this.selectFiltersOptionsSelectionModel[filterKey]!.select(event.value);
     event.chipInput.clear();
-  }
-
-  selectFiltersChipsTrackByOption(_: number, option: string): string {
-    return option;
   }
 
   selectFiltersIsAllSelected(filterKey: TFilterKeys): boolean {
@@ -702,10 +691,6 @@ export abstract class AbstractBaseTable<
     return value.replace(/--/g, '.') as TFilterKeys;
   };
 
-  filterFormTrackBy(_: number, item: any) {
-    return item.sanitizedKey;
-  }
-
   filterFormGetFormControl(filterKey: TFilterKeys) {
     return this.filterFormFormGroup.get(
       this.filterFormFilterFormKeySanitize(filterKey),
@@ -724,9 +709,6 @@ export abstract class AbstractBaseTable<
     '#FF8C42': 'Orange',
     '#95A5A6': 'Gray',
   };
-  filterFormHighlightMapTrackBy(index: number, option: string[]) {
-    return option[0];
-  }
   filterFormHighlightSelectedColor?: string | null = undefined;
 
   lastHighlightedIndex: { pageRowIndex: number; pageIndex: number } | null =
@@ -1070,11 +1052,6 @@ export interface ISelectFilters<
   selectFiltersGenerateFilterKeys(column: string): TFilterKeys;
   selectFiltersParseFilterKey(key: TFilterKeys): TDataColumn;
   selectFiltersIsSelectFilterKey(key: TFilterKeys): boolean;
-  selectFiltersTrackByOption: TrackByFunction<{
-    value: string;
-    isSelected: boolean;
-  }>;
-  selectFiltersChipsTrackByOption(index: number, option: string): string;
   selectFiltersComputeUniqueFilterOptions(
     data: TData[],
     key: TFilterKeys,
@@ -1122,7 +1099,6 @@ export interface IFilterForm<TData = any, TFilterKeys = any> {
   filterFormFilterFormKeyDesanitize(value: string): TFilterKeys;
   filterFormRemoveFilter(sanitizedKey: string): void;
   filterFormIsResetBtnDisabled$: Observable<boolean>;
-  filterFormTrackBy(index: number, item: any): any;
   filterFormGetFormControl(filterKey: TFilterKeys): FormControl;
   filterFormFullTextFilterKey: 'fullTextFilterKey';
 }
@@ -1130,7 +1106,6 @@ export interface IFilterForm<TData = any, TFilterKeys = any> {
 export interface IHighlightable<TData, THighlightKey> {
   filterFormHighlightSelectFilterKey: THighlightKey;
   filterFormHighlightMap: Record<string, string>;
-  filterFormHighlightMapTrackBy: TrackByFunction<[string, string]>;
   filterFormHighlightSelectedColor?: string | null;
 
   lastHighlightedIndex: { pageRowIndex: number; pageIndex: number } | null;

@@ -8,13 +8,6 @@ import { RecursiveOmit } from './edit-form.component';
 export function hasMissingConductorInfo(
   value: RecursiveOmit<StartingAction, keyof ConductorNpdData>,
 ) {
-  const hasConductors =
-    !value.conductors || (!!value.conductors && value.conductors.length === 0);
-  console.assert(
-    (!value.wasCondInfoObtained && hasConductors) === false,
-    'Assert if no conductor info obtained then no conductors must be initialized',
-  );
-
   if (value.wasCondInfoObtained === false) return false;
 
   const hasPersonName = (

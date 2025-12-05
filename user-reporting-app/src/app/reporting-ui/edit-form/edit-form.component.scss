@@ -68,6 +68,29 @@ button[appToggleEditField] {
   }
 }
 
+::ng-deep .audit-form {
+  --mdc-outlined-text-field-disabled-label-text-color: var(
+    --mat-sys-on-surface-variant
+  );
+  --mdc-outlined-text-field-disabled-input-text-color: var(
+    --mat-sys-on-surface
+  );
+  --mat-select-disabled-trigger-text-color: var(--mat-sys-on-surface);
+  --mat-checkbox-disabled-label-color: var(--mat-sys-on-surface);
+
+  --mdc-outlined-text-field-disabled-outline-color: var(--mat-sys-outline);
+
+  --mdc-checkbox-disabled-selected-icon-color: var(--mat-sys-primary);
+
+  .mdc-text-field--disabled {
+    user-select: text;
+  }
+
+  .mat-mdc-select-disabled .mat-mdc-select-trigger {
+    user-select: text;
+  }
+}
+
 mat-panel-title h1,
 mat-panel-title h3 {
   margin-bottom: 0;

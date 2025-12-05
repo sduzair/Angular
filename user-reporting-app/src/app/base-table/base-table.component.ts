@@ -85,10 +85,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
         <mat-toolbar-row class="px-0 header-toolbar-row">
           <!-- Active Filter Chips -->
           <mat-chip-set aria-label="Active filters" class="filter-chips">
-            @for (
-              filter of filterFormActiveFilters$ | async;
-              track filterFormTrackBy($index, filter)
-            ) {
+            @for (filter of filterFormActiveFilters$ | async; track filter) {
               <mat-chip
                 removable="true"
                 highlighted="true"
@@ -114,7 +111,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
           <mat-chip-set class="color-pallette">
             @for (
               option of Object.entries(filterFormHighlightMap);
-              track filterFormHighlightMapTrackBy($index, option)
+              track option[0]
             ) {
               <mat-chip
                 [style.backgroundColor]="option[0]"
@@ -174,10 +171,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
           <mat-divider></mat-divider>
           <div
             class="flex-grow-1 overflow-auto row row-cols-1 mx-0 pt-3 scroll-position-preserve">
-            @for (
-              filterKey of filterFormFilterKeys;
-              track filterFormTrackBy($index, filterKey)
-            ) {
+            @for (filterKey of filterFormFilterKeys; track filterKey) {
               <!-- Full Text Filter -->
               @if (this.filterFormFullTextFilterKey === filterKey) {
                 <mat-form-field class="col">
@@ -261,7 +255,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                     @for (
                       option of this.selectFiltersOptionsSelected[filterKey]
                         | async;
-                      track selectFiltersChipsTrackByOption($index, option)
+                      track option
                     ) {
                       <mat-chip-row
                         (removed)="
@@ -316,7 +310,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                       option of selectFiltersOptionsSelectionsFiltered$[
                         filterKey
                       ] | async;
-                      track selectFiltersTrackByOption($index, option)
+                      track option.value
                     ) {
                       <mat-option
                         disabled
@@ -358,7 +352,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                     [formControlName]="this.filterFormHighlightSelectFilterKey">
                     @for (
                       option of Object.entries(filterFormHighlightMap);
-                      track filterFormHighlightMapTrackBy($index, option)
+                      track option[0]
                     ) {
                       <mat-button-toggle
                         class="highlight-radio"

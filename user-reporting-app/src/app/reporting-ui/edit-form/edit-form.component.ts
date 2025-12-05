@@ -1,10 +1,10 @@
 import { CommonModule } from '@angular/common';
 import {
+  AfterViewChecked,
   ChangeDetectionStrategy,
   Component,
-  Input,
-  OnInit,
   inject,
+  input,
 } from '@angular/core';
 import {
   AbstractControl,
@@ -42,8 +42,17 @@ import {
 } from '@angular/router';
 import { isValid } from 'date-fns';
 import { isEqualWith } from 'lodash-es';
-import { Observable, defer, map, of, take } from 'rxjs';
-import { finalize } from 'rxjs/operators';
+import {
+  filter,
+  finalize,
+  startWith,
+  tap,
+  shareReplay,
+  switchMap,
+  combineLatestWith,
+  map,
+  take,
+} from 'rxjs/operators';
 import { ulid } from 'ulid';
 import {
   SessionStateService,
@@ -64,7 +73,6 @@ import {
   SourceOfFunds,
   StartingAction,
   StrTransaction,
-  StrTransactionData,
   StrTxnFlowOfFunds,
 } from '../reporting-ui-table/reporting-ui-table.component';
 import {
@@ -81,6 +89,8 @@ import { ToggleEditFieldDirective } from './toggle-edit-field.directive';
 import { TransactionDateDirective } from './transaction-date.directive';
 import { TransactionDetailsPanelComponent } from './transaction-details-panel/transaction-details-panel.component';
 import { TransactionTimeDirective } from './transaction-time.directive';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { Observable, of } from 'rxjs';
 
 @Component({
   selector: 'app-edit-form',
@@ -127,7 +137,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
         <!-- <ng-container
         *ngIf="isNotAudit; else auditDropdown"
         > -->
-        @if (isNotAudit) {
+        @if (!isAudit) {
           <button
             mat-flat-button
             color="primary"
@@ -146,34 +156,40 @@ import { TransactionTimeDirective } from './transaction-time.directive';
             }
           </button>
         }
+        @if (isAudit) {
+          <mat-form-field>
+            <mat-select
+              placeholder="Version"
+              [formControl]="auditVersionControl">
+              @for (
+                option of auditVersionOptions$ | async;
+                track option.value
+              ) {
+                <mat-option [value]="option.value">
+                  {{ option.label }}
+                </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        }
         <!-- <ng-template #auditDropdown>
         <!-- Standalone Dropdown, not part of editForm --
-        <mat-form-field>
-          <mat-select
-            placeholder="Version"
-            [formControl]="auditVersionControl"
-            >
-            <mat-option
-              *ngFor="let option of auditVersionOptions$ | async"
-              [value]="option.value"
-              >
-              {{ option.label }}
-            </mat-option>
-          </mat-select>
-        </mat-form-field>
       </ng-template> -->
       </mat-toolbar>
-      @if (isSingleEdit) {
-        <app-transaction-details-panel
-          [singleStrTransaction]="$any(editType.payload)" />
+      @if (isSingleEdit || isAudit) {
+        @if (editType$ | async; as editType) {
+          <app-transaction-details-panel
+            [singleStrTransaction]="$any(editType.payload)" />
+        }
       }
     </div>
     <div class="container form-field-density px-0">
-      @if (editForm) {
+      @if (editForm$ | async; as editForm) {
         <form
           [formGroup]="editForm"
           (ngSubmit)="onSave()"
           [class.bulk-edit-form]="isBulkEdit"
+          [class.audit-form]="isAudit"
           class="edit-form"
           data-testid="edit-form"
           id="edit-form">
@@ -512,7 +528,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                   type="button"
                   mat-raised-button
                   color="primary"
-                  (click)="addStartingAction(!!this.isBulkEdit)"
+                  (click)="addStartingAction()"
                   class="mx-1"
                   [attr.data-testid]="'startingActions-add'">
                   <mat-icon>add</mat-icon> Add Starting Action
@@ -534,6 +550,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                             <button
                               type="button"
                               mat-icon-button
+                              [attr.data-testid]="
+                                'startingActions-' + saIndex + '-remove'
+                              "
                               (click)="removeStartingAction(saIndex)">
                               <mat-icon>delete</mat-icon>
                             </button>
@@ -1224,6 +1243,13 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <button
                                       type="button"
                                       mat-icon-button
+                                      [attr.data-testid]="
+                                        'startingActions-' +
+                                        saIndex +
+                                        '-accountHolders-' +
+                                        holderIndex +
+                                        '-remove'
+                                      "
                                       (click)="
                                         removeAccountHolder(
                                           'startingActions',
@@ -1409,6 +1435,13 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <button
                                       type="button"
                                       mat-icon-button
+                                      [attr.data-testid]="
+                                        'startingActions-' +
+                                        saIndex +
+                                        '-sourceOfFunds-' +
+                                        fundsIndex +
+                                        '-remove'
+                                      "
                                       (click)="
                                         removeSourceOfFunds(saIndex, fundsIndex)
                                       ">
@@ -1632,6 +1665,13 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <button
                                       type="button"
                                       mat-icon-button
+                                      [attr.data-testid]="
+                                        'startingActions-' +
+                                        saIndex +
+                                        '-conductors-' +
+                                        condIndex +
+                                        '-remove'
+                                      "
                                       (click)="
                                         removeConductor(saIndex, condIndex)
                                       ">
@@ -1799,6 +1839,15 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                             <button
                                               type="button"
                                               mat-icon-button
+                                              [attr.data-testid]="
+                                                'startingActions-' +
+                                                saIndex +
+                                                '-conductors-' +
+                                                condIndex +
+                                                '-onBehalfOf-' +
+                                                behalfIndex +
+                                                '-remove'
+                                              "
                                               (click)="
                                                 removeOnBehalfOf(
                                                   saIndex,
@@ -1944,7 +1993,14 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     type="button"
                                     mat-raised-button
                                     color="primary"
-                                    (click)="addOnBehalfOf(saIndex, condIndex)">
+                                    (click)="addOnBehalfOf(saIndex, condIndex)"
+                                    [attr.data-testid]="
+                                      'startingActions-' +
+                                      saIndex +
+                                      '-conductors-' +
+                                      condIndex +
+                                      '-onBehalfOf-add'
+                                    ">
                                     <mat-icon>add</mat-icon> Add On Behalf Of
                                   </button>
                                 </div>
@@ -1984,7 +2040,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                   type="button"
                   mat-raised-button
                   color="primary"
-                  (click)="addCompletingAction(!!this.isBulkEdit)"
+                  (click)="addCompletingAction()"
                   class="mx-1"
                   [attr.data-testid]="'completingActions-add'">
                   <mat-icon>add</mat-icon> Add Completing Action
@@ -2005,6 +2061,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                             ><h1>Completing Action #{{ caIndex + 1 }}</h1>
                             <button
                               type="button"
+                              [attr.data-testid]="
+                                'completingActions-' + caIndex + '-remove'
+                              "
                               mat-icon-button
                               (click)="removeCompletingAction(caIndex)">
                               <mat-icon>delete</mat-icon>
@@ -2686,6 +2745,13 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <button
                                       type="button"
                                       mat-icon-button
+                                      [attr.data-testid]="
+                                        'completingActions-' +
+                                        caIndex +
+                                        '-accountHolders-' +
+                                        holderIndex +
+                                        '-remove'
+                                      "
                                       (click)="
                                         removeAccountHolder(
                                           'completingActions',
@@ -2873,6 +2939,13 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <button
                                       type="button"
                                       mat-icon-button
+                                      [attr.data-testid]="
+                                        'completingActions-' +
+                                        caIndex +
+                                        '-involvedIn-' +
+                                        invIndex +
+                                        '-remove'
+                                      "
                                       (click)="
                                         removeInvolvedIn(caIndex, invIndex)
                                       ">
@@ -3095,6 +3168,13 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <button
                                       type="button"
                                       mat-icon-button
+                                      [attr.data-testid]="
+                                        'completingActions-' +
+                                        caIndex +
+                                        '-beneficiaries-' +
+                                        benIndex +
+                                        '-remove'
+                                      "
                                       (click)="
                                         removeBeneficiary(caIndex, benIndex)
                                       ">
@@ -3249,68 +3329,123 @@ import { TransactionTimeDirective } from './transaction-time.directive';
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class EditFormComponent implements OnInit {
-  @Input()
-  readonly editType!: EditFormEditType;
+// eslint-disable-next-line rxjs-angular-x/prefer-composition
+export class EditFormComponent implements AfterViewChecked {
+  private changeLogService = inject(ChangeLogService);
+  private snackBar = inject(MatSnackBar);
 
-  editForm: EditFormType | null = null;
+  readonly editType = input.required<EditFormEditType>();
+  protected readonly editType$ = toObservable(this.editType);
 
-  private editFormValueBefore: EditFormValueType | null = null;
+  protected auditVersionControl = new FormControl<number>(NaN, {
+    nonNullable: true,
+  });
 
-  ngOnInit(): void {
-    if (this.editType.type === 'SINGLE_EDIT') {
-      this.editForm = this.initializeEditForm({
-        initValue: this.editType.payload,
-        editType: 'SINGLE_EDIT',
-      });
-    }
-    if (this.editType.type === 'BULK_EDIT') {
-      this.editForm = this.initializeEditForm({
-        editType: 'BULK_EDIT',
-        disabled: true,
-      });
-      this.editForm.disable();
-    }
-  }
+  protected readonly editForm$ = this.editType$.pipe(
+    combineLatestWith(
+      this.auditVersionControl.valueChanges.pipe(startWith(NaN)),
+    ),
+    map(([editType, auditVersion]) => {
+      switch (editType.type) {
+        case 'SINGLE_EDIT':
+          return this.createEditForm({
+            txn: editType.payload,
+            options: { editType: 'SINGLE_EDIT' },
+          });
 
-  private initializeEditForm({
-    initValue,
-    editType,
-    disabled = false,
-  }: {
-    initValue?: StrTransactionData;
-    editType: EditType;
-    disabled?: boolean;
-  }) {
-    const editForm = this.createEditForm({
-      txn: initValue,
-      options: { disabled, editType },
-    });
-    this.editFormValueBefore = structuredClone(editForm.getRawValue());
-    return editForm;
-  }
+        case 'BULK_EDIT':
+          return this.createEditForm({
+            options: { editType: 'BULK_EDIT', disabled: true },
+          });
 
-  editFormHasChanges$ = defer(() => this.editForm!.valueChanges).pipe(
-    map(() => {
-      const editFormVal = this.editForm?.getRawValue()!;
-      return !isEqualWith(
-        editFormVal,
-        this.editFormValueBefore,
-        (val1, val2, indexOrKey) => {
-          const isEmpty = (val: unknown) => val == null || val === '';
-
-          if (isEmpty(val1) && isEmpty(val2)) return true;
-
-          if (this.editType.type === 'BULK_EDIT' && indexOrKey === '_id')
-            return true;
-
-          return undefined;
-        },
-      );
+        case 'AUDIT_REQUEST': {
+          const txn = this.changeLogService.applyChanges(
+            editType.payload,
+            editType.payload.changeLogs.filter(
+              (log) => log.version <= auditVersion,
+            ),
+          );
+          return this.createEditForm({
+            txn,
+            options: { editType: 'AUDIT_REQUEST', disabled: true },
+          });
+        }
+      }
     }),
+    shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  private snackBar = inject(MatSnackBar);
+  // local reference
+  private editForm: EditFormType | null = null;
+  private editFormValueBefore: EditFormValueType | null = null;
+  _ = this.editForm$
+    .pipe(takeUntilDestroyed())
+    // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
+    .subscribe((form) => {
+      this.editForm = form;
+    });
+
+  protected auditVersionOptions$ = this.editType$.pipe(
+    filter(({ type }) => type === 'AUDIT_REQUEST'),
+    map(({ payload }) =>
+      (payload as StrTransactionWithChangeLogs).changeLogs.filter(
+        (log) => log.path !== 'highlightColor',
+      ),
+    ),
+    tap((changes) =>
+      this.auditVersionControl.setValue(changes.at(-1)?.version ?? 0),
+    ),
+    map((changes) => {
+      const verMap = new Map([[0, 0]]);
+
+      changes.forEach((log) => {
+        if (Array.from(verMap.values()).includes(log.version)) return verMap;
+
+        let lastLabelIndex = [...verMap].at(-1)![0];
+        return verMap.set(++lastLabelIndex, log.version);
+      });
+
+      return Array.from(verMap.entries()).map(([key, val]) => ({
+        label: `v${String(key)}`,
+        value: val,
+      }));
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  protected readonly editFormHasChanges$ = this.editForm$.pipe(
+    switchMap((form) => {
+      // Store initial value when form changes
+      this.editFormValueBefore = structuredClone(form?.getRawValue() ?? null);
+
+      return form.valueChanges.pipe(
+        startWith(form.getRawValue()),
+        map(() => {
+          const editFormVal = form.getRawValue()!;
+          return !isEqualWith(
+            editFormVal,
+            this.editFormValueBefore,
+            (val1, val2, indexOrKey) => {
+              const isEmpty = (val: unknown) => val == null || val === '';
+
+              if (isEmpty(val1) && isEmpty(val2)) return true;
+
+              if (this.editType().type === 'BULK_EDIT' && indexOrKey === '_id')
+                return true;
+
+              return undefined;
+            },
+          );
+        }),
+      );
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  ngAfterViewChecked(): void {
+    // note: needed because audit form arrays seem to be enabled despite being set as disabled
+    if (this.isAudit) this.editForm!.disable();
+  }
 
   // ----------------------
   // Form Submission
@@ -3333,33 +3468,34 @@ export class EditFormComponent implements OnInit {
 
     this.isSaved = true;
 
-    if (this.editType.type === 'SINGLE_EDIT') {
+    const editType = this.editType();
+    if (editType.type === 'SINGLE_EDIT') {
       this.sessionDataService.saveEditForm({
         editType: 'SINGLE_EDIT',
         flowOfFundsAmlTransactionId:
-          this.editType.payload.flowOfFundsAmlTransactionId,
+          editType.payload.flowOfFundsAmlTransactionId,
         editFormValue: this.editForm!.getRawValue(),
         editFormValueBefore: this.editFormValueBefore!,
       });
     }
 
-    if (this.editType.type === 'BULK_EDIT') {
+    if (editType.type === 'BULK_EDIT') {
       this.sessionDataService.saveEditForm({
         editType: 'BULK_EDIT',
         editFormValue: this.editForm!.getRawValue(),
-        transactionsBefore: this.editType.payload,
+        transactionsBefore: editType.payload,
       });
     }
   }
 
   createEditForm({
     txn,
-    options = { editType: 'SINGLE_EDIT', disabled: false },
+    options,
   }: {
     txn?: WithVersion<StrTransaction> | StrTransaction | null;
-    options?: { editType: EditType; disabled: boolean };
+    options: { editType: EditType; disabled?: boolean };
   }) {
-    const { editType, disabled } = options;
+    const { editType, disabled = false } = options;
     const createEmptyArrays = editType === 'BULK_EDIT';
 
     const editForm = new FormGroup({
@@ -3458,6 +3594,11 @@ export class EditFormComponent implements OnInit {
       ),
     }) satisfies FormGroup<TypedForm<WithVersion<StrTxnEditForm>>>;
 
+    if (disabled) {
+      editForm?.controls.startingActions.disable();
+      editForm?.controls.completingActions.disable();
+    }
+
     return editForm;
   }
 
@@ -3478,9 +3619,9 @@ export class EditFormComponent implements OnInit {
     if (sAction?.accountHolders)
       sAction.hasAccountHolders = sAction.accountHolders.length > 0;
 
-    return new FormGroup(
+    const saGroup = new FormGroup(
       {
-        _id: new FormControl(action?._id ?? ulid()),
+        _id: new FormControl({ value: action?._id ?? ulid(), disabled }),
         directionOfSA: new FormControl(
           {
             value: action?.directionOfSA || '',
@@ -3638,6 +3779,14 @@ export class EditFormComponent implements OnInit {
     ) satisfies FormGroup<
       TypedForm<RecursiveOmit<StartingAction, keyof ConductorNpdData>>
     >;
+
+    if (disabled) {
+      saGroup.controls.accountHolders.disable();
+      saGroup.controls.sourceOfFunds.disable();
+      saGroup.controls.conductors.disable();
+    }
+
+    return saGroup;
   }
 
   createCompletingActionGroup({
@@ -3654,9 +3803,9 @@ export class EditFormComponent implements OnInit {
     if (cAction?.accountHolders)
       cAction.hasAccountHolders = cAction.accountHolders.length > 0;
 
-    return new FormGroup(
+    const caGroup = new FormGroup(
       {
-        _id: new FormControl(action?._id ?? ulid()),
+        _id: new FormControl({ value: action?._id ?? ulid(), disabled }),
         detailsOfDispo: new FormControl(
           {
             value: action?.detailsOfDispo || '',
@@ -3803,6 +3952,14 @@ export class EditFormComponent implements OnInit {
         beneficiaryValidator(),
       ],
     ) satisfies FormGroup<TypedForm<CompletingAction>>;
+
+    if (disabled) {
+      caGroup.controls.accountHolders.disable();
+      caGroup.controls.involvedIn.disable();
+      caGroup.controls.beneficiaries.disable();
+    }
+
+    return caGroup;
   }
 
   private createAccountHolderGroup({
@@ -3814,7 +3971,7 @@ export class EditFormComponent implements OnInit {
   }) {
     const { disabled } = options;
     return new FormGroup({
-      _id: new FormControl(holder?._id ?? ulid()),
+      _id: new FormControl({ value: holder?._id ?? ulid(), disabled }),
       partyKey: new FormControl({ value: holder?.partyKey || '', disabled }),
       givenName: new FormControl({ value: holder?.givenName || '', disabled }),
       otherOrInitial: new FormControl({
@@ -3838,7 +3995,7 @@ export class EditFormComponent implements OnInit {
   }) {
     const { disabled } = options;
     return new FormGroup({
-      _id: new FormControl(source?._id ?? ulid()),
+      _id: new FormControl({ value: source?._id ?? ulid(), disabled }),
       partyKey: new FormControl({ value: source?.partyKey || '', disabled }),
       givenName: new FormControl({ value: source?.givenName || '', disabled }),
       otherOrInitial: new FormControl({
@@ -3870,8 +4027,8 @@ export class EditFormComponent implements OnInit {
   }) {
     const { editType, disabled } = options;
 
-    return new FormGroup({
-      _id: new FormControl(conductor?._id ?? ulid()),
+    const condGroup = new FormGroup({
+      _id: new FormControl({ value: conductor?._id ?? ulid(), disabled }),
       partyKey: new FormControl({ value: conductor?.partyKey || '', disabled }),
       givenName: new FormControl({
         value: conductor?.givenName || '',
@@ -3907,6 +4064,12 @@ export class EditFormComponent implements OnInit {
     }) satisfies FormGroup<
       TypedForm<RecursiveOmit<Conductor, keyof ConductorNpdData>>
     >;
+
+    if (disabled) {
+      condGroup.controls.onBehalfOf.disable();
+    }
+
+    return condGroup;
   }
 
   private createOnBehalfOfGroup({
@@ -3919,7 +4082,7 @@ export class EditFormComponent implements OnInit {
     const { disabled } = options;
 
     return new FormGroup({
-      _id: new FormControl(behalf?._id ?? ulid()),
+      _id: new FormControl({ value: behalf?._id ?? ulid(), disabled }),
       partyKey: new FormControl({ value: behalf?.partyKey || '', disabled }),
       givenName: new FormControl({ value: behalf?.givenName || '', disabled }),
       otherOrInitial: new FormControl({
@@ -3943,7 +4106,7 @@ export class EditFormComponent implements OnInit {
   }) {
     const { disabled } = options;
     return new FormGroup({
-      _id: new FormControl(involved?._id ?? ulid()),
+      _id: new FormControl({ value: involved?._id ?? ulid(), disabled }),
       partyKey: new FormControl({ value: involved?.partyKey || '', disabled }),
       givenName: new FormControl({
         value: involved?.givenName || '',
@@ -3979,7 +4142,7 @@ export class EditFormComponent implements OnInit {
     const { disabled } = options;
 
     return new FormGroup({
-      _id: new FormControl(beneficiary?._id ?? ulid()),
+      _id: new FormControl({ value: beneficiary?._id ?? ulid(), disabled }),
       partyKey: new FormControl({
         value: beneficiary?.partyKey || '',
         disabled,
@@ -4004,39 +4167,53 @@ export class EditFormComponent implements OnInit {
   // Array Management
   // ----------------------
   // Starting Actions
-  protected addStartingAction(isBulk: boolean): void {
+  // todo: for audit completely disable
+  protected addStartingAction(): void {
     const newSaGroup = this.createStartingActionGroup({
-      options: { editType: 'BULK_EDIT', disabled: false },
+      options: { editType: this.editType().type, disabled: this.isBulkEdit },
     });
-    if (this.editForm!.controls.startingActions.disabled) return;
+    if (
+      (this.editForm!.controls.startingActions.disabled && !this.isBulkEdit) ||
+      this.isAudit
+    )
+      return;
 
     this.editForm!.controls.startingActions.push(newSaGroup);
-    this.editForm!.controls.startingActions.markAllAsTouched();
-
-    if (isBulk) newSaGroup.disable();
   }
 
+  // todo: let atleast one sa exist
   protected removeStartingAction(index: number): void {
-    if (this.editForm!.controls.startingActions.disabled) return;
+    if (
+      (this.editForm!.controls.startingActions.disabled && !this.isBulkEdit) ||
+      this.editForm!.controls.startingActions.controls.length === 1
+    )
+      return;
 
     this.editForm!.controls.startingActions.removeAt(index);
   }
 
   // Completing Actions
-  protected addCompletingAction(isBulk: boolean): void {
+  protected addCompletingAction(): void {
     const newCaGroup = this.createCompletingActionGroup({
-      options: { editType: 'BULK_EDIT', disabled: false },
+      options: { editType: this.editType().type, disabled: this.isBulkEdit },
     });
-    if (this.editForm!.controls.completingActions.disabled) return;
+    if (
+      (this.editForm!.controls.completingActions.disabled &&
+        !this.isBulkEdit) ||
+      this.isAudit
+    )
+      return;
 
     this.editForm!.controls.completingActions.push(newCaGroup);
-    this.editForm!.controls.completingActions.markAllAsTouched();
-
-    if (isBulk) newCaGroup.disable();
   }
 
   protected removeCompletingAction(index: number): void {
-    if (this.editForm!.controls.completingActions.disabled) return;
+    if (
+      (this.editForm!.controls.completingActions.disabled &&
+        !this.isBulkEdit) ||
+      this.editForm!.controls.completingActions.controls.length === 1
+    )
+      return;
 
     this.editForm!.controls.completingActions.removeAt(index);
   }
@@ -4109,9 +4286,12 @@ export class EditFormComponent implements OnInit {
     if (startingAction.controls.conductors.disabled) return;
     if (!startingAction.controls.wasCondInfoObtained.value) return;
 
+    // note: needed because audit form arrays seem to be enabled despite being set as disabled
+    if (this.isAudit) return;
+
     startingAction.controls.conductors.push(
       this.createConductorGroup({
-        options: { editType: this.editType.type, disabled: false },
+        options: { editType: this.editType().type, disabled: false },
       }),
     );
     startingAction.controls.conductors.markAllAsTouched();
@@ -4120,6 +4300,9 @@ export class EditFormComponent implements OnInit {
   protected removeConductor(saIndex: number, index: number): void {
     const startingAction = this.editForm!.controls.startingActions.at(saIndex);
     if (startingAction.controls.conductors.disabled) return;
+
+    // note: needed because audit form arrays seem to be enabled despite being set as disabled
+    if (this.isAudit) return;
 
     startingAction.controls.conductors.removeAt(index);
   }
@@ -4435,13 +4618,13 @@ export class EditFormComponent implements OnInit {
 
   // template helpers
   protected get isSingleEdit() {
-    return this.editType.type === 'SINGLE_EDIT';
+    return this.editType().type === 'SINGLE_EDIT';
   }
   protected get isBulkEdit() {
-    return this.editType.type === 'BULK_EDIT';
+    return this.editType().type === 'BULK_EDIT';
   }
-  protected get isNotAudit() {
-    return this.editType.type !== 'AUDIT_REQUEST';
+  protected get isAudit() {
+    return this.editType().type === 'AUDIT_REQUEST';
   }
   protected get showTransactionDetailsErrorIcon() {
     if (this.isBulkEdit) return !this.editForm!.valid && this.editForm!.dirty;
@@ -4465,10 +4648,11 @@ export class EditFormComponent implements OnInit {
   }
 
   protected get selectedTransactionsForBulkEditLength() {
-    if (this.editType.type !== 'BULK_EDIT') {
+    const editType = this.editType();
+    if (editType.type !== 'BULK_EDIT') {
       return -1;
     }
-    return this.editType.payload.length;
+    return editType.payload.length;
   }
   protected get selectedTransactionsForBulkEditDisplayText() {
     return `${this.selectedTransactionsForBulkEditLength} transaction${
@@ -4562,44 +4746,73 @@ function beneficiaryValidator(): ValidatorFn {
   };
 }
 
-export const editTypeResolver: ResolveFn<EditFormEditType> = (
+export const singleEditTypeResolver: ResolveFn<EditFormEditType> = (
+  route: ActivatedRouteSnapshot,
+  _: RouterStateSnapshot,
+) => {
+  return inject(SessionStateService).strTransactionData$.pipe(
+    map((strTransactionData) => {
+      const strTransaction = strTransactionData.find(
+        (txn) =>
+          route.params['transactionId'] === txn.flowOfFundsAmlTransactionId,
+      );
+      if (!strTransaction) throw new Error('Transaction not found');
+      return {
+        type: 'SINGLE_EDIT',
+        payload: structuredClone(
+          strTransaction,
+        ) as StrTransactionWithChangeLogs,
+      };
+    }),
+  );
+};
+
+export const bulkEditTypeResolver: ResolveFn<EditFormEditType> = (
   route: ActivatedRouteSnapshot,
   _: RouterStateSnapshot,
 ) => {
   const selectedTransactionsForBulkEdit = inject(Router).getCurrentNavigation()
-    ?.extras.state?.['selectedTransactionsForBulkEdit'] as string[] | undefined;
+    ?.extras.state?.['selectedTransactionsForBulkEdit'] as string[] | null;
+
+  if (!selectedTransactionsForBulkEdit) throw new Error('Unknown edit type');
 
   return inject(SessionStateService).strTransactionData$.pipe(
     map((strTransactionData) => {
-      const isSingleEdit = !!route.params['transactionId'];
-      const isBulkEdit = !!selectedTransactionsForBulkEdit;
+      const strTransactions = strTransactionData.filter((txn) =>
+        selectedTransactionsForBulkEdit.includes(
+          txn.flowOfFundsAmlTransactionId,
+        ),
+      );
+      console.assert(
+        strTransactions.length === selectedTransactionsForBulkEdit.length,
+      );
+      return {
+        type: 'BULK_EDIT',
+        payload: structuredClone(
+          strTransactions,
+        ) as StrTransactionWithChangeLogs[],
+      };
+    }),
+  );
+};
 
-      if (isSingleEdit) {
-        const strTransaction = strTransactionData.find(
-          (txn) =>
-            route.params['transactionId'] === txn.flowOfFundsAmlTransactionId,
-        );
-        if (!strTransaction) throw new Error('Transaction not found');
-        return {
-          type: 'SINGLE_EDIT',
-          payload: strTransaction as StrTransactionWithChangeLogs,
-        };
-      }
-      if (isBulkEdit) {
-        const strTransactions = strTransactionData.filter((txn) =>
-          selectedTransactionsForBulkEdit.includes(
-            txn.flowOfFundsAmlTransactionId,
-          ),
-        );
-        console.assert(
-          strTransactions.length === selectedTransactionsForBulkEdit.length,
-        );
-        return {
-          type: 'BULK_EDIT',
-          payload: strTransactions as StrTransactionWithChangeLogs[],
-        };
-      }
-      throw new Error('Unknown edit type');
+export const auditResolver: ResolveFn<EditFormEditType> = (
+  route: ActivatedRouteSnapshot,
+  _: RouterStateSnapshot,
+) => {
+  return inject(SessionStateService).sessionState$.pipe(
+    map(({ strTransactions }) => {
+      const strTransaction = strTransactions.find(
+        (txn) =>
+          route.params['transactionId'] === txn.flowOfFundsAmlTransactionId,
+      );
+      if (!strTransaction) throw new Error('Transaction not found');
+      return {
+        type: 'AUDIT_REQUEST',
+        payload: structuredClone(
+          strTransaction,
+        ) as StrTransactionWithChangeLogs,
+      };
     }),
   );
 };

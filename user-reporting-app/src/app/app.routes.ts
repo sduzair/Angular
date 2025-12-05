@@ -11,8 +11,10 @@ import {
 } from './aml/session-state.service';
 import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
 import {
+  auditResolver,
+  bulkEditTypeResolver,
   EditFormComponent,
-  editTypeResolver,
+  singleEditTypeResolver,
 } from './reporting-ui/edit-form/edit-form.component';
 import {
   ReportingUiTableComponent,
@@ -78,7 +80,7 @@ export const routes: Routes = [
             path: 'edit-form/bulk-edit',
             component: EditFormComponent,
             resolve: {
-              editType: editTypeResolver,
+              editType: bulkEditTypeResolver,
             },
             data: { reuse: false },
             title: () => 'Bulk Edit',
@@ -87,10 +89,19 @@ export const routes: Routes = [
             path: 'edit-form/:transactionId',
             component: EditFormComponent,
             resolve: {
-              editType: editTypeResolver,
+              editType: singleEditTypeResolver,
             },
             data: { reuse: false },
             title: (route) => `Edit - ${route.params['transactionId']}`,
+          },
+          {
+            path: 'audit/:transactionId',
+            component: EditFormComponent,
+            resolve: {
+              editType: auditResolver,
+            },
+            data: { reuse: false },
+            title: (route) => `Audit - ${route.params['transactionId']}`,
           },
         ],
       },
