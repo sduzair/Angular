@@ -17,7 +17,7 @@ import {
   ValidatorFn,
 } from '@angular/forms';
 import { startWith } from 'rxjs';
-import { SPECIAL_EMPTY_VALUE } from './mark-as-empty.directive';
+import { SPECIAL_EMPTY_VALUE } from './mark-as-cleared.directive';
 
 @Directive({
   selector: '[appControlToggle]',
@@ -32,33 +32,34 @@ export class ControlToggleDirective implements OnInit {
   @Input({ required: false }) appControlToggleValue?: unknown;
   @Output() readonly addControlGroup = new EventEmitter();
 
+  // todo: verify if readonly only in bulk edit
   @HostBinding('attr.readonly') get isReadonly(): boolean | null {
-    return this.controlToToggle.value === SPECIAL_EMPTY_VALUE ? true : null;
+    return this.depPropControl.value === SPECIAL_EMPTY_VALUE ? true : null;
   }
 
   get controlToWatch() {
     return this.formGroupDirective.form.get(this.appControlToggle);
   }
 
-  get controlToToggle() {
-    let controlToToggle = this.ngControl?.control;
-    if (!controlToToggle) {
-      controlToToggle = this.controlContainer.control;
+  get depPropControl() {
+    let depPropControl = this.ngControl?.control;
+    if (!depPropControl) {
+      depPropControl = this.controlContainer.control;
     }
-    return controlToToggle!;
+    return depPropControl!;
   }
 
-  get controlToToggleValueAccessor() {
+  get depPropControlValueAccessor() {
     return this.ngControl!.valueAccessor!;
   }
 
-  controlToToggleOrigWriteValue: ((obj: unknown) => void) | undefined;
+  depPropControlOrigWriteValue: ((obj: unknown) => void) | undefined;
 
-  controlToToggleOriginalValidators: [ValidatorFn] | null = null;
+  depPropControlOriginalValidators: [ValidatorFn] | null = null;
 
   private destroyRef = inject(DestroyRef);
   ngOnInit() {
-    if (!this.controlToWatch || !this.controlToToggle) {
+    if (!this.controlToWatch || !this.depPropControl) {
       throw new Error(
         'ControlToggleDirective: controls not found in the form group',
       );
@@ -71,48 +72,20 @@ export class ControlToggleDirective implements OnInit {
         startWith(this.controlToWatch.value),
       )
       .subscribe((value) => {
-        const isControlToToggleAFormArray =
-          this.controlToToggle instanceof FormArray;
-        const isControlToToggleAFormControl = !isControlToToggleAFormArray;
+        const isDepControlAFormArray = this.depPropControl instanceof FormArray;
+        const isDepControlAFormControl = !isDepControlAFormArray;
 
-        // console.log("🚀 ~ ControlToggleDirective ~ .subscribe ~ value:", value);
-        if (isControlToToggleAFormControl && value === SPECIAL_EMPTY_VALUE) {
-          this.controlToToggle.reset();
+        if (isDepControlAFormControl && value === null && this.isBulkEdit) {
+          this.depPropControl.reset();
 
-          // Temporarily pause model to view updates
-          this.controlToToggleOrigWriteValue =
-            this.controlToToggleValueAccessor.writeValue.bind(
-              this.controlToToggleValueAccessor,
-            );
-          this.controlToToggleValueAccessor.writeValue = () => {
-            /* empty */
-          };
-
-          // Temporarily pause validation
-          this.controlToToggleOriginalValidators = this.controlToToggle
-            .validator
-            ? [this.controlToToggle.validator]
-            : null;
-          this.controlToToggle.clearValidators();
-
-          // Set special empty val on control to toggle
-          this.controlToToggle.setValue(SPECIAL_EMPTY_VALUE, {
+          // clear dependent control
+          this.depPropControl.setValue(SPECIAL_EMPTY_VALUE, {
             emitEvent: false,
           });
-          this.controlToToggle.markAsDirty();
-
-          // Restore model to view updates and validation
-          setTimeout(() => {
-            this.controlToToggleValueAccessor.writeValue =
-              this.controlToToggleOrigWriteValue!;
-            this.controlToToggle.setValidators(
-              this.controlToToggleOriginalValidators!,
-            );
-          });
+          this.depPropControl.markAsDirty();
           return;
         }
 
-        const isFormArrayInitDisabledLoad = this.controlToToggle.disabled;
         const toggleIsReset = value == null;
         const toggleIsSetToFalse = value === false;
         const toggleHasValue = Boolean(value);
@@ -121,75 +94,63 @@ export class ControlToggleDirective implements OnInit {
         // like other method of txn field depnds on method of txn field "Other" value
         // only needs to be enabled as validator required set by default
         if (
-          isControlToToggleAFormControl &&
+          isDepControlAFormControl &&
           this.appControlToggleValue &&
-          this.appControlToggleValue === String(value)
+          this.appControlToggleValue === String(value ?? '')
         ) {
-          this.controlToToggle.enable({ emitEvent: false });
+          this.depPropControl.enable({ emitEvent: false });
           return;
         }
 
         if (
-          isControlToToggleAFormControl &&
+          isDepControlAFormControl &&
           this.appControlToggleValue &&
-          this.appControlToggleValue !== String(value)
+          this.appControlToggleValue !== String(value ?? '')
         ) {
-          this.controlToToggle.reset();
-          this.controlToToggle.disable({ emitEvent: false });
+          this.depPropControl.reset();
+          this.depPropControl.disable({ emitEvent: false });
           return;
         }
 
         // field that depends on checkbox toggle's value
         // only needs to be enabled as validator required set by default
-        if (isControlToToggleAFormControl && toggleHasValue) {
-          this.controlToToggle.enable({ emitEvent: false });
+        if (isDepControlAFormControl && toggleHasValue) {
+          this.depPropControl.enable({ emitEvent: false });
           return;
         }
 
-        if (
-          isControlToToggleAFormControl &&
-          (toggleIsReset || toggleIsSetToFalse)
-        ) {
-          this.controlToToggle.reset();
-          this.controlToToggle.disable({ emitEvent: false });
+        if (isDepControlAFormControl && (toggleIsReset || toggleIsSetToFalse)) {
+          this.depPropControl.reset();
+          this.depPropControl.disable({ emitEvent: false });
           return;
         }
 
         // array field depends on checkbox toggle's value
         // only needs to be enabled as field validators set as required by default
-        if (isControlToToggleAFormArray && toggleHasValue && !this.isBulkEdit) {
-          this.controlToToggle.enable({ emitEvent: false });
+        if (isDepControlAFormArray && toggleHasValue && !this.isBulkEdit) {
+          this.depPropControl.enable({ emitEvent: false });
 
-          if (this.controlToToggle.value.length === 0)
+          if (this.depPropControl.value.length === 0)
             this.addControlGroup.emit();
           return;
         }
 
-        if (isControlToToggleAFormArray && toggleHasValue && this.isBulkEdit) {
-          this.controlToToggle.enable({ emitEvent: false });
+        if (isDepControlAFormArray && toggleHasValue && this.isBulkEdit) {
+          this.depPropControl.enable({ emitEvent: false });
 
-          this.controlToToggle.clear({ emitEvent: false });
+          this.depPropControl.clear({ emitEvent: false });
           this.addControlGroup.emit();
           return;
         }
 
-        if (isControlToToggleAFormArray && toggleIsSetToFalse) {
-          this.controlToToggle.clear({ emitEvent: false });
+        if (isDepControlAFormArray && toggleIsSetToFalse) {
+          this.depPropControl.clear({ emitEvent: false });
           return;
         }
 
-        if (isControlToToggleAFormArray && toggleIsReset) {
-          this.controlToToggle.reset({ emitEvent: false });
-          this.controlToToggle.disable({ emitEvent: false });
-          return;
-        }
-
-        if (
-          isControlToToggleAFormArray &&
-          !toggleHasValue &&
-          isFormArrayInitDisabledLoad
-        ) {
-          this.controlToToggle.disable({ emitEvent: false });
+        if (isDepControlAFormArray && toggleIsReset) {
+          this.depPropControl.reset({ emitEvent: false });
+          this.depPropControl.disable({ emitEvent: false });
           return;
         }
 

@@ -5,6 +5,7 @@ import eslintConfigPrettier from 'eslint-config-prettier';
 import rxjsAngularX from 'eslint-plugin-rxjs-angular-x';
 import { defineConfig } from 'eslint/config';
 import tseslint from 'typescript-eslint';
+import vitest from '@vitest/eslint-plugin';
 
 export default defineConfig([
   {
@@ -65,6 +66,7 @@ export default defineConfig([
       '@typescript-eslint/no-non-null-asserted-optional-chain': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
       'no-param-reassign': ['error', { props: true }],
+      '@typescript-eslint/prefer-for-of': 'off',
 
       // Lazy-loading
       'no-restricted-imports': [
@@ -77,9 +79,40 @@ export default defineConfig([
               message:
                 'manual-upload-stepper deps like xlsx are lazily loaded. Use dynamic import() instead.',
             },
+            // allow test/dev fixtures when developing
+            // @ts-ignore
+            ...(process.env.NODE_ENV === 'production'
+              ? [
+                  {
+                    group: ['**/*.fixture', '**/*.fixture.ts'],
+                    message:
+                      'Test fixtures can only be imported in .spec.ts files',
+                  },
+                ]
+              : []),
+            {
+              group: ['**/diff/*'],
+              message:
+                'Please interface with this library code using change log module',
+            },
           ],
         },
       ],
+    },
+  },
+  {
+    files: ['**/*.spec.ts'],
+    plugins: {
+      vitest,
+    },
+    languageOptions: {
+      globals: {
+        ...vitest.environments.env.globals,
+      },
+    },
+    rules: {
+      ...vitest.configs.recommended.rules,
+      'no-restricted-imports': 'off',
     },
   },
   {

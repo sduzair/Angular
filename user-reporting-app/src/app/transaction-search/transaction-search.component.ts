@@ -72,7 +72,6 @@ import {
   takeUntil,
   tap,
 } from 'rxjs';
-import { AmlSessionService } from '../aml-session.service';
 import { setError } from '../form-helpers';
 import { AccountNumberSelectableTableComponent } from './account-number-selectable-table/account-number-selectable-table.component';
 import { AmlPartyService } from './aml-party.service';
@@ -89,6 +88,7 @@ import { ProductTypeSelectableTableComponent } from './product-type-selectable-t
 import { ReviewPeriodDateDirective } from './review-period-date.directive';
 import { SourceRefreshSelectableTableComponent } from './source-refresh-selectable-table/source-refresh-selectable-table.component';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { AmlSessionService } from '../aml/aml-session.service';
 
 export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
   isErrorState(

@@ -779,3 +779,10 @@ export type StrTransactionDataColumnKey =
 export type AddPrefixToObject<T, P extends string> = {
   [K in keyof T as K extends string ? `${P}${K}` : never]: T[K];
 };
+
+export type WithVersion<T = object> = T & {
+  /**
+   * The last session in which the txn was edited not necessarily current session version.
+   */
+  _version: number | null;
+};

@@ -1,14 +1,12 @@
 import type { Routes } from '@angular/router';
-import {
-  AmlComponent,
-  lastUpdatedResolver,
-  savingStatusResolver,
-} from './aml/aml.component';
+import { lastUpdatedResolver, savingStatusResolver } from './aml/aml.component';
 import { SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE } from './aml/session-state.fixture';
 import {
   SESSION_INITIAL_STATE,
   SessionStateService,
 } from './aml/session-state.service';
+import { hasRoleGuard, isAuthenticatedGuard } from './auth.service';
+import { LoginComponent } from './login/login.component';
 import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
 import {
   auditResolver,
@@ -21,92 +19,118 @@ import {
   savingEditsResolver,
   strTransactionsEditedResolver,
 } from './reporting-ui/reporting-ui-table/reporting-ui-table.component';
-import { ReportingUiComponent } from './reporting-ui/reporting-ui.component';
-import { TransactionSearchComponent } from './transaction-search/transaction-search.component';
 import {
-  TransactionViewComponent,
   selectionsResolver,
   transactionSearchResolver,
+  TransactionViewComponent,
 } from './transaction-view/transaction-view.component';
 
 export const routes: Routes = [
   {
-    path: 'transactionsearch',
-    component: TransactionSearchComponent,
-    title: 'Search by AML Id',
+    path: 'login',
+    component: LoginComponent,
+    title: 'Login',
   },
   {
-    path: 'aml/:amlId',
-    component: AmlComponent,
-    providers: [
-      // { provide: SESSION_INITIAL_STATE, useValue: DEFAULT_SESSION_STATE },
-      {
-        provide: SESSION_INITIAL_STATE,
-        useValue: SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE,
-      },
-      SessionStateService,
-    ],
-    resolve: {
-      lastUpdated$: lastUpdatedResolver,
-      savingStatus$: savingStatusResolver,
-    },
-    data: { reuse: true },
+    path: '',
+    loadComponent: () =>
+      import('./nav-layout/nav-layout.component').then(
+        (m) => m.NavLayoutComponent,
+      ),
+    canActivate: [isAuthenticatedGuard],
     children: [
       {
-        path: 'transaction-view',
-        component: TransactionViewComponent,
-        resolve: {
-          transactionSearch: transactionSearchResolver,
-          initSelections: selectionsResolver,
-        },
-        data: { reuse: true },
-        title: (route) => `Transaction View - ${route.params['amlId']}`,
+        path: '',
+        redirectTo: 'transactionsearch',
+        pathMatch: 'full',
       },
       {
-        path: 'reporting-ui',
-        component: ReportingUiComponent,
-        title: (route) => `Reporting UI - ${route.params['amlId']}`,
+        path: 'transactionsearch',
+        loadComponent: () =>
+          import('./transaction-search/transaction-search.component').then(
+            (m) => m.TransactionSearchComponent,
+          ),
+        title: 'Search by AML Id',
+      },
+      {
+        path: 'aml/:amlId',
+        loadComponent: () =>
+          import('./aml/aml.component').then((m) => m.AmlComponent),
+        providers: [
+          // { provide: SESSION_INITIAL_STATE, useValue: DEFAULT_SESSION_STATE },
+          {
+            provide: SESSION_INITIAL_STATE,
+            useValue: SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE,
+          },
+          SessionStateService,
+        ],
+        resolve: {
+          lastUpdated$: lastUpdatedResolver,
+          savingStatus$: savingStatusResolver,
+        },
+        data: { reuse: true },
         children: [
           {
-            path: 'table',
-            component: ReportingUiTableComponent,
+            path: 'transaction-view',
+            component: TransactionViewComponent,
             resolve: {
-              strTransactionData$: strTransactionsEditedResolver,
-              savingEdits$: savingEditsResolver,
+              transactionSearch: transactionSearchResolver,
+              initSelections: selectionsResolver,
             },
             data: { reuse: true },
+            title: (route) => `Transaction View - ${route.params['amlId']}`,
           },
           {
-            path: 'edit-form/bulk-edit',
-            component: EditFormComponent,
-            resolve: {
-              editType: bulkEditTypeResolver,
-            },
-            data: { reuse: false },
-            title: () => 'Bulk Edit',
-          },
-          {
-            path: 'edit-form/:transactionId',
-            component: EditFormComponent,
-            resolve: {
-              editType: singleEditTypeResolver,
-            },
-            data: { reuse: false },
-            title: (route) => `Edit - ${route.params['transactionId']}`,
-          },
-          {
-            path: 'audit/:transactionId',
-            component: EditFormComponent,
-            resolve: {
-              editType: auditResolver,
-            },
-            data: { reuse: false },
-            title: (route) => `Audit - ${route.params['transactionId']}`,
+            path: 'reporting-ui',
+            title: (route) => `Reporting UI - ${route.params['amlId']}`,
+            children: [
+              {
+                path: '',
+                redirectTo: 'table',
+                pathMatch: 'full',
+              },
+              {
+                path: 'table',
+                component: ReportingUiTableComponent,
+                resolve: {
+                  strTransactionData$: strTransactionsEditedResolver,
+                  savingEdits$: savingEditsResolver,
+                },
+                data: { reuse: true },
+              },
+              {
+                path: 'edit-form/bulk-edit',
+                component: EditFormComponent,
+                resolve: {
+                  editType: bulkEditTypeResolver,
+                },
+                data: { reuse: false },
+                title: () => 'Bulk Edit',
+              },
+              {
+                path: 'edit-form/:transactionId',
+                component: EditFormComponent,
+                resolve: {
+                  editType: singleEditTypeResolver,
+                },
+                data: { reuse: false },
+                title: (route) => `Edit - ${route.params['transactionId']}`,
+              },
+              {
+                path: 'audit/:transactionId',
+                component: EditFormComponent,
+                canActivate: [hasRoleGuard('Admin')],
+                resolve: {
+                  editType: auditResolver,
+                },
+                data: { reuse: false },
+                title: (route) => `Audit - ${route.params['transactionId']}`,
+              },
+            ],
           },
         ],
       },
     ],
   },
-  { path: '', redirectTo: '/transactionsearch', pathMatch: 'full' },
   { path: '**', component: PageNotFoundComponent },
 ];

@@ -42,7 +42,7 @@
   gap: 0.2rem;
 }
 
-button[appMarkAsEmpty] {
+button[appMarkAsCleared] {
   display: none;
 }
 
@@ -51,7 +51,7 @@ button[appToggleEditField] {
 }
 
 .bulk-edit-form {
-  button[appMarkAsEmpty] {
+  button[appMarkAsCleared] {
     display: unset;
   }
 

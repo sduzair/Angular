@@ -34,12 +34,7 @@ import {
   tap,
   withLatestFrom,
 } from 'rxjs/operators';
-import {
-  ChangeLog,
-  ChangeLogService,
-  ChangeLogWithoutVersion,
-  WithVersion,
-} from '../change-log.service';
+import * as ChangeLog from '../change-logging/change-log';
 import {
   hasMissingCibcInfo,
   hasMissingConductorInfo,
@@ -47,6 +42,7 @@ import {
 import { EditFormValueType } from '../reporting-ui/edit-form/edit-form.component';
 import {
   StrTransactionData,
+  WithVersion,
   _hiddenValidationType,
 } from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import { DeepPartial } from '../test-helpers';
@@ -76,7 +72,6 @@ export class SessionStateService implements OnDestroy {
   private destroyRef = inject(DestroyRef);
   http = inject(HttpClient);
   errorHandler = inject(ErrorHandler);
-  private changeLogService = inject(ChangeLogService);
   private readonly initialState = inject(SESSION_INITIAL_STATE);
   private snackBar = inject(MatSnackBar);
 
@@ -137,16 +132,20 @@ export class SessionStateService implements OnDestroy {
         if (lastEditedStrTransactions)
           return computePartialTransactionDataHandler(
             strTransactions,
-            (original: StrTransactionWithChangeLogs, changes: ChangeLog[]) =>
-              this.changeLogService.applyChanges(original, changes),
+            (
+              original: StrTransactionWithChangeLogs,
+              changes: ChangeLog.ChangeLogType[],
+            ) => ChangeLog.applyChangeLogs(original, changes),
             lastEditedStrTransactions,
             newManualTransactions,
           );
 
         return computeFullTransactionDataHandler(
           strTransactions,
-          (original: StrTransactionWithChangeLogs, changes: ChangeLog[]) =>
-            this.changeLogService.applyChanges(original, changes),
+          (
+            original: StrTransactionWithChangeLogs,
+            changes: ChangeLog.ChangeLogType[],
+          ) => ChangeLog.applyChangeLogs(original, changes),
         );
       },
     ),
@@ -319,11 +318,9 @@ export class SessionStateService implements OnDestroy {
               editFormValue,
               flowOfFundsAmlTransactionId,
             } = edit;
-            const changeLogs: ChangeLogWithoutVersion[] = [];
-            this.changeLogService.compareProperties(
+            const changeLogs = ChangeLog.generateChangeLogs(
               editFormValueBefore,
               editFormValue,
-              changeLogs,
             );
             pendingChanges.push({
               flowOfFundsAmlTransactionId,
@@ -334,12 +331,10 @@ export class SessionStateService implements OnDestroy {
           if (editType === 'BULK_EDIT') {
             const { transactionsBefore, editFormValue } = edit;
             transactionsBefore.forEach((transactionBefore) => {
-              const changeLogs: ChangeLogWithoutVersion[] = [];
-              this.changeLogService.compareProperties(
+              const changeLogs = ChangeLog.generateChangeLogs(
                 transactionBefore,
-                editFormValue,
-                changeLogs,
-                { discriminator: 'index' },
+                editFormValue as StrTransactionWithChangeLogs,
+                { isBulkEdit: true },
               );
               pendingChanges.push({
                 flowOfFundsAmlTransactionId:
@@ -359,16 +354,13 @@ export class SessionStateService implements OnDestroy {
 
               if (!transaction) continue;
 
-              const pendingChangeLogs: ChangeLogWithoutVersion[] = [];
-
-              this.changeLogService.compareProperties(
+              const pendingChangeLogs = ChangeLog.generateChangeLogs(
                 {
                   highlightColor: transaction.highlightColor,
                 } satisfies DeepPartial<StrTransactionWithChangeLogs>,
                 {
                   highlightColor: newColor,
                 } satisfies DeepPartial<StrTransactionWithChangeLogs>,
-                pendingChangeLogs,
               );
 
               if (pendingChangeLogs.length === 0) {
@@ -423,7 +415,7 @@ export class SessionStateService implements OnDestroy {
                 txn.changeLogs.push(
                   ...pendingChangeLogs.map((changeLog) => ({
                     ...changeLog,
-                    version: currentVersion + 1,
+                    _version: currentVersion + 1,
                   })),
                 );
               });
@@ -598,7 +590,7 @@ export class SessionStateService implements OnDestroy {
 
 export interface PendingChange {
   flowOfFundsAmlTransactionId: string;
-  pendingChangeLogs: ChangeLogWithoutVersion[];
+  pendingChangeLogs: ChangeLog.ChangeLogType[];
 }
 
 export interface SessionStateLocal {
@@ -618,12 +610,13 @@ export interface SessionStateLocal {
 }
 
 export type StrTransactionWithChangeLogs = WithVersion<StrTransactionData> & {
-  changeLogs: ChangeLog[];
+  changeLogs: WithVersion<ChangeLog.ChangeLogType>[];
+  [key: string]: unknown;
 };
 
 export interface StrTransactionChangeLogs {
   txnId: string;
-  changeLogs: ChangeLog[];
+  changeLogs: ChangeLog.ChangeLogType[];
 }
 
 export interface GetSessionResponse {
@@ -692,7 +685,7 @@ export interface ReviewPeriod {
 
 const computeFullTransactionDataHandler = (
   strTransactions: StrTransactionWithChangeLogs[],
-  applyChanges: typeof ChangeLogService.prototype.applyChanges<StrTransactionWithChangeLogs>,
+  applyChanges: typeof ChangeLog.applyChangeLogs<StrTransactionWithChangeLogs>,
 ) => {
   return (acc: StrTransactionWithChangeLogs[]) => {
     return strTransactions
@@ -705,7 +698,7 @@ const computeFullTransactionDataHandler = (
 
 const computePartialTransactionDataHandler = (
   strTransactions: StrTransactionWithChangeLogs[],
-  applyChanges: typeof ChangeLogService.prototype.applyChanges<StrTransactionWithChangeLogs>,
+  applyChanges: typeof ChangeLog.applyChangeLogs<StrTransactionWithChangeLogs>,
   lastEditedStrTransactions: NonNullable<
     SessionStateLocal['lastEditedStrTransactions']
   >,

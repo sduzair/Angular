@@ -6,6 +6,7 @@ import {
   inject,
   input,
 } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import {
   AbstractControl,
   AsyncValidatorFn,
@@ -42,24 +43,23 @@ import {
 } from '@angular/router';
 import { isValid } from 'date-fns';
 import { isEqualWith } from 'lodash-es';
+import { Observable, of } from 'rxjs';
 import {
+  combineLatestWith,
   filter,
   finalize,
-  startWith,
-  tap,
-  shareReplay,
-  switchMap,
-  combineLatestWith,
   map,
+  shareReplay,
+  startWith,
+  switchMap,
   take,
+  tap,
 } from 'rxjs/operators';
-import { ulid } from 'ulid';
 import {
   SessionStateService,
   StrTransactionWithChangeLogs,
 } from '../../aml/session-state.service';
-import { ChangeLogService, WithVersion } from '../../change-log.service';
-import { ClearFieldDirective } from '../../clear-field.directive';
+import * as ChangeLog from '../../change-logging/change-log';
 import { setError } from '../../form-helpers';
 import { PreemptiveErrorStateMatcher } from '../../transaction-search/transaction-search.component';
 import {
@@ -74,6 +74,7 @@ import {
   StartingAction,
   StrTransaction,
   StrTxnFlowOfFunds,
+  WithVersion,
 } from '../reporting-ui-table/reporting-ui-table.component';
 import {
   hasMissingCibcInfo,
@@ -81,16 +82,11 @@ import {
 } from './common-validation';
 import { ControlToggleDirective } from './control-toggle.directive';
 import { FormOptions, FormOptionsService } from './form-options.service';
-import {
-  MarkAsEmptyDirective,
-  SPECIAL_EMPTY_VALUE,
-} from './mark-as-empty.directive';
+import { MarkAsClearedDirective } from './mark-as-cleared.directive';
 import { ToggleEditFieldDirective } from './toggle-edit-field.directive';
 import { TransactionDateDirective } from './transaction-date.directive';
 import { TransactionDetailsPanelComponent } from './transaction-details-panel/transaction-details-panel.component';
 import { TransactionTimeDirective } from './transaction-time.directive';
-import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { Observable, of } from 'rxjs';
 
 @Component({
   selector: 'app-edit-form',
@@ -104,7 +100,7 @@ import { Observable, of } from 'rxjs';
     TransactionTimeDirective,
     ControlToggleDirective,
     ToggleEditFieldDirective,
-    MarkAsEmptyDirective,
+    MarkAsClearedDirective,
     MatFormField,
     MatToolbarModule,
     MatIconModule,
@@ -119,7 +115,6 @@ import { Observable, of } from 'rxjs';
     MatDividerModule,
     MatOptionModule,
     MatSelectModule,
-    ClearFieldDirective,
     MatBadgeModule,
   ],
   template: `
@@ -227,7 +222,7 @@ import { Observable, of } from 'rxjs';
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appMarkAsEmpty
+                          appMarkAsCleared
                           mat-icon-button
                           matSuffix>
                           <mat-icon>backspace</mat-icon>
@@ -260,7 +255,7 @@ import { Observable, of } from 'rxjs';
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appMarkAsEmpty
+                          appMarkAsCleared
                           mat-icon-button
                           matSuffix>
                           <mat-icon>backspace</mat-icon>
@@ -370,7 +365,7 @@ import { Observable, of } from 'rxjs';
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appMarkAsEmpty
+                          appMarkAsCleared
                           mat-icon-button
                           matSuffix>
                           <mat-icon>backspace</mat-icon>
@@ -458,7 +453,7 @@ import { Observable, of } from 'rxjs';
                         <button
                           [disabled]="!this.isBulkEdit"
                           type="button"
-                          appMarkAsEmpty
+                          appMarkAsCleared
                           mat-icon-button
                           matSuffix>
                           <mat-icon>backspace</mat-icon>
@@ -538,7 +533,7 @@ import { Observable, of } from 'rxjs';
                   class="w-100 d-flex flex-column gap-3">
                   @for (
                     saAction of editForm.controls.startingActions.controls;
-                    track saAction;
+                    track saAction.value._id;
                     let saIndex = $index
                   ) {
                     <div [formGroupName]="saIndex">
@@ -592,7 +587,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -646,7 +641,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -707,7 +702,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -761,7 +756,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -797,7 +792,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -829,7 +824,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -861,7 +856,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -919,7 +914,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -995,7 +990,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -1049,7 +1044,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -1093,7 +1088,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -1135,7 +1130,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -1172,7 +1167,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -1229,7 +1224,7 @@ import { Observable, of } from 'rxjs';
                           ">
                           @for (
                             holder of saAction.controls.accountHolders.controls;
-                            track holder;
+                            track holder.value._id;
                             let holderIndex = $index
                           ) {
                             <div [formGroupName]="holderIndex" class="w-100">
@@ -1421,7 +1416,7 @@ import { Observable, of } from 'rxjs';
                           (addControlGroup)="addSourceOfFunds(saIndex)">
                           @for (
                             source of saAction.controls.sourceOfFunds.controls;
-                            track source;
+                            track source.value._id;
                             let fundsIndex = $index
                           ) {
                             <div [formGroupName]="fundsIndex" class="w-100">
@@ -1653,7 +1648,7 @@ import { Observable, of } from 'rxjs';
                           (addControlGroup)="addConductor(saIndex)">
                           @for (
                             conductor of saAction.controls.conductors.controls;
-                            track conductor;
+                            track conductor.value._id;
                             let condIndex = $index
                           ) {
                             <div [formGroupName]="condIndex" class="w-100">
@@ -1820,7 +1815,7 @@ import { Observable, of } from 'rxjs';
                                   @for (
                                     behalf of conductor.controls.onBehalfOf
                                       .controls;
-                                    track behalf;
+                                    track behalf.value._id;
                                     let behalfIndex = $index
                                   ) {
                                     <div
@@ -2050,7 +2045,7 @@ import { Observable, of } from 'rxjs';
                   class="w-100 d-flex flex-column gap-3">
                   @for (
                     caAction of editForm.controls.completingActions.controls;
-                    track caAction;
+                    track caAction.value._id;
                     let caIndex = $index
                   ) {
                     <div [formGroupName]="caIndex">
@@ -2105,7 +2100,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -2170,7 +2165,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -2224,7 +2219,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -2259,7 +2254,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -2294,7 +2289,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -2330,7 +2325,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -2362,7 +2357,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -2394,7 +2389,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -2452,7 +2447,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -2532,7 +2527,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -2586,7 +2581,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -2630,7 +2625,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -2672,7 +2667,7 @@ import { Observable, of } from 'rxjs';
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
-                              appMarkAsEmpty
+                              appMarkAsCleared
                               mat-icon-button
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
@@ -2731,7 +2726,7 @@ import { Observable, of } from 'rxjs';
                           ">
                           @for (
                             holder of caAction.controls.accountHolders.controls;
-                            track holder;
+                            track holder.value._id;
                             let holderIndex = $index
                           ) {
                             <div [formGroupName]="holderIndex" class="w-100">
@@ -2925,7 +2920,7 @@ import { Observable, of } from 'rxjs';
                           (addControlGroup)="addInvolvedIn(caIndex)">
                           @for (
                             involved of caAction.controls.involvedIn.controls;
-                            track involved;
+                            track involved.value._id;
                             let invIndex = $index
                           ) {
                             <div [formGroupName]="invIndex" class="w-100">
@@ -3156,7 +3151,7 @@ import { Observable, of } from 'rxjs';
                           @for (
                             beneficiary of caAction.controls.beneficiaries
                               .controls;
-                            track beneficiary;
+                            track beneficiary.value._id;
                             let benIndex = $index
                           ) {
                             <div [formGroupName]="benIndex" class="w-100">
@@ -3316,7 +3311,7 @@ import { Observable, of } from 'rxjs';
             </mat-tab>
           </mat-tab-group>
           <pre class="overlay-pre">
-            Form values: {{ editForm.getRawValue() | json }}
+            Form values: {{ editForm.value | json }}
           </pre
           >
         </form>
@@ -3331,7 +3326,6 @@ import { Observable, of } from 'rxjs';
 })
 // eslint-disable-next-line rxjs-angular-x/prefer-composition
 export class EditFormComponent implements AfterViewChecked {
-  private changeLogService = inject(ChangeLogService);
   private snackBar = inject(MatSnackBar);
 
   readonly editType = input.required<EditFormEditType>();
@@ -3359,10 +3353,10 @@ export class EditFormComponent implements AfterViewChecked {
           });
 
         case 'AUDIT_REQUEST': {
-          const txn = this.changeLogService.applyChanges(
+          const txn = ChangeLog.applyChangeLogs(
             editType.payload,
             editType.payload.changeLogs.filter(
-              (log) => log.version <= auditVersion,
+              (log) => log._version! <= auditVersion,
             ),
           );
           return this.createEditForm({
@@ -3389,20 +3383,20 @@ export class EditFormComponent implements AfterViewChecked {
     filter(({ type }) => type === 'AUDIT_REQUEST'),
     map(({ payload }) =>
       (payload as StrTransactionWithChangeLogs).changeLogs.filter(
-        (log) => log.path !== 'highlightColor',
+        (log) => log.path !== '/highlightColor',
       ),
     ),
     tap((changes) =>
-      this.auditVersionControl.setValue(changes.at(-1)?.version ?? 0),
+      this.auditVersionControl.setValue(changes.at(-1)?._version ?? 0),
     ),
     map((changes) => {
       const verMap = new Map([[0, 0]]);
 
       changes.forEach((log) => {
-        if (Array.from(verMap.values()).includes(log.version)) return verMap;
+        if (Array.from(verMap.values()).includes(log._version!)) return verMap;
 
         let lastLabelIndex = [...verMap].at(-1)![0];
-        return verMap.set(++lastLabelIndex, log.version);
+        return verMap.set(++lastLabelIndex, log._version!);
       });
 
       return Array.from(verMap.entries()).map(([key, val]) => ({
@@ -3430,7 +3424,12 @@ export class EditFormComponent implements AfterViewChecked {
 
               if (isEmpty(val1) && isEmpty(val2)) return true;
 
-              if (this.editType().type === 'BULK_EDIT' && indexOrKey === '_id')
+              if (indexOrKey === '_id') return true;
+
+              if (
+                this.editType().type === 'BULK_EDIT' &&
+                isDepProp(indexOrKey as ChangeLog.DepPropType)
+              )
                 return true;
 
               return undefined;
@@ -3482,7 +3481,7 @@ export class EditFormComponent implements AfterViewChecked {
     if (editType.type === 'BULK_EDIT') {
       this.sessionDataService.saveEditForm({
         editType: 'BULK_EDIT',
-        editFormValue: this.editForm!.getRawValue(),
+        editFormValue: this.editForm!.value,
         transactionsBefore: editType.payload,
       });
     }
@@ -3504,11 +3503,10 @@ export class EditFormComponent implements AfterViewChecked {
         disabled,
       }),
       wasTxnAttempted: new FormControl({
-        value: ChangeLogService.getInitValForDependentPropToggle(
+        value: ChangeLog.getToggleInitVal(
           'wasTxnAttempted',
           txn?.wasTxnAttempted,
           editType === 'BULK_EDIT',
-          editType === 'AUDIT_REQUEST',
         ),
         disabled,
       }),
@@ -3525,11 +3523,10 @@ export class EditFormComponent implements AfterViewChecked {
         Validators.required,
       ),
       hasPostingDate: new FormControl({
-        value: ChangeLogService.getInitValForDependentPropToggle(
+        value: ChangeLog.getToggleInitVal(
           'hasPostingDate',
           txn?.hasPostingDate,
           editType === 'BULK_EDIT',
-          editType === 'AUDIT_REQUEST',
         ),
         disabled,
       }),
@@ -3594,11 +3591,6 @@ export class EditFormComponent implements AfterViewChecked {
       ),
     }) satisfies FormGroup<TypedForm<WithVersion<StrTxnEditForm>>>;
 
-    if (disabled) {
-      editForm?.controls.startingActions.disable();
-      editForm?.controls.completingActions.disable();
-    }
-
     return editForm;
   }
 
@@ -3621,7 +3613,10 @@ export class EditFormComponent implements AfterViewChecked {
 
     const saGroup = new FormGroup(
       {
-        _id: new FormControl({ value: action?._id ?? ulid(), disabled }),
+        _id: new FormControl({
+          value: action?._id ?? getFormGroupId(),
+          disabled: false,
+        }),
         directionOfSA: new FormControl(
           {
             value: action?.directionOfSA || '',
@@ -3698,11 +3693,10 @@ export class EditFormComponent implements AfterViewChecked {
           this.accountCurrencyValidator(),
         ),
         hasAccountHolders: new FormControl({
-          value: ChangeLogService.getInitValForDependentPropToggle(
+          value: ChangeLog.getToggleInitVal(
             'hasAccountHolders',
             action?.hasAccountHolders,
             editType === 'BULK_EDIT',
-            editType === 'AUDIT_REQUEST',
           ),
           disabled,
         }),
@@ -3722,11 +3716,10 @@ export class EditFormComponent implements AfterViewChecked {
               : []),
         ),
         wasSofInfoObtained: new FormControl({
-          value: ChangeLogService.getInitValForDependentPropToggle(
+          value: ChangeLog.getToggleInitVal(
             'wasSofInfoObtained',
             action?.wasSofInfoObtained,
             editType === 'BULK_EDIT',
-            editType === 'AUDIT_REQUEST',
           ),
           disabled,
         }),
@@ -3746,11 +3739,10 @@ export class EditFormComponent implements AfterViewChecked {
               : []),
         ),
         wasCondInfoObtained: new FormControl({
-          value: ChangeLogService.getInitValForDependentPropToggle(
+          value: ChangeLog.getToggleInitVal(
             'wasCondInfoObtained',
             action?.wasCondInfoObtained,
             editType === 'BULK_EDIT',
-            editType === 'AUDIT_REQUEST',
           ),
           disabled,
         }),
@@ -3805,7 +3797,10 @@ export class EditFormComponent implements AfterViewChecked {
 
     const caGroup = new FormGroup(
       {
-        _id: new FormControl({ value: action?._id ?? ulid(), disabled }),
+        _id: new FormControl({
+          value: action?._id ?? getFormGroupId(),
+          disabled: false,
+        }),
         detailsOfDispo: new FormControl(
           {
             value: action?.detailsOfDispo || '',
@@ -3897,11 +3892,10 @@ export class EditFormComponent implements AfterViewChecked {
               : []),
         ),
         wasAnyOtherSubInvolved: new FormControl({
-          value: ChangeLogService.getInitValForDependentPropToggle(
+          value: ChangeLog.getToggleInitVal(
             'wasAnyOtherSubInvolved',
             action?.wasAnyOtherSubInvolved,
             editType === 'BULK_EDIT',
-            editType === 'AUDIT_REQUEST',
           ),
           disabled,
         }),
@@ -3921,11 +3915,10 @@ export class EditFormComponent implements AfterViewChecked {
               : []),
         ),
         wasBenInfoObtained: new FormControl({
-          value: ChangeLogService.getInitValForDependentPropToggle(
+          value: ChangeLog.getToggleInitVal(
             'wasBenInfoObtained',
             action?.wasBenInfoObtained,
             editType === 'BULK_EDIT',
-            editType === 'AUDIT_REQUEST',
           ),
           disabled,
         }),
@@ -3971,7 +3964,10 @@ export class EditFormComponent implements AfterViewChecked {
   }) {
     const { disabled } = options;
     return new FormGroup({
-      _id: new FormControl({ value: holder?._id ?? ulid(), disabled }),
+      _id: new FormControl({
+        value: holder?._id ?? getFormGroupId(),
+        disabled: false,
+      }),
       partyKey: new FormControl({ value: holder?.partyKey || '', disabled }),
       givenName: new FormControl({ value: holder?.givenName || '', disabled }),
       otherOrInitial: new FormControl({
@@ -3995,7 +3991,10 @@ export class EditFormComponent implements AfterViewChecked {
   }) {
     const { disabled } = options;
     return new FormGroup({
-      _id: new FormControl({ value: source?._id ?? ulid(), disabled }),
+      _id: new FormControl({
+        value: source?._id ?? getFormGroupId(),
+        disabled: false,
+      }),
       partyKey: new FormControl({ value: source?.partyKey || '', disabled }),
       givenName: new FormControl({ value: source?.givenName || '', disabled }),
       otherOrInitial: new FormControl({
@@ -4028,7 +4027,10 @@ export class EditFormComponent implements AfterViewChecked {
     const { editType, disabled } = options;
 
     const condGroup = new FormGroup({
-      _id: new FormControl({ value: conductor?._id ?? ulid(), disabled }),
+      _id: new FormControl({
+        value: conductor?._id ?? getFormGroupId(),
+        disabled: false,
+      }),
       partyKey: new FormControl({ value: conductor?.partyKey || '', disabled }),
       givenName: new FormControl({
         value: conductor?.givenName || '',
@@ -4044,12 +4046,7 @@ export class EditFormComponent implements AfterViewChecked {
         disabled,
       }),
       wasConductedOnBehalf: new FormControl({
-        value: ChangeLogService.getInitValForDependentPropToggle(
-          'wasConductedOnBehalf',
-          conductor?.wasConductedOnBehalf,
-          editType === 'BULK_EDIT',
-          editType === 'AUDIT_REQUEST',
-        ),
+        value: conductor?.wasConductedOnBehalf ?? false,
         disabled,
       }),
       // note do not create empty arrays as this toggle is not tied to a appToggleEditField (bulk edit)
@@ -4082,7 +4079,10 @@ export class EditFormComponent implements AfterViewChecked {
     const { disabled } = options;
 
     return new FormGroup({
-      _id: new FormControl({ value: behalf?._id ?? ulid(), disabled }),
+      _id: new FormControl({
+        value: behalf?._id ?? getFormGroupId(),
+        disabled: false,
+      }),
       partyKey: new FormControl({ value: behalf?.partyKey || '', disabled }),
       givenName: new FormControl({ value: behalf?.givenName || '', disabled }),
       otherOrInitial: new FormControl({
@@ -4106,7 +4106,10 @@ export class EditFormComponent implements AfterViewChecked {
   }) {
     const { disabled } = options;
     return new FormGroup({
-      _id: new FormControl({ value: involved?._id ?? ulid(), disabled }),
+      _id: new FormControl({
+        value: involved?._id ?? getFormGroupId(),
+        disabled: false,
+      }),
       partyKey: new FormControl({ value: involved?.partyKey || '', disabled }),
       givenName: new FormControl({
         value: involved?.givenName || '',
@@ -4142,7 +4145,10 @@ export class EditFormComponent implements AfterViewChecked {
     const { disabled } = options;
 
     return new FormGroup({
-      _id: new FormControl({ value: beneficiary?._id ?? ulid(), disabled }),
+      _id: new FormControl({
+        value: beneficiary?._id ?? getFormGroupId(),
+        disabled: false,
+      }),
       partyKey: new FormControl({
         value: beneficiary?.partyKey || '',
         disabled,
@@ -4167,53 +4173,47 @@ export class EditFormComponent implements AfterViewChecked {
   // Array Management
   // ----------------------
   // Starting Actions
-  // todo: for audit completely disable
   protected addStartingAction(): void {
+    if (this.editForm!.controls.startingActions.disabled) return;
+    if (this.isAudit) return;
+
     const newSaGroup = this.createStartingActionGroup({
       options: { editType: this.editType().type, disabled: this.isBulkEdit },
     });
-    if (
-      (this.editForm!.controls.startingActions.disabled && !this.isBulkEdit) ||
-      this.isAudit
-    )
-      return;
 
     this.editForm!.controls.startingActions.push(newSaGroup);
   }
 
-  // todo: let atleast one sa exist
   protected removeStartingAction(index: number): void {
-    if (
-      (this.editForm!.controls.startingActions.disabled && !this.isBulkEdit) ||
-      this.editForm!.controls.startingActions.controls.length === 1
-    )
-      return;
+    const hasMoreThanOneSA =
+      this.editForm!.controls.startingActions.controls.length > 1;
+
+    if (this.editForm!.controls.startingActions.disabled) return;
+    if (!hasMoreThanOneSA) return;
+    if (this.isAudit) return;
 
     this.editForm!.controls.startingActions.removeAt(index);
   }
 
   // Completing Actions
   protected addCompletingAction(): void {
+    if (this.editForm!.controls.completingActions.disabled) return;
+
+    if (this.isAudit) return;
+
     const newCaGroup = this.createCompletingActionGroup({
       options: { editType: this.editType().type, disabled: this.isBulkEdit },
     });
-    if (
-      (this.editForm!.controls.completingActions.disabled &&
-        !this.isBulkEdit) ||
-      this.isAudit
-    )
-      return;
-
     this.editForm!.controls.completingActions.push(newCaGroup);
   }
 
   protected removeCompletingAction(index: number): void {
-    if (
-      (this.editForm!.controls.completingActions.disabled &&
-        !this.isBulkEdit) ||
-      this.editForm!.controls.completingActions.controls.length === 1
-    )
-      return;
+    const hasMoreThanOneCA =
+      this.editForm!.controls.completingActions.controls.length > 1;
+
+    if (this.editForm!.controls.completingActions.disabled) return;
+    if (!hasMoreThanOneCA) return;
+    if (this.isAudit) return;
 
     this.editForm!.controls.completingActions.removeAt(index);
   }
@@ -4231,13 +4231,12 @@ export class EditFormComponent implements AfterViewChecked {
 
     if (action.controls.accountHolders!.disabled) return;
     if (!action.controls.hasAccountHolders.value) return;
+    if (this.isAudit) return;
 
-    action.controls.accountHolders!.push(
-      this.createAccountHolderGroup({
-        options: { disabled: false },
-      }),
-    );
-    action.controls.accountHolders!.markAllAsTouched();
+    const newAccountHolderGroup = this.createAccountHolderGroup({
+      options: { disabled: false },
+    });
+    action.controls.accountHolders!.push(newAccountHolderGroup);
   }
 
   protected removeAccountHolder(
@@ -4252,6 +4251,7 @@ export class EditFormComponent implements AfterViewChecked {
     ).at(actionIndex);
 
     if (action.controls.accountHolders!.disabled) return;
+    if (this.isAudit) return;
 
     action.controls.accountHolders!.removeAt(index);
   }
@@ -4262,19 +4262,19 @@ export class EditFormComponent implements AfterViewChecked {
 
     if (startingAction.controls.sourceOfFunds.disabled) return;
     if (!startingAction.controls.wasSofInfoObtained.value) return;
+    if (this.isAudit) return;
 
-    startingAction.controls.sourceOfFunds.push(
-      this.createSourceOfFundsGroup({
-        options: { disabled: false },
-      }),
-    );
-    startingAction.controls.sourceOfFunds.markAllAsTouched();
+    const newSourceOfFundsGroup = this.createSourceOfFundsGroup({
+      options: { disabled: false },
+    });
+    startingAction.controls.sourceOfFunds.push(newSourceOfFundsGroup);
   }
 
   protected removeSourceOfFunds(saIndex: number, index: number): void {
     const startingAction = this.editForm!.controls.startingActions.at(saIndex);
 
     if (startingAction.controls.sourceOfFunds.disabled) return;
+    if (this.isAudit) return;
 
     startingAction.controls.sourceOfFunds.removeAt(index);
   }
@@ -4285,23 +4285,18 @@ export class EditFormComponent implements AfterViewChecked {
 
     if (startingAction.controls.conductors.disabled) return;
     if (!startingAction.controls.wasCondInfoObtained.value) return;
-
-    // note: needed because audit form arrays seem to be enabled despite being set as disabled
     if (this.isAudit) return;
 
-    startingAction.controls.conductors.push(
-      this.createConductorGroup({
-        options: { editType: this.editType().type, disabled: false },
-      }),
-    );
-    startingAction.controls.conductors.markAllAsTouched();
+    const newSAConductorGroup = this.createConductorGroup({
+      options: { editType: this.editType().type, disabled: false },
+    });
+    startingAction.controls.conductors.push(newSAConductorGroup);
   }
 
   protected removeConductor(saIndex: number, index: number): void {
     const startingAction = this.editForm!.controls.startingActions.at(saIndex);
-    if (startingAction.controls.conductors.disabled) return;
 
-    // note: needed because audit form arrays seem to be enabled despite being set as disabled
+    if (startingAction.controls.conductors.disabled) return;
     if (this.isAudit) return;
 
     startingAction.controls.conductors.removeAt(index);
@@ -4321,17 +4316,14 @@ export class EditFormComponent implements AfterViewChecked {
         .wasConductedOnBehalf.value
     )
       return;
+    if (this.isAudit) return;
 
+    const newBehalfOfGroup = this.createOnBehalfOfGroup({
+      options: { disabled: false },
+    });
     startingAction.controls.conductors
       .at(conductorIndex)
-      .controls.onBehalfOf.push(
-        this.createOnBehalfOfGroup({
-          options: { disabled: false },
-        }),
-      );
-    startingAction.controls.conductors
-      .at(conductorIndex)
-      .controls.onBehalfOf.markAllAsTouched();
+      .controls.onBehalfOf.push(newBehalfOfGroup);
   }
 
   protected removeOnBehalfOf(
@@ -4346,6 +4338,7 @@ export class EditFormComponent implements AfterViewChecked {
         .disabled
     )
       return;
+    if (this.isAudit) return;
 
     startingAction.controls.conductors
       .at(conductorIndex)
@@ -4359,11 +4352,12 @@ export class EditFormComponent implements AfterViewChecked {
 
     if (completingAction.controls.involvedIn!.disabled) return;
     if (!completingAction.controls.wasAnyOtherSubInvolved.value) return;
+    if (this.isAudit) return;
 
-    completingAction.controls.involvedIn!.push(
-      this.createInvolvedInGroup({ options: { disabled: false } }),
-    );
-    completingAction.controls.involvedIn!.markAllAsTouched();
+    const newInvolvedInGroup = this.createInvolvedInGroup({
+      options: { disabled: false },
+    });
+    completingAction.controls.involvedIn!.push(newInvolvedInGroup);
   }
 
   protected removeInvolvedIn(caIndex: number, index: number): void {
@@ -4371,6 +4365,7 @@ export class EditFormComponent implements AfterViewChecked {
       this.editForm!.controls.completingActions.at(caIndex);
 
     if (completingAction.controls.involvedIn!.disabled) return;
+    if (this.isAudit) return;
 
     completingAction.controls.involvedIn!.removeAt(index);
   }
@@ -4382,13 +4377,12 @@ export class EditFormComponent implements AfterViewChecked {
 
     if (completingAction.controls.beneficiaries!.disabled) return;
     if (!completingAction.controls.wasBenInfoObtained.value) return;
+    if (this.isAudit) return;
 
-    completingAction.controls.beneficiaries!.push(
-      this.createBeneficiaryGroup({
-        options: { disabled: false },
-      }),
-    );
-    completingAction.controls.beneficiaries!.markAllAsTouched();
+    const newBeneficiaryGroup = this.createBeneficiaryGroup({
+      options: { disabled: false },
+    });
+    completingAction.controls.beneficiaries!.push(newBeneficiaryGroup);
   }
 
   protected removeBeneficiary(caIndex: number, index: number): void {
@@ -4396,6 +4390,7 @@ export class EditFormComponent implements AfterViewChecked {
       this.editForm!.controls.completingActions.at(caIndex);
 
     if (completingAction.controls.beneficiaries!.disabled) return;
+    if (this.isAudit) return;
 
     completingAction.controls.beneficiaries!.removeAt(index);
   }
@@ -4413,7 +4408,7 @@ export class EditFormComponent implements AfterViewChecked {
    */
   methodOfTxnValidator(): AsyncValidatorFn {
     return (control: AbstractControl): Observable<ValidationErrors | null> => {
-      if (!control.value || control.value === SPECIAL_EMPTY_VALUE) {
+      if (!control.value) {
         return of(null);
       }
 
@@ -4435,7 +4430,7 @@ export class EditFormComponent implements AfterViewChecked {
    */
   typeOfFundsValidator(): AsyncValidatorFn {
     return (control: AbstractControl): Observable<ValidationErrors | null> => {
-      if (!control.value || control.value === SPECIAL_EMPTY_VALUE) {
+      if (!control.value) {
         return of(null);
       }
 
@@ -4457,7 +4452,7 @@ export class EditFormComponent implements AfterViewChecked {
    */
   amountCurrencyValidator(): AsyncValidatorFn {
     return (control: AbstractControl): Observable<ValidationErrors | null> => {
-      if (!control.value || control.value === SPECIAL_EMPTY_VALUE) {
+      if (!control.value) {
         return of(null);
       }
 
@@ -4479,7 +4474,7 @@ export class EditFormComponent implements AfterViewChecked {
    */
   accountTypeValidator(): AsyncValidatorFn {
     return (control: AbstractControl): Observable<ValidationErrors | null> => {
-      if (!control.value || control.value === SPECIAL_EMPTY_VALUE) {
+      if (!control.value) {
         return of(null);
       }
 
@@ -4501,7 +4496,7 @@ export class EditFormComponent implements AfterViewChecked {
    */
   accountCurrencyValidator(): AsyncValidatorFn {
     return (control: AbstractControl): Observable<ValidationErrors | null> => {
-      if (!control.value || control.value === SPECIAL_EMPTY_VALUE) {
+      if (!control.value) {
         return of(null);
       }
 
@@ -4523,7 +4518,7 @@ export class EditFormComponent implements AfterViewChecked {
    */
   accountStatusValidator(): AsyncValidatorFn {
     return (control: AbstractControl): Observable<ValidationErrors | null> => {
-      if (!control.value || control.value === SPECIAL_EMPTY_VALUE) {
+      if (!control.value) {
         return of(null);
       }
 
@@ -4545,7 +4540,7 @@ export class EditFormComponent implements AfterViewChecked {
    */
   directionOfSAValidator(): AsyncValidatorFn {
     return (control: AbstractControl): Observable<ValidationErrors | null> => {
-      if (!control.value || control.value === SPECIAL_EMPTY_VALUE) {
+      if (!control.value) {
         return of(null);
       }
 
@@ -4567,7 +4562,7 @@ export class EditFormComponent implements AfterViewChecked {
    */
   detailsOfDispositionValidator(): AsyncValidatorFn {
     return (control: AbstractControl): Observable<ValidationErrors | null> => {
-      if (!control.value || control.value === SPECIAL_EMPTY_VALUE) {
+      if (!control.value) {
         return of(null);
       }
 
@@ -4816,6 +4811,29 @@ export const auditResolver: ResolveFn<EditFormEditType> = (
     }),
   );
 };
+
+function isDepProp(prop: ChangeLog.DepPropType) {
+  return (
+    [
+      'accountHolders',
+      'sourceOfFunds',
+      'conductors',
+      'involvedIn',
+      'beneficiaries',
+      'wasTxnAttemptedReason',
+      'dateOfPosting',
+      'timeOfPosting',
+      'methodOfTxnOther',
+      'typeOfFundsOther',
+      'accountTypeOther',
+      'detailsOfDispoOther',
+    ] as ChangeLog.DepPropType[]
+  ).some((t) => t === prop);
+}
+
+function getFormGroupId() {
+  return crypto.randomUUID();
+}
 
 export type TypedForm<T> = {
   [K in keyof T]-?: Exclude<T[K], undefined | null> extends (infer U)[]

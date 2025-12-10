@@ -4,19 +4,19 @@ import {
   Directive,
   ElementRef,
   HostListener,
-  Renderer2,
   inject,
+  Renderer2,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgControl, ValidatorFn } from '@angular/forms';
 import { MatFormField } from '@angular/material/form-field';
 
-export const SPECIAL_EMPTY_VALUE = '<<marked as empty>>';
+export const SPECIAL_EMPTY_VALUE = null;
 
 @Directive({
-  selector: '[appMarkAsEmpty]',
+  selector: '[appMarkAsCleared]',
 })
-export class MarkAsEmptyDirective implements AfterViewInit {
+export class MarkAsClearedDirective implements AfterViewInit {
   private formField = inject(MatFormField, { optional: true })!;
   private elementRef = inject(ElementRef);
   private renderer = inject(Renderer2);
@@ -38,32 +38,8 @@ export class MarkAsEmptyDirective implements AfterViewInit {
     $event.stopPropagation();
 
     this.control.enable();
-    this.control.setValue(null);
-
-    // Temporarily pause model to view updates
-    this.origWriteValue = this.valueAccessor?.writeValue.bind(
-      this.valueAccessor,
-    );
-    this.valueAccessor!.writeValue = () => {
-      /* empty */
-    };
-
-    // Temporarily pause validation
-    this.originalValidators = this.control.validator
-      ? [this.control.validator]
-      : null;
-    this.control.clearValidators();
-
     // Set special empty val on control
-    this.control.setValue(SPECIAL_EMPTY_VALUE, { emitEvent: false });
-    this.control.markAsDirty();
-    this.control.updateValueAndValidity();
-
-    // Restore view updates and validation
-    setTimeout(() => {
-      this.valueAccessor!.writeValue = this.origWriteValue!;
-      this.control.setValidators(this.originalValidators!);
-    });
+    this.control.setValue(SPECIAL_EMPTY_VALUE);
   }
 
   private matIconElement: HTMLElement | null = null;

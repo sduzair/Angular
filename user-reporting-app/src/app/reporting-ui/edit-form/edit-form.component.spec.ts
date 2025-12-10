@@ -1,3 +1,5 @@
+/* eslint-disable vitest/no-disabled-tests */
+/* eslint-disable vitest/expect-expect */
 import { HarnessLoader } from '@angular/cdk/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { provideHttpClient } from '@angular/common/http';
@@ -35,14 +37,25 @@ import {
 import { RouterTestingHarness } from '@angular/router/testing';
 import { enCA } from 'date-fns/locale';
 import { of } from 'rxjs';
-import { AmlComponent } from '../../aml/aml.component';
 import {
   SESSION_INITIAL_STATE,
   SessionStateLocal,
   SessionStateService,
 } from '../../aml/session-state.service';
 import { AppErrorHandlerService } from '../../app-error-handler.service';
+import {
+  AuthService,
+  hasRoleGuard,
+  isAuthenticatedGuard,
+} from '../../auth.service';
+import { createAuthServiceSpy, TEST_USER_ADMIN } from '../../auth.service.spec';
 import { activateTabs, findEl } from '../../test-helpers';
+import {
+  AmlComponent,
+  lastUpdatedResolver,
+  savingStatusResolver,
+} from './../../aml/aml.component';
+import { NavLayoutComponent } from './../../nav-layout/nav-layout.component';
 import {
   auditResolver,
   bulkEditTypeResolver,
@@ -55,6 +68,7 @@ import {
   FormOptionsService,
 } from './form-options.service';
 import { TransactionTimeDirective } from './transaction-time.directive';
+import { LoginComponent } from '../../login/login.component';
 
 @Component({
   selector: 'app-transaction-search',
@@ -73,6 +87,7 @@ describe('EditFormComponent', () => {
         formOptions$: of(FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE),
       },
     );
+    const authServiceSpy = createAuthServiceSpy();
 
     await TestBed.configureTestingModule({
       providers: [
@@ -81,52 +96,84 @@ describe('EditFormComponent', () => {
         provideRouter(
           [
             {
-              path: 'transactionsearch',
-              component: MockTransactionSearchComponent,
-              title: 'Search by AML Id',
+              path: 'login',
+              component: LoginComponent,
+              title: 'Login',
             },
             {
-              path: 'aml/:amlId',
-              component: AmlComponent,
-              providers: [
-                {
-                  provide: SESSION_INITIAL_STATE,
-                  useValue: SESSION_STATE_FIXTURE,
-                },
-                SessionStateService,
-              ],
+              path: '',
+              loadComponent: () =>
+                import('./../../nav-layout/nav-layout.component').then(
+                  (m) => m.NavLayoutComponent,
+                ),
+              canActivate: [isAuthenticatedGuard],
               children: [
                 {
-                  path: 'reporting-ui',
+                  path: '',
+                  redirectTo: 'transactionsearch',
+                  pathMatch: 'full',
+                },
+                {
+                  path: 'transactionsearch',
+                  loadComponent: () =>
+                    Promise.resolve(MockTransactionSearchComponent),
+                  title: 'Search by AML Id',
+                },
+                {
+                  path: 'aml/:amlId',
+                  loadComponent: () =>
+                    import('./../../aml/aml.component').then(
+                      (m) => m.AmlComponent,
+                    ),
+                  providers: [
+                    {
+                      provide: SESSION_INITIAL_STATE,
+                      useValue: SESSION_STATE_FIXTURE,
+                    },
+                    SessionStateService,
+                  ],
+                  resolve: {
+                    lastUpdated$: lastUpdatedResolver,
+                    savingStatus$: savingStatusResolver,
+                  },
+                  data: { reuse: true },
                   children: [
                     {
-                      path: 'edit-form/bulk-edit',
-                      component: EditFormComponent,
-                      resolve: {
-                        editType: bulkEditTypeResolver,
-                      },
-                      data: { reuse: false },
-                      title: () => 'Bulk Edit',
-                    },
-                    {
-                      path: 'edit-form/:transactionId',
-                      component: EditFormComponent,
-                      resolve: {
-                        editType: singleEditTypeResolver,
-                      },
-                      data: { reuse: false },
+                      path: 'reporting-ui',
                       title: (route) =>
-                        `Edit - ${route.params['transactionId']}`,
-                    },
-                    {
-                      path: 'audit/:transactionId',
-                      component: EditFormComponent,
-                      resolve: {
-                        editType: auditResolver,
-                      },
-                      data: { reuse: false },
-                      title: (route) =>
-                        `Audit - ${route.params['transactionId']}`,
+                        `Reporting UI - ${route.params['amlId']}`,
+                      children: [
+                        {
+                          path: 'edit-form/bulk-edit',
+                          component: EditFormComponent,
+                          resolve: {
+                            editType: bulkEditTypeResolver,
+                          },
+                          data: { reuse: false },
+                          title: () => 'Bulk Edit',
+                        },
+                        {
+                          path: 'edit-form/:transactionId',
+                          component: EditFormComponent,
+                          resolve: {
+                            editType: singleEditTypeResolver,
+                          },
+                          data: { reuse: false },
+                          title: (route) =>
+                            `Edit - ${route.params['transactionId']}`,
+                        },
+                        {
+                          path: 'audit/:transactionId',
+                          component: EditFormComponent,
+                          canActivate: [hasRoleGuard('Admin')],
+                          resolve: {
+                            editType: auditResolver,
+                          },
+                          data: { reuse: false },
+                          title: (route) =>
+                            `Audit - ${route.params['transactionId']}`,
+                        },
+                      ],
                     },
                   ],
                 },
@@ -137,7 +184,7 @@ describe('EditFormComponent', () => {
           withRouterConfig({ paramsInheritanceStrategy: 'always' }),
           withNavigationErrorHandler((navError) => {
             const router = inject(Router);
-            console.error('Navigation error:', navError.error);
+            // console.error('Navigation error:', navError.error);
             router.navigate(['/transactionsearch']);
           }),
         ),
@@ -153,6 +200,7 @@ describe('EditFormComponent', () => {
         // note disables animations to prevent scenario of making assertions before animations complete
         { provide: ANIMATION_MODULE_TYPE, useValue: 'NoopAnimations' },
         { provide: FormOptionsService, useValue: formOptionsServiceSpy },
+        { provide: AuthService, useValue: authServiceSpy },
       ],
     }).compileComponents();
 
@@ -165,10 +213,27 @@ describe('EditFormComponent', () => {
       loader,
       httpTesting,
       formOptionsServiceSpy,
+      authServiceSpy,
     };
   }
 
   describe('navigate to edit form component for SINGLE_EDIT', () => {
+    it('should redirect to login page when user not logged in', async () => {
+      const { harness, authServiceSpy } = await setup();
+      const router = TestBed.inject(Router);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const testSignal = (authServiceSpy as any)._testSignal;
+      testSignal.set(null);
+
+      await harness.navigateByUrl(
+        `aml/99999999/reporting-ui/edit-form/${TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE.reportingEntityTxnRefNo}`,
+        LoginComponent,
+      );
+
+      expect(router.url).toBe('/login');
+    });
+
     it('should redirect to transaction search when ID is invalid', async () => {
       const { harness } = await setup();
       const router = TestBed.inject(Router);
@@ -183,7 +248,7 @@ describe('EditFormComponent', () => {
       const { harness, loader, formOptionsServiceSpy } = await setup();
       await harness.navigateByUrl(
         `aml/99999999/reporting-ui/edit-form/${TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE.reportingEntityTxnRefNo}`,
-        AmlComponent,
+        NavLayoutComponent,
       );
 
       return { harness, loader, formOptionsServiceSpy };
@@ -493,6 +558,22 @@ describe('EditFormComponent', () => {
   });
 
   describe('navigate to edit form component for BULK_EDIT', () => {
+    it('should redirect to login page when user not logged in', async () => {
+      const { harness, authServiceSpy } = await setup();
+      const router = TestBed.inject(Router);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const testSignal = (authServiceSpy as any)._testSignal;
+      testSignal.set(null);
+
+      await harness.navigateByUrl(
+        'aml/99999999/reporting-ui/edit-form/bulk-edit',
+        LoginComponent,
+      );
+
+      expect(router.url).toBe('/login');
+    });
+
     it('should redirect to transaction search when route extras are missing', async () => {
       const { harness } = await setup();
       const router = TestBed.inject(Router);
@@ -868,21 +949,60 @@ describe('EditFormComponent', () => {
   });
 
   describe('navigate to audit form component for AUDIT_REQUEST', () => {
-    it('should redirect to transaction search when ID is invalid', async () => {
+    it('should redirect to login page when user not logged in', async () => {
+      const { harness, authServiceSpy } = await setup();
+      const router = TestBed.inject(Router);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const testSignal = (authServiceSpy as any)._testSignal;
+      testSignal.set(null);
+
+      await harness.navigateByUrl(
+        `aml/99999999/reporting-ui/audit/${TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE.reportingEntityTxnRefNo}`,
+        LoginComponent,
+      );
+
+      expect(router.url).toBe('/login');
+    });
+
+    it('should redirect to transaction search when user does not have Admin role', async () => {
       const { harness } = await setup();
       const router = TestBed.inject(Router);
+
+      await harness.navigateByUrl(
+        `aml/99999999/reporting-ui/audit/${TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE.reportingEntityTxnRefNo}`,
+        NavLayoutComponent,
+      );
+
+      expect(router.url).toBe('/transactionsearch');
+    });
+
+    it('should redirect to transaction search when ID is invalid', async () => {
+      const { harness, authServiceSpy } = await setup();
+      const router = TestBed.inject(Router);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const testSignal = (authServiceSpy as any)._testSignal;
+      testSignal.set(TEST_USER_ADMIN);
 
       await expectAsync(
         harness.navigateByUrl('aml/99999999/reporting-ui/audit/asdfasdf'),
       ).toBeRejectedWithError(/Transaction not found/);
+
       expect(router.url).toBe('/transactionsearch');
     });
 
     async function setupAndNavigate() {
-      const { harness, loader, formOptionsServiceSpy } = await setup();
+      const { harness, loader, formOptionsServiceSpy, authServiceSpy } =
+        await setup();
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const testSignal = (authServiceSpy as any)._testSignal;
+      testSignal.set(TEST_USER_ADMIN);
+
       await harness.navigateByUrl(
         `aml/99999999/reporting-ui/audit/${TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE.reportingEntityTxnRefNo}`,
-        AmlComponent,
+        NavLayoutComponent,
       );
 
       return { harness, loader, formOptionsServiceSpy };

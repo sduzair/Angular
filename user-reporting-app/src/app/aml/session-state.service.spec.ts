@@ -1,3 +1,4 @@
+/* eslint-disable vitest/no-commented-out-tests */
 import { provideHttpClient } from '@angular/common/http';
 import {
   HttpTestingController,
