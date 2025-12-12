@@ -27,9 +27,9 @@
 // .bulk-edit-form {
 //   // Override filled container color only on dirty form fields
 //   mat-form-field.ng-dirty {
-//     --mdc-outlined-text-field-outline-color: orange;
-//     --mdc-outlined-text-field-outline-width: 3px;
-//     --mdc-outlined-text-field-hover-outline-color: orange;
+//     --mat-form-field-outlined-outline-color: orange;
+//     --mat-form-field-outlined-outline-width: 3px;
+//     --mat-form-field-outlined-hover-outline-color: orange;
 //   }
 // }
 
@@ -69,18 +69,18 @@ button[appToggleEditField] {
 }
 
 ::ng-deep .audit-form {
-  --mdc-outlined-text-field-disabled-label-text-color: var(
+  --mat-form-field-outlined-disabled-label-text-color: var(
     --mat-sys-on-surface-variant
   );
-  --mdc-outlined-text-field-disabled-input-text-color: var(
+  --mat-form-field-outlined-disabled-input-text-color: var(
     --mat-sys-on-surface
   );
   --mat-select-disabled-trigger-text-color: var(--mat-sys-on-surface);
   --mat-checkbox-disabled-label-color: var(--mat-sys-on-surface);
 
-  --mdc-outlined-text-field-disabled-outline-color: var(--mat-sys-outline);
+  --mat-form-field-outlined-disabled-outline-color: var(--mat-sys-outline);
 
-  --mdc-checkbox-disabled-selected-icon-color: var(--mat-sys-primary);
+  --mat-checkbox-disabled-selected-icon-color: var(--mat-sys-primary);
 
   .mdc-text-field--disabled {
     user-select: text;

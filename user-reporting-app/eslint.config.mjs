@@ -1,11 +1,11 @@
-// @ts-check
+// @ts-nocheck
 import eslint from '@eslint/js';
 import angular from 'angular-eslint';
 import eslintConfigPrettier from 'eslint-config-prettier';
+import jasmine from 'eslint-plugin-jasmine';
 import rxjsAngularX from 'eslint-plugin-rxjs-angular-x';
 import { defineConfig } from 'eslint/config';
 import tseslint from 'typescript-eslint';
-import vitest from '@vitest/eslint-plugin';
 
 export default defineConfig([
   {
@@ -102,17 +102,11 @@ export default defineConfig([
   },
   {
     files: ['**/*.spec.ts'],
-    plugins: {
-      vitest,
-    },
-    languageOptions: {
-      globals: {
-        ...vitest.environments.env.globals,
-      },
-    },
+    plugins: { jasmine: jasmine },
     rules: {
-      ...vitest.configs.recommended.rules,
       'no-restricted-imports': 'off',
+      ...jasmine.configs.recommended.rules,
+      'jasmine/no-unsafe-spy': 'off',
     },
   },
   {

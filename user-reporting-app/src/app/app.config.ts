@@ -2,9 +2,11 @@ import {
   type ApplicationConfig,
   ErrorHandler,
   inject,
-  provideZoneChangeDetection,
+  provideBrowserGlobalErrorListeners,
+  provideZonelessChangeDetection,
 } from '@angular/core';
 import {
+  RedirectCommand,
   RouteReuseStrategy,
   Router,
   provideRouter,
@@ -13,28 +15,32 @@ import {
   withRouterConfig,
 } from '@angular/router';
 
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import {
   MAT_DATE_FNS_FORMATS,
   provideDateFnsAdapter,
 } from '@angular/material-date-fns-adapter';
 import { MAT_DATE_LOCALE } from '@angular/material/core';
 import {
+  MAT_DIALOG_DEFAULT_OPTIONS,
+  MatDialogConfig,
+} from '@angular/material/dialog';
+import {
   MAT_FORM_FIELD_DEFAULT_OPTIONS,
   MatFormFieldDefaultOptions,
 } from '@angular/material/form-field';
 import { enCA } from 'date-fns/locale';
-import { AppErrorHandlerService } from './app-error-handler.service';
+import {
+  AppErrorHandlerService,
+  errorInterceptor,
+} from './app-error-handler.service';
 import { routes } from './app.routes';
 import { CachedRouteReuseStrategy } from './route-cache/preserve-route-reuse-strategy';
-import {
-  MAT_DIALOG_DEFAULT_OPTIONS,
-  MatDialogConfig,
-} from '@angular/material/dialog';
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideZoneChangeDetection({ eventCoalescing: true }),
+    provideZonelessChangeDetection(),
+    provideBrowserGlobalErrorListeners(),
     provideRouter(
       routes,
       withComponentInputBinding(),
@@ -42,14 +48,16 @@ export const appConfig: ApplicationConfig = {
         paramsInheritanceStrategy: 'always',
       }),
       withNavigationErrorHandler((navError) => {
-        const router = inject(Router);
         console.error('Navigation error:', navError.error);
-        router.navigate(['/transactionsearch']);
+        inject(ErrorHandler).handleError(navError.error);
+        return new RedirectCommand(
+          inject(Router).parseUrl('/transactionsearch'),
+        );
       }),
       // withDebugTracing(), // for debugging router
     ),
     { provide: RouteReuseStrategy, useClass: CachedRouteReuseStrategy },
-    provideHttpClient(),
+    provideHttpClient(withInterceptors([errorInterceptor])),
     provideDateFnsAdapter(MAT_DATE_FNS_FORMATS),
     { provide: MAT_DATE_LOCALE, useValue: enCA },
     { provide: ErrorHandler, useClass: AppErrorHandlerService },

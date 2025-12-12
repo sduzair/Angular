@@ -169,10 +169,10 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
             <mat-chip-set>
               @for (ch of row._hiddenValidation; track ch) {
                 <mat-chip
-                  [style.--mdc-chip-elevated-container-color]="
+                  [style.--mat-chip-elevated-container-color]="
                     getColorForValidationChip(ch)
                   "
-                  [style.--mdc-chip-label-text-color]="
+                  [style.--mat-chip-label-text-color]="
                     getFontColorForValidationChip(ch)
                   ">
                   {{ ch | camelToTitle }}

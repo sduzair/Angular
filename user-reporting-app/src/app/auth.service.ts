@@ -1,6 +1,6 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
-import { TEST_USER_ADMIN } from './auth.service.spec';
+import { TEST_USER_ADMIN } from './auth.fixture';
 
 export type UserRole = 'Analyst' | 'Admin';
 

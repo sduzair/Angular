@@ -13,6 +13,7 @@ describe('diff', () => {
         value: 1,
       },
     ]);
+
     expect(JsonPatch.diff(null, 'undefined')).toEqual([
       {
         op: 'replace',
@@ -20,6 +21,7 @@ describe('diff', () => {
         value: 'undefined',
       },
     ]);
+
     expect(JsonPatch.diff({}, { a: BigInt(5) })).toEqual([
       {
         op: 'add',
@@ -33,6 +35,7 @@ describe('diff', () => {
     expect(JsonPatch.diff(['a'], ['a', 'b'])).toEqual([
       { op: 'add', path: '/1', value: 'b' },
     ]);
+
     expect(JsonPatch.diff(['a', 'c'], ['b', 'c', 'a', 5])).toEqual([
       {
         op: 'add',
@@ -56,6 +59,7 @@ describe('diff', () => {
     expect(JsonPatch.diff({ a: 5 }, { a: 5, b: '2' })).toEqual([
       { op: 'add', path: '/b', value: '2' },
     ]);
+
     expect(JsonPatch.diff({ a: 5 }, { a: '5' })).toEqual([
       {
         op: 'replace',
@@ -63,6 +67,7 @@ describe('diff', () => {
         value: '5',
       },
     ]);
+
     expect(
       JsonPatch.diff({ a: { b: 3, c: 4 } }, { a: { b: 5, c: 4 } }),
     ).toEqual([
@@ -80,9 +85,11 @@ describe('patch and diff', () => {
     expect(
       JsonPatch.patch({ a: 1 }, [{ op: 'add', path: '/b', value: 2 }]),
     ).toEqual({ a: 1, b: 2 });
+
     expect(
       JsonPatch.patch({ a: 1 }, [{ op: 'add', path: '/b', value: BigInt(3) }]),
     ).toEqual({ a: 1, b: BigInt(3) });
+
     expect(
       JsonPatch.patch({ a: [5, 3, { c: 2 }] }, [
         { op: 'replace', path: '/a/2/c', value: 4 },

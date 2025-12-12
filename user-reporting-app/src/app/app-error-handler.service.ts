@@ -1,6 +1,12 @@
-import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
+import {
+  HttpErrorResponse,
+  HttpInterceptorFn,
+  HttpStatusCode,
+} from '@angular/common/http';
 import { ErrorHandler, inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { throwError } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
 @Injectable()
 export class AppErrorHandlerService implements ErrorHandler {
@@ -32,3 +38,15 @@ export class AppErrorHandlerService implements ErrorHandler {
     console.warn('Caught by app error handler', error);
   }
 }
+
+export const errorInterceptor: HttpInterceptorFn = (req, next) => {
+  const errorHandler = inject(ErrorHandler);
+
+  return next(req).pipe(
+    catchError((error: HttpErrorResponse) => {
+      // Automatically forward all HTTP errors to global handler
+      errorHandler.handleError(error);
+      return throwError(() => error);
+    }),
+  );
+};

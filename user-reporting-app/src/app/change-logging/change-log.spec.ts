@@ -112,7 +112,10 @@ describe('ChangeLog', () => {
       it('should throw error when using array syntax on non-array property', () => {
         (
           transactionBefore as unknown as {
-            name: { first: string; last: string };
+            name: {
+              first: string;
+              last: string;
+            };
           }
         ).name = {
           first: 'uzair',
@@ -247,6 +250,7 @@ describe('ChangeLog', () => {
 
       // mutates change log value if not handled immutably
       result.startingActions![1].typeOfFundsOther = 'cheque';
+
       expect(changes).toEqual(originalChanges);
     });
   });
@@ -379,10 +383,16 @@ describe('ChangeLog', () => {
     });
 
     it('should ignore _hidden prefix property changes', () => {
-      (transactionBefore as unknown as { _hiddenProp: string })._hiddenProp =
-        'oldVal';
-      (transactionAfter as unknown as { _hiddenProp: string })._hiddenProp =
-        'newVal';
+      (
+        transactionBefore as unknown as {
+          _hiddenProp: string;
+        }
+      )._hiddenProp = 'oldVal';
+      (
+        transactionAfter as unknown as {
+          _hiddenProp: string;
+        }
+      )._hiddenProp = 'newVal';
 
       const changes = ChangeLog.generateChangeLogs(
         transactionBefore,
@@ -393,10 +403,16 @@ describe('ChangeLog', () => {
     });
 
     it('should ignore _mongoid property changes', () => {
-      (transactionBefore as unknown as { _mongoid: string })._mongoid =
-        '11111111111';
-      (transactionAfter as unknown as { _mongoid: string })._mongoid =
-        '11111111112';
+      (
+        transactionBefore as unknown as {
+          _mongoid: string;
+        }
+      )._mongoid = '11111111111';
+      (
+        transactionAfter as unknown as {
+          _mongoid: string;
+        }
+      )._mongoid = '11111111112';
 
       const changes = ChangeLog.generateChangeLogs(
         transactionBefore,
@@ -407,10 +423,16 @@ describe('ChangeLog', () => {
     });
 
     it('should ignore changes for properties starting with flowOfFunds', () => {
-      (transactionBefore as unknown as { _mongoid: string })._mongoid =
-        '11111111111';
-      (transactionAfter as unknown as { _mongoid: string })._mongoid =
-        '11111111112';
+      (
+        transactionBefore as unknown as {
+          _mongoid: string;
+        }
+      )._mongoid = '11111111111';
+      (
+        transactionAfter as unknown as {
+          _mongoid: string;
+        }
+      )._mongoid = '11111111112';
 
       const changes = ChangeLog.generateChangeLogs(
         transactionBefore,

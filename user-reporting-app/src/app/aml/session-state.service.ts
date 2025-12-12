@@ -79,11 +79,6 @@ export class SessionStateService implements OnDestroy {
     this.initialState,
   );
 
-  // todo: remove usage - pending tests
-  getSessionStateValue() {
-    return this._sessionState$.value;
-  }
-
   public sessionState$ = this._sessionState$.asObservable();
 
   private conflict$ = new Subject<void>();

@@ -1,12 +1,11 @@
-/* eslint-disable vitest/no-commented-out-tests */
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import {
   HttpTestingController,
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import { ErrorHandler } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { take } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import {
   EDITED_TRANSACTIONS_DEV_OR_TEST_ONLY_FIXTURE,
   SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE,
@@ -17,11 +16,15 @@ import {
   SessionStateLocal,
   SessionStateService,
 } from './session-state.service';
+import {
+  AppErrorHandlerService,
+  errorInterceptor,
+} from '../app-error-handler.service';
 
 describe('SessionDataService', () => {
   let service: SessionStateService;
   let httpMock: HttpTestingController;
-  let errorHandlerSpy: jasmine.SpyObj<ErrorHandler>;
+  let errorHandlerSpy: jasmine.SpyObj<AppErrorHandlerService>;
 
   let mockAmlId: string;
   let mockSessionState: SessionStateLocal;
@@ -32,7 +35,7 @@ describe('SessionDataService', () => {
     TestBed.configureTestingModule({
       providers: [
         SessionStateService,
-        provideHttpClient(),
+        provideHttpClient(withInterceptors([errorInterceptor])),
         provideHttpClientTesting(),
         { provide: ErrorHandler, useValue: errorHandlerSpy },
       ],
@@ -55,8 +58,7 @@ describe('SessionDataService', () => {
 
   describe('sessionStateValue', () => {
     it('should return the current value of sessionState BehaviorSubject', () => {
-      const sessionStateValue = service.getSessionStateValue();
-      expect(sessionStateValue).toBeDefined();
+      expect(service['_sessionState$'].value).toBeDefined();
     });
   });
 
@@ -70,7 +72,7 @@ describe('SessionDataService', () => {
   // });
 
   describe('latestSessionVersion$', () => {
-    it('should emit the latest version from session state', (done) => {
+    it('should emit the latest version from session state', async () => {
       const testState: SessionStateLocal = {
         amlId: mockAmlId,
         version: 5,
@@ -80,10 +82,9 @@ describe('SessionDataService', () => {
 
       service['_sessionState$'].next(testState);
 
-      service.latestSessionVersion$.pipe(take(1)).subscribe((version) => {
-        expect(version).toBe(5);
-        done();
-      });
+      const version = await firstValueFrom(service.latestSessionVersion$);
+
+      expect(version).toBe(5);
     });
   });
 
@@ -99,7 +100,7 @@ describe('SessionDataService', () => {
   // });
 
   describe('fetchSessionByAmlId', () => {
-    it('should fetch session data and emit local session', (done) => {
+    it('should fetch session data and emit local session', async () => {
       const mockGetSessionResponse: GetSessionResponse = {
         amlId: '999999',
         version: 0,
@@ -137,44 +138,49 @@ describe('SessionDataService', () => {
         updatedAt: mockUpdatedAt,
       } = mockGetSessionResponse;
 
-      service
-        .fetchSessionByAmlId(mockAmlId)
-        .subscribe(
-          ({
-            amlId,
-            version,
-            data: { transactionSearchParams, strTransactions },
-          }) => {
-            expect(amlId).toBe(mockAmlId);
-            expect(version).toBe(mockVersion);
-            expect(transactionSearchParams).toEqual(mockTransactionSearchParam);
-            expect(strTransactions).toEqual(mockStrTransactionsEdited);
-            expect(service.getSessionStateValue()!.version).toBe(mockVersion);
-            done();
-          },
-        );
+      const result = firstValueFrom(service.fetchSessionByAmlId(mockAmlId));
 
       const req = httpMock.expectOne(`/api/sessions/${mockAmlId}`);
+
       expect(req.request.method).toBe('GET');
       req.flush(mockGetSessionResponse);
+
+      const {
+        amlId,
+        version,
+        data: { transactionSearchParams, strTransactions },
+      } = await result;
+
+      expect(amlId).toBe(mockAmlId);
+      expect(version).toBe(mockVersion);
+      expect(transactionSearchParams).toEqual(mockTransactionSearchParam);
+      expect(strTransactions).toEqual(mockStrTransactionsEdited);
+      expect(service['_sessionState$'].value.version).toBe(mockVersion);
     });
 
-    it('should handle HTTP errors', (done) => {
-      service.fetchSessionByAmlId(mockAmlId).subscribe({
-        next: () => fail('should have failed'),
-        error: (error) => {
-          expect(error.status).toBe(404);
-          done();
-        },
-      });
+    it('should handle HTTP errors', async () => {
+      const resultPromise = firstValueFrom(
+        service.fetchSessionByAmlId(mockAmlId),
+      );
 
       const req = httpMock.expectOne(`/api/sessions/${mockAmlId}`);
       req.flush('Not found', { status: 404, statusText: 'Not Found' });
+
+      await expectAsync(resultPromise).toBeRejectedWith(
+        jasmine.objectContaining({ status: 404 }),
+      );
+
+      expect(errorHandlerSpy.handleError).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          status: 404,
+          statusText: 'Not Found',
+        }),
+      );
     });
   });
 
   describe('createSession', () => {
-    it('should create a new session with version 0 and emit local state', (done) => {
+    it('should create a new session with version 0 and emit local state', async () => {
       const mockCreateResponse: CreateSessionResponse = {
         amlId: '999999',
         userId: 'test-user',
@@ -183,20 +189,22 @@ describe('SessionDataService', () => {
       };
       const { amlId: mockAmlId, version: mockVersion } = mockCreateResponse;
 
-      service.createSession(mockAmlId).subscribe(({ version, amlId }) => {
-        expect(version).toBe(mockVersion);
-        expect(amlId).toBe(mockAmlId);
-        expect(service.getSessionStateValue()!.version).toBe(mockVersion);
-        done();
-      });
+      const result = firstValueFrom(service.createSession(mockAmlId));
 
       const req = httpMock.expectOne('/api/sessions');
+
       expect(req.request.method).toBe('POST');
       expect(req.request.body.amlId).toBe(mockAmlId);
       req.flush(mockCreateResponse);
+
+      const { version, amlId } = await result;
+
+      expect(version).toBe(mockVersion);
+      expect(amlId).toBe(mockAmlId);
+      expect(service['_sessionState$'].value.version).toBe(mockVersion);
     });
 
-    it('should initialize session state with empty selections', (done) => {
+    it('should initialize session state with empty selections', async () => {
       const mockCreateResponse: CreateSessionResponse = {
         amlId: '999999',
         userId: 'test-user',
@@ -205,28 +213,30 @@ describe('SessionDataService', () => {
       };
       const { amlId: mockAmlId } = mockCreateResponse;
 
-      service.createSession(mockAmlId).subscribe(() => {
-        const {
-          transactionSearchParams: {
-            accountNumbersSelection,
-            partyKeysSelection,
-            productTypesSelection,
-            reviewPeriodSelection,
-            sourceSystemsSelection,
-          },
-          strTransactions,
-        } = service.getSessionStateValue()!;
-        expect(accountNumbersSelection).toEqual([]);
-        expect(partyKeysSelection).toEqual([]);
-        expect(productTypesSelection).toEqual([]);
-        expect(reviewPeriodSelection).toEqual([]);
-        expect(sourceSystemsSelection).toEqual([]);
-        expect(strTransactions).toEqual([]);
-        done();
-      });
+      const result = firstValueFrom(service.createSession(mockAmlId));
 
       const req = httpMock.expectOne('/api/sessions');
       req.flush(mockCreateResponse);
+
+      await result;
+
+      const {
+        transactionSearchParams: {
+          accountNumbersSelection,
+          partyKeysSelection,
+          productTypesSelection,
+          reviewPeriodSelection,
+          sourceSystemsSelection,
+        },
+        strTransactions,
+      } = service['_sessionState$'].value;
+
+      expect(accountNumbersSelection).toEqual([]);
+      expect(partyKeysSelection).toEqual([]);
+      expect(productTypesSelection).toEqual([]);
+      expect(reviewPeriodSelection).toEqual([]);
+      expect(sourceSystemsSelection).toEqual([]);
+      expect(strTransactions).toEqual([]);
     });
   });
 

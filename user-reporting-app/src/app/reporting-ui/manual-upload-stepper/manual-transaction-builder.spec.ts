@@ -74,12 +74,15 @@ describe('ManualTransactionBuilder', () => {
       expect(Array.isArray(transaction.startingActions[0].accountHolders)).toBe(
         true,
       );
+
       expect(Array.isArray(transaction.startingActions[0].sourceOfFunds)).toBe(
         true,
       );
+
       expect(Array.isArray(transaction.startingActions[0].conductors)).toBe(
         true,
       );
+
       expect(
         Array.isArray(transaction.startingActions[0].conductors![0].onBehalfOf),
       ).toBe(true);
@@ -88,9 +91,11 @@ describe('ManualTransactionBuilder', () => {
       expect(
         Array.isArray(transaction.completingActions[0].accountHolders),
       ).toBe(true);
+
       expect(Array.isArray(transaction.completingActions[0].involvedIn)).toBe(
         true,
       );
+
       expect(
         Array.isArray(transaction.completingActions[0].beneficiaries),
       ).toBe(true);
@@ -133,6 +138,7 @@ describe('ManualTransactionBuilder', () => {
       expect(Array.isArray(transaction.startingActions[0].conductors)).toBe(
         true,
       );
+
       expect(
         Array.isArray(transaction.completingActions[0].beneficiaries),
       ).toBe(true);
@@ -166,24 +172,28 @@ describe('ManualTransactionBuilder', () => {
 
       // Verify startingAction has _id
       const startingAction = transaction.startingActions[0];
+
       expect(startingAction._id).toBeDefined();
       expect(typeof startingAction._id).toBe('string');
       expect(startingAction._id!.length).toBeGreaterThan(0);
 
       // Verify completingAction has _id
       const completingAction = transaction.completingActions[0];
+
       expect(completingAction._id).toBeDefined();
       expect(typeof completingAction._id).toBe('string');
       expect(completingAction._id!.length).toBeGreaterThan(0);
 
       // Verify conductor has _id when present
       const conductor = startingAction.conductors![0];
+
       expect(conductor._id).toBeDefined();
       expect(typeof conductor._id).toBe('string');
       expect(conductor._id!.length).toBeGreaterThan(0);
 
       // Verify beneficiary has _id when present
       const beneficiary = completingAction.beneficiaries![0];
+
       expect(beneficiary._id).toBeDefined();
       expect(typeof beneficiary._id).toBe('string');
       expect(beneficiary._id!.length).toBeGreaterThan(0);
@@ -196,6 +206,7 @@ describe('ManualTransactionBuilder', () => {
         beneficiary._id,
       ].filter(Boolean);
       const uniqueIds = new Set(ids);
+
       expect(uniqueIds.size).toBe(ids.length);
     });
   });

@@ -4766,7 +4766,7 @@ export const bulkEditTypeResolver: ResolveFn<EditFormEditType> = (
   route: ActivatedRouteSnapshot,
   _: RouterStateSnapshot,
 ) => {
-  const selectedTransactionsForBulkEdit = inject(Router).getCurrentNavigation()
+  const selectedTransactionsForBulkEdit = inject(Router).currentNavigation()
     ?.extras.state?.['selectedTransactionsForBulkEdit'] as string[] | null;
 
   if (!selectedTransactionsForBulkEdit) throw new Error('Unknown edit type');

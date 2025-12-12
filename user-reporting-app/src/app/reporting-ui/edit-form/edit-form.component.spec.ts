@@ -1,8 +1,6 @@
-/* eslint-disable vitest/no-disabled-tests */
-/* eslint-disable vitest/expect-expect */
 import { HarnessLoader } from '@angular/cdk/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import {
   HttpTestingController,
   provideHttpClientTesting,
@@ -13,7 +11,8 @@ import {
   Component,
   ErrorHandler,
   inject,
-  provideZoneChangeDetection,
+  provideBrowserGlobalErrorListeners,
+  provideZonelessChangeDetection,
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
@@ -29,6 +28,7 @@ import { MatInputHarness } from '@angular/material/input/testing';
 import { MatSelectHarness } from '@angular/material/select/testing';
 import {
   provideRouter,
+  RedirectCommand,
   Router,
   withComponentInputBinding,
   withNavigationErrorHandler,
@@ -42,16 +42,16 @@ import {
   SessionStateLocal,
   SessionStateService,
 } from '../../aml/session-state.service';
-import { AppErrorHandlerService } from '../../app-error-handler.service';
+import { TEST_USER_ADMIN } from '../../auth.fixture';
 import {
   AuthService,
   hasRoleGuard,
   isAuthenticatedGuard,
 } from '../../auth.service';
-import { createAuthServiceSpy, TEST_USER_ADMIN } from '../../auth.service.spec';
+import { createAuthServiceSpy } from '../../auth.service.spec';
+import { LoginComponent } from '../../login/login.component';
 import { activateTabs, findEl } from '../../test-helpers';
 import {
-  AmlComponent,
   lastUpdatedResolver,
   savingStatusResolver,
 } from './../../aml/aml.component';
@@ -68,7 +68,10 @@ import {
   FormOptionsService,
 } from './form-options.service';
 import { TransactionTimeDirective } from './transaction-time.directive';
-import { LoginComponent } from '../../login/login.component';
+import {
+  AppErrorHandlerService,
+  errorInterceptor,
+} from './../../app-error-handler.service';
 
 @Component({
   selector: 'app-transaction-search',
@@ -88,11 +91,16 @@ describe('EditFormComponent', () => {
       },
     );
     const authServiceSpy = createAuthServiceSpy();
+    const errorHandlerSpy = jasmine.createSpyObj<AppErrorHandlerService>(
+      'AppErrorHandlerService',
+      ['handleError'],
+    );
 
     await TestBed.configureTestingModule({
       providers: [
-        provideZoneChangeDetection({ eventCoalescing: true }),
-        // note routing specific to test
+        provideZonelessChangeDetection(),
+        provideBrowserGlobalErrorListeners(),
+        // note: routing specific to test
         provideRouter(
           [
             {
@@ -183,12 +191,14 @@ describe('EditFormComponent', () => {
           withComponentInputBinding(),
           withRouterConfig({ paramsInheritanceStrategy: 'always' }),
           withNavigationErrorHandler((navError) => {
-            const router = inject(Router);
             // console.error('Navigation error:', navError.error);
-            router.navigate(['/transactionsearch']);
+            inject(ErrorHandler).handleError(navError.error);
+            return new RedirectCommand(
+              inject(Router).parseUrl('/transactionsearch'),
+            );
           }),
         ),
-        provideHttpClient(),
+        provideHttpClient(withInterceptors([errorInterceptor])),
         provideHttpClientTesting(),
         // note needed as mat date input harness reads displayed value instead of form model value
         provideDateFnsAdapter({
@@ -196,7 +206,7 @@ describe('EditFormComponent', () => {
           display: { ...MAT_DATE_FNS_FORMATS.display, dateInput: 'yyyy/MM/dd' },
         }),
         { provide: MAT_DATE_LOCALE, useValue: enCA },
-        { provide: ErrorHandler, useClass: AppErrorHandlerService },
+        { provide: ErrorHandler, useValue: errorHandlerSpy },
         // note disables animations to prevent scenario of making assertions before animations complete
         { provide: ANIMATION_MODULE_TYPE, useValue: 'NoopAnimations' },
         { provide: FormOptionsService, useValue: formOptionsServiceSpy },
@@ -214,11 +224,12 @@ describe('EditFormComponent', () => {
       httpTesting,
       formOptionsServiceSpy,
       authServiceSpy,
+      errorHandlerSpy,
     };
   }
 
   describe('navigate to edit form component for SINGLE_EDIT', () => {
-    it('should redirect to login page when user not logged in', async () => {
+    it('should redirect from single edit form to login page when user not logged in', async () => {
       const { harness, authServiceSpy } = await setup();
       const router = TestBed.inject(Router);
 
@@ -234,14 +245,21 @@ describe('EditFormComponent', () => {
       expect(router.url).toBe('/login');
     });
 
-    it('should redirect to transaction search when ID is invalid', async () => {
-      const { harness } = await setup();
+    it('should redirect from single edit form to transaction search when ID is invalid', async () => {
+      const { harness, errorHandlerSpy } = await setup();
+      const { fixture } = harness;
       const router = TestBed.inject(Router);
 
-      await expectAsync(
-        harness.navigateByUrl('aml/99999999/reporting-ui/edit-form/asdfasdf'),
-      ).toBeRejectedWithError(/Transaction not found/);
+      await harness.navigateByUrl(
+        'aml/99999999/reporting-ui/edit-form/asdfasdf',
+      );
+
+      await fixture.whenStable();
+
       expect(router.url).toBe('/transactionsearch');
+      expect(errorHandlerSpy.handleError).toHaveBeenCalledWith(
+        jasmine.any(Error),
+      );
     });
 
     async function setupAndNavigate() {
@@ -275,6 +293,7 @@ describe('EditFormComponent', () => {
       expect(actualValue).toBe(expectedValue);
 
       const isValid = await field!.isControlValid();
+
       expect(isValid).toBe(true);
     });
 
@@ -292,6 +311,7 @@ describe('EditFormComponent', () => {
       const expectedOptions = Object.keys(
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE.methodOfTxn,
       );
+
       expect(options.length).toBe(expectedOptions.length);
       const optionTexts = await Promise.all(
         options.map((option) => option.getText()),
@@ -305,7 +325,7 @@ describe('EditFormComponent', () => {
         'formOptions$',
       )!.get;
 
-      expect(formOptionsGetter).toHaveBeenCalled();
+      expect(formOptionsGetter).toHaveBeenCalledWith();
     });
 
     it('should verify all form fields populate correctly', async () => {
@@ -402,7 +422,7 @@ describe('EditFormComponent', () => {
 
       expect(errors.length).toBe(0);
       if (errors.length > 0) {
-        fail(`Form verification failed:\n${errors.join('\n')}`);
+        throw new Error(`Form verification failed:\n${errors.join('\n')}`);
       }
     });
 
@@ -521,11 +541,13 @@ describe('EditFormComponent', () => {
 
       expect(unexpectedFields).toEqual([]);
       if (unexpectedFields.length > 0) {
-        fail(`Unexpected fields found: ${unexpectedFields.join(', ')}`);
+        throw new Error(
+          `Unexpected fields found: ${unexpectedFields.join(', ')}`,
+        );
       }
     });
 
-    it('should verify atleast one starting action or completing action always exist', async () => {
+    it('should verify atleast one starting action or completing action always exist for single edit form', async () => {
       const { loader } = await setupAndNavigate();
       await activateTabs(loader);
 
@@ -540,6 +562,7 @@ describe('EditFormComponent', () => {
             selector: getTestIdSelector(btnTestId),
           }),
         );
+
         expect(button).toBeDefined();
         button.click();
 
@@ -552,13 +575,14 @@ describe('EditFormComponent', () => {
             selector: getTestIdSelector(expectedFieldTestId),
           }),
         );
-        expect(!!field).toBeTrue();
+
+        expect(!!field).toBe(true);
       }
     });
   });
 
   describe('navigate to edit form component for BULK_EDIT', () => {
-    it('should redirect to login page when user not logged in', async () => {
+    it('should redirect from bulk edit form to login page when user not logged in', async () => {
       const { harness, authServiceSpy } = await setup();
       const router = TestBed.inject(Router);
 
@@ -574,14 +598,21 @@ describe('EditFormComponent', () => {
       expect(router.url).toBe('/login');
     });
 
-    it('should redirect to transaction search when route extras are missing', async () => {
-      const { harness } = await setup();
+    it('should redirect from bulk edit form to transaction search when route extras are missing', async () => {
+      const { harness, errorHandlerSpy } = await setup();
       const router = TestBed.inject(Router);
 
-      await expectAsync(
-        harness.navigateByUrl('aml/99999999/reporting-ui/edit-form/bulk-edit'),
-      ).toBeRejectedWithError(/Unknown edit type/);
+      await harness.navigateByUrl(
+        'aml/99999999/reporting-ui/edit-form/bulk-edit',
+      );
+      const { fixture } = harness;
+
+      await fixture.whenStable();
+
       expect(router.url).toBe('/transactionsearch');
+      expect(errorHandlerSpy.handleError).toHaveBeenCalledWith(
+        jasmine.any(Error),
+      );
     });
 
     async function setupAndNavigate() {
@@ -613,41 +644,23 @@ describe('EditFormComponent', () => {
         ) => {
           const errors = [] as string[];
 
+          let fieldPromise: Promise<unknown>;
+
           if (isInputField(testId)) {
-            await expectAsync(getMatField(loader, testId)).toBeResolved();
+            fieldPromise = getMatField(loader, testId);
+          } else if (isSelectField(testId)) {
+            fieldPromise = getMatField(loader, testId as SelectField);
+          } else if (isDateField(testId)) {
+            fieldPromise = getMatField(loader, testId as DateField);
+          } else if (isCheckBox(testId)) {
+            fieldPromise = getMatField(loader, testId as CheckboxField);
+          } else if (isTimeField(testId)) {
+            fieldPromise = getMatField(loader, testId);
+          } else {
+            throw new Error(`Unknown test id: ${testId}`);
           }
 
-          if (isSelectField(testId)) {
-            await expectAsync(
-              getMatField(loader, testId as SelectField),
-            ).toBeResolved();
-          }
-
-          if (isDateField(testId)) {
-            await expectAsync(
-              getMatField(loader, testId as DateField),
-            ).toBeResolved();
-          }
-
-          if (isCheckBox(testId)) {
-            await expectAsync(
-              getMatField(loader, testId as CheckboxField),
-            ).toBeResolved();
-          }
-
-          if (isTimeField(testId)) {
-            await expectAsync(getMatField(loader, testId)).toBeResolved();
-          }
-
-          if (
-            !isInputField(testId) &&
-            !isSelectField(testId) &&
-            !isDateField(testId) &&
-            !isCheckBox(testId) &&
-            !isTimeField(testId)
-          ) {
-            throw new Error('unknown test id');
-          }
+          await expectAsync(fieldPromise).toBeResolved();
 
           return errors;
         },
@@ -661,7 +674,7 @@ describe('EditFormComponent', () => {
       ).toBeResolved();
     });
 
-    it('should verify all form fields are disabled', async () => {
+    it('should verify all form fields are disabled for audit form', async () => {
       const { loader } = await setupAndNavigate();
 
       const { verify } = await createFieldTraverser(
@@ -749,7 +762,7 @@ describe('EditFormComponent', () => {
 
       expect(errors.length).toBe(0);
       if (errors.length > 0) {
-        fail(`Form verification failed:\n${errors.join('\n')}`);
+        throw new Error(`Form verification failed:\n${errors.join('\n')}`);
       }
     });
 
@@ -768,6 +781,7 @@ describe('EditFormComponent', () => {
             selector: getTestIdSelector(btnTestId),
           }),
         );
+
         expect(button).toBeDefined();
         button.click();
 
@@ -780,7 +794,8 @@ describe('EditFormComponent', () => {
             selector: getTestIdSelector(expectedFieldTestId),
           }),
         );
-        expect(!!field).toBeTrue();
+
+        expect(!!field).toBe(true);
       }
     });
 
@@ -916,7 +931,7 @@ describe('EditFormComponent', () => {
       expect(finalButtons.filter(Boolean).length).toBe(removeBtnTestIds.length);
     });
 
-    it('should verify atleast one starting action or completing action always exist', async () => {
+    it('should verify atleast one starting action or completing action always exist for bulk edit form', async () => {
       const { loader } = await setupAndNavigate();
       await activateTabs(loader);
 
@@ -931,6 +946,7 @@ describe('EditFormComponent', () => {
             selector: getTestIdSelector(removeBtnTestId),
           }),
         );
+
         expect(button).toBeDefined();
         button.click();
 
@@ -943,13 +959,14 @@ describe('EditFormComponent', () => {
             selector: getTestIdSelector(expectedFieldTestId),
           }),
         );
-        expect(!!field).toBeTrue();
+
+        expect(!!field).toBe(true);
       }
     });
   });
 
   describe('navigate to audit form component for AUDIT_REQUEST', () => {
-    it('should redirect to login page when user not logged in', async () => {
+    it('should redirect from audit form to login page when user not logged in', async () => {
       const { harness, authServiceSpy } = await setup();
       const router = TestBed.inject(Router);
 
@@ -978,18 +995,23 @@ describe('EditFormComponent', () => {
     });
 
     it('should redirect to transaction search when ID is invalid', async () => {
-      const { harness, authServiceSpy } = await setup();
+      const { harness, authServiceSpy, errorHandlerSpy } = await setup();
       const router = TestBed.inject(Router);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const testSignal = (authServiceSpy as any)._testSignal;
       testSignal.set(TEST_USER_ADMIN);
 
-      await expectAsync(
-        harness.navigateByUrl('aml/99999999/reporting-ui/audit/asdfasdf'),
-      ).toBeRejectedWithError(/Transaction not found/);
+      await harness.navigateByUrl('aml/99999999/reporting-ui/audit/asdfasdf');
+
+      const { fixture } = harness;
+
+      await fixture.whenStable();
 
       expect(router.url).toBe('/transactionsearch');
+      expect(errorHandlerSpy.handleError).toHaveBeenCalledWith(
+        jasmine.any(Error),
+      );
     });
 
     async function setupAndNavigate() {
@@ -1008,7 +1030,7 @@ describe('EditFormComponent', () => {
       return { harness, loader, formOptionsServiceSpy };
     }
 
-    it('should verify all form fields are disabled', async () => {
+    it('should verify all form fields are initially disabled', async () => {
       const { loader } = await setupAndNavigate();
 
       const { verify } = await createFieldTraverser(
@@ -1096,7 +1118,7 @@ describe('EditFormComponent', () => {
 
       expect(errors.length).toBe(0);
       if (errors.length > 0) {
-        fail(`Form verification failed:\n${errors.join('\n')}`);
+        throw new Error(`Form verification failed:\n${errors.join('\n')}`);
       }
     });
 
@@ -1237,10 +1259,12 @@ describe('EditFormComponent', () => {
 
   describe('integrity checks', () => {
     it('should always create empty array for null/undefined array props', () => {
+      // eslint-disable-next-line jasmine/no-pending-tests
       pending('TODO: implement this test');
     });
 
     it('should always create _id prop for array items', () => {
+      // eslint-disable-next-line jasmine/no-pending-tests
       pending('TODO: implement this test');
     });
   });
