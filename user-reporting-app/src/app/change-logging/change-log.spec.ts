@@ -20,8 +20,8 @@ describe('ChangeLog', () => {
           currency: 'CAD',
         },
       ],
-      _version: 0,
-    };
+      etag: 0,
+    } satisfies WithVersion<DeepPartial<StrTransaction>>;
     transactionBefore = structuredClone(mockTransaction);
     transactionAfter = structuredClone(mockTransaction);
   });

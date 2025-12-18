@@ -441,6 +441,26 @@
       "formula": "upper(_hiddenSenderAccountNameGiven + \" \" + _hiddenSenderAccountNameSurname)"
     },
     {
+      "name": "_hiddenSenderTransit",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "branch",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "_hiddenSenderAccount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "account",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
       "name": "senderAccountNumber",
       "null_percentage": 0,
       "type": "Custom List",
@@ -449,7 +469,7 @@
       ],
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": null
+      "formula": "concat(\"010-\", _hiddenSenderTransit, \"-\", _hiddenSenderAccount)"
     },
     {
       "name": "senderCertapayAccount",

@@ -69,7 +69,7 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "In-Person"
+        "ABM"
       ],
       "selectionStyle": "random",
       "distribution": null,
@@ -96,15 +96,12 @@
     {
       "name": "reportingEntityLocationNo",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "84255",
-        "31980",
-        "87594"
-      ],
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "branch",
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "if random(1,10) <= 5 then \"84255\"\nelse random(10000,99999).to_s() end\n"
+      "formula": "if random(1,10) <= 5 then this.to_s()\nelse random(10000,99999).to_s() end\n"
     },
     {
       "name": "_hiddenFullName",
@@ -175,10 +172,10 @@
       "name": "startingActions.amount",
       "null_percentage": 0,
       "type": "Number",
-      "min": 50,
-      "max": 2500,
+      "min": 1,
+      "max": 250,
       "decimals": 0,
-      "formula": "this * 10"
+      "formula": "this * 100"
     },
     {
       "name": "startingActions.currency",
@@ -205,12 +202,9 @@
     {
       "name": "startingActions.branch",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "84255",
-        "31980",
-        "87594"
-      ],
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "branch",
       "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
@@ -218,12 +212,9 @@
     {
       "name": "startingActions.account",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "5582195",
-        "8692413",
-        "5647218"
-      ],
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "account",
       "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
@@ -233,9 +224,7 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "Personal",
-        "Business",
-        "Other"
+        "Personal"
       ],
       "selectionStyle": "sequential",
       "distribution": null,
@@ -244,23 +233,15 @@
     {
       "name": "startingActions.accountTypeOther",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "Joint"
-      ],
-      "selectionStyle": "random",
-      "distribution": null,
-      "formula": "if accountType == 'Other' then this\nelse '' end"
+      "type": "Blank",
+      "formula": ""
     },
     {
       "name": "startingActions.accountOpen",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "2003/08/24",
-        "2001/07/14",
-        "2005/06/23"
-      ],
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "open",
       "selectionStyle": "sequential",
       "distribution": null,
       "formula": null
@@ -281,12 +262,11 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "Active",
-        "Closed"
+        "Active"
       ],
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "if accountType == 'Business' then 'Closed'\nelse 'Active' end"
+      "formula": ""
     },
     {
       "name": "startingActions.accountCurrency",
@@ -390,8 +370,8 @@
       "name": "startingActions.sourceOfFunds",
       "null_percentage": 0,
       "type": "JSON Array",
-      "minItems": 1,
-      "maxItems": 1,
+      "minItems": 0,
+      "maxItems": 0,
       "formula": null
     },
     {
@@ -549,79 +529,44 @@
     },
     {
       "name": "startingActions.conductors.npdTypeOfDevice",
-      "null_percentage": 99,
-      "type": "Custom List",
-      "values": [
-
-      ],
-      "selectionStyle": "sequential",
-      "distribution": null,
+      "null_percentage": 0,
+      "type": "Blank",
       "formula": null
     },
     {
       "name": "startingActions.conductors.npdTypeOfDeviceOther",
-      "null_percentage": 99,
-      "type": "Custom List",
-      "values": [
-
-      ],
-      "selectionStyle": "sequential",
-      "distribution": null,
+      "null_percentage": 0,
+      "type": "Blank",
       "formula": null
     },
     {
       "name": "startingActions.conductors.npdDeviceIdNo",
-      "null_percentage": 99,
-      "type": "Custom List",
-      "values": [
-
-      ],
-      "selectionStyle": "sequential",
-      "distribution": null,
+      "null_percentage": 0,
+      "type": "Blank",
       "formula": null
     },
     {
       "name": "startingActions.conductors.npdUsername",
-      "null_percentage": 99,
-      "type": "Custom List",
-      "values": [
-
-      ],
-      "selectionStyle": "sequential",
-      "distribution": null,
+      "null_percentage": 0,
+      "type": "Blank",
       "formula": null
     },
     {
       "name": "startingActions.conductors.npdIp",
-      "null_percentage": 99,
-      "type": "Custom List",
-      "values": [
-
-      ],
-      "selectionStyle": "sequential",
-      "distribution": null,
+      "null_percentage": 0,
+      "type": "Blank",
       "formula": null
     },
     {
       "name": "startingActions.conductors.npdDateTimeSession",
-      "null_percentage": 99,
-      "type": "Custom List",
-      "values": [
-
-      ],
-      "selectionStyle": "sequential",
-      "distribution": null,
+      "null_percentage": 0,
+      "type": "Blank",
       "formula": null
     },
     {
       "name": "startingActions.conductors.npdTimeZone",
-      "null_percentage": 99,
-      "type": "Custom List",
-      "values": [
-
-      ],
-      "selectionStyle": "sequential",
-      "distribution": null,
+      "null_percentage": 0,
+      "type": "Blank",
       "formula": null
     },
     {
@@ -1099,10 +1044,9 @@
     {
       "name": "flowOfFundsConductorPartyKey",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "3415674561"
-      ],
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "conductor",
       "selectionStyle": "sequential",
       "distribution": null,
       "formula": ""
@@ -1235,6 +1179,17 @@
       "max": "11:59 PM",
       "format": "%-l:%M %p",
       "formula": "time(timeOfTxn + minutes(-5))"
+    },
+    {
+      "name": "sourceId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "ABM"
+      ],
+      "selectionStyle": null,
+      "distribution": null,
+      "formula": null
     }
   ]
 }

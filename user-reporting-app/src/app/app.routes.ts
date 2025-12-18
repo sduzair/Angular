@@ -1,10 +1,10 @@
 import type { Routes } from '@angular/router';
 import { lastUpdatedResolver, savingStatusResolver } from './aml/aml.component';
-import { SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE } from './aml/session-state.fixture';
 import {
-  SESSION_INITIAL_STATE,
-  SessionStateService,
-} from './aml/session-state.service';
+  CASE_RECORD_INITIAL_STATE,
+  CaseRecordStore,
+  DEFAULT_CASE_RECORD_STATE,
+} from './aml/case-record.store';
 import { hasRoleGuard, isAuthenticatedGuard } from './auth.service';
 import { LoginComponent } from './login/login.component';
 import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
@@ -20,7 +20,7 @@ import {
   strTransactionsEditedResolver,
 } from './reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import {
-  selectionsResolver,
+  initSelectionsResolver,
   transactionSearchResolver,
   TransactionViewComponent,
 } from './transaction-view/transaction-view.component';
@@ -57,12 +57,13 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./aml/aml.component').then((m) => m.AmlComponent),
         providers: [
-          // { provide: SESSION_INITIAL_STATE, useValue: DEFAULT_SESSION_STATE },
+          // { provide: CASE_RECORD_INITIAL_STATE, useValue: DEFAULT_SESSION_STATE },
           {
-            provide: SESSION_INITIAL_STATE,
-            useValue: SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE,
+            provide: CASE_RECORD_INITIAL_STATE,
+            useValue: DEFAULT_CASE_RECORD_STATE,
+            // useValue: SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE,
           },
-          SessionStateService,
+          CaseRecordStore,
         ],
         resolve: {
           lastUpdated$: lastUpdatedResolver,
@@ -75,7 +76,7 @@ export const routes: Routes = [
             component: TransactionViewComponent,
             resolve: {
               transactionSearch: transactionSearchResolver,
-              initSelections: selectionsResolver,
+              initSelections: initSelectionsResolver,
             },
             data: { reuse: true },
             title: (route) => `Transaction View - ${route.params['amlId']}`,

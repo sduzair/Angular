@@ -88,11 +88,10 @@
     {
       "name": "caseAccountNumber",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "5582195"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "account",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": "concat(this, \"|null\")"
     },
@@ -132,11 +131,10 @@
     {
       "name": "conductor",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "3415674561"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "conductor",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
     },
@@ -318,22 +316,20 @@
     {
       "name": "debitedAccount",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "5582195"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "account",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
     },
     {
       "name": "debitedTransit",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "84255"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "branch",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
     },
@@ -543,11 +539,10 @@
     {
       "name": "holdingBranchKey",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "84255"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "branch",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
     },
@@ -1220,6 +1215,17 @@
       "type": "Custom List",
       "values": [
         "Financial Response"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "sourceId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "OLB"
       ],
       "selectionStyle": "random",
       "distribution": null,

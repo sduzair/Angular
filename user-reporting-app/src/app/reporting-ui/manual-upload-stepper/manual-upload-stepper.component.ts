@@ -29,7 +29,6 @@ import {
   BehaviorSubject,
   catchError,
   defer,
-  filter,
   finalize,
   from,
   fromEvent,
@@ -40,9 +39,9 @@ import {
   throwError,
 } from 'rxjs';
 import {
-  SessionStateService,
+  CaseRecordStore,
   StrTransactionWithChangeLogs,
-} from '../../aml/session-state.service';
+} from '../../aml/case-record.store';
 import {
   FormOptions,
   FormOptionsService,
@@ -52,10 +51,8 @@ import {
   _hiddenValidationType,
 } from '../reporting-ui-table/reporting-ui-table.component';
 import { ManualTransactionBuilder } from './manual-transaction-builder';
-import {
-  MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE,
-  ManualUploadReviewTableComponent,
-} from './manual-upload-review-table/manual-upload-review-table.component';
+import { ManualUploadReviewTableComponent } from './manual-upload-review-table/manual-upload-review-table.component';
+import { MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE } from './manual-upload-review-table/manual-upload-review-table.data.fixture';
 
 @Component({
   selector: 'app-manual-upload-stepper',
@@ -178,7 +175,7 @@ import {
                   !stepperFormGroup.controls.step2ReviewTableValidationErrors
                     .valid ||
                   stepperFormGroup.controls.readyForUpload.valid ||
-                  (sessionDataService.savingStatus$ | async)
+                  (sessionDataService.isSaving$ | async)
                 ">
                 Upload
               </button>
@@ -428,7 +425,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
     return transaction;
   }
 
-  protected sessionDataService = inject(SessionStateService);
+  protected sessionDataService = inject(CaseRecordStore);
   onUpload(stepper: MatStepper) {
     this.stepperFormGroup.controls.readyForUpload.setValue(true);
     this.sessionDataService.saveManualTransactions(this.parsedData);
@@ -469,7 +466,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
 export const MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT = '600px';
 
 export type ColumnHeaderLabels =
-  (typeof ReportingUiTableComponent.displayedColumnsColumnHeaderMap)[keyof typeof ReportingUiTableComponent.displayedColumnsColumnHeaderMap];
+  (typeof ReportingUiTableComponent.displayColumnHeaderMap)[keyof typeof ReportingUiTableComponent.displayColumnHeaderMap];
 
 function reviewTableErrorValidation(): (
   control: AbstractControl,

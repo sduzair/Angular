@@ -3,9 +3,11 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  Input,
   inject,
+  input,
+  InputSignal,
 } from '@angular/core';
+import { toObservable } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
 import { MatChip } from '@angular/material/chips';
 import { MatSelectModule } from '@angular/material/select';
@@ -14,22 +16,29 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import {
   ActivatedRouteSnapshot,
   ResolveFn,
+  Router,
   RouterStateSnapshot,
 } from '@angular/router';
-import { map, shareReplay, startWith } from 'rxjs';
-import { SessionStateService } from '../aml/session-state.service';
 import {
-  AbmSourceData,
-  AmlTransactionSearchService,
-  EmtSourceData,
-  FlowOfFundsSourceData,
-  OlbSourceData,
+  combineLatestWith,
+  debounceTime,
+  map,
+  shareReplay,
+  startWith,
+  switchMap,
+} from 'rxjs';
+import { CaseRecordStore } from '../aml/case-record.store';
+import { TransactionSearchComponent } from '../transaction-search/transaction-search.component';
+import {
   TransactionSearchResponse,
-} from '../transaction-search/aml-transaction-search.service';
+  TransactionSearchService,
+} from '../transaction-search/transaction-search.service';
 import { AbmTableComponent } from './abm-table/abm-table.component';
 import { EmtTableComponent } from './emt-table/emt-table.component';
 import { FofTableComponent } from './fof-table/fof-table.component';
 import { OlbTableComponent } from './olb-table/olb-table.component';
+import { WiresTableComponent } from './wires-table/wires-table.component';
+import { AbstractTransactionViewComponent } from './abstract-transaction-view.component';
 
 @Component({
   selector: 'app-transaction-view',
@@ -44,6 +53,7 @@ import { OlbTableComponent } from './olb-table/olb-table.component';
     EmtTableComponent,
     MatChip,
     MatButton,
+    WiresTableComponent,
   ],
   template: `
     <div class="row row-cols-1 mx-0">
@@ -60,141 +70,112 @@ import { OlbTableComponent } from './olb-table/olb-table.component';
         </mat-toolbar-row>
       </mat-toolbar>
     </div>
-    <mat-tab-group class="col" mat-stretch-tabs="false" mat-align-tabs="start">
-      <mat-tab>
-        <ng-template mat-tab-label>
-          Flow of Funds
-          <mat-chip class="ms-1" disableRipple>
-            {{ fofSourceDataSelectionCount$ | async }}
-          </mat-chip>
-        </ng-template>
-        <app-fof-table
-          [fofSourceData]="fofSourceData"
-          [selection]="selection" />
-      </mat-tab>
-      <mat-tab>
-        <ng-template mat-tab-label>
-          ABM
-          <mat-chip class="ms-1" disableRipple>
-            {{ abmSourceDataSelectionCount$ | async }}
-          </mat-chip>
-        </ng-template>
-        <app-abm-table
-          [abmSourceData]="abmSourceData"
-          [selection]="selection" />
-      </mat-tab>
-      <mat-tab>
-        <ng-template mat-tab-label>
-          OLB
-          <mat-chip class="ms-1" disableRipple>
-            {{ olbSourceDataSelectionCount$ | async }}
-          </mat-chip>
-        </ng-template>
-        <app-olb-table
-          [olbSourceData]="olbSourceData"
-          [selection]="selection" />
-      </mat-tab>
-      <mat-tab>
-        <ng-template mat-tab-label>
-          EMT
-          <mat-chip class="ms-1" disableRipple>
-            {{ emtSourceDataSelectionCount$ | async }}
-          </mat-chip>
-        </ng-template>
-        <app-emt-table [emtSourceData]="emtSourceData" [selection]="selection"
-      /></mat-tab>
-    </mat-tab-group>
+    @if (selectionModel$ | async; as selectionModel) {
+      <mat-tab-group
+        class="col"
+        mat-stretch-tabs="false"
+        mat-align-tabs="start">
+        <mat-tab>
+          <ng-template mat-tab-label>
+            Flow of Funds
+            <mat-chip class="ms-1" disableRipple>
+              {{ fofSourceDataSelectionCount$ | async }}
+            </mat-chip>
+          </ng-template>
+          <app-fof-table
+            [fofSourceData]="(fofSourceData$ | async) || []"
+            [selection]="selectionModel" />
+        </mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            ABM
+            <mat-chip class="ms-1" disableRipple>
+              {{ abmSourceDataSelectionCount$ | async }}
+            </mat-chip>
+          </ng-template>
+          <app-abm-table
+            [abmSourceData]="(abmSourceData$ | async) || []"
+            [selection]="selectionModel" />
+        </mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            OLB
+            <mat-chip class="ms-1" disableRipple>
+              {{ olbSourceDataSelectionCount$ | async }}
+            </mat-chip>
+          </ng-template>
+          <app-olb-table
+            [olbSourceData]="(olbSourceData$ | async) || []"
+            [selection]="selectionModel" />
+        </mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            EMT
+            <mat-chip class="ms-1" disableRipple>
+              {{ emtSourceDataSelectionCount$ | async }}
+            </mat-chip>
+          </ng-template>
+          <app-emt-table
+            [emtSourceData]="(emtSourceData$ | async) || []"
+            [selection]="selectionModel"
+        /></mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            Wires
+            <mat-chip class="ms-1" disableRipple>
+              {{ wiresSourceDataSelectionCount$ | async }}
+            </mat-chip>
+          </ng-template>
+          <app-wires-table
+            [wiresSourceData]="(wiresSourceData$ | async) || []"
+            [selection]="selectionModel" />
+        </mat-tab>
+      </mat-tab-group>
+    }
   `,
   styleUrl: './transaction-view.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TransactionViewComponent {
-  @Input() transactionSearch!: TransactionSearchResponse;
-  @Input() readonly initSelections!: { flowOfFundsAmlTransactionId: string }[];
-
-  fofSourceData: FlowOfFundsSourceData[] = this.transactionSearch.find(
-    (res) => res.sourceId === 'FlowOfFunds',
-  )?.sourceData!;
-
-  abmSourceData: AbmSourceData[] = this.transactionSearch.find(
-    (res) => res.sourceId === 'ABM',
-  )?.sourceData!;
-
-  olbSourceData: OlbSourceData[] = this.transactionSearch.find(
-    (res) => res.sourceId === 'OLB',
-  )?.sourceData!;
-
-  emtSourceData: EmtSourceData[] = this.transactionSearch.find(
-    (res) => res.sourceId === 'EMT',
-  )?.sourceData!;
-
-  selection = new SelectionModel(
-    true,
-    this.initSelections,
-    true,
-    this.selectionComparator,
-  );
-
-  selectionComparator(
-    o1: TableSelectionCompareWithAmlTransactionId,
-    o2: TableSelectionCompareWithAmlTransactionId,
-  ): boolean {
-    return o1.flowOfFundsAmlTransactionId === o2.flowOfFundsAmlTransactionId;
-  }
-
-  private selectedItems$ = this.selection.changed.pipe(
-    startWith(null), // Emit initial value immediately
-    map(() => this.selection.selected),
-    shareReplay({ bufferSize: 1, refCount: true }), // Share among multiple subscribers
-  );
-
-  fofSourceDataSelectionCount$ = this.selectedItems$.pipe(
-    map((selections) => selections.length),
-  );
-
-  abmSourceDataSelectionCount$ = this.selectedItems$.pipe(
+export class TransactionViewComponent extends AbstractTransactionViewComponent {
+  fofSourceData$ = this.transactionSearch$.pipe(
     map(
-      (selections) =>
-        selections.filter((txn) =>
-          txn.flowOfFundsAmlTransactionId.startsWith('ABM'),
-        ).length,
+      (search) =>
+        search.find((res) => res.sourceId === 'FlowOfFunds')?.sourceData!,
     ),
   );
 
-  olbSourceDataSelectionCount$ = this.selectedItems$.pipe(
+  abmSourceData$ = this.transactionSearch$.pipe(
+    map((search) => search.find((res) => res.sourceId === 'ABM')?.sourceData!),
+  );
+
+  olbSourceData$ = this.transactionSearch$.pipe(
+    map((search) => search.find((res) => res.sourceId === 'OLB')?.sourceData!),
+  );
+
+  emtSourceData$ = this.transactionSearch$.pipe(
+    map((search) => search.find((res) => res.sourceId === 'EMT')?.sourceData!),
+  );
+
+  wiresSourceData$ = this.transactionSearch$.pipe(
     map(
-      (selections) =>
-        selections.filter((txn) =>
-          txn.flowOfFundsAmlTransactionId.startsWith('OLB'),
-        ).length,
+      (search) => search.find((res) => res.sourceId === 'Wires')?.sourceData!,
     ),
   );
 
-  emtSourceDataSelectionCount$ = this.selectedItems$.pipe(
+  private selectionsLastSaved$ = this.initSelections$.pipe(
     map(
       (selections) =>
-        selections.filter(
-          (txn) =>
-            txn.flowOfFundsAmlTransactionId.startsWith('OLB') &&
-            this.emtSourceData.findIndex(
-              (emt) =>
-                emt.flowOfFundsAmlTransactionId ===
-                (txn as EmtSourceData).flowOfFundsAmlTransactionId,
-            ) >= 0,
-        ).length,
+        new Set(selections.map((sel) => sel.flowOfFundsAmlTransactionId)),
     ),
   );
 
-  private selectionsLastSaved = new Set(
-    this.initSelections.map((sel) => sel.flowOfFundsAmlTransactionId),
-  );
-
-  selectionControlHasChanges$ = this.selectedItems$.pipe(
+  selectionControlHasChanges$ = this.selections$.pipe(debounceTime(200)).pipe(
+    combineLatestWith(this.selectionsLastSaved$),
     map(
-      (currentSelections) =>
-        currentSelections.length !== this.selectionsLastSaved.size ||
-        !currentSelections.every((sel) =>
-          this.selectionsLastSaved.has(sel.flowOfFundsAmlTransactionId),
+      ([selections, selectionsLastSaved]) =>
+        selections.length !== selectionsLastSaved.size ||
+        !selections.every((sel) =>
+          selectionsLastSaved.has(sel.flowOfFundsAmlTransactionId),
         ),
     ),
   );
@@ -204,23 +185,59 @@ export const transactionSearchResolver: ResolveFn<TransactionSearchResponse> = (
   route: ActivatedRouteSnapshot,
   _state: RouterStateSnapshot,
 ) => {
-  const amlTransactionSearchService = inject(AmlTransactionSearchService);
-  const amlId = route.paramMap.get('amlId')!;
-  return amlTransactionSearchService.fetchTransactionSearch(amlId);
-};
+  const txnSearchService = inject(TransactionSearchService);
+  const caseRecordStore = inject(CaseRecordStore);
 
-export const selectionsResolver: ResolveFn<
-  { flowOfFundsAmlTransactionId: string }[]
-> = (_route: ActivatedRouteSnapshot, _state: RouterStateSnapshot) => {
-  return inject(SessionStateService).sessionState$.pipe(
-    map(({ strTransactions }) => {
-      return strTransactions.map((txn) => ({
-        flowOfFundsAmlTransactionId: txn.flowOfFundsAmlTransactionId,
-      }));
+  const searchParams:
+    | (typeof TransactionSearchComponent.prototype.searchParamsForm)['value']
+    | undefined =
+    inject(Router).currentNavigation()?.extras.state?.['searchParams'];
+
+  const amlId = route.paramMap.get('amlId')!;
+
+  if (!searchParams) {
+    return caseRecordStore.fetchCaseRecordByAmlId(amlId).pipe(
+      switchMap(({ transactionSearchParams }) => {
+        return txnSearchService.searchTransactions({
+          accountNumbersSelection:
+            transactionSearchParams.accountNumbersSelection ?? [],
+          partyKeysSelection: transactionSearchParams.partyKeysSelection ?? [],
+          productTypesSelection:
+            transactionSearchParams.productTypesSelection ?? [],
+          reviewPeriodSelection:
+            transactionSearchParams.reviewPeriodSelection ?? [],
+          sourceSystemsSelection:
+            transactionSearchParams.sourceSystemsSelection ?? [],
+        });
+      }),
+    );
+  }
+
+  caseRecordStore.setSearchParams(searchParams);
+  return caseRecordStore.state$.pipe(
+    switchMap(({ transactionSearchParams }) => {
+      return txnSearchService.searchTransactions(transactionSearchParams);
     }),
   );
 };
 
-export interface TableSelectionCompareWithAmlTransactionId {
+export const initSelectionsResolver: ResolveFn<
+  { flowOfFundsAmlTransactionId: string }[]
+> = (_route: ActivatedRouteSnapshot, _state: RouterStateSnapshot) => {
+  return inject(CaseRecordStore)
+    .fetchSelections()
+    .pipe(
+      map(({ selections }) => {
+        return selections.map(
+          (txn) =>
+            ({
+              flowOfFundsAmlTransactionId: txn.flowOfFundsAmlTransactionId,
+            }) satisfies TableSelectionType,
+        );
+      }),
+    );
+};
+
+export interface TableSelectionType {
   flowOfFundsAmlTransactionId: string;
 }

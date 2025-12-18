@@ -1,11 +1,16 @@
-import { ChangeDetectionStrategy, Component, forwardRef } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  forwardRef,
+  Input,
+} from '@angular/core';
 import { ProductType } from '../transaction-search.component';
 
-import { NG_VALUE_ACCESSOR, ControlValueAccessor } from '@angular/forms';
+import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
 import { AbstractSelectableTableComponent } from '../abstract-selectable-table/abstract-selectable-table.component';
-import { SourceRefreshSelectableTableComponent } from '../source-refresh-selectable-table/source-refresh-selectable-table.component';
+import { TransactionSearchService } from '../transaction-search.service';
 
 @Component({
   selector: 'app-product-type-selectable-table',
@@ -36,12 +41,12 @@ import { SourceRefreshSelectableTableComponent } from '../source-refresh-selecta
       <ng-container matColumnDef="value">
         <th mat-header-cell *matHeaderCellDef>Product Type</th>
         <td mat-cell *matCellDef="let element">
-          @if (!dataSourceLoadingState) {
+          @if (!isLoading) {
             <span>
               {{ element.value }}
             </span>
           }
-          @if (dataSourceLoadingState) {
+          @if (isLoading) {
             <span class="sk skw-12 skh-2"></span>
           }
         </td>
@@ -68,6 +73,17 @@ export class ProductTypeSelectableTableComponent
   extends AbstractSelectableTableComponent<ProductType>
   implements ControlValueAccessor
 {
+  get data() {
+    return TransactionSearchService.getProductInfo().map((prod) => ({
+      value: prod.productDescription,
+    }));
+  }
+
+  @Input()
+  set data(value: ProductType[]) {
+    this.dataSource.data = value;
+  }
+
   protected override displayedColumns: (keyof ProductType | (string & {}))[] = [
     'select',
     'value',

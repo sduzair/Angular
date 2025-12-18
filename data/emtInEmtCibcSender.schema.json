@@ -272,6 +272,26 @@
       "formula": "fiRefCode"
     },
     {
+      "name": "_hiddenRecepientTransit",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "branch",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "_hiddenRecepientAccount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "account",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
       "name": "recipientAccountName",
       "null_percentage": 0,
       "type": "Custom List",
@@ -291,7 +311,7 @@
       ],
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": ""
+      "formula": "concat(\"010-\", _hiddenRecepientTransit, \"-\", _hiddenRecepientAccount) "
     },
     {
       "name": "recipientCertapayAccount",
@@ -446,7 +466,7 @@
       "type": "Dataset Column",
       "dataset": "conductorWithSubjectNotFocal",
       "column": "certapayAccount",
-      "selectionStyle": null,
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": null
     },

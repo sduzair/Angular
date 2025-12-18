@@ -21,9 +21,11 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "5582195"
+        "5582195",
+        "8692413",
+        "5647218"
       ],
-      "selectionStyle": "random",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
     },
@@ -42,7 +44,7 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "3415674561"
+        "3415674561;1846597320"
       ],
       "selectionStyle": "random",
       "distribution": null,
@@ -120,9 +122,11 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "5582195"
+        "5582195",
+        "8692413",
+        "5647218"
       ],
-      "selectionStyle": "random",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": "concat(this, \"|null\")"
     },
@@ -206,9 +210,11 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "5582195"
+        "5582195",
+        "8692413",
+        "5647218"
       ],
-      "selectionStyle": "random",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
     },
@@ -217,9 +223,11 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "84255"
+        "84255",
+        "31980",
+        "87594"
       ],
-      "selectionStyle": "random",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
     },
@@ -563,9 +571,11 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "84255"
+        "84255",
+        "31980",
+        "87594"
       ],
-      "selectionStyle": "random",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
     },
@@ -743,11 +753,13 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "5582195"
+        "5582195",
+        "8692413",
+        "5647218"
       ],
-      "selectionStyle": "random",
+      "selectionStyle": "sequential",
       "distribution": null,
-      "formula": null
+      "formula": ""
     },
     {
       "name": "strCaAccountCurrency",
@@ -765,7 +777,7 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "269189266;2269136288"
+        "3415674561;1846597320"
       ],
       "selectionStyle": "random",
       "distribution": null,
@@ -808,9 +820,11 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "84255"
+        "84255",
+        "31980",
+        "87594"
       ],
-      "selectionStyle": "random",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": null
     },
@@ -821,7 +835,7 @@
       "values": [
         "CAD"
       ],
-      "selectionStyle": "random",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": null
     },
@@ -1283,6 +1297,16 @@
         "20"
       ],
       "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "sourceId",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "cashDepositCompleteWithRawSubjectWithBackup",
+      "column": "sourceId",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": null
     }

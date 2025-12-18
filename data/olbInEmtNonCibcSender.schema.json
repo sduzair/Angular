@@ -88,11 +88,10 @@
     {
       "name": "caseAccountNumber",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "5582195"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "account",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": "concat(\"null|\", this)"
     },
@@ -110,13 +109,12 @@
     {
       "name": "caseTransitNumber",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "84255"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "branch",
+      "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "concat(this, \"|5582195\")"
+      "formula": "concat(this, \"|null\")"
     },
     {
       "name": "channelCd",
@@ -164,22 +162,20 @@
     {
       "name": "creditedAccount",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "5582195"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "account",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
     },
     {
       "name": "creditedTransit",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "84255"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "branch",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
     },
@@ -587,22 +583,20 @@
     {
       "name": "oppAccountNumber",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "5582195"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "account",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": null
     },
     {
       "name": "oppBranchKey",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "84255"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "branch",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": null
     },
@@ -1225,6 +1219,17 @@
       "type": "Custom List",
       "values": [
         "Financial Response"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "sourceId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "OLB"
       ],
       "selectionStyle": "random",
       "distribution": null,

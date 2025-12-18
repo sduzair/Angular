@@ -10,8 +10,8 @@ import { MatCheckbox } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
 import { IFilterForm } from '../../base-table/abstract-base-table';
 import { BaseTableComponent } from '../../base-table/base-table.component';
-import { FlowOfFundsSourceData } from '../../transaction-search/aml-transaction-search.service';
-import { TableSelectionCompareWithAmlTransactionId } from '../transaction-view.component';
+import { FlowOfFundsSourceData } from '../../transaction-search/transaction-search.service';
+import { TableSelectionType } from '../transaction-view.component';
 
 @Component({
   selector: 'app-fof-table',
@@ -23,7 +23,7 @@ import { TableSelectionCompareWithAmlTransactionId } from '../transaction-view.c
       [dataColumnsValues]="dataColumnsValues"
       [dataColumnsIgnoreValues]="dataColumnsIgnoreValues"
       [displayedColumns]="displayedColumns"
-      [displayedColumnsColumnHeaderMap]="displayedColumnsColumnHeaderMap"
+      [displayColumnHeaderMap]="displayColumnHeaderMap"
       [stickyColumns]="stickyColumns"
       [selectFiltersValues]="selectFiltersValues"
       [dateFiltersValues]="dateFiltersValues"
@@ -77,7 +77,7 @@ import { TableSelectionCompareWithAmlTransactionId } from '../transaction-view.c
 })
 export class FofTableComponent<
   TSelection extends {
-    [K in keyof TableSelectionCompareWithAmlTransactionId]: string;
+    [K in keyof TableSelectionType]: string;
   },
 > {
   dataColumnsValues: (keyof FlowOfFundsSourceData)[] = [
@@ -106,7 +106,7 @@ export class FofTableComponent<
 
   displayedColumns = ['select' as const];
 
-  displayedColumnsColumnHeaderMap: Partial<
+  displayColumnHeaderMap: Partial<
     Record<
       | Extract<keyof FlowOfFundsSourceData, string>
       | IFilterForm['filterFormFullTextFilterKey']

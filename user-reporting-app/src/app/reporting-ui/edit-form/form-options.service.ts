@@ -30,7 +30,8 @@ export const FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE = {
     Cash: 'Cash',
     Cheque: 'Cheque',
     'Domestic Funds Transfer': 'Domestic Funds Transfer',
-    'Email Monel Transfer': 'Email Monel Transfer',
+    'Email Money Transfer': 'Email Money Transfer',
+    'International Funds Transfer': 'International Funds Transfer',
     Other: 'Other',
   },
   accountType: {

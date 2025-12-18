@@ -19,11 +19,10 @@
     {
       "name": "accountNumber",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "5582195"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "account",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
     },
@@ -42,7 +41,7 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "3415674561"
+        "3415674561:1846597320"
       ],
       "selectionStyle": "random",
       "distribution": null,
@@ -118,13 +117,12 @@
     {
       "name": "caseAccountNumber",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "5582195"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "account",
+      "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "concat(this, \"|null\")"
+      "formula": "concat(\"null|\", this)"
     },
     {
       "name": "caseEcif",
@@ -140,11 +138,10 @@
     {
       "name": "caseTransitNumber",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "84255"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "branch",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": "concat(this, \"|null\")"
     },
@@ -172,11 +169,10 @@
     {
       "name": "conductor",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "3415674561"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "conductor",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
     },
@@ -227,11 +223,10 @@
     {
       "name": "creditorId",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "3415674561"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "conductor",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": null
     },
@@ -303,22 +298,20 @@
     {
       "name": "debitedAccount",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "5582195"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "account",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
     },
     {
       "name": "debitedTransit",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "84255"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "branch",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
     },
@@ -561,11 +554,10 @@
     {
       "name": "holdingBranchKey",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "84255"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "branch",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
     },
@@ -719,11 +711,10 @@
     {
       "name": "splittableColumnValue",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "3415674561"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "conductor",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": null
     },
@@ -925,11 +916,10 @@
     {
       "name": "strSaAccount",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "5582195"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "account",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": null
     },
@@ -949,7 +939,7 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "269189266;2269136288"
+        "3415674561;1846597320"
       ],
       "selectionStyle": "random",
       "distribution": null,
@@ -979,11 +969,10 @@
     {
       "name": "strSaBranch",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "84255"
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "branch",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": null
     },
@@ -1282,6 +1271,16 @@
       "values": [
         "10"
       ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "sourceId",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "cashWithdrawalCompleteWithRawSubjectWithBackup",
+      "column": "sourceId",
       "selectionStyle": "random",
       "distribution": null,
       "formula": null

@@ -3,7 +3,7 @@ import { ulid } from 'ulid';
 import {
   StrTransactionWithChangeLogs,
   setRowValidationInfo,
-} from '../../aml/session-state.service';
+} from '../../aml/case-record.store';
 import { EditFormComponent } from '../edit-form/edit-form.component';
 import { FormOptions } from '../edit-form/form-options.service';
 import { TransactionDateDirective } from '../edit-form/transaction-date.directive';
@@ -28,11 +28,11 @@ export class ManualTransactionBuilder {
   ) {}
 
   withMetadata(): this {
-    this.transaction._version = 0;
     this.transaction.changeLogs = [];
     this.transaction._hiddenAmlId = this.value['AML Id'] ?? '';
     this.transaction._hiddenStrTxnId = this.flowOfFundsAmlTransactionId;
     this.transaction._hiddenTxnType = 'Manual';
+    this.transaction.sourceId = 'Manual';
     return this;
   }
 

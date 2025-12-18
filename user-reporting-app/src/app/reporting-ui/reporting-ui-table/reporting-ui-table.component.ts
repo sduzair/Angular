@@ -17,7 +17,10 @@ import { MatTableModule } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { ActivatedRoute, ResolveFn, Router } from '@angular/router';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { SessionStateService } from '../../aml/session-state.service';
+import {
+  CaseRecordStore,
+  StrTransactionWithChangeLogs,
+} from '../../aml/case-record.store';
 import { BaseTableComponent } from '../../base-table/base-table.component';
 import {
   InvalidFormOptionsErrorKeys,
@@ -49,7 +52,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
         [dataColumnsIgnoreValues]="dataColumnsIgnoreValues"
         [dataColumnsProjected]="dataColumnsProjected"
         [displayedColumns]="displayedColumns"
-        [displayedColumnsColumnHeaderMap]="displayedColumnsColumnHeaderMap"
+        [displayColumnHeaderMap]="displayColumnHeaderMap"
         [stickyColumns]="stickyColumns"
         [selectFiltersValues]="selectFiltersValues"
         [dateFiltersValues]="dateFiltersValues"
@@ -115,7 +118,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
                 type="button"
                 [disabled]="
                   (baseTable.hasSelections$ | async) === false ||
-                  (sessionDataService.savingStatus$ | async)
+                  (sessionDataService.isSaving$ | async)
                 "
                 mat-icon-button
                 (click)="navigateToBulkEdit()"
@@ -201,11 +204,14 @@ export class ReportingUiTableComponent {
     });
   }
   @Input()
-  strTransactionData$!: Observable<StrTransactionData[]>;
+  strTransactionData$!: Observable<StrTransactionWithChangeLogs[]>;
   @Input()
   savingEdits$!: Observable<string[]>;
 
-  dataSourceTrackBy: TrackByFunction<StrTransactionData> = (_, txn) => {
+  dataSourceTrackBy: TrackByFunction<StrTransactionWithChangeLogs> = (
+    _,
+    txn,
+  ) => {
     return txn.flowOfFundsAmlTransactionId;
   };
 
@@ -314,11 +320,11 @@ export class ReportingUiTableComponent {
     'actions' as const,
   ];
 
-  get displayedColumnsColumnHeaderMap() {
-    return ReportingUiTableComponent.displayedColumnsColumnHeaderMap;
+  get displayColumnHeaderMap() {
+    return ReportingUiTableComponent.displayColumnHeaderMap;
   }
 
-  static displayedColumnsColumnHeaderMap = {
+  static displayColumnHeaderMap = {
     highlightColor: 'Highlight' as const,
     wasTxnAttempted: 'Was the transaction attempted?' as const,
     wasTxnAttemptedReason: 'Reason transaction was not completed' as const,
@@ -469,7 +475,7 @@ export class ReportingUiTableComponent {
     ['dateOfPosting', 'timeOfPosting'],
   ];
 
-  sessionDataService = inject(SessionStateService);
+  sessionDataService = inject(CaseRecordStore);
   filterFormHighlightSideEffect = (
     highlights: { txnId: string; newColor: string }[],
   ) => {
@@ -479,7 +485,7 @@ export class ReportingUiTableComponent {
   private recentlyOpenedRowsSubject = new BehaviorSubject([] as string[]);
   recentlyOpenedRows$ = this.recentlyOpenedRowsSubject.asObservable();
 
-  isEditDisabled(row: StrTransactionData, savingIds: string[]) {
+  isEditDisabled(row: StrTransactionWithChangeLogs, savingIds: string[]) {
     return savingIds.includes(row.flowOfFundsAmlTransactionId);
     // return this.savingEdits$.pipe(
     //   map((ids) => ids.includes(row.flowOfFundsAmlTransactionId)),
@@ -524,7 +530,7 @@ export class ReportingUiTableComponent {
 
   private route = inject(ActivatedRoute);
   private router = inject(Router);
-  navigateToEditForm(record: StrTransactionData) {
+  navigateToEditForm(record: StrTransactionWithChangeLogs) {
     this.recentlyOpenedRowsSubject.next([record.flowOfFundsAmlTransactionId]);
     this.router.navigate(
       [`../edit-form/${record.flowOfFundsAmlTransactionId}`],
@@ -535,7 +541,7 @@ export class ReportingUiTableComponent {
   }
 
   @ViewChild('baseTable') baseTable!: BaseTableComponent<
-    StrTransactionData,
+    StrTransactionWithChangeLogs,
     string,
     'select' | 'actions' | StrTransactionDataColumnKey,
     never,
@@ -557,7 +563,7 @@ export class ReportingUiTableComponent {
     });
   }
 
-  navigateToAuditForm(record: StrTransactionData) {
+  navigateToAuditForm(record: StrTransactionWithChangeLogs) {
     this.recentlyOpenedRowsSubject.next([record.flowOfFundsAmlTransactionId]);
 
     this.router.navigate([`../audit/${record.flowOfFundsAmlTransactionId}`], {
@@ -575,15 +581,15 @@ export class ReportingUiTableComponent {
 }
 
 export const strTransactionsEditedResolver: ResolveFn<
-  Observable<StrTransactionData[]>
+  Observable<StrTransactionWithChangeLogs[]>
 > = async () => {
-  return inject(SessionStateService).strTransactionData$;
+  return inject(CaseRecordStore).strTransactionData$;
 };
 
 export const savingEditsResolver: ResolveFn<
   Observable<string[]>
 > = async () => {
-  return inject(SessionStateService).savingEdits$;
+  return inject(CaseRecordStore).activeSaveIds$;
 };
 
 export type _hiddenValidationType =
@@ -593,15 +599,8 @@ export type _hiddenValidationType =
   | InvalidFormOptionsErrorKeys
   | InvalidTxnDateTimeErrorKeys;
 
-// Hidden props prefixed with '_hidden' are ignored by the change logging service.
-export type StrTransactionData = StrTransaction & {
-  _hiddenValidation?: _hiddenValidationType[];
-  _hiddenTxnType: string;
-  _hiddenAmlId: string;
-  _hiddenStrTxnId: string;
-};
-
 export type StrTransaction = {
+  sourceId: string;
   wasTxnAttempted: boolean | null;
   wasTxnAttemptedReason: string | null;
   dateOfTxn: string | null;
@@ -615,6 +614,7 @@ export type StrTransaction = {
   purposeOfTxn: string | null;
   reportingEntityLocationNo: string | null;
   _hiddenFullName?: string | null;
+  _hiddenFirstName?: string | null;
   startingActions: StartingAction[];
   _hiddenSaAmount?: number;
   completingActions: CompletingAction[];
@@ -763,7 +763,7 @@ export interface Beneficiary {
 }
 
 export type StrTransactionDataColumnKey =
-  | keyof StrTransactionData
+  | keyof StrTransaction
   | keyof AddPrefixToObject<StartingAction, 'startingActions.0.'>
   | keyof AddPrefixToObject<CompletingAction, 'completingActions.0.'>
   | keyof AddPrefixToObject<
@@ -784,5 +784,5 @@ export type WithVersion<T = object> = T & {
   /**
    * The last session in which the txn was edited not necessarily current session version.
    */
-  _version: number | null;
+  etag: number | null;
 };

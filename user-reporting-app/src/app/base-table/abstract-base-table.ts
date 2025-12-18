@@ -111,36 +111,36 @@ export abstract class AbstractBaseTable<
   // Displayed Columns Implementation
   // ============================================================================
   abstract displayedColumns: TDisplayColumn[];
-  abstract displayedColumnsColumnHeaderMap: Partial<
+  abstract displayColumnHeaderMap: Partial<
     Record<TDataColumn | IFilterForm['filterFormFullTextFilterKey'], string>
   >;
 
   displayedColumnsTransform(key: string): string {
     if (this.dateFiltersIsDateFilterKeyStart(key)) {
       const parsedKey = this.dateFiltersParseFilterKey(key);
-      return `${this.displayedColumnsColumnHeaderMap[parsedKey]!} Start`;
+      return `${this.displayColumnHeaderMap[parsedKey]!} Start`;
     }
     if (this.dateFiltersIsDateFilterKeyEnd(key)) {
       const parsedKey = this.dateFiltersParseFilterKey(key);
-      return `${this.displayedColumnsColumnHeaderMap[parsedKey]!} End`;
+      return `${this.displayColumnHeaderMap[parsedKey]!} End`;
     }
     if (this.dateFiltersValues.includes(key as TDataColumn)) {
-      return this.displayedColumnsColumnHeaderMap[key as TDataColumn]!;
+      return this.displayColumnHeaderMap[key as TDataColumn]!;
     }
     if (this.selectFiltersIsSelectFilterKey(key)) {
       const parsedVal = this.selectFiltersParseFilterKey(key);
-      return this.displayedColumnsColumnHeaderMap[parsedVal]!;
+      return this.displayColumnHeaderMap[parsedVal]!;
     }
     if (this.selectFiltersValues.includes(key as TDataColumn)) {
-      return this.displayedColumnsColumnHeaderMap[key as TDataColumn]!;
+      return this.displayColumnHeaderMap[key as TDataColumn]!;
     }
     if (key.startsWith('_hidden')) return '';
     if (this.filterFormIsTextFilterKey(key))
-      return this.displayedColumnsColumnHeaderMap[key as TDataColumn]!;
+      return this.displayColumnHeaderMap[key as TDataColumn]!;
     if (this.filterFormFullTextFilterKey === key)
-      return this.displayedColumnsColumnHeaderMap[key]!;
+      return this.displayColumnHeaderMap[key]!;
     if (this.filterFormHighlightSelectFilterKey === key)
-      return this.displayedColumnsColumnHeaderMap[key as THighlightKey]!;
+      return this.displayColumnHeaderMap[key as THighlightKey]!;
 
     throw new Error('Unknown column header');
   }
@@ -913,6 +913,7 @@ export abstract class AbstractBaseTable<
     const toggleObject = {
       [this.selectionKey]: row[this.selectionKey],
     };
+    console.log('togglerow table', toggleObject);
     this.selection.toggle(toggleObject as TSelection);
   }
 
@@ -1140,7 +1141,7 @@ export interface IDisplayedColumns<
   TDisplayedColumn extends TDataColumn | string,
 > {
   displayedColumns: TDisplayedColumn[];
-  displayedColumnsColumnHeaderMap: Partial<Record<TDataColumn, string>>;
+  displayColumnHeaderMap: Partial<Record<TDataColumn, string>>;
   displayedColumnsTransform(key: string): string;
 }
 

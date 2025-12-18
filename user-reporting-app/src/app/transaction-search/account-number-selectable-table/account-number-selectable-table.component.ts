@@ -1,10 +1,15 @@
-import { ChangeDetectionStrategy, Component, forwardRef } from '@angular/core';
-import { AccountNumber } from '../aml-transaction-search.service';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  forwardRef,
+  Input,
+} from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { AbstractSelectableTableComponent } from '../abstract-selectable-table/abstract-selectable-table.component';
 
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
+import { AccountNumber } from '../transaction-search.service';
 
 @Component({
   selector: 'app-account-number-selectable-table',
@@ -35,12 +40,12 @@ import { MatTableModule } from '@angular/material/table';
       <ng-container matColumnDef="value">
         <th mat-header-cell *matHeaderCellDef>Account No</th>
         <td mat-cell *matCellDef="let element">
-          @if (!dataSourceLoadingState) {
+          @if (!isLoading) {
             <span>
               {{ element.value }}
             </span>
           }
-          @if (dataSourceLoadingState) {
+          @if (isLoading) {
             <span class="sk skw-6 skh-2"></span>
           }
         </td>
@@ -67,6 +72,16 @@ export class AccountNumberSelectableTableComponent
   extends AbstractSelectableTableComponent<AccountNumber>
   implements ControlValueAccessor
 {
+  get data() {
+    return Array.from({ length: 5 }, () => ({
+      value: '',
+    }));
+  }
+
+  @Input({ required: true })
+  set data(value: AccountNumber[]) {
+    this.dataSource.data = value;
+  }
   protected override displayedColumns: (keyof AccountNumber | (string & {}))[] =
     ['select', 'value'];
 

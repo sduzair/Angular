@@ -1,26 +1,78 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
-import { Observable, map, of, timer } from 'rxjs';
-import { transactionSearchResDevOnly } from '../aml/session-state.fixture';
-import { TableSelectionCompareWithAmlTransactionId } from '../transaction-view/transaction-view.component';
+import { inject, Injectable } from '@angular/core';
+import { delay, map, of, timer } from 'rxjs';
+import { ReviewPeriod } from '../aml/case-record.store';
+import { TableSelectionType } from '../transaction-view/transaction-view.component';
+import { ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE } from '../aml/case-record.state.fixture';
+import { TRANSACTION_SEARCH_RES_DEV_ONLY } from './transaction-search.data.fixture';
 
 @Injectable({
   providedIn: 'root',
 })
-export class AmlTransactionSearchService {
+export class TransactionSearchService {
   private http = inject(HttpClient);
 
-  fetchSourceRefreshTime(): Observable<SourceSysRefreshTime[]> {
+  getPartyAccountInfoByAmlId(amlId: string) {
+    return timer(1000).pipe(
+      map(() => ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE),
+    );
+  }
+
+  static getProductInfo() {
+    return [
+      {
+        productCode: 'ACBS',
+        productDescription: 'Advanced Commercial Banking System',
+      },
+      { productCode: 'ABL', productDescription: 'Asset-Based Loan' },
+      {
+        productCode: 'BONY',
+        productDescription: 'Book-Only Net Yield Instrument',
+      },
+      {
+        productCode: 'BUF',
+        productDescription: 'Business and Farm Loan Insurance',
+      },
+      { productCode: 'CRSP', productDescription: 'Retirement Savings Plan' },
+      { productCode: 'CAMF', productDescription: 'Mutual Funds' },
+      {
+        productCode: 'TALG',
+        productDescription: 'Portfolio Management and Research',
+      },
+      { productCode: 'XMTG', productDescription: 'Residential Mortgage' },
+      { productCode: 'XDEP', productDescription: 'Smart Deposit Account' },
+      { productCode: 'ACC', productDescription: 'Auto Financing Loan' },
+      { productCode: 'FINT', productDescription: 'Home Improvement Loan' },
+      { productCode: 'DDEP', productDescription: 'Demand Deposit Account' },
+      { productCode: 'SAVG', productDescription: 'Savings Deposit Account' },
+      {
+        productCode: 'MMDA',
+        productDescription: 'Money Market Deposit Account',
+      },
+      { productCode: 'DBCD', productDescription: 'Debit Card Account' },
+      { productCode: 'LNPL', productDescription: 'Personal Installment Loan' },
+      { productCode: 'LNAU', productDescription: 'Auto Loan' },
+      { productCode: 'LNMT', productDescription: 'Mortgage Loan' },
+      { productCode: 'LNHE', productDescription: 'Home Equity Line of Credit' },
+      { productCode: 'CRMC', productDescription: 'Credit Card - MasterCard' },
+    ];
+  }
+
+  fetchSourceRefreshTime() {
     return timer(1000).pipe(
       map(() =>
-        AmlTransactionSearchService.getSourceSystemInfo().map((src) => ({
-          value: src,
-          refresh: new Date(),
-          isDisabled: false,
-        })),
+        TransactionSearchService.getSourceSystemInfo().map(
+          (src) =>
+            ({
+              value: src,
+              refresh: new Date(),
+              isDisabled: false,
+            }) as SourceSysRefreshTime,
+        ),
       ),
     );
   }
+
   static getSourceSystemInfo() {
     return [
       'Party KYC',
@@ -46,9 +98,12 @@ export class AmlTransactionSearchService {
     ];
   }
 
-  fetchTransactionSearch(amlId: string) {
-    return of(transactionSearchResDevOnly);
-    // return this.http.get<TransactionSearchResponse>("/api/transactionsearch");
+  searchTransactions(payload: TransactionSearchRequest) {
+    return of(TRANSACTION_SEARCH_RES_DEV_ONLY).pipe(delay(200));
+    // return this.http.post<TransactionSearchResponse>(
+    //   '/api/transactions/search',
+    //   payload,
+    // );
   }
 }
 
@@ -68,6 +123,14 @@ export interface AccountNumber {
 
 export interface PartyKey {
   value: string;
+}
+
+interface TransactionSearchRequest {
+  partyKeysSelection: string[];
+  accountNumbersSelection: string[];
+  sourceSystemsSelection: string[];
+  productTypesSelection: string[];
+  reviewPeriodSelection: ReviewPeriod[];
 }
 
 export type TransactionSearchResponse = (
@@ -91,21 +154,27 @@ export type TransactionSearchResponse = (
       status: 'completed' | 'failed';
       sourceData: EmtSourceData[];
     }
+  | {
+      sourceId: 'Wires';
+      status: 'completed' | 'failed';
+      sourceData: WireSourceData[];
+    }
 )[];
 
 export type FlowOfFundsSourceData = {
-  flowOfFundsAccountCurrency: string;
-  flowOfFundsAmlId: number;
-  flowOfFundsAmlTransactionId: string;
-  flowOfFundsCasePartyKey: number;
-  flowOfFundsConductorPartyKey: number;
-  flowOfFundsCreditAmount: number;
-  flowOfFundsCreditedAccount: string;
-  flowOfFundsCreditedTransit: string;
-  flowOfFundsDebitAmount: null;
-  flowOfFundsDebitedAccount: null;
-  flowOfFundsDebitedTransit: null;
-  flowOfFundsPostingDate: string;
+  sourceId: string;
+  flowOfFundsAccountCurrency?: string | null;
+  flowOfFundsAmlId: number | null;
+  flowOfFundsAmlTransactionId: string | null;
+  flowOfFundsCasePartyKey: number | null;
+  flowOfFundsConductorPartyKey: number | null;
+  flowOfFundsCreditAmount: number | null;
+  flowOfFundsCreditedAccount: string | null;
+  flowOfFundsCreditedTransit: string | null;
+  flowOfFundsDebitAmount: number | null;
+  flowOfFundsDebitedAccount: string | null;
+  flowOfFundsDebitedTransit: string | null;
+  flowOfFundsPostingDate: string | null;
   flowOfFundsSource: string;
   flowofFundsSourceTransactionId: string;
   flowOfFundsTransactionCurrency: string;
@@ -113,21 +182,22 @@ export type FlowOfFundsSourceData = {
   flowOfFundsTransactionDate: string;
   flowOfFundsTransactionDesc: string;
   flowOfFundsTransactionTime: string;
-  _mongoid: string;
+  _mongoid?: string;
 } & TableRecordUiProps &
-  TableSelectionCompareWithAmlTransactionId;
+  TableSelectionType;
 
 export type EmtSourceData = {
+  sourceId: string;
   amlId: number;
   amount: string;
   caseEcif: string;
-  conductorEcif: null;
-  contactEmail: null;
+  conductorEcif: string | null;
+  contactEmail: string | null;
   contactHandleUsed: string;
-  _hiddenGivenName: string;
-  _hiddenOtherName: string;
-  _hiddenSurname: string;
-  contactIdentifier: string;
+  _hiddenGivenName?: string;
+  _hiddenOtherName?: string;
+  _hiddenSurname?: string;
+  contactIdentifier: string | null;
   contactMobile: null;
   contactName: string;
   cur: string;
@@ -143,38 +213,47 @@ export type EmtSourceData = {
   initiatedTime: string;
   jointAccountFlag: null;
   originalFiRefCode: string;
-  recipientAccountName: string;
-  recipientAccountNumber: string;
+  _hiddenRecepientTransit?: number | null;
+  _hiddenRecepientAccount?: number | null;
+  _hiddenRecipientAccountNumberFiu?: string;
+  _hiddenRecipientAccountNumberTransit?: string;
+  _hiddenRecipientAccountNumberAccount?: string;
+  recipientAccountName: string | null;
+  recipientAccountNumber: string | null;
   recipientCertapayAccount: string;
   recipientEmail: string;
   recipientFi: string;
   recipientFiNumber: string;
   recipientIpAddress: null;
-  recipientMobile: string;
+  recipientMobile: string | null;
   recipientName: string;
   recipientPhoneNumber: null;
-  _hiddenSenderAccountNameGiven: string;
-  _hiddenSenderAccountNameSurname: string;
-  senderAccountName: string;
-  _hiddenSenderAccountNumberTransit: string;
-  _hiddenSenderAccountNumberAccount: string;
-  senderAccountNumber: string;
+  _hiddenFullName?: string | null;
+  _hiddenSenderAccountNameGiven?: string;
+  _hiddenSenderAccountNameSurname?: string;
+  senderAccountName: string | null;
+  _hiddenSenderAccountNumberTransit?: string;
+  _hiddenSenderAccountNumberAccount?: string;
+  _hiddenSenderTransit?: number;
+  _hiddenSenderAccount?: number;
+  _hiddenSenderBranch?: number;
+  senderAccountNumber: string | null;
   senderCertapayAccount: string;
   senderEmail: string;
   senderFi: string;
   senderFiNumber: string;
-  senderIpAddress: string;
+  senderIpAddress: string | null;
   senderName: string;
   senderPhone: null;
-  senderTypeConductorEcifFlag: null;
+  senderTypeConductorEcifFlag: boolean | null;
   tranType: string;
-  transferDetails: string;
+  transferDetails: string | null;
   _mongoid: string;
-  sourceId: string;
 } & TableRecordUiProps &
-  TableSelectionCompareWithAmlTransactionId;
+  TableSelectionType;
 
 export type OlbSourceData = {
+  sourceId: string;
   accountCurrency: string;
   accountNumber: null;
   acctCurrAmount: number;
@@ -292,9 +371,10 @@ export type OlbSourceData = {
   additionalDescription: string;
   _mongoid: string;
 } & TableRecordUiProps &
-  TableSelectionCompareWithAmlTransactionId;
+  TableSelectionType;
 
 export type AbmSourceData = {
+  sourceId: string;
   accountCurrency: string;
   accountNumber: string;
   acctCurrAmount: number;
@@ -417,9 +497,154 @@ export type AbmSourceData = {
   transactionld: string;
   transactionTime: string;
   txnType: number;
-  _mongoid: string;
+  _mongoid?: string;
 } & TableRecordUiProps &
-  TableSelectionCompareWithAmlTransactionId;
+  TableSelectionType;
+
+export interface WireSourceData {
+  _hiddenDate: string;
+  _hiddenTime: string;
+  _hiddenAccount: number;
+  _hiddenTransit: number;
+  _hiddenAmount: number;
+  _hiddenCurrency: string;
+  _hiddenReceiverName: string;
+  _hiddenReceiverAddress: string;
+  _hiddenSenderName: string;
+  _hiddenSenderStreet: string;
+  _hiddenSenderCity: string;
+  _hiddenSenderPostalCode: string | null;
+  _hiddenSenderCountry: string;
+  _hiddenSenderAccount: string;
+  account: number;
+  accountCurrencyAmount: number;
+  accountCurrencyCd: string;
+  accountNumber: number;
+  acctHoldersAll: string;
+  amlld: number;
+  amlTransactionId: string;
+  awiBic: string;
+  bcAccount1d: string;
+  bcName: string;
+  branchTransitAccount: null;
+  cardNumber: null;
+  caseAccountNumber: number;
+  caseEcif: number;
+  caseTransitNumber: number;
+  channelCd: string;
+  clientToClientTransferIndicator: string;
+  conductorKey: null;
+  crdrCode: string;
+  createDatetime: string;
+  creditorld: string;
+  currencyConversionRate: null;
+  custld: null;
+  customer1AccountHolderCifId: string;
+  customer1AccountStatus: string;
+  customer2AccountHolderCifId: null;
+  customer2AccountStatus: null;
+  deviceType: null;
+  ecifMatchLeve1: string;
+  flowOfFundsAccountCurrency: string;
+  flowOfFundsAmlId: number;
+  flowOfFundsAmlTransactionId: string;
+  flowOfFundsCasePartyKey: number;
+  flowOfFundsConductorPartyKey: null;
+  flowOfFundsCreditAmount: number;
+  flowOfFundsCreditedAccount: number;
+  flowOfFundsCreditedTransit: number;
+  flowOfFundsDebitAmount: null;
+  flowOfFundsDebitedAccount: null;
+  flowOfFundsDebitedTransit: null;
+  flowOfFundsPostingDate: string;
+  flowOfFundsSource: string;
+  flowOfFundsSourceTransactionId: string;
+  flowOfFundsTransactionCurrency: string;
+  flowOfFundsTransactionCurrencyAmount: number;
+  flowOfFundsTransactionDate: string;
+  flowOfFundsTransactionDesc: string;
+  flowOfFundsTransactionTime: string;
+  holdingBranchKey: number;
+  ipAddress: null;
+  loanNumber: null;
+  matchLevelReceiver: string;
+  mnatchLevelSender: null;
+  msgTag32: string;
+  msgTag33: string;
+  msgTag50: string;
+  msgTag53: null;
+  msgTag54: null;
+  msgTag56: null;
+  msgTag59: string;
+  msgTag70: string;
+  ocAccountId: string;
+  ocName: string;
+  oiBic: string;
+  operationType: string;
+  origCurrAmount: number;
+  origCurrencyCd: string;
+  payeeAddress: string;
+  payerAddress: string;
+  postingDate: string;
+  processingDate: string;
+  rowUpdateDate: string;
+  rulesCadEquivalentAmt: number;
+  selfTransfer: string;
+  settledAmt: number;
+  sourceClientId: null;
+  sourceTransaction1d: string;
+  splittableColumnValue: number;
+  splittingDelimiter: string;
+  strCaAccount: number;
+  strCaAccountCurrency: string;
+  strCaAccountHolderCifId: string;
+  strCaAccountStatus: string;
+  strCaAmount: number;
+  strCaBeneficiaryInd: string;
+  strCaBranch: number;
+  strCaCurrency: string;
+  strCaDispositionType: string;
+  strCaDispositionTypeOther: null;
+  strCaInvolvedInCifId: null;
+  strCaInvolvedInInd: null;
+  strCaFiNumber: string;
+  strReportingEntity: string;
+  strSaAccount: string;
+  strSaAccountCurrency: null;
+  strSaAccountHoldersCifId: null;
+  strSaAccountStatus: null;
+  strSaAmount: number;
+  strSaBranch: null;
+  strSaConductorInd: string;
+  strSaCurrency: string;
+  strSaDirectIon: string;
+  strSaFiNumber: string;
+  strSaFundingSourceInd: null;
+  strSaFundsType: null;
+  strSaFundsTypeOther: null;
+  strSaOboInd: null;
+  strSaPostingDate: null;
+  strSaPurposeOfTransaction: string;
+  strTransactionStatus: string;
+  swiftTag20SendersReference: number;
+  _hiddenSenderOrderingInsName: string;
+  _hiddenSenderOrderingInsStreet: string;
+  _hiddenSenderOrderingInsCity: string;
+  swiftTag52OrderingInstitution: string;
+  swiftTag57AccountWithInstitution: string;
+  thirdPartyC1fId: null;
+  transactionDate: string;
+  transactionld: string;
+  transactionTime: string;
+  transit: number;
+  txnCode: string;
+  txnOrigFeed: string;
+  txnStatus: string;
+  uniqueReferenceNo: string;
+  userDeviceType: null;
+  userSessionDatetime: null;
+  wireRole: string;
+}
 
 export type SourceData =
   TransactionSearchResponse[number]['sourceData'][number];

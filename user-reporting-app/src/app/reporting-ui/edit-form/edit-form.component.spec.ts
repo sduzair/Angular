@@ -38,10 +38,10 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { enCA } from 'date-fns/locale';
 import { of } from 'rxjs';
 import {
-  SESSION_INITIAL_STATE,
-  SessionStateLocal,
-  SessionStateService,
-} from '../../aml/session-state.service';
+  CASE_RECORD_INITIAL_STATE,
+  CaseRecordState,
+  CaseRecordStore,
+} from '../../aml/case-record.store';
 import { TEST_USER_ADMIN } from '../../auth.fixture';
 import {
   AuthService,
@@ -55,6 +55,10 @@ import {
   lastUpdatedResolver,
   savingStatusResolver,
 } from './../../aml/aml.component';
+import {
+  AppErrorHandlerService,
+  errorInterceptor,
+} from './../../app-error-handler.service';
 import { NavLayoutComponent } from './../../nav-layout/nav-layout.component';
 import {
   auditResolver,
@@ -68,10 +72,7 @@ import {
   FormOptionsService,
 } from './form-options.service';
 import { TransactionTimeDirective } from './transaction-time.directive';
-import {
-  AppErrorHandlerService,
-  errorInterceptor,
-} from './../../app-error-handler.service';
+import { CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE } from '../../aml/case-record.state.fixture';
 
 @Component({
   selector: 'app-transaction-search',
@@ -135,10 +136,10 @@ describe('EditFormComponent', () => {
                     ),
                   providers: [
                     {
-                      provide: SESSION_INITIAL_STATE,
+                      provide: CASE_RECORD_INITIAL_STATE,
                       useValue: SESSION_STATE_FIXTURE,
                     },
-                    SessionStateService,
+                    CaseRecordStore,
                   ],
                   resolve: {
                     lastUpdated$: lastUpdatedResolver,
@@ -1595,9 +1596,9 @@ const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
   ],
 };
 
-const SESSION_STATE_FIXTURE: SessionStateLocal = {
+const SESSION_STATE_FIXTURE: CaseRecordState = {
+  caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
   amlId: '9999999',
-  version: 0,
   transactionSearchParams: {
     accountNumbersSelection: [],
     partyKeysSelection: [],
@@ -1605,7 +1606,10 @@ const SESSION_STATE_FIXTURE: SessionStateLocal = {
     reviewPeriodSelection: [],
     sourceSystemsSelection: [],
   },
-  strTransactions: [TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE].map((txn) => {
+  createdAt: '',
+  createdBy: '',
+  status: 'Active',
+  selections: [TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE].map((txn) => {
     return {
       ...txn,
       flowOfFundsAccountCurrency: '',
@@ -1633,9 +1637,12 @@ const SESSION_STATE_FIXTURE: SessionStateLocal = {
       _hiddenStrTxnId: '',
       _version: 0,
       changeLogs: [],
+      sourceId: 'Manual',
+      caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
     };
   }),
 
+  etag: 0,
   lastUpdated: '1996-06-13',
 };
 

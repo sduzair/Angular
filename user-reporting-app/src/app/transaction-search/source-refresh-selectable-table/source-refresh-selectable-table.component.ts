@@ -1,19 +1,15 @@
+import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
   forwardRef,
-  OnChanges,
-  SimpleChanges,
+  Input,
 } from '@angular/core';
-import { AbstractSelectableTableComponent } from '../abstract-selectable-table/abstract-selectable-table.component';
-import { CommonModule } from '@angular/common';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
-import {
-  SourceSys,
-  SourceSysRefreshTime,
-} from '../aml-transaction-search.service';
+import { AbstractSelectableTableComponent } from '../abstract-selectable-table/abstract-selectable-table.component';
+import { SourceSysRefreshTime } from '../transaction-search.service';
 
 @Component({
   selector: 'app-source-refresh-selectable-table',
@@ -44,12 +40,12 @@ import {
       <ng-container matColumnDef="system">
         <th mat-header-cell *matHeaderCellDef>System</th>
         <td mat-cell *matCellDef="let element">
-          @if (!dataSourceLoadingState) {
+          @if (!isLoading) {
             <span>
               {{ element.value }}
             </span>
           }
-          @if (dataSourceLoadingState) {
+          @if (isLoading) {
             <span class="sk skw-6 skh-2"></span>
           }
         </td>
@@ -59,12 +55,12 @@ import {
       <ng-container matColumnDef="refresh">
         <th mat-header-cell *matHeaderCellDef>Last Refresh</th>
         <td mat-cell *matCellDef="let element">
-          @if (!dataSourceLoadingState) {
+          @if (!isLoading) {
             <span>
               {{ element.refresh | date: 'yyyy-MM-dd' }}
             </span>
           }
-          @if (dataSourceLoadingState) {
+          @if (isLoading) {
             <span class="sk skw-4 skh-2"></span>
           }
         </td>
@@ -91,6 +87,20 @@ export class SourceRefreshSelectableTableComponent
   extends AbstractSelectableTableComponent<SourceSysRefreshTime>
   implements ControlValueAccessor
 {
+  // initialize with placeholder
+  get data() {
+    return Array.from({ length: 20 }, () => ({
+      value: '',
+      refresh: '',
+      isDisabled: false,
+    }));
+  }
+
+  @Input({ required: true })
+  set data(value: SourceSysRefreshTime[]) {
+    this.dataSource.data = value;
+  }
+
   protected override displayedColumns: (
     | keyof SourceSysRefreshTime
     | (string & {})

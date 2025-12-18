@@ -34,8 +34,9 @@ export abstract class AbstractSelectableTableComponent<T>
     /* empty */
   };
 
-  @Input({ required: true }) dataSource = new MatTableDataSource<T>();
-  @Input({ required: true }) dataSourceLoadingState = false;
+  abstract data: T[];
+  @Input({ required: true }) isLoading = false;
+  dataSource = new MatTableDataSource<T>();
   protected abstract displayedColumns: (keyof T | (string & {}))[];
   protected isRowDisabledFn?: (row: T) => boolean = (_) => false;
 
@@ -67,6 +68,9 @@ export abstract class AbstractSelectableTableComponent<T>
 
   private destroyRef = inject(DestroyRef);
   ngOnInit() {
+    // initialize table data
+    this.dataSource.data = this.data;
+
     // Always include 'select' as first column if not present
     if (!this.displayedColumns.includes('select')) {
       this.displayedColumns = ['select', ...this.displayedColumns];

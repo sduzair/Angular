@@ -283,15 +283,35 @@
       "formula": "concat(upper(_hiddenGivenName), \" \", upper(_hiddenSurname))"
     },
     {
+      "name": "_hiddenRecepientTransit",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "branch",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "_hiddenRecepientAccount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "account",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
       "name": "recipientAccountNumber",
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "010-84255-5582195"
+
       ],
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": ""
+      "formula": "concat(\"010-\", _hiddenRecepientTransit, \"-\", _hiddenRecepientAccount)"
     },
     {
       "name": "recipientCertapayAccount",
@@ -413,20 +433,22 @@
     {
       "name": "senderCertapayAccount",
       "null_percentage": 0,
-      "type": "Character Sequence",
-      "format": "^^^^^^^^^^^^^^^^^^^",
+      "type": "Dataset Column",
+      "dataset": "emtNonFocalNonCibc",
+      "column": "certapayAccount",
+      "selectionStyle": "sequential",
+      "distribution": null,
       "formula": null
     },
     {
       "name": "senderEmail",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "trim_thebush@hotmail.com"
-      ],
+      "type": "Dataset Column",
+      "dataset": "emtNonFocalNonCibc",
+      "column": "email",
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "parts = _hiddenFullName.delete(\"'\").split(\" \")\n\nemail = concat(\n  lower(parts[0]),                # surname (first part before space)\n  lower(parts[1]),                # given name (second part after space)\n  hex(parts[0])[0,3],              # first 3 chars of surname's hex\n  \"@dummy.com\"\n)\n\nemail"
+      "formula": ""
     },
     {
       "name": "senderFi",
@@ -457,13 +479,12 @@
     {
       "name": "senderName",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "Fred Rojas-Machuca"
-      ],
+      "type": "Dataset Column",
+      "dataset": "emtNonFocalNonCibc",
+      "column": "name",
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "upper(_hiddenFullName)"
+      "formula": ""
     },
     {
       "name": "senderPhone",

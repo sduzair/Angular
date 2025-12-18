@@ -69,10 +69,17 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "In-Person"
+        "ABM"
       ],
       "selectionStyle": "random",
-      "distribution": null,
+      "distribution": [
+        {
+          "frequencies": {
+            "In-Person": "1",
+            "ABM": "10"
+          }
+        }
+      ],
       "formula": null
     },
     {
@@ -171,10 +178,10 @@
       "name": "startingActions.amount",
       "null_percentage": 0,
       "type": "Number",
-      "min": 50,
-      "max": 2500,
+      "min": 5,
+      "max": 250,
       "decimals": 0,
-      "formula": "this * 10"
+      "formula": "this * 100"
     },
     {
       "name": "startingActions.currency",
@@ -1220,6 +1227,17 @@
       "max": "11:59 PM",
       "format": "%-l:%M %p",
       "formula": "time(timeOfTxn)"
+    },
+    {
+      "name": "sourceId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "ABM"
+      ],
+      "selectionStyle": null,
+      "distribution": null,
+      "formula": null
     }
   ]
 }

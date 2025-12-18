@@ -107,8 +107,12 @@
     {
       "name": "_hiddenFullName",
       "null_percentage": 0,
-      "type": "First Name",
-      "formula": "generate(\"First Name\") + \" \" + generate(\"Last Name\")"
+      "type": "Dataset Column",
+      "dataset": "emtNonFocalNonCibc",
+      "column": "_hiddenFullName",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
     },
     {
       "name": "startingActions",
@@ -171,7 +175,7 @@
       "name": "startingActions.amount",
       "null_percentage": 0,
       "type": "Number",
-      "min": 50,
+      "min": 5,
       "max": 250,
       "decimals": null,
       "formula": "this * 10"
@@ -808,12 +812,9 @@
     {
       "name": "completingActions.branch",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "84255",
-        "31980",
-        "87594"
-      ],
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "branch",
       "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
@@ -821,12 +822,9 @@
     {
       "name": "completingActions.account",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "5582195",
-        "8692413",
-        "5647218"
-      ],
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "account",
       "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
@@ -836,9 +834,7 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "Personal",
-        "Business",
-        "Other"
+        "Personal"
       ],
       "selectionStyle": "sequential",
       "distribution": null,
@@ -869,12 +865,9 @@
     {
       "name": "completingActions.accountOpen",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "2003/08/24",
-        "2001/07/14",
-        "2005/06/23"
-      ],
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "open",
       "selectionStyle": "sequential",
       "distribution": null,
       "formula": null
@@ -1234,6 +1227,17 @@
       "max": "11:59 PM",
       "format": "%-l:%M %p",
       "formula": "time(timeOfTxn)"
+    },
+    {
+      "name": "sourceId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "EMT"
+      ],
+      "selectionStyle": null,
+      "distribution": null,
+      "formula": null
     }
   ]
 }

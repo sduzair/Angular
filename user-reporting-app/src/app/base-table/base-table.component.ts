@@ -501,7 +501,7 @@ export class BaseTableComponent<
   override displayedColumns!: TDisplayColumn[];
 
   @Input({ required: true })
-  override displayedColumnsColumnHeaderMap: Partial<
+  override displayColumnHeaderMap: Partial<
     Record<TDataColumn | IFilterForm['filterFormFullTextFilterKey'], string>
   > = {};
 

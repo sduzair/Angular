@@ -1,9 +1,14 @@
-import { ChangeDetectionStrategy, Component, forwardRef } from '@angular/core';
-import { NG_VALUE_ACCESSOR, ControlValueAccessor } from '@angular/forms';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  forwardRef,
+  Input,
+} from '@angular/core';
+import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
 import { AbstractSelectableTableComponent } from '../abstract-selectable-table/abstract-selectable-table.component';
-import { PartyKey } from '../aml-transaction-search.service';
+import { PartyKey } from '../transaction-search.service';
 
 @Component({
   selector: 'app-party-key-selectable-table',
@@ -34,12 +39,12 @@ import { PartyKey } from '../aml-transaction-search.service';
       <ng-container matColumnDef="value">
         <th mat-header-cell *matHeaderCellDef>Party Key</th>
         <td mat-cell *matCellDef="let element">
-          @if (!dataSourceLoadingState) {
+          @if (!isLoading) {
             <span>
               {{ element.value }}
             </span>
           }
-          @if (dataSourceLoadingState) {
+          @if (isLoading) {
             <span class="sk skw-6 skh-2"></span>
           }
         </td>
@@ -66,6 +71,17 @@ export class PartyKeySelectableTableComponent
   extends AbstractSelectableTableComponent<PartyKey>
   implements ControlValueAccessor
 {
+  get data() {
+    return Array.from({ length: 5 }, () => ({
+      value: '',
+    }));
+  }
+
+  @Input({ required: true })
+  set data(value: PartyKey[]) {
+    this.dataSource.data = value;
+  }
+
   protected override displayedColumns: (keyof PartyKey | (string & {}))[] = [
     'select',
     'value',

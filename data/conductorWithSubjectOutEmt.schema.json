@@ -10,7 +10,8 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "3415674561"
+        "3415674561",
+        "1846597320"
       ],
       "selectionStyle": "sequential",
       "distribution": null,
@@ -21,7 +22,8 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "Carter"
+        "Carter",
+        "Nguyen"
       ],
       "selectionStyle": "sequential",
       "distribution": null,
@@ -32,7 +34,8 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "James"
+        "James",
+        "Laura"
       ],
       "selectionStyle": "sequential",
       "distribution": null,
@@ -43,7 +46,8 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "L"
+        "L",
+        "M"
       ],
       "selectionStyle": "sequential",
       "distribution": null,

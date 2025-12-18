@@ -10,7 +10,13 @@ import tseslint from 'typescript-eslint';
 export default defineConfig([
   {
     files: ['**/*.ts'],
-    ignores: ['.angular/**', '.nx/**', 'coverage/**', 'dist/**'],
+    ignores: [
+      '.angular/**',
+      '.nx/**',
+      'coverage/**',
+      'dist/**',
+      '**/*data.fixture.ts',
+    ],
     extends: [
       eslint.configs.recommended,
       ...tseslint.configs.recommended,

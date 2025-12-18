@@ -6,12 +6,12 @@ import {
 } from '@angular/core';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTableModule } from '@angular/material/table';
+import { StrTransactionWithChangeLogs } from '../../../aml/case-record.store';
 import { BaseTableComponent } from '../../../base-table/base-table.component';
 import { CamelToTitlePipe } from '../../reporting-ui-table/camel-to-title.pipe';
 import {
   ReportingUiTableComponent,
   StrTransaction,
-  StrTransactionData,
   StrTransactionDataColumnKey,
   _hiddenValidationType,
 } from '../../reporting-ui-table/reporting-ui-table.component';
@@ -32,7 +32,7 @@ import {
       [dataColumnsIgnoreValues]="dataColumnsIgnoreValues"
       [dataColumnsProjected]="dataColumnsProjected"
       [displayedColumns]="displayedColumns"
-      [displayedColumnsColumnHeaderMap]="displayedColumnsColumnHeaderMap"
+      [displayColumnHeaderMap]="displayColumnHeaderMap"
       [stickyColumns]="stickyColumns"
       [selectFiltersValues]="selectFiltersValues"
       [dateFiltersValues]="dateFiltersValues"
@@ -79,7 +79,10 @@ import {
 export class ManualUploadReviewTableComponent {
   @Input({ required: true })
   manualStrTransactionData = [] as StrTransaction[];
-  dataSourceTrackBy: TrackByFunction<StrTransactionData> = (_, txn) => {
+  dataSourceTrackBy: TrackByFunction<StrTransactionWithChangeLogs> = (
+    _,
+    txn,
+  ) => {
     return txn.flowOfFundsAmlTransactionId;
   };
   dataColumnsValues: StrTransactionDataColumnKey[] = [
@@ -146,9 +149,9 @@ export class ManualUploadReviewTableComponent {
 
   displayedColumns: ('select' | 'actions' | StrTransactionDataColumnKey)[] = [];
 
-  displayedColumnsColumnHeaderMap: Partial<
+  displayColumnHeaderMap: Partial<
     Record<'fullTextFilterKey' | StrTransactionDataColumnKey, string>
-  > = ReportingUiTableComponent.displayedColumnsColumnHeaderMap;
+  > = ReportingUiTableComponent.displayColumnHeaderMap;
 
   stickyColumns: (StrTransactionDataColumnKey | 'actions' | 'select')[] = [
     // "actions",
@@ -181,294 +184,3 @@ export class ManualUploadReviewTableComponent {
     return ReportingUiTableComponent.getFontColorForValidationChip(error);
   }
 }
-
-export const MANUAL_TRANSACTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransaction[] = [
-  {
-    wasTxnAttempted: false,
-    wasTxnAttemptedReason: null,
-    dateOfTxn: '2024/09/25',
-    timeOfTxn: '8:46:12',
-    hasPostingDate: null,
-    dateOfPosting: null,
-    timeOfPosting: null,
-    methodOfTxn: 'In-Person',
-    methodOfTxnOther: null,
-    reportingEntityTxnRefNo: 'MTXN-01K4WANX6DRN6KCN05PMG7WJHA',
-    purposeOfTxn: null,
-    reportingEntityLocationNo: '84255',
-    _hiddenFullName: 'Suki Clampe',
-    startingActions: [
-      {
-        _id: 'afe7448f-fd0d-4079-adb9-34eb5983479b',
-        directionOfSA: 'In',
-        typeOfFunds: 'Cash',
-        typeOfFundsOther: null,
-        amount: 7270,
-        currency: 'CAD',
-        fiuNo: null,
-        branch: null,
-        account: null,
-        accountType: null,
-        accountTypeOther: null,
-        accountOpen: null,
-        accountClose: null,
-        accountStatus: null,
-        accountCurrency: null,
-        howFundsObtained: null,
-        hasAccountHolders: false,
-        accountHolders: [],
-        wasSofInfoObtained: false,
-        sourceOfFunds: [],
-        wasCondInfoObtained: true,
-        conductors: [
-          {
-            _id: '9855168e-8452-4338-b644-ca73a8b846d2',
-            partyKey: '3415674561',
-            surname: 'Carter',
-            givenName: 'James',
-            otherOrInitial: 'L',
-            nameOfEntity: '',
-            npdTypeOfDevice: null,
-            npdTypeOfDeviceOther: null,
-            npdDeviceIdNo: null,
-            npdUsername: null,
-            npdIp: null,
-            npdDateTimeSession: null,
-            npdTimeZone: null,
-            wasConductedOnBehalf: false,
-            onBehalfOf: null,
-          },
-        ],
-      },
-    ],
-    _hiddenSaAmount: 7270,
-    completingActions: [
-      {
-        _id: '182b9eba-a6ae-4c57-be24-4e14ef4488cb',
-        detailsOfDispo: 'Deposit to account',
-        detailsOfDispoOther: null,
-        amount: 7270,
-        currency: 'CAD',
-        exchangeRate: null,
-        valueInCad: null,
-        fiuNo: '010',
-        branch: '84255',
-        account: '5582195',
-        accountType: 'Personal',
-        accountTypeOther: '',
-        accountCurrency: 'CAD',
-        accountOpen: '2003/08/24',
-        accountClose: '',
-        accountStatus: 'Active',
-        hasAccountHolders: true,
-        accountHolders: [
-          {
-            _id: '26fad9e3-7a4e-46e6-84d0-f75a2f76468c',
-            partyKey: '3415674561',
-            surname: 'Carter',
-            givenName: 'James',
-            otherOrInitial: 'L',
-            nameOfEntity: '',
-          },
-          {
-            _id: '67f65447-30ed-420d-870e-30c2567a51f8',
-            partyKey: '1846597320',
-            surname: 'Nguyen',
-            givenName: 'Laura',
-            otherOrInitial: 'M',
-            nameOfEntity: '',
-          },
-        ],
-        wasAnyOtherSubInvolved: false,
-        involvedIn: [],
-        wasBenInfoObtained: true,
-        beneficiaries: [
-          {
-            _id: '84413b8a-31c8-4763-acd5-f9a8c3b3b02a',
-            partyKey: '3415674561',
-            surname: 'Carter',
-            givenName: 'James',
-            otherOrInitial: 'L',
-            nameOfEntity: '',
-          },
-          {
-            _id: '3e1463cb-687e-4846-89ba-5eff6d3639a2',
-            partyKey: '1846597320',
-            surname: 'Nguyen',
-            givenName: 'Laura',
-            otherOrInitial: 'M',
-            nameOfEntity: '',
-          },
-        ],
-      },
-    ],
-    flowOfFundsAccountCurrency: null,
-    flowOfFundsAmlId: 99999999,
-    flowOfFundsAmlTransactionId: 'MTXN-01K4WANX6DRN6KCN05PMG7WJHA',
-    flowOfFundsCasePartyKey: null,
-    flowOfFundsConductorPartyKey: null,
-    flowOfFundsCreditAmount: null,
-    flowOfFundsCreditedAccount: null,
-    flowOfFundsCreditedTransit: null,
-    flowOfFundsDebitAmount: null,
-    flowOfFundsDebitedAccount: null,
-    flowOfFundsDebitedTransit: null,
-    flowOfFundsPostingDate: null,
-    flowOfFundsSource: 'Manual',
-    flowOfFundsSourceTransactionId: null,
-    flowOfFundsTransactionCurrency: null,
-    flowOfFundsTransactionCurrencyAmount: null,
-    flowOfFundsTransactionDate: null,
-    flowOfFundsTransactionDesc: 'Deposit @ 7 Old Gate Pass, Sagae, ON',
-    flowOfFundsTransactionTime: null,
-  },
-  {
-    wasTxnAttempted: false,
-    wasTxnAttemptedReason: null,
-    dateOfTxn: '2025/01/18',
-    timeOfTxn: '17:37:22',
-    hasPostingDate: null,
-    dateOfPosting: null,
-    timeOfPosting: null,
-    methodOfTxn: 'In-Person',
-    methodOfTxnOther: null,
-    reportingEntityTxnRefNo: 'MTXN-01K4WAP108HW0N72FDZT40HYTN',
-    purposeOfTxn: null,
-    reportingEntityLocationNo: '84255',
-    _hiddenFullName: 'Nolan Licciardo',
-    startingActions: [
-      {
-        _id: 'eceac8c9-a4e2-4c0d-93de-92e746dc2a9b',
-        directionOfSA: 'In',
-        typeOfFunds: 'Cash',
-        typeOfFundsOther: null,
-        amount: 16920,
-        currency: 'CAD',
-        fiuNo: null,
-        branch: null,
-        account: null,
-        accountType: null,
-        accountTypeOther: null,
-        accountOpen: null,
-        accountClose: null,
-        accountStatus: null,
-        accountCurrency: null,
-        howFundsObtained: 'Salary',
-        hasAccountHolders: false,
-        accountHolders: [],
-        wasSofInfoObtained: false,
-        sourceOfFunds: [],
-        wasCondInfoObtained: true,
-        conductors: [
-          {
-            _id: 'a6795d28-98d3-4856-841f-7a871a324aba',
-            partyKey: '1846597320',
-            surname: 'Nguyen',
-            givenName: 'Laura',
-            otherOrInitial: 'M',
-            nameOfEntity: '',
-            npdTypeOfDevice: null,
-            npdTypeOfDeviceOther: null,
-            npdDeviceIdNo: null,
-            npdUsername: null,
-            npdIp: null,
-            npdDateTimeSession: null,
-            npdTimeZone: null,
-            wasConductedOnBehalf: false,
-            onBehalfOf: null,
-          },
-        ],
-      },
-    ],
-    _hiddenSaAmount: 16920,
-    completingActions: [
-      {
-        _id: '51d40c6b-d938-4508-afec-85caaa96dc12',
-        detailsOfDispo: 'Deposit to account',
-        detailsOfDispoOther: null,
-        amount: 16920,
-        currency: 'CAD',
-        exchangeRate: null,
-        valueInCad: null,
-        fiuNo: '010',
-        branch: '84255',
-        account: '5582195',
-        accountType: 'Personal',
-        accountTypeOther: '',
-        accountCurrency: 'CAD',
-        accountOpen: '2003/08/24',
-        accountClose: '',
-        accountStatus: 'Active',
-        hasAccountHolders: true,
-        accountHolders: [
-          {
-            _id: 'e5204394-88a5-416e-83a5-435aa47e3d9f',
-            partyKey: '3415674561',
-            surname: 'Carter',
-            givenName: 'James',
-            otherOrInitial: 'L',
-            nameOfEntity: '',
-          },
-          {
-            _id: '8a6bb847-b965-4fc2-92b7-99aaa83791e2',
-            partyKey: '1846597320',
-            surname: 'Nguyen',
-            givenName: 'Laura',
-            otherOrInitial: 'M',
-            nameOfEntity: '',
-          },
-        ],
-        wasAnyOtherSubInvolved: false,
-        involvedIn: [],
-        wasBenInfoObtained: true,
-        beneficiaries: [
-          {
-            _id: 'ad2b242b-1615-4031-a48a-b180cfe12067',
-            partyKey: '3415674561',
-            surname: 'Carter',
-            givenName: 'James',
-            otherOrInitial: 'L',
-            nameOfEntity: '',
-          },
-          {
-            _id: 'e8395c76-16ea-47fa-990b-576c29d8daec',
-            partyKey: '1846597320',
-            surname: 'Nguyen',
-            givenName: 'Laura',
-            otherOrInitial: 'M',
-            nameOfEntity: '',
-          },
-        ],
-      },
-    ],
-    flowOfFundsAccountCurrency: null,
-    flowOfFundsAmlId: 99999999,
-    flowOfFundsAmlTransactionId: 'MTXN-01K4WAP108HW0N72FDZT40HYTN',
-    flowOfFundsCasePartyKey: null,
-    flowOfFundsConductorPartyKey: null,
-    flowOfFundsCreditAmount: null,
-    flowOfFundsCreditedAccount: null,
-    flowOfFundsCreditedTransit: null,
-    flowOfFundsDebitAmount: null,
-    flowOfFundsDebitedAccount: null,
-    flowOfFundsDebitedTransit: null,
-    flowOfFundsPostingDate: null,
-    flowOfFundsSource: 'Manual',
-    flowOfFundsSourceTransactionId: null,
-    flowOfFundsTransactionCurrency: null,
-    flowOfFundsTransactionCurrencyAmount: null,
-    flowOfFundsTransactionDate: null,
-    flowOfFundsTransactionDesc: 'Deposit @ 5 Hazelcrest Alley, Dongling, ON',
-    flowOfFundsTransactionTime: null,
-  },
-];
-
-export const MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE =
-  MANUAL_TRANSACTIONS_DEV_OR_TEST_ONLY_FIXTURE.map((txn) => ({
-    ...txn,
-    _hiddenTxnType: txn.flowOfFundsSource,
-    _hiddenAmlId: '999999',
-    _hiddenStrTxnId: txn.flowOfFundsAmlTransactionId,
-    _version: 0,
-    changeLogs: [],
-  }));

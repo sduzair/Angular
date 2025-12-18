@@ -52,7 +52,7 @@
       "name": "_hiddenFullName",
       "null_percentage": 0,
       "type": "Dataset Column",
-      "dataset": "outEMTCompleteWithRawSubjectNonCibcRecipientWithBackup",
+      "dataset": "emtNonFocalNonCibc",
       "column": "_hiddenFullName",
       "selectionStyle": "sequential",
       "distribution": null,
@@ -65,7 +65,7 @@
       "values": [
 
       ],
-      "selectionStyle": "random",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": "parts = _hiddenFullName.delete(\"'\").split(\" \")\n\nemail = concat(\n  lower(parts[0]),                # surname (first part before space)\n  lower(parts[1]),                # given name (second part after space)\n  hex(parts[0])[0,3],              # first 3 chars of surname's hex\n  \"@dummy.com\"\n)\n\nemail"
     },
@@ -278,20 +278,22 @@
     {
       "name": "recipientCertapayAccount",
       "null_percentage": 0,
-      "type": "Character Sequence",
-      "format": "^^^^^^^^^^^^^^^^^^^",
+      "type": "Dataset Column",
+      "dataset": "emtNonFocalNonCibc",
+      "column": "certapayAccount",
+      "selectionStyle": "sequential",
+      "distribution": null,
       "formula": null
     },
     {
       "name": "recipientEmail",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "sales@traceinvestigation.ca"
-      ],
+      "type": "Dataset Column",
+      "dataset": "emtNonFocalNonCibc",
+      "column": "email",
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "parts = _hiddenFullName.delete(\"'\").split(\" \")\n\nemail = concat(\n  lower(parts[0]),                # surname (first part before space)\n  lower(parts[1]),                # given name (second part after space)\n  hex(parts[0])[0,3],              # first 3 chars of surname's hex\n  \"@dummy.com\"\n)\n\nemail"
+      "formula": ""
     },
     {
       "name": "recipientFi",
@@ -311,7 +313,7 @@
       "column": "fiu",
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": ""
+      "formula": "\"CA000\" + this"
     },
     {
       "name": "recipientIpAddress",
@@ -333,13 +335,12 @@
     {
       "name": "recipientName",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "TRACE INVESTIGATION SERVICES"
-      ],
+      "type": "Dataset Column",
+      "dataset": "emtNonFocalNonCibc",
+      "column": "name",
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "_hiddenFullName"
+      "formula": ""
     },
     {
       "name": "recipientPhoneNumber",
@@ -384,6 +385,26 @@
       "formula": "upper(_hiddenSenderAccountNameGiven + \" \" + _hiddenSenderAccountNameSurname)"
     },
     {
+      "name": "_hiddenSenderBranch",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "branch",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "_hiddenSenderAccount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "account",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
       "name": "senderAccountNumber",
       "null_percentage": 0,
       "type": "Custom List",
@@ -392,7 +413,7 @@
       ],
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": null
+      "formula": "concat(\"010-\", _hiddenSenderBranch, \"-\", _hiddenSenderAccount)"
     },
     {
       "name": "senderCertapayAccount",

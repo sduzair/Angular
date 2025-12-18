@@ -56,9 +56,9 @@ import {
   tap,
 } from 'rxjs/operators';
 import {
-  SessionStateService,
+  CaseRecordStore,
   StrTransactionWithChangeLogs,
-} from '../../aml/session-state.service';
+} from '../../aml/case-record.store';
 import * as ChangeLog from '../../change-logging/change-log';
 import { setError } from '../../form-helpers';
 import { PreemptiveErrorStateMatcher } from '../../transaction-search/transaction-search.component';
@@ -140,11 +140,11 @@ import { TransactionTimeDirective } from './transaction-time.directive';
             form="edit-form"
             [disabled]="
               (editFormHasChanges$ | async) === false ||
-              (sessionDataService.savingStatus$ | async)
+              (sessionDataService.isSaving$ | async)
             "
             [matBadge]="selectedTransactionsForBulkEditLength"
             [matBadgeHidden]="!isBulkEdit">
-            @if (sessionDataService.savingStatus$ | async) {
+            @if (sessionDataService.isSaving$ | async) {
               Saving...
             } @else {
               Save
@@ -3356,7 +3356,7 @@ export class EditFormComponent implements AfterViewChecked {
           const txn = ChangeLog.applyChangeLogs(
             editType.payload,
             editType.payload.changeLogs.filter(
-              (log) => log._version! <= auditVersion,
+              (log) => log.etag! <= auditVersion,
             ),
           );
           return this.createEditForm({
@@ -3387,16 +3387,16 @@ export class EditFormComponent implements AfterViewChecked {
       ),
     ),
     tap((changes) =>
-      this.auditVersionControl.setValue(changes.at(-1)?._version ?? 0),
+      this.auditVersionControl.setValue(changes.at(-1)?.etag ?? 0),
     ),
     map((changes) => {
       const verMap = new Map([[0, 0]]);
 
       changes.forEach((log) => {
-        if (Array.from(verMap.values()).includes(log._version!)) return verMap;
+        if (Array.from(verMap.values()).includes(log.etag!)) return verMap;
 
         let lastLabelIndex = [...verMap].at(-1)![0];
-        return verMap.set(++lastLabelIndex, log._version!);
+        return verMap.set(++lastLabelIndex, log.etag!);
       });
 
       return Array.from(verMap.entries()).map(([key, val]) => ({
@@ -3449,7 +3449,7 @@ export class EditFormComponent implements AfterViewChecked {
   // ----------------------
   // Form Submission
   // ----------------------
-  protected sessionDataService = inject(SessionStateService);
+  protected sessionDataService = inject(CaseRecordStore);
   protected isSaved = false;
 
   protected onSave(): void {
@@ -3474,7 +3474,6 @@ export class EditFormComponent implements AfterViewChecked {
         flowOfFundsAmlTransactionId:
           editType.payload.flowOfFundsAmlTransactionId,
         editFormValue: this.editForm!.getRawValue(),
-        editFormValueBefore: this.editFormValueBefore!,
       });
     }
 
@@ -3482,7 +3481,7 @@ export class EditFormComponent implements AfterViewChecked {
       this.sessionDataService.saveEditForm({
         editType: 'BULK_EDIT',
         editFormValue: this.editForm!.value,
-        transactionsBefore: editType.payload,
+        selections: editType.payload,
       });
     }
   }
@@ -3491,15 +3490,18 @@ export class EditFormComponent implements AfterViewChecked {
     txn,
     options,
   }: {
-    txn?: WithVersion<StrTransaction> | StrTransaction | null;
+    txn?:
+      | WithVersion<StrTransactionWithChangeLogs>
+      | StrTransactionWithChangeLogs
+      | null;
     options: { editType: EditType; disabled?: boolean };
   }) {
     const { editType, disabled = false } = options;
     const createEmptyArrays = editType === 'BULK_EDIT';
 
     const editForm = new FormGroup({
-      _version: new FormControl<number>({
-        value: (txn as { _version: number })?._version || 0,
+      etag: new FormControl<number>({
+        value: txn?.changeLogs.at(-1)?.etag ?? 0,
         disabled,
       }),
       wasTxnAttempted: new FormControl({
@@ -4745,7 +4747,7 @@ export const singleEditTypeResolver: ResolveFn<EditFormEditType> = (
   route: ActivatedRouteSnapshot,
   _: RouterStateSnapshot,
 ) => {
-  return inject(SessionStateService).strTransactionData$.pipe(
+  return inject(CaseRecordStore).strTransactionData$.pipe(
     map((strTransactionData) => {
       const strTransaction = strTransactionData.find(
         (txn) =>
@@ -4771,7 +4773,7 @@ export const bulkEditTypeResolver: ResolveFn<EditFormEditType> = (
 
   if (!selectedTransactionsForBulkEdit) throw new Error('Unknown edit type');
 
-  return inject(SessionStateService).strTransactionData$.pipe(
+  return inject(CaseRecordStore).strTransactionData$.pipe(
     map((strTransactionData) => {
       const strTransactions = strTransactionData.filter((txn) =>
         selectedTransactionsForBulkEdit.includes(
@@ -4783,9 +4785,7 @@ export const bulkEditTypeResolver: ResolveFn<EditFormEditType> = (
       );
       return {
         type: 'BULK_EDIT',
-        payload: structuredClone(
-          strTransactions,
-        ) as StrTransactionWithChangeLogs[],
+        payload: selectedTransactionsForBulkEdit,
       };
     }),
   );
@@ -4795,9 +4795,9 @@ export const auditResolver: ResolveFn<EditFormEditType> = (
   route: ActivatedRouteSnapshot,
   _: RouterStateSnapshot,
 ) => {
-  return inject(SessionStateService).sessionState$.pipe(
-    map(({ strTransactions }) => {
-      const strTransaction = strTransactions.find(
+  return inject(CaseRecordStore).state$.pipe(
+    map(({ selections }) => {
+      const strTransaction = selections.find(
         (txn) =>
           route.params['transactionId'] === txn.flowOfFundsAmlTransactionId,
       );
@@ -4852,6 +4852,8 @@ export type StrTxnEditForm = RecursiveOmit<
   | keyof ConductorNpdData
   | '_hiddenFullName'
   | '_hiddenSaAmount'
+  | '_hiddenFirstName'
+  | 'sourceId'
 >;
 
 export type EditFormEditType =
@@ -4861,7 +4863,7 @@ export type EditFormEditType =
     }
   | {
       type: 'BULK_EDIT';
-      payload: StrTransactionWithChangeLogs[];
+      payload: StrTransaction['flowOfFundsAmlTransactionId'][];
     }
   | {
       type: 'AUDIT_REQUEST';

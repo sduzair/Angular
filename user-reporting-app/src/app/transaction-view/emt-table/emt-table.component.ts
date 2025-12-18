@@ -10,8 +10,8 @@ import { MatCheckbox } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
 import { IFilterForm } from '../../base-table/abstract-base-table';
 import { BaseTableComponent } from '../../base-table/base-table.component';
-import { EmtSourceData } from '../../transaction-search/aml-transaction-search.service';
-import { TableSelectionCompareWithAmlTransactionId } from '../transaction-view.component';
+import { EmtSourceData } from '../../transaction-search/transaction-search.service';
+import { TableSelectionType } from '../transaction-view.component';
 
 @Component({
   selector: 'app-emt-table',
@@ -23,7 +23,7 @@ import { TableSelectionCompareWithAmlTransactionId } from '../transaction-view.c
       [dataColumnsValues]="dataColumnsValues"
       [dataColumnsIgnoreValues]="dataColumnsIgnoreValues"
       [displayedColumns]="displayedColumns"
-      [displayedColumnsColumnHeaderMap]="displayedColumnsColumnHeaderMap"
+      [displayColumnHeaderMap]="displayColumnHeaderMap"
       [stickyColumns]="stickyColumns"
       [selectFiltersValues]="selectFiltersValues"
       [dateFiltersValues]="dateFiltersValues"
@@ -77,7 +77,7 @@ import { TableSelectionCompareWithAmlTransactionId } from '../transaction-view.c
 })
 export class EmtTableComponent<
   TSelection extends {
-    [K in keyof TableSelectionCompareWithAmlTransactionId]: string;
+    [K in keyof TableSelectionType]: string;
   },
 > {
   dataColumnsValues: (keyof EmtSourceData)[] = [
@@ -153,7 +153,7 @@ export class EmtTableComponent<
 
   displayedColumns = ['select' as const];
 
-  displayedColumnsColumnHeaderMap: Partial<
+  displayColumnHeaderMap: Partial<
     Record<
       | Extract<keyof EmtSourceData, string>
       | IFilterForm['filterFormFullTextFilterKey']

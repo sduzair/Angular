@@ -107,12 +107,6 @@
       "formula": "this.to_s"
     },
     {
-      "name": "_hiddenFullName",
-      "null_percentage": 0,
-      "type": "First Name",
-      "formula": "generate(\"First Name\") + \" \" + generate(\"Last Name\")"
-    },
-    {
       "name": "startingActions",
       "null_percentage": 0,
       "type": "JSON Array",
@@ -175,10 +169,10 @@
       "name": "startingActions.amount",
       "null_percentage": 0,
       "type": "Number",
-      "min": 50,
+      "min": 5,
       "max": 500,
       "decimals": 0,
-      "formula": "this * 10"
+      "formula": "this * 5"
     },
     {
       "name": "startingActions.currency",
@@ -205,12 +199,9 @@
     {
       "name": "startingActions.branch",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "84255",
-        "31980",
-        "87594"
-      ],
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "branch",
       "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
@@ -218,12 +209,9 @@
     {
       "name": "startingActions.account",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "5582195",
-        "8692413",
-        "5647218"
-      ],
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "account",
       "selectionStyle": "sequential",
       "distribution": null,
       "formula": "this.to_s"
@@ -233,9 +221,7 @@
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "Personal",
-        "Business",
-        "Other"
+        "Personal"
       ],
       "selectionStyle": "sequential",
       "distribution": null,
@@ -244,23 +230,15 @@
     {
       "name": "startingActions.accountTypeOther",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "Joint"
-      ],
-      "selectionStyle": "random",
-      "distribution": null,
-      "formula": "if accountType == 'Other' then this\nelse '' end"
+      "type": "Blank",
+      "formula": ""
     },
     {
       "name": "startingActions.accountOpen",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "2003/08/24",
-        "2001/07/14",
-        "2005/06/23"
-      ],
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "open",
       "selectionStyle": "sequential",
       "distribution": null,
       "formula": null
@@ -268,25 +246,19 @@
     {
       "name": "startingActions.accountClose",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "2025/06/20"
-      ],
-      "selectionStyle": "sequential",
-      "distribution": null,
-      "formula": "if accountType == 'Business' then this\nelse '' end"
+      "type": "Blank",
+      "formula": ""
     },
     {
       "name": "startingActions.accountStatus",
       "null_percentage": 0,
       "type": "Custom List",
       "values": [
-        "Active",
-        "Closed"
+        "Active"
       ],
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "if accountType == 'Business' then 'Closed'\nelse 'Active' end"
+      "formula": ""
     },
     {
       "name": "startingActions.accountCurrency",
@@ -390,8 +362,8 @@
       "name": "startingActions.sourceOfFunds",
       "null_percentage": 0,
       "type": "JSON Array",
-      "minItems": 1,
-      "maxItems": 1,
+      "minItems": 0,
+      "maxItems": 0,
       "formula": null
     },
     {
@@ -801,29 +773,26 @@
     {
       "name": "completingActions.branch",
       "null_percentage": 0,
-      "type": "Dataset Column",
-      "dataset": "conductorWithSubjectNotFocal",
-      "column": "accountBranch",
-      "selectionStyle": "sequential",
-      "distribution": null,
-      "formula": "if fiuNo == \"010\" then this\nelse '' end"
+      "type": "Blank",
+      "formula": ""
     },
     {
       "name": "completingActions.account",
       "null_percentage": 0,
       "type": "Dataset Column",
-      "dataset": "conductorWithSubjectNotFocal",
-      "column": "accountNo",
+      "dataset": "emtNonFocalNonCibc",
+      "column": "email",
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "parts = _hiddenFullName.delete(\"'\").split(\" \")\n\nemail = concat(\n  lower(parts[0]),                # surname (first part before space)\n  lower(parts[1]),                # given name (second part after space)\n  hex(parts[0])[0,3],              # first 3 chars of surname's hex\n  \"@dummy.com\"\n)\n\nif fiuNo == \"010\" then this\nelse email end"
+      "formula": ""
     },
     {
       "name": "completingActions.accountType",
       "null_percentage": 0,
-      "type": "Dataset Column",
-      "dataset": "conductorWithSubjectNotFocal",
-      "column": "accountType",
+      "type": "Custom List",
+      "values": [
+        "Personal"
+      ],
       "selectionStyle": "sequential",
       "distribution": [
         {
@@ -835,7 +804,7 @@
           }
         }
       ],
-      "formula": "if fiuNo == \"010\" then this\nelse 'Personal' end"
+      "formula": ""
     },
     {
       "name": "completingActions.accountTypeOther",
@@ -851,50 +820,26 @@
     {
       "name": "completingActions.accountCurrency",
       "null_percentage": 0,
-      "type": "Dataset Column",
-      "dataset": "conductorWithSubjectNotFocal",
-      "column": "accountCurrency",
-      "selectionStyle": "sequential",
-      "distribution": null,
-      "formula": "if fiuNo == \"010\" then this\nelse '' end"
+      "type": "Blank",
+      "formula": ""
     },
     {
       "name": "completingActions.accountOpen",
       "null_percentage": 0,
-      "type": "Dataset Column",
-      "dataset": "conductorWithSubjectNotFocal",
-      "column": "accountOpen",
-      "selectionStyle": "sequential",
-      "distribution": null,
-      "formula": "if fiuNo == \"010\" then this\nelse '' end"
+      "type": "Blank",
+      "formula": ""
     },
     {
       "name": "completingActions.accountClose",
       "null_percentage": 0,
-      "type": "Dataset Column",
-      "dataset": "conductorWithSubjectNotFocal",
-      "column": "accountClose",
-      "selectionStyle": "sequential",
-      "distribution": [
-        {
-          "frequencies": {
-            "2016/12/11": "0",
-            "2017/12/11": "1",
-            "2018/12/11": "0"
-          }
-        }
-      ],
-      "formula": "if fiuNo == \"010\" then this\nelse '' end"
+      "type": "Blank",
+      "formula": ""
     },
     {
       "name": "completingActions.accountStatus",
       "null_percentage": 0,
-      "type": "Dataset Column",
-      "dataset": "conductorWithSubjectNotFocal",
-      "column": "accountStatus",
-      "selectionStyle": "sequential",
-      "distribution": null,
-      "formula": "if fiuNo == \"010\" then this\nelse '' end"
+      "type": "Blank",
+      "formula": ""
     },
     {
       "name": "completingActions.hasAccountHolders",
@@ -1002,52 +947,40 @@
     },
     {
       "name": "completingActions.beneficiaries.partyKey",
-      "null_percentage": 99,
-      "type": "Dataset Column",
-      "dataset": "conductorWithSubject",
-      "column": "partyKey",
-      "selectionStyle": "sequential",
-      "distribution": null,
+      "null_percentage": 0,
+      "type": "Blank",
       "formula": null
     },
     {
       "name": "completingActions.beneficiaries.surname",
       "null_percentage": 0,
       "type": "Dataset Column",
-      "dataset": "conductorWithSubject",
-      "column": "surname",
+      "dataset": "emtNonFocalNonCibc",
+      "column": "givenName",
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "_hiddenFullName.split(\" \")[1]\n\n"
+      "formula": ""
     },
     {
       "name": "completingActions.beneficiaries.givenName",
       "null_percentage": 0,
       "type": "Dataset Column",
-      "dataset": "conductorWithSubject",
-      "column": "givenName",
+      "dataset": "emtNonFocalNonCibc",
+      "column": "lastName",
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "_hiddenFullName.split(\" \")[0]\n\n"
+      "formula": ""
     },
     {
       "name": "completingActions.beneficiaries.otherOrInitial",
-      "null_percentage": 99,
-      "type": "Dataset Column",
-      "dataset": "conductorWithSubject",
-      "column": "otherOrInitial",
-      "selectionStyle": "sequential",
-      "distribution": null,
+      "null_percentage": 0,
+      "type": "Blank",
       "formula": null
     },
     {
       "name": "completingActions.beneficiaries.nameOfEntity",
-      "null_percentage": 99,
-      "type": "Dataset Column",
-      "dataset": "conductorWithSubject",
-      "column": "nameOfEntity",
-      "selectionStyle": "sequential",
-      "distribution": null,
+      "null_percentage": 0,
+      "type": "Blank",
       "formula": null
     },
     {
@@ -1215,6 +1148,16 @@
       "formula": "dateOfTxn"
     },
     {
+      "name": "_hiddenFirstName",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "emtNonFocalNonCibc",
+      "column": "givenName",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
       "name": "flowOfFundsTransactionDesc",
       "null_percentage": 0,
       "type": "Custom List",
@@ -1223,7 +1166,7 @@
       ],
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "concat(\"Send E-Transfer @ \", lower(_hiddenFullName.split(\" \")[0]))"
+      "formula": "concat(\"Send E-Transfer @ \", lower(_hiddenFirstName))"
     },
     {
       "name": "flowOfFundsTransactionTime",
@@ -1233,6 +1176,17 @@
       "max": "11:59 PM",
       "format": "%-l:%M %p",
       "formula": "time(timeOfTxn + minutes(-5))"
+    },
+    {
+      "name": "sourceId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "EMT"
+      ],
+      "selectionStyle": null,
+      "distribution": null,
+      "formula": null
     }
   ]
 }
