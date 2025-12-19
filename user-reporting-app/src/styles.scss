@@ -1,10 +1,15 @@
-@use "@angular/material" as mat;
+@use '@angular/material' as mat;
+@use './styles_theme-colors.scss' as my-theme;
 
 html {
   @include mat.theme(
     (
-      color: mat.$rose-palette,
+      color: (
+        primary: my-theme.$primary-palette,
+        tertiary: my-theme.$tertiary-palette,
+      ),
       typography: Roboto,
+      density: -3,
     )
   );
 }
@@ -17,7 +22,7 @@ $my-typography: mat.m2-define-typography-config();
 .mat-success {
   @include mat.icon-overrides(
     (
-      color: #4caf50,
+      color: var(--bs-success),
     )
   );
 }
@@ -25,7 +30,7 @@ $my-typography: mat.m2-define-typography-config();
 .mat-info {
   @include mat.icon-overrides(
     (
-      color: #2196f3,
+      color: var(--bs-info),
     )
   );
 }
@@ -33,7 +38,7 @@ $my-typography: mat.m2-define-typography-config();
 .mat-warning {
   @include mat.icon-overrides(
     (
-      color: #ff9800,
+      color: var(--bs-warning),
     )
   );
 }
@@ -49,7 +54,7 @@ $my-typography: mat.m2-define-typography-config();
 .mat-warn {
   @include mat.icon-overrides(
     (
-      color: #f44336,
+      color: var(--bs-danger),
     )
   );
 }
@@ -58,6 +63,14 @@ $my-typography: mat.m2-define-typography-config();
   @include mat.icon-overrides(
     (
       color: var(--mat-sys-error),
+    )
+  );
+}
+
+.mat-accent {
+  @include mat.icon-overrides(
+    (
+      color: var(--mat-sys-primary),
     )
   );
 }
@@ -72,7 +85,7 @@ body {
 }
 body {
   margin: 0;
-  font-family: Roboto, "Helvetica Neue", sans-serif;
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
 }
 
 body {
@@ -84,4 +97,100 @@ html {
   scrollbar-color: var(--mat-sys-outline-variant)
     var(--mat-sys-surface-container-low);
   scrollbar-width: thin;
+
+  --mat-select-panel-background-color: var(--mat-sys-surface);
+}
+
+/* Base skeleton block */
+.sk {
+  display: inline-block;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--mat-sys-on-surface) 8%, transparent) 25%,
+    color-mix(in oklab, var(--mat-sys-on-surface) 14%, transparent) 37%,
+    color-mix(in oklab, var(--mat-sys-on-surface) 8%, transparent) 63%
+  );
+  background-size: 400% 100%;
+  animation: sk-shimmer 1.2s ease-in-out infinite;
+}
+
+/* Width presets (approximate character widths) */
+.skw-4 {
+  width: 64px;
+}
+.skw-6 {
+  width: 96px;
+}
+.skw-8 {
+  width: 128px;
+}
+.skw-9 {
+  width: 144px;
+}
+.skw-10 {
+  width: 160px;
+}
+.skw-12 {
+  width: 192px;
+}
+
+/* Height presets aligned to body text line heights */
+.skh-2 {
+  height: 14px;
+} /* compact text line */
+.skh-3 {
+  height: 18px;
+}
+.skh-4 {
+  height: 22px;
+}
+.skh-5 {
+  height: 26px;
+}
+.skh-6 {
+  height: 30px;
+}
+.skh-7 {
+  height: 34px;
+}
+
+/* Table cell alignment helpers (optional) */
+.mat-mdc-cell .sk,
+.mat-mdc-header-cell .sk {
+  vertical-align: middle;
+}
+
+/* Shimmer keyframes */
+@keyframes sk-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+$minimal-chip-overrides: (
+  outline-color: rgba(0, 0, 0, 0.12),
+  outline-width: 1px,
+  flat-selected-outline-width: 1px,
+  disabled-outline-color: rgba(0, 0, 0, 0.05),
+  focus-outline-color: rgba(0, 0, 0, 0.24),
+  container-shape-radius: 4px,
+);
+
+@include mat.chips-overrides($minimal-chip-overrides);
+
+html {
+  --mat-select-panel-background-color: var(--mat-sys-surface);
+  --mat-autocomplete-background-color: var(--mat-sys-surface);
+}
+
+.mat-mdc-option.mdc-list-item {
+  min-height: 40px;
+}
+
+.upload-stepper-dialog {
+  --mat-dialog-container-max-width: 920px;
 }

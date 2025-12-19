@@ -1,0 +1,1082 @@
+{
+  "id": 715872,
+  "num_rows": 1,
+  "file_format": "json",
+  "name": "wireIn",
+  "array": true,
+  "columns": [
+    {
+      "name": "_hiddenDate",
+      "null_percentage": 0,
+      "type": "Datetime",
+      "min": "01/01/2024",
+      "max": "06/27/2025",
+      "format": "%Y/%m/%d",
+      "formula": null
+    },
+    {
+      "name": "_hiddenTime",
+      "null_percentage": 0,
+      "type": "Time",
+      "min": "12:00 AM",
+      "max": "11:59 PM",
+      "format": "%-H:%M:%S",
+      "formula": null
+    },
+    {
+      "name": "_hiddenAccount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "5582195",
+        "8692413",
+        "5647218"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "_hiddenTransit",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "84255",
+        "31980",
+        "87594"
+      ],
+      "selectionStyle": null,
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "_hiddenAmount",
+      "null_percentage": 0,
+      "type": "Number",
+      "min": 1000,
+      "max": 50000,
+      "decimals": 0,
+      "formula": "this"
+    },
+    {
+      "name": "_hiddenCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "CAD"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "_hiddenReceiverName",
+      "null_percentage": 0,
+      "type": "Full Name",
+      "formula": "concat(\"James\", \" L\", \" Carter\")"
+    },
+    {
+      "name": "_hiddenSenderName",
+      "null_percentage": 0,
+      "type": "Company Name",
+      "formula": null
+    },
+    {
+      "name": "_hiddenSenderAccount",
+      "null_percentage": 0,
+      "type": "Regular Expression",
+      "value": null,
+      "formula": "this"
+    },
+    {
+      "name": "account",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenAccount"
+    },
+    {
+      "name": "accountCurrencyAmount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenAmount"
+    },
+    {
+      "name": "accountCurrencyCd",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenCurrency"
+    },
+    {
+      "name": "accountNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenAccount"
+    },
+    {
+      "name": "acctHoldersAll",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "3415674561;1846597320"
+      ],
+      "selectionStyle": null,
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "amlld",
+      "null_percentage": 0,
+      "type": "Number",
+      "min": 1000000,
+      "max": 9999999,
+      "decimals": 0,
+      "formula": "this"
+    },
+    {
+      "name": "amlTransactionId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "DEP",
+        "WIR"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "awiBic",
+      "null_percentage": 0,
+      "type": "Bank SWIFT BIC",
+      "formula": "this"
+    },
+    {
+      "name": "bcAccount1d",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "concat(_hiddenTransit, _hiddenAccount)"
+    },
+    {
+      "name": "bcName",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenReceiverName"
+    },
+    {
+      "name": "branchTransitAccount",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "cardNumber",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "caseAccountNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": "",
+      "formula": "_hiddenAccount"
+    },
+    {
+      "name": "caseEcif",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "3415674561"
+      ],
+      "selectionStyle": null,
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "caseTransitNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenTransit"
+    },
+    {
+      "name": "channelCd",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "03",
+        "04",
+        "10"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "clientToClientTransferIndicator",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "N",
+        "Y"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "conductorKey",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "crdrCode",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "C"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "createDatetime",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "date(_hiddenDate).to_i * 1000"
+    },
+    {
+      "name": "creditorld",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "3415674561;1846597320"
+      ],
+      "selectionStyle": null,
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "currencyConversionRate",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "custld",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "customer1AccountHolderCifId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "3415674561;1846597320"
+      ],
+      "selectionStyle": null,
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "customer1AccountStatus",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "OPEN"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "customer2AccountHolderCifId",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "customer2AccountStatus",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "deviceType",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "ecifMatchLeve1",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Level 1: Transit + Account",
+        "Level 2: Strict"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsAccountCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenCurrency"
+    },
+    {
+      "name": "flowOfFundsAmlId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "amlld * 10"
+    },
+    {
+      "name": "flowOfFundsAmlTransactionId",
+      "null_percentage": 0,
+      "type": "GUID",
+      "formula": "concat('IWS-10PW-', this)"
+    },
+    {
+      "name": "flowOfFundsCasePartyKey",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "3415674561"
+      ],
+      "selectionStyle": null,
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "flowOfFundsConductorPartyKey",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "flovOfFundsCreditAmount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenAmount"
+    },
+    {
+      "name": "flowOfFundsCreditedAccount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenAccount"
+    },
+    {
+      "name": "flowOfFundsCreditedTransit",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenTransit"
+    },
+    {
+      "name": "flowOfFundsDebitAmount",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "flowOfFundsDebitedAccount",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "flowOfFundsDebitedTransit",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "flowOfFundsPostingDate",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenDate"
+    },
+    {
+      "name": "flowOfFundsSource",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Wires",
+        "EFT"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsSourceTransactionId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "concat('T0', date(_hiddenDate, '%y%m%d'), '042910501')"
+    },
+    {
+      "name": "flowOfFundsTransactionCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenCurrency"
+    },
+    {
+      "name": "flowOfFundsTransactionCurrencyAmount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenAmount"
+    },
+    {
+      "name": "flowOfFundsTransactionDate",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenDate"
+    },
+    {
+      "name": "flowOfFundsTransactionDesc",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "concat('Incoming Wire @ ', _hiddenSenderName, '\n9TH FLOOR 107 CHEAPSIDE\nLONDON\nEC2')"
+    },
+    {
+      "name": "flowOfFundsTransactionTime",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenTime"
+    },
+    {
+      "name": "holdingBranchKey",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenTransit"
+    },
+    {
+      "name": "ipAddress",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "loanNumber",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "matchLeveIReceiver",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Level 1: Transit + Account"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "natchLeve1Sender",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "msgTag32",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "concat(date(_hiddenDate, '%y%m%d'), _hiddenCurrency, _hiddenAmount)"
+    },
+    {
+      "name": "msgTag33",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "concat(_hiddenCurrency, _hiddenAmount + 15)"
+    },
+    {
+      "name": "msgTag50",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "concat(_hiddenSenderAccount, '\n', _hiddenSenderName, '\n9TH FLOOR 107 CHEAPSIDE\nLONDON\nEC2V 6DN GB')"
+    },
+    {
+      "name": "msgTag53",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "msgTag54",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "msgTag56",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "msgTag59",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "concat(_hiddenTransit, _hiddenAccount, '\n', _hiddenReceiverName, '\n400 LIGHTHOUSE DRIVE\nDUNNVILLE\nDUNNVILLE CA')"
+    },
+    {
+      "name": "msgTag70",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "concat('INV ', random(10000000, 99999999), '\nTO PAY AN INVOICE')"
+    },
+    {
+      "name": "ocAccountId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenSenderAccount"
+    },
+    {
+      "name": "ocName",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenSenderName"
+    },
+    {
+      "name": "oiBic",
+      "null_percentage": 0,
+      "type": "Bank SWIFT BIC",
+      "formula": "this"
+    },
+    {
+      "name": "operationType",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "N"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "origCurrAmount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenAmount"
+    },
+    {
+      "name": "origCurrencyCd",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenCurrency"
+    },
+    {
+      "name": "payeeAddress",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "400 LIGHTHOUSE DRIVE\nDUNNVILLE\nDUNNVILLE CA"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "payerAddress",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "9TH FLOOR 107 CHEAPSIDE\nLONDON\nEC2V 6DN GB"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "postingDate",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenDate"
+    },
+    {
+      "name": "processingDate",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenDate"
+    },
+    {
+      "name": "rowUpdateDate",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "date(now()) + time(now())"
+    },
+    {
+      "name": "rulesCadEquiva1entAmt",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenAmount"
+    },
+    {
+      "name": "self Transfer",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "N",
+        "Y"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "settledAmt",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenAmount"
+    },
+    {
+      "name": "sourceClientId",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "sourceTransaction1d",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "flowOfFundsSourceTransactionId"
+    },
+    {
+      "name": "splittableColumnValue",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "3415674561"
+      ],
+      "selectionStyle": null,
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "splittingDelimiter",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        ";"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strCaAccount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenAccount"
+    },
+    {
+      "name": "strCaAccountCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenCurrency"
+    },
+    {
+      "name": "strCaAccountHolderCifId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "3415674561;1846597320"
+      ],
+      "selectionStyle": null,
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "strCaAccountStatus",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Active",
+        "Inactive"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strCaAmount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenAmount"
+    },
+    {
+      "name": "strCaBeneficiaryInd",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Yes",
+        "No"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strCaBranch",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenTransit"
+    },
+    {
+      "name": "strCaCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenCurrency"
+    },
+    {
+      "name": "strCaDispositionType",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Deposit to account"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strCaDispositionTypeOther",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "strCaInvolvedInCifId",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "strCaInvolvedInInd",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "strCafiNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "010"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strReportingEntity",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "09602"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaAccount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "ocAccountId"
+    },
+    {
+      "name": "strSaAccountCurrency",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "strSaAccountHoldersCifId",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "strSaAccountStatus",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "strSaAmount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenAmount + 15"
+    },
+    {
+      "name": "strSaBranch",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "strSaConductorInd",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Yes"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenCurrency"
+    },
+    {
+      "name": "strSaDirectIon",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "In",
+        "Out"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "strSaFiNumber",
+      "null_percentage": 0,
+      "type": "Bank SWIFT BIC",
+      "formula": "this"
+    },
+    {
+      "name": "strSaFundingSourceInd",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "strSaFundsType",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "strSaFundsTypeOther",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "strSaOboInd",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "strSaPostingDate",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "strSaPurposeOfTransaction",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "msgTag70"
+    },
+    {
+      "name": "strTransactionStatus",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "No",
+        "Yes"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "swiftTag20SendersReference",
+      "null_percentage": 0,
+      "type": "Number",
+      "min": 1000000,
+      "max": 9999999,
+      "decimals": 0,
+      "formula": "this"
+    },
+    {
+      "name": "swiftTag52OrderingInstitution",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "VFX FINANCIAL PLC\nDUKES HOUSE\n32-38 DUKES PLACE\nLONDON"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "swiftTag57AccountWithInstitution",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "CC00I033613\nCIBCCATT"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "thirdPartyC1fId",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "transactionDate",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenDate"
+    },
+    {
+      "name": "transactionld",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "flowOfFundsAmlTransactionId"
+    },
+    {
+      "name": "transactionTime",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenTime"
+    },
+    {
+      "name": "transit",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "value": null,
+      "formula": "_hiddenTransit"
+    },
+    {
+      "name": "txnCode",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "DEP"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "txnOrigFeed",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "COINSFXIN",
+        "COINSFXOUT"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "txnStatus",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "MSG SENT",
+        "DELV RCVD"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "uniqueReferenceNo",
+      "null_percentage": 0,
+      "type": "GUID",
+      "formula": "this"
+    },
+    {
+      "name": "userDeviceType",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "userSessionDatetime",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "wireRole",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "RECEIVER",
+        "SENDER"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    }
+  ]
+}

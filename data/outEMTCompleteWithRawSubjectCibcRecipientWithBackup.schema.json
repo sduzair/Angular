@@ -1,0 +1,1231 @@
+{
+  "id": 700382,
+  "num_rows": 500,
+  "file_format": "json",
+  "name": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+  "array": true,
+  "columns": [
+    {
+      "name": "wasTxnAttempted",
+      "null_percentage": 0,
+      "type": "Boolean",
+      "formula": "false"
+    },
+    {
+      "name": "wasTxnAttemptedReason",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "dateOfTxn",
+      "null_percentage": 0,
+      "type": "Datetime",
+      "min": "01/01/2024",
+      "max": "06/27/2025",
+      "format": "%Y/%m/%d",
+      "formula": null
+    },
+    {
+      "name": "timeOfTxn",
+      "null_percentage": 0,
+      "type": "Time",
+      "min": "12:00 AM",
+      "max": "11:59 PM",
+      "format": "%-H:%M:%S",
+      "formula": null
+    },
+    {
+      "name": "hasPostingDate",
+      "null_percentage": 99,
+      "type": "Boolean",
+      "formula": null
+    },
+    {
+      "name": "dateOfPosting",
+      "null_percentage": 0,
+      "type": "Datetime",
+      "min": "01/01/2024",
+      "max": "06/27/2025",
+      "format": "%Y/%m/%d",
+      "formula": "dateOfTxn + days(1) if hasPostingDate"
+    },
+    {
+      "name": "timeOfPosting",
+      "null_percentage": 0,
+      "type": "Time",
+      "min": "12:00 AM",
+      "max": "11:59 PM",
+      "format": "%-H:%M",
+      "formula": "this if hasPostingDate"
+    },
+    {
+      "name": "methodOfTxn",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Online"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "methodOfTxnOther",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": null
+    },
+    {
+      "name": "reportingEntityTxnRefNo",
+      "null_percentage": 0,
+      "type": "ULID",
+      "formula": "concat(\"OLB-\" + generate(\"ULID\"))"
+    },
+    {
+      "name": "purposeOfTxn",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": null
+    },
+    {
+      "name": "reportingEntityLocationNo",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "84255",
+        "31980",
+        "87594"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "this.to_s"
+    },
+    {
+      "name": "_hiddenFullName",
+      "null_percentage": 0,
+      "type": "First Name",
+      "formula": "generate(\"First Name\") + \" \" + generate(\"Last Name\")"
+    },
+    {
+      "name": "startingActions",
+      "null_percentage": 0,
+      "type": "JSON Array",
+      "minItems": 1,
+      "maxItems": 1,
+      "formula": null
+    },
+    {
+      "name": "startingActions._id",
+      "null_percentage": 0,
+      "type": "GUID",
+      "formula": null
+    },
+    {
+      "name": "startingActions.directionOfSA",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Out"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.typeOfFunds",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Cash",
+        "Cheque",
+        "Email money transfer",
+        "Funds withdrawal"
+      ],
+      "selectionStyle": "weighted",
+      "distribution": [
+        {
+          "frequencies": {
+            "Cash": "0",
+            "Cheque": "0",
+            "Email money transfer": "0",
+            "Funds withdrawal": "1"
+          }
+        }
+      ],
+      "formula": null
+    },
+    {
+      "name": "startingActions.typeOfFundsOther",
+      "null_percentage": 99,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.amount",
+      "null_percentage": 0,
+      "type": "Number",
+      "min": 50,
+      "max": 500,
+      "decimals": 0,
+      "formula": "this * 10"
+    },
+    {
+      "name": "startingActions.currency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "CAD"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.fiuNo",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "010"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": "this.to_s"
+    },
+    {
+      "name": "startingActions.branch",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "branch",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "this.to_s"
+    },
+    {
+      "name": "startingActions.account",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "account",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "this.to_s"
+    },
+    {
+      "name": "startingActions.accountType",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Personal"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.accountTypeOther",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "startingActions.accountOpen",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "open",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.accountClose",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "startingActions.accountStatus",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Active"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "startingActions.accountCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "CAD"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.howFundsObtained",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.hasAccountHolders",
+      "null_percentage": 0,
+      "type": "Boolean",
+      "formula": "true"
+    },
+    {
+      "name": "startingActions.accountHolders",
+      "null_percentage": 0,
+      "type": "JSON Array",
+      "minItems": 2,
+      "maxItems": 2,
+      "formula": null
+    },
+    {
+      "name": "startingActions.accountHolders._id",
+      "null_percentage": 0,
+      "type": "GUID",
+      "formula": null
+    },
+    {
+      "name": "startingActions.accountHolders.partyKey",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubject",
+      "column": "partyKey",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.accountHolders.surname",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubject",
+      "column": "surname",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.accountHolders.givenName",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubject",
+      "column": "givenName",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.accountHolders.otherOrInitial",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubject",
+      "column": "otherOrInitial",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.accountHolders.nameOfEntity",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubject",
+      "column": "nameOfEntity",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.wasSofInfoObtained",
+      "null_percentage": 0,
+      "type": "Boolean",
+      "formula": "false"
+    },
+    {
+      "name": "startingActions.sourceOfFunds",
+      "null_percentage": 0,
+      "type": "JSON Array",
+      "minItems": 0,
+      "maxItems": 0,
+      "formula": null
+    },
+    {
+      "name": "startingActions.sourceOfFunds._id",
+      "null_percentage": 0,
+      "type": "GUID",
+      "formula": null
+    },
+    {
+      "name": "startingActions.sourceOfFunds.partyKey",
+      "null_percentage": 99,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.sourceOfFunds.surname",
+      "null_percentage": 99,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.sourceOfFunds.givenName",
+      "null_percentage": 99,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.sourceOfFunds.otherOrInitial",
+      "null_percentage": 99,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.sourceOfFunds.nameOfEntity",
+      "null_percentage": 99,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.sourceOfFunds.accountNumber",
+      "null_percentage": 99,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.sourceOfFunds.identifyingNumber",
+      "null_percentage": 99,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.wasCondInfoObtained",
+      "null_percentage": 0,
+      "type": "Boolean",
+      "formula": "true"
+    },
+    {
+      "name": "startingActions.conductors",
+      "null_percentage": 0,
+      "type": "JSON Array",
+      "minItems": 1,
+      "maxItems": 1,
+      "formula": null
+    },
+    {
+      "name": "startingActions.conductors._id",
+      "null_percentage": 0,
+      "type": "GUID",
+      "formula": null
+    },
+    {
+      "name": "startingActions.conductors.partyKey",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectOutEmt",
+      "column": "partyKey",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "startingActions.conductors.surname",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectOutEmt",
+      "column": "surname",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "startingActions.conductors.givenName",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectOutEmt",
+      "column": "givenName",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "if fiuNo == \"010\" then this\nelse _hiddenFullName.split(\" \")[0] end\n\n"
+    },
+    {
+      "name": "startingActions.conductors.otherOrInitial",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectOutEmt",
+      "column": "otherOrInitial",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "if fiuNo == \"010\" then this\nelse '' end\n\n"
+    },
+    {
+      "name": "startingActions.conductors.nameOfEntity",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectOutEmt",
+      "column": "nameOfEntity",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "if fiuNo == \"010\" then this\nelse '' end\n\n"
+    },
+    {
+      "name": "startingActions.conductors.npdTypeOfDevice",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectOutEmt",
+      "column": "npdTypeOfDevice",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.conductors.npdTypeOfDeviceOther",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectOutEmt",
+      "column": "npdTypeOfDeviceOther",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.conductors.npdDeviceIdNo",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectOutEmt",
+      "column": "npdDeviceIdNo",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.conductors.npdUsername",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectOutEmt",
+      "column": "npdUsername",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.conductors.npdIp",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectOutEmt",
+      "column": "npdIp",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.conductors.npdDateTimeSession",
+      "null_percentage": 0,
+      "type": "Datetime",
+      "min": "06/27/2024",
+      "max": "06/27/2025",
+      "format": "%Y-%m-%dT%H:%M:%SZ",
+      "formula": "Time.parse(concat(dateOfTxn, \" 00:00:00\"))"
+    },
+    {
+      "name": "startingActions.conductors.npdTimeZone",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectOutEmt",
+      "column": "npdTimeZone",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.conductors.wasConductedOnBehalf",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubject",
+      "column": "wasConductedOnBehalf",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.conductors.onBehalfOf",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubject",
+      "column": "onBehalfOf[0]",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.conductors.onBehalfOf.partyKey",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.conductors.onBehalfOf.surname",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.conductors.onBehalfOf.givenName",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.conductors.onBehalfOf.otherOrInitial",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "startingActions.conductors.onBehalfOf.nameOfEntity",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "_hiddenSaAmount",
+      "null_percentage": 0,
+      "type": "Number",
+      "min": 1,
+      "max": 100,
+      "decimals": 0,
+      "formula": "startingActions[0][\"amount\"] || 0\n"
+    },
+    {
+      "name": "completingActions",
+      "null_percentage": 0,
+      "type": "JSON Array",
+      "minItems": 1,
+      "maxItems": 1,
+      "formula": null
+    },
+    {
+      "name": "completingActions._id",
+      "null_percentage": 0,
+      "type": "GUID",
+      "formula": null
+    },
+    {
+      "name": "completingActions.detailsOfDispo",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Outgoing email money transfer"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "completingActions.detailsOfDispoOther",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "completingActions.amount",
+      "null_percentage": 0,
+      "type": "Number",
+      "min": 50,
+      "max": 250,
+      "decimals": null,
+      "formula": "_hiddenSaAmount"
+    },
+    {
+      "name": "completingActions.currency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "CAD"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "completingActions.exchangeRate",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "completingActions.valueInCad",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "completingActions.fiuNo",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "003",
+        "004",
+        "001",
+        "002",
+        "010"
+      ],
+      "selectionStyle": "weighted",
+      "distribution": [
+        {
+          "frequencies": {
+            "003": "0",
+            "004": "0",
+            "001": "0",
+            "002": "0",
+            "010": "1"
+          }
+        }
+      ],
+      "formula": null
+    },
+    {
+      "name": "completingActions.branch",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "accountBranch",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "if fiuNo == \"010\" then this\nelse '' end"
+    },
+    {
+      "name": "completingActions.account",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "accountNo",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "parts = _hiddenFullName.delete(\"'\").split(\" \")\n\nemail = concat(\n  lower(parts[0]),                # surname (first part before space)\n  lower(parts[1]),                # given name (second part after space)\n  hex(parts[0])[0,3],              # first 3 chars of surname's hex\n  \"@dummy.com\"\n)\n\nif fiuNo == \"010\" then this\nelse email end"
+    },
+    {
+      "name": "completingActions.accountType",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "accountType",
+      "selectionStyle": "sequential",
+      "distribution": [
+        {
+          "frequencies": {
+            "Personal": "1",
+            "Business": "0",
+            "Casino": "0",
+            "Other": "0"
+          }
+        }
+      ],
+      "formula": "if fiuNo == \"010\" then this\nelse 'Personal' end"
+    },
+    {
+      "name": "completingActions.accountTypeOther",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "completingActions.accountCurrency",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "accountCurrency",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "if fiuNo == \"010\" then this\nelse '' end"
+    },
+    {
+      "name": "completingActions.accountOpen",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "accountOpen",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "if fiuNo == \"010\" then this\nelse '' end"
+    },
+    {
+      "name": "completingActions.accountClose",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "accountClose",
+      "selectionStyle": "sequential",
+      "distribution": [
+        {
+          "frequencies": {
+            "2016/12/11": "0",
+            "2017/12/11": "1",
+            "2018/12/11": "0"
+          }
+        }
+      ],
+      "formula": "if fiuNo == \"010\" then this\nelse '' end"
+    },
+    {
+      "name": "completingActions.accountStatus",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "accountStatus",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "if fiuNo == \"010\" then this\nelse '' end"
+    },
+    {
+      "name": "completingActions.hasAccountHolders",
+      "null_percentage": 0,
+      "type": "Boolean",
+      "formula": "if fiuNo == \"010\" then true\nelse false end"
+    },
+    {
+      "name": "completingActions.accountHolders",
+      "null_percentage": 0,
+      "type": "JSON Array",
+      "minItems": 1,
+      "maxItems": 1,
+      "formula": ""
+    },
+    {
+      "name": "completingActions.accountHolders._id",
+      "null_percentage": 0,
+      "type": "GUID",
+      "formula": null
+    },
+    {
+      "name": "completingActions.accountHolders.partyKey",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "partyKey",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "completingActions.accountHolders.surname",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "surname",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "completingActions.accountHolders.givenName",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "givenName",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "completingActions.accountHolders.otherOrInitial",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "otherOrInitial",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "completingActions.accountHolders.nameOfEntity",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "nameOfEntity",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "completingActions.wasAnyOtherSubInvolved",
+      "null_percentage": 0,
+      "type": "Boolean",
+      "formula": "false"
+    },
+    {
+      "name": "completingActions.involvedIn",
+      "null_percentage": 0,
+      "type": "JSON Array",
+      "minItems": 0,
+      "maxItems": 0,
+      "formula": null
+    },
+    {
+      "name": "completingActions.wasBenInfoObtained",
+      "null_percentage": 0,
+      "type": "Boolean",
+      "formula": "true"
+    },
+    {
+      "name": "completingActions.beneficiaries",
+      "null_percentage": 0,
+      "type": "JSON Array",
+      "minItems": 1,
+      "maxItems": 1,
+      "formula": null
+    },
+    {
+      "name": "completingActions.beneficiaries._id",
+      "null_percentage": 0,
+      "type": "GUID",
+      "formula": null
+    },
+    {
+      "name": "completingActions.beneficiaries.partyKey",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "partyKey",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "completingActions.beneficiaries.surname",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "surname",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "completingActions.beneficiaries.givenName",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "givenName",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "completingActions.beneficiaries.otherOrInitial",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "otherOrInitial",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "completingActions.beneficiaries.nameOfEntity",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "nameOfEntity",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsAccountCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "CAD"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsAmlId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "99999999"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsAmlTransactionId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "reportingEntityTxnRefNo"
+    },
+    {
+      "name": "flowOfFundsCasePartyKey",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "3415674561"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsConductorPartyKey",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "3415674561"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "flowOfFundsCreditAmount",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "flowOfFundsCreditedAccount",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "flowOfFundsCreditedTransit",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "flowOfFundsDebitAmount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "_hiddenSaAmount"
+    },
+    {
+      "name": "flowOfFundsDebitedAccount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "startingActions[0][\"account\"]"
+    },
+    {
+      "name": "flowOfFundsDebitedTransit",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "startingActions[0][\"branch\"]"
+    },
+    {
+      "name": "flowOfFundsPostingDate",
+      "null_percentage": 0,
+      "type": "Datetime",
+      "min": "06/27/2024",
+      "max": "06/27/2025",
+      "format": "%Y/%m/%d",
+      "formula": "dateOfTxn + days(1)"
+    },
+    {
+      "name": "flowOfFundsSource",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "OLB"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsSourceTransactionId",
+      "null_percentage": 0,
+      "type": "Digit Sequence",
+      "format": "10##########",
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsTransactionCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "CAD"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsTransactionCurrencyAmount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "_hiddenSaAmount"
+    },
+    {
+      "name": "flowOfFundsTransactionDate",
+      "null_percentage": 0,
+      "type": "Datetime",
+      "min": "06/27/2024",
+      "max": "06/27/2025",
+      "format": "%Y/%m/%d",
+      "formula": "dateOfTxn"
+    },
+    {
+      "name": "flowOfFundsTransactionDesc",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "givenName",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "concat(\"Send E-Transfer @ \", lower(this))"
+    },
+    {
+      "name": "flowOfFundsTransactionTime",
+      "null_percentage": 0,
+      "type": "Time",
+      "min": "12:00 AM",
+      "max": "11:59 PM",
+      "format": "%-l:%M %p",
+      "formula": "time(timeOfTxn + minutes(-5))"
+    },
+    {
+      "name": "sourceId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "EMT"
+      ],
+      "selectionStyle": null,
+      "distribution": null,
+      "formula": null
+    }
+  ]
+}

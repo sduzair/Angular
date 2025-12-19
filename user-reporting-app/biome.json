@@ -22,7 +22,8 @@
       "recommended": true,
       "style": {
         "noNonNullAssertion": "off",
-        "useImportType": "off"
+        "useImportType": "off",
+        "noParameterAssign": "off"
       },
       "performance": {
         "noAccumulatingSpread": "off"

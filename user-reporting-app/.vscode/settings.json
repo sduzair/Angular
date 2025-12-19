@@ -15,19 +15,69 @@
     "titleBar.inactiveForeground": "#15202b99"
   },
   "peacock.color": "#ab74e8",
-  "editor.defaultFormatter": "biomejs.biome",
   "CSSNavigation.enableIdAndClassNameCompletion": false,
   "CSSNavigation.alwaysIncludeGlobPatterns": [
-    "node_modules/@angular/material/prebuilt-themes/rose-red.css"
+    "node_modules/@angular/material/prebuilt-themes/rose-red.css",
+    "node_modules/bootstrap/dist/css/bootstrap-utilities.css"
   ],
   "css.styleSheets": [
     "**/${fileBasenameNoExtension}.css",
     "**/${fileBasenameNoExtension}.scss"
   ],
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
   "[markdown]": {
     "editor.defaultFormatter": "yzhang.markdown-all-in-one"
   },
   "[scss]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
+  "angular-schematics.schematicsDefaultOptions": {
+    "angular-*": {
+      "style": "scss"
+    },
+    "angular-component": {
+      "suffix": "component",
+      "fileNameSuffix": ".component"
+    },
+    "angular-directive": {
+      "suffix": "directive",
+      "fileNameSuffix": ".directive"
+    },
+    "angular-service": {
+      "suffix": "service",
+      "fileNameSuffix": ".service"
+    },
+    "angular-pipe": {
+      "fileNameSuffix": ".pipe"
+    },
+    "angular-page": {
+      "fileNameSuffix": ".page"
+    },
+    "angular-interceptor": {
+      "fileNameSuffix": ".interceptor"
+    },
+    "angular-guard": {
+      "fileNameSuffix": ".guard"
+    },
+    "angular-resolver": {
+      "fileNameSuffix": ".resolver"
+    },
+    "angular-async-reactive-service": {
+      "fileNameSuffix": ".service"
+    },
+    "angular-sync-reactive-service": {
+      "fileNameSuffix": ".service"
+    },
+    "angular-material-dialog": {
+      "fileNameSuffix": ".dialog"
+    },
+    "angular-material-table": {
+      "suffix": "component",
+      "fileNameSuffix": ".component"
+    }
+  }
 }

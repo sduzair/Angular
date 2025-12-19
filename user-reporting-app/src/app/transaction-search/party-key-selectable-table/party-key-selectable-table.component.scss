@@ -1,0 +1,16 @@
+/* Optional: Style for disabled table rows */
+.disabled-row {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Ensure disabled checkboxes have proper styling */
+.mat-mdc-checkbox.mat-mdc-checkbox-disabled {
+  opacity: 0.38;
+}
+
+/* Custom disabled table styling */
+mat-table.disabled-table {
+  opacity: 0.6;
+  pointer-events: none;
+}

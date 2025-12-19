@@ -1,0 +1,146 @@
+{
+  "id": 700347,
+  "num_rows": 500,
+  "file_format": "json",
+  "name": "conductorWithSubjectOutEmt",
+  "array": true,
+  "columns": [
+    {
+      "name": "partyKey",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "3415674561",
+        "1846597320"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "this.to_s"
+    },
+    {
+      "name": "surname",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Carter",
+        "Nguyen"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "givenName",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "James",
+        "Laura"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "otherOrInitial",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "L",
+        "M"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "nameOfEntity",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": null
+    },
+    {
+      "name": "wasConductedOnBehalf",
+      "null_percentage": 0,
+      "type": "Boolean",
+      "formula": "false"
+    },
+    {
+      "name": "onBehalfOf[0]",
+      "null_percentage": 0,
+      "type": "JSON Array",
+      "minItems": 0,
+      "maxItems": 0,
+      "formula": null
+    },
+    {
+      "name": "npdTypeOfDevice",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Internet",
+        "Other"
+      ],
+      "selectionStyle": "weighted",
+      "distribution": [
+        {
+          "frequencies": {
+            "Internet": "1",
+            "Other": "0"
+          }
+        }
+      ],
+      "formula": null
+    },
+    {
+      "name": "npdTypeOfDeviceOther",
+      "null_percentage": 0,
+      "type": "Mobile Device OS",
+      "formula": "if npdTypeOfDevice == 'Other' then 'Unknown'\nelse '' end"
+    },
+    {
+      "name": "npdDeviceIdNo",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": null
+    },
+    {
+      "name": "npdUsername",
+      "null_percentage": 99,
+      "type": "Username",
+      "formula": null
+    },
+    {
+      "name": "npdIp",
+      "null_percentage": 0,
+      "type": "IP Address v4",
+      "formula": null
+    },
+    {
+      "name": "npdDateTimeSession",
+      "null_percentage": 0,
+      "type": "Datetime",
+      "min": "01/01/2024",
+      "max": "06/26/2025",
+      "format": "%Y-%m-%dT%H:%M:%SZ",
+      "formula": null
+    },
+    {
+      "name": "npdTimeZone",
+      "null_percentage": 99,
+      "type": "Time Zone",
+      "formula": null
+    },
+    {
+      "name": "certapayAccount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "BIC9QNUQ6EDYIP2SZQW"
+      ],
+      "selectionStyle": null,
+      "distribution": null,
+      "formula": null
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+.sticky-cell.mat-column-select {
+  position: sticky;
+  z-index: 999 !important;
+  left: 0px;
+  min-width: 40px; // bigger than natural width
+  padding: 0;
+  text-align: center;
+
+  &::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: var(--mat-table-row-item-outline-width, 1px);
+    background: var(
+      --mat-table-row-item-outline-color,
+      var(--mat-sys-outline, rgba(0, 0, 0, 0.12))
+    );
+  }
+}
+
+.sticky-cell > div {
+  margin: 0px 8px;
+  text-align: center;
+}
+
+::ng-deep .mat-column-msgTag50 > div {
+  white-space: pre-line;
+  word-wrap: break-word;
+}
+
+::ng-deep .mat-column-msgTag59 > div {
+  white-space: pre-line;
+  word-wrap: break-word;
+}
+
+::ng-deep .mat-column-swiftTag52OrderingInstitution > div {
+  white-space: pre-line;
+  word-wrap: break-word;
+}
+
+::ng-deep .mat-column-msgTag70 > div {
+  white-space: pre-line;
+  word-wrap: break-word;
+}
+
+::ng-deep .mat-column-payeeAddress > div {
+  white-space: pre-line;
+  word-wrap: break-word;
+}
+
+::ng-deep .mat-column-payerAddress > div {
+  white-space: pre-line;
+  word-wrap: break-word;
+}

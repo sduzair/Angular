@@ -1,0 +1,141 @@
+@use '@angular/material' as mat;
+
+:host {
+  @include mat.button-density(0);
+}
+
+.form-field-density {
+  @include mat.form-field-density(-5);
+}
+
+.overlay-pre {
+  // position: fixed;
+  // top: 20px;
+  // right: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  // z-index: 1000;
+  // max-width: 400px;
+  // max-height: 80vh;
+  // pointer-events: none;
+  // overflow: auto;
+  // scrollbar-width: none;
+}
+
+// .bulk-edit-form {
+//   // Override filled container color only on dirty form fields
+//   mat-form-field.ng-dirty {
+//     --mat-form-field-outlined-outline-color: orange;
+//     --mat-form-field-outlined-outline-width: 3px;
+//     --mat-form-field-outlined-hover-outline-color: orange;
+//   }
+// }
+
+::ng-deep .mat-mdc-form-field-has-icon-suffix div.mat-mdc-text-field-wrapper {
+  padding-right: 16px;
+}
+
+::ng-deep .mat-mdc-form-field-icon-suffix {
+  display: flex;
+  gap: 0.2rem;
+}
+
+button[appMarkAsCleared] {
+  display: none;
+}
+
+button[appToggleEditField] {
+  display: none;
+}
+
+.bulk-edit-form {
+  button[appMarkAsCleared] {
+    display: unset;
+  }
+
+  button[appToggleEditField] {
+    display: unset;
+  }
+
+  button[appClearField] {
+    display: none;
+  }
+
+  ::ng-deep .mat-mdc-form-field-has-icon-suffix div.mat-mdc-text-field-wrapper {
+    padding-right: unset;
+  }
+}
+
+::ng-deep .audit-form {
+  --mat-form-field-outlined-disabled-label-text-color: var(
+    --mat-sys-on-surface-variant
+  );
+  --mat-form-field-outlined-disabled-input-text-color: var(
+    --mat-sys-on-surface
+  );
+  --mat-select-disabled-trigger-text-color: var(--mat-sys-on-surface);
+  --mat-checkbox-disabled-label-color: var(--mat-sys-on-surface);
+
+  --mat-form-field-outlined-disabled-outline-color: var(--mat-sys-outline);
+
+  --mat-checkbox-disabled-selected-icon-color: var(--mat-sys-primary);
+
+  .mdc-text-field--disabled {
+    user-select: text;
+  }
+
+  .mat-mdc-select-disabled .mat-mdc-select-trigger {
+    user-select: text;
+  }
+}
+
+mat-panel-title h1,
+mat-panel-title h3 {
+  margin-bottom: 0;
+}
+
+.edit-form mat-form-field {
+  margin-bottom: 0.5rem;
+}
+
+// mat-expansion-panel-header {
+//     margin-bottom: 1em;
+// }
+
+.edit-form mat-card-header {
+  height: 64px;
+  padding: 0 24px;
+}
+
+::ng-deep .edit-form mat-card-header .mat-mdc-card-header-text {
+  display: flex;
+  align-items: center;
+}
+
+.error-icon {
+  display: none;
+  position: absolute;
+  right: -1.5em;
+}
+
+.error-icon-show {
+  display: inline;
+}
+
+.edit-form mat-expansion-panel {
+  margin: 0 0.25em 0.25em 0.25em;
+}
+
+::ng-deep .edit-form mat-expansion-panel .mat-expansion-panel-body {
+  margin-top: 1rem;
+}
+
+mat-card.transaction-details-card {
+  @include mat.card-overrides(
+    (
+      elevated-container-color: var(--mat-sys-surface),
+    )
+  );
+}

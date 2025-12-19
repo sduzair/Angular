@@ -8,10 +8,14 @@
     "cyrilletuzi.angular-schematics",
     "obenjiro.arrr",
     "aaron-bond.better-comments",
-    "biomejs.biome",
     "pucelle.vscode-css-navigation",
     "ecmel.vscode-html-css",
     "mariusalchimavicius.json-to-ts",
-    "esbenp.prettier-vscode"
+    "esbenp.prettier-vscode",
+    "asvetliakov.vscode-neovim",
+    "spacian.jumplist",
+    "meganrogge.template-string-converter",
+    "dbaeumer.vscode-eslint",
+    "crystal-spider.jsdoc-generator"
   ]
 }

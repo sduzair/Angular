@@ -1,0 +1,8 @@
+/.angular
+/.nx
+/coverage
+/dist
+node_modules
+pnpm-lock.yaml
+
+**/*data.fixture.ts

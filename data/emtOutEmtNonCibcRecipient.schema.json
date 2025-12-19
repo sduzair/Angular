@@ -1,0 +1,547 @@
+{
+  "id": 701730,
+  "num_rows": 500,
+  "file_format": "json",
+  "name": "emtOutEmtNonCibcRecipient",
+  "array": true,
+  "columns": [
+    {
+      "name": "amlId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "99999999"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "amount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectNonCibcRecipientWithBackup",
+      "column": "_hiddenSaAmount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "concat(\"$ \", this, \".00 \")"
+    },
+    {
+      "name": "caseEcif",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "3415674561"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "this.to_s"
+    },
+    {
+      "name": "conductorEcif",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "_hiddenFullName",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "emtNonFocalNonCibc",
+      "column": "_hiddenFullName",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "contactEmail",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "parts = _hiddenFullName.delete(\"'\").split(\" \")\n\nemail = concat(\n  lower(parts[0]),                # surname (first part before space)\n  lower(parts[1]),                # given name (second part after space)\n  hex(parts[0])[0,3],              # first 3 chars of surname's hex\n  \"@dummy.com\"\n)\n\nemail"
+    },
+    {
+      "name": "contactHandleUsed",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Email"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "contactIdentifier",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "contactMobile",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "contactName",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Trace Investigation Service"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "lower(_hiddenFullName.split(\" \")[0])"
+    },
+    {
+      "name": "cur",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "(CAD)"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "depositedTimeDate",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectNonCibcRecipientWithBackup",
+      "column": "dateOfTxn",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "depositedTimeTime",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectNonCibcRecipientWithBackup",
+      "column": "timeOfTxn",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "depositedTime",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "2025-05-01 12:24:35 EDT"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "concat(depositedTimeDate.gsub(\"/\", \"-\"), \" \", depositedTimeTime, \" EDT\")"
+    },
+    {
+      "name": "etFwdFlag",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "FWD"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "f2RDepDate",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "2025-05-01"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "depositedTimeDate.gsub(\"/\", \"-\")"
+    },
+    {
+      "name": "f2RIndicator",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "f2rDeptime",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "12:24 PM"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "depositedTimeTime"
+    },
+    {
+      "name": "fiRefCode",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectNonCibcRecipientWithBackup",
+      "column": "flowOfFundsSourceTransactionId",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "id",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "initiatedTime",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "2025-05-01 11:54:34 EDT"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "(date(depositedTime) - minutes(3)).strftime('%Y-%m-%d %H:%M:%S') + \" EDT\""
+    },
+    {
+      "name": "jointAccountFlag",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "originalFiRefCode",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "105438033038"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "fiRefCode"
+    },
+    {
+      "name": "recipientAccountName",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "recipientAccountNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "recipientCertapayAccount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "emtNonFocalNonCibc",
+      "column": "certapayAccount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "recipientEmail",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "emtNonFocalNonCibc",
+      "column": "email",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "recipientFi",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "emtNonFocalNonCibc",
+      "column": "fiuName",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "recipientFiNumber",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "emtNonFocalNonCibc",
+      "column": "fiu",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "\"CA000\" + this"
+    },
+    {
+      "name": "recipientIpAddress",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "recipientMobile",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": null
+    },
+    {
+      "name": "recipientName",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "emtNonFocalNonCibc",
+      "column": "name",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "recipientPhoneNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "_hiddenSenderAccountNameGiven",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectOutEmt",
+      "column": "givenName",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "_hiddenSenderAccountNameSurname",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectOutEmt",
+      "column": "surname",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "senderAccountName",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "FRED ROJAS-MCHUCA"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "upper(_hiddenSenderAccountNameGiven + \" \" + _hiddenSenderAccountNameSurname)"
+    },
+    {
+      "name": "_hiddenSenderBranch",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "branch",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "_hiddenSenderAccount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "focalAccounts",
+      "column": "account",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "senderAccountNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "010-84255-5582195"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "concat(\"010-\", _hiddenSenderBranch, \"-\", _hiddenSenderAccount)"
+    },
+    {
+      "name": "senderCertapayAccount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectOutEmt",
+      "column": "certapayAccount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "senderEmail",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "trim_thebush@hotmail.com"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "email = concat(\n  lower(_hiddenSenderAccountNameSurname),                # surname (first part before space)\n  lower(_hiddenSenderAccountNameGiven),                # given name (second part after space)\n  hex(_hiddenSenderAccountNameSurname)[0,3],              # first 3 chars of surname's hex\n  \"@dummy.com\"\n)\n\nemail"
+    },
+    {
+      "name": "senderFi",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "CIBC"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "senderFiNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "CA000010"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "senderIpAddress",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectOutEmt",
+      "column": "npdIp",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "senderName",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Fred Rojas-Machuca"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "upper(_hiddenSenderAccountNameGiven + \" \" + _hiddenSenderAccountNameSurname)"
+    },
+    {
+      "name": "senderPhone",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "senderTypeConductorEcifFlag",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "true"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "true"
+    },
+    {
+      "name": "tranType",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Send E-Transfer"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "transferDetails",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "olbOutEmtNonCibcRecipient",
+      "column": "oppAccountNumber",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsAmlTransactionId",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectNonCibcRecipientWithBackup",
+      "column": "flowOfFundsAmlTransactionId",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "sourceId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "EMT"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    }
+  ]
+}

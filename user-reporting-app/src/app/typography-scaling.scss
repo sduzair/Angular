@@ -1,0 +1,46 @@
+@mixin typography-scaling($scale-factor: 1) {
+  & {
+    // Set the scale factor
+    --scale-factor: #{$scale-factor};
+
+    // Body typography scaling
+    --mat-sys-body-large-size: calc(1rem * #{$scale-factor});
+    --mat-sys-body-large-line-height: calc(1.5rem * #{$scale-factor});
+    --mat-sys-body-medium-size: calc(0.875rem * #{$scale-factor});
+    --mat-sys-body-medium-line-height: calc(1.25rem * #{$scale-factor});
+    --mat-sys-body-small-size: calc(0.75rem * #{$scale-factor});
+    --mat-sys-body-small-line-height: calc(1rem * #{$scale-factor});
+
+    // Display typography scaling
+    --mat-sys-display-large-size: calc(3.562rem * #{$scale-factor});
+    --mat-sys-display-large-line-height: calc(4rem * #{$scale-factor});
+    --mat-sys-display-medium-size: calc(2.812rem * #{$scale-factor});
+    --mat-sys-display-medium-line-height: calc(3.25rem * #{$scale-factor});
+    --mat-sys-display-small-size: calc(2.25rem * #{$scale-factor});
+    --mat-sys-display-small-line-height: calc(2.75rem * #{$scale-factor});
+
+    // Headline typography scaling
+    --mat-sys-headline-large-size: calc(2rem * #{$scale-factor});
+    --mat-sys-headline-large-line-height: calc(2.5rem * #{$scale-factor});
+    --mat-sys-headline-medium-size: calc(1.75rem * #{$scale-factor});
+    --mat-sys-headline-medium-line-height: calc(2.25rem * #{$scale-factor});
+    --mat-sys-headline-small-size: calc(1.5rem * #{$scale-factor});
+    --mat-sys-headline-small-line-height: calc(2rem * #{$scale-factor});
+
+    // Label typography scaling
+    --mat-sys-label-large-size: calc(0.875rem * #{$scale-factor});
+    --mat-sys-label-large-line-height: calc(1.25rem * #{$scale-factor});
+    --mat-sys-label-medium-size: calc(0.75rem * #{$scale-factor});
+    --mat-sys-label-medium-line-height: calc(1rem * #{$scale-factor});
+    --mat-sys-label-small-size: calc(0.688rem * #{$scale-factor});
+    --mat-sys-label-small-line-height: calc(1rem * #{$scale-factor});
+
+    // Title typography scaling
+    --mat-sys-title-large-size: calc(1.375rem * #{$scale-factor});
+    --mat-sys-title-large-line-height: calc(1.75rem * #{$scale-factor});
+    --mat-sys-title-medium-size: calc(1rem * #{$scale-factor});
+    --mat-sys-title-medium-line-height: calc(1.5rem * #{$scale-factor});
+    --mat-sys-title-small-size: calc(0.875rem * #{$scale-factor});
+    --mat-sys-title-small-line-height: calc(1.25rem * #{$scale-factor});
+  }
+}

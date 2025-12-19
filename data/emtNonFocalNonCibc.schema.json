@@ -1,0 +1,37 @@
+{
+  "id": 701735,
+  "num_rows": 5,
+  "file_format": "json",
+  "name": "emtNonFocalNonCibc",
+  "array": true,
+  "columns": [
+    {
+      "name": "fiu",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "003",
+        "004",
+        "001",
+        "002"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "fiuName",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "RBC",
+        "TD",
+        "BMO",
+        "BNS"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 using System.Security.Cryptography.X509Certificates;
+using System.Text.Json;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -77,31 +78,65 @@ if (app.Environment.IsProduction())
     app.UseStaticFiles();
 }
 
-app.MapGet("/api/strTxns", async (IMongoDatabase db, int? limit) =>
+app.MapGet("/api/transactionsearch", async (IMongoDatabase db, HttpResponse response, CancellationToken cancellationToken) =>
 {
-    var collection = db.GetCollection<StrTxnRecord>("strTxns");
-    var sortDefinition = Builders<StrTxnRecord>.Sort.Ascending("dateOfTxn");
-    var findFluent = collection.Find(FilterDefinition<StrTxnRecord>.Empty).Sort(sortDefinition);
-    if (limit.HasValue && limit.Value > 0)
+    response.ContentType = "application/json; charset=utf-8";
+    await using var writer = new StreamWriter(response.Body);
+
+    await writer.WriteAsync("[");
+    bool isFirstSource = true;
+
+    var sources = new (string sourceId, IAsyncCursor<IHasBsonElements> cursor)[]
     {
-        findFluent = findFluent.Limit(limit.Value);
-    }
-    var documents = await findFluent.ToListAsync();
+        ("FlowOfFunds", await db.GetCollection<SourceFlowOfFunds>("srcFlowOfFunds").Find(FilterDefinition<SourceFlowOfFunds>.Empty).Limit(10).ToCursorAsync(cancellationToken)),
+        ("ABM", await db.GetCollection<SourceABM>("srcABM").Find(FilterDefinition<SourceABM>.Empty).Limit(10).ToCursorAsync(cancellationToken)),
+        ("EMT", await db.GetCollection<SourceEMT>("srcEMT").Find(FilterDefinition<SourceEMT>.Empty).Limit(10).ToCursorAsync(cancellationToken)),
+        ("OLB", await db.GetCollection<SourceOLB>("srcOLB").Find(FilterDefinition<SourceOLB>.Empty).Limit(10).ToCursorAsync(cancellationToken)),
+    };
 
-    var result = documents.Select(document =>
+    foreach (var (sourceId, cursor) in sources)
+    {
+        if (!isFirstSource) await writer.WriteAsync(",");
+        else isFirstSource = false;
+
+        string status = "completed";
+        List<Dictionary<string, object>> docs = new();
+
+        try
         {
-            // Convert ExtraElements to a dictionary
-            var dict = document.ExtraElements.ToDictionary(
-                elem => elem.Name,
-                elem => BsonTypeMapper.MapToDotNetValue(elem.Value));
+            while (await cursor.MoveNextAsync(cancellationToken))
+            {
+                docs.AddRange(cursor.Current.Select(doc =>
+                {
+                    var dict = doc.ExtraElements.ToDictionary(
+                        elem => elem.Name,
+                        elem => BsonTypeMapper.MapToDotNetValue(elem.Value));
+                    dict["_mongoid"] = doc.Id.ToString();
+                    return dict;
+                }));
+            }
+        }
+        catch (Exception)
+        {
+            status = "failed";
+            docs.Clear();
+        }
 
-            // Add the Id as a string (for JSON serialization)
-            dict["_mongoid"] = document.Id.ToString();
+        var sourceObject = new
+        {
+            sourceId,
+            status,
+            sourceData = docs
+        };
+        var json = JsonSerializer.Serialize(sourceObject);
+        await writer.WriteAsync(json);
+        await writer.FlushAsync();
 
-            return dict;
-        }).ToList();
-
-    return Results.Ok(result);
+        // Random delay between 500ms and 1500ms
+        int delayMs = new Random().Next(500, 1501);
+        await Task.Delay(delayMs, cancellationToken);
+    }
+    await writer.WriteAsync("]");
 });
 
 app.MapGet("/api/sessions/{sessionId}", static async (IMongoDatabase db, string sessionId) =>

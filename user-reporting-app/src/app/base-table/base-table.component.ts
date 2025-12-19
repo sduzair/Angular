@@ -1,0 +1,566 @@
+import { CommonModule, DatePipe } from '@angular/common';
+import {
+  AfterContentInit,
+  ChangeDetectionStrategy,
+  Component,
+  ContentChildren,
+  Input,
+  OnInit,
+  QueryList,
+  TrackByFunction,
+} from '@angular/core';
+import { FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { MatAutocomplete } from '@angular/material/autocomplete';
+import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatChipsModule } from '@angular/material/chips';
+import {
+  MatDatepicker,
+  MatDatepickerInput,
+  MatDatepickerToggle,
+} from '@angular/material/datepicker';
+import { MatDivider } from '@angular/material/divider';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
+import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatSortModule } from '@angular/material/sort';
+import {
+  MatColumnDef,
+  MatTableDataSource,
+  MatTableModule,
+} from '@angular/material/table';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { TxnTimePipe } from '../reporting-ui/reporting-ui-table/pad-zero.pipe';
+import { ScrollPositionPreserveDirective } from '../route-cache/scroll-position-preserve.directive';
+import { ReviewPeriodDateDirective } from '../transaction-search/review-period-date.directive';
+import { PersistentAutocompleteTrigger } from '../transaction-view/persistent-autocomplete-trigger.directive';
+import {
+  AbstractBaseTable,
+  IFilterForm,
+  ISelectionMasterToggle,
+} from './abstract-base-table';
+import { ClickOutsideTableDirective } from './click-outside-table.directive';
+
+@Component({
+  selector: 'app-base-table',
+  imports: [
+    CommonModule,
+    MatTableModule,
+    MatPaginatorModule,
+    MatSortModule,
+    DatePipe,
+    MatFormFieldModule,
+    MatIconModule,
+    ReactiveFormsModule,
+    MatInputModule,
+    MatDatepicker,
+    MatDatepickerInput,
+    MatDatepickerToggle,
+    ReviewPeriodDateDirective,
+    MatCheckboxModule,
+    MatSidenavModule,
+    MatToolbarModule,
+    MatButtonModule,
+    MatInputModule,
+    TxnTimePipe,
+    MatChipsModule,
+    MatProgressSpinnerModule,
+    MatSelectModule,
+    MatDivider,
+    MatChipsModule,
+    MatAutocomplete,
+    PersistentAutocompleteTrigger,
+    MatButtonToggleModule,
+    ClickOutsideTableDirective,
+    ScrollPositionPreserveDirective,
+  ],
+  template: `
+    @if (showToolbar) {
+      <mat-toolbar class="col">
+        <mat-toolbar-row class="px-0 header-toolbar-row">
+          <!-- Active Filter Chips -->
+          <mat-chip-set aria-label="Active filters" class="filter-chips">
+            @for (filter of filterFormActiveFilters$ | async; track filter) {
+              <mat-chip
+                removable="true"
+                highlighted="true"
+                disableRipple="true"
+                (removed)="filterFormRemoveFilter(filter.sanitizedKey)">
+                {{ filter.header }}:
+                @if (
+                  filterFormHighlightSelectFilterKey === filter.sanitizedKey
+                ) {
+                  <span
+                    class="color-box-in-chip"
+                    [ngStyle]="{ 'background-color': filter.value }"></span>
+                } @else {
+                  {{ filter.value }}
+                }
+                <button type="button" matChipRemove>
+                  <mat-icon>cancel</mat-icon>
+                </button>
+              </mat-chip>
+            }
+          </mat-chip-set>
+          <ng-content select="table-toolbar-ele"></ng-content>
+          <mat-chip-set class="color-pallette">
+            @for (
+              option of Object.entries(filterFormHighlightMap);
+              track option[0]
+            ) {
+              <mat-chip
+                [style.backgroundColor]="option[0]"
+                (click)="filterFormHighlightSelectedColor = option[0]"
+                [highlighted]="filterFormHighlightSelectedColor === option[0]">
+                <span class="invisible-text">1</span>
+              </mat-chip>
+            }
+            <mat-chip
+              (click)="filterFormHighlightSelectedColor = null"
+              [highlighted]="filterFormHighlightSelectedColor === null">
+              <mat-icon>cancel</mat-icon>
+            </mat-chip>
+          </mat-chip-set>
+          <button
+            type="button"
+            class="filter-btn"
+            mat-raised-button
+            (click)="drawer.toggle()">
+            <mat-icon>filter_list</mat-icon>
+            Filter
+          </button>
+        </mat-toolbar-row>
+      </mat-toolbar>
+    }
+    <mat-drawer-container
+      class="overflow-visible"
+      hasBackdrop="false"
+      appScrollPositionPreserve>
+      <mat-drawer class="form-drawer" position="end" #drawer>
+        <form
+          [formGroup]="filterFormFormGroup"
+          class="h-100 d-flex flex-column container px-0">
+          <mat-toolbar class="flex-shrink-0 row row-cols-1 filter-form-toolbar">
+            <mat-toolbar-row class="col">
+              <button
+                mat-stroked-button
+                color="primary"
+                type="submit"
+                (click)="filterFormApplyFilters()">
+                Apply
+              </button>
+              <button
+                mat-stroked-button
+                type="button"
+                (click)="filterFormResetFilters()"
+                [disabled]="filterFormIsResetBtnDisabled$ | async">
+                Reset
+              </button>
+              <mat-button-toggle-group
+                [formControl]="filterFormConjunctionControl">
+                <mat-button-toggle value="AND">AND</mat-button-toggle>
+                <mat-button-toggle value="OR">OR</mat-button-toggle>
+              </mat-button-toggle-group>
+              <div class="flex-fill"></div>
+              <button type="button" mat-icon-button (click)="drawer.toggle()">
+                <mat-icon>close</mat-icon>
+              </button>
+            </mat-toolbar-row>
+          </mat-toolbar>
+          <mat-divider></mat-divider>
+          <div
+            class="flex-grow-1 overflow-auto row row-cols-1 mx-0 pt-3 scroll-position-preserve">
+            @for (filterKey of filterFormFilterKeys; track filterKey) {
+              <!-- Full Text Filter -->
+              @if (this.filterFormFullTextFilterKey === filterKey) {
+                <mat-form-field class="col">
+                  <mat-label>Filter Full Text</mat-label>
+                  <input
+                    type="text"
+                    matInput
+                    [formControlName]="
+                      this.filterFormFilterFormKeySanitize(filterKey)
+                    " />
+                  <button
+                    type="button"
+                    matSuffix
+                    mat-icon-button
+                    (click)="
+                      this.filterFormGetFormControl(filterKey).reset(null)
+                    ">
+                    <mat-icon>clear</mat-icon>
+                  </button>
+                </mat-form-field>
+              }
+              <!-- Text Filter -->
+              @if (filterFormIsTextFilterKey(filterKey)) {
+                <mat-form-field class="col">
+                  <mat-label
+                    >Filter
+                    {{ this.displayedColumnsTransform(filterKey) }}</mat-label
+                  >
+                  <input
+                    type="text"
+                    matInput
+                    [formControlName]="
+                      this.filterFormFilterFormKeySanitize(filterKey)
+                    " />
+                  <button
+                    type="button"
+                    matSuffix
+                    mat-icon-button
+                    (click)="
+                      this.filterFormGetFormControl(filterKey).reset(null)
+                    ">
+                    <mat-icon>clear</mat-icon>
+                  </button>
+                </mat-form-field>
+              }
+              <!-- Date Filter  -->
+              @if (this.dateFiltersIsDateFilterKey(filterKey)) {
+                <mat-form-field class="col">
+                  <mat-label>{{
+                    this.displayedColumnsTransform(filterKey)
+                  }}</mat-label>
+                  <input
+                    matInput
+                    [formControlName]="
+                      this.filterFormFilterFormKeySanitize(filterKey)
+                    "
+                    [matDatepicker]="picker"
+                    appReviewPeriodDate />
+                  <mat-datepicker-toggle
+                    matSuffix
+                    [for]="picker"></mat-datepicker-toggle>
+                  <mat-datepicker #picker></mat-datepicker>
+                  <button
+                    type="button"
+                    matSuffix
+                    mat-icon-button
+                    (click)="
+                      this.filterFormGetFormControl(filterKey).reset(null)
+                    ">
+                    <mat-icon>clear</mat-icon>
+                  </button>
+                </mat-form-field>
+              }
+              <!-- Column Filter  -->
+              @if (this.selectFiltersIsSelectFilterKey(filterKey)) {
+                <mat-form-field class="col">
+                  <mat-label>{{
+                    this.displayedColumnsTransform(filterKey)
+                  }}</mat-label>
+                  <mat-chip-grid #chipGrid>
+                    @for (
+                      option of this.selectFiltersOptionsSelected[filterKey]
+                        | async;
+                      track option
+                    ) {
+                      <mat-chip-row
+                        (removed)="
+                          selectFiltersChipRemove(filterKey, option, chipGrid)
+                        ">
+                        {{ option }}
+                        <mat-icon matChipRemove>cancel</mat-icon>
+                      </mat-chip-row>
+                    }
+                    <input
+                      type="text"
+                      matInput
+                      [matAutocomplete]="auto"
+                      persistentAutocomplete
+                      #autoTrigger="persistentAutocompleteTrigger"
+                      [formControl]="this.selectFiltersInputControl[filterKey]!"
+                      [matChipInputFor]="chipGrid"
+                      [matChipInputSeparatorKeyCodes]="
+                        selectFiltersSeparatorKeysCodes
+                      "
+                      (matChipInputTokenEnd)="
+                        selectFiltersAddFromInput($event, filterKey)
+                      "
+                      (keydown.esc)="
+                        $event.stopPropagation(); autoTrigger.closePanel()
+                      " />
+                  </mat-chip-grid>
+                  <mat-autocomplete
+                    #auto="matAutocomplete"
+                    (opened)="selectFiltersOnFilterDropdownOpened(filterKey)">
+                    <mat-option [value]="null" disabled class="select-option">
+                      <mat-checkbox
+                        [checked]="selectFiltersIsAllSelected(filterKey)"
+                        [indeterminate]="
+                          selectFiltersIsIndeterminate(filterKey)
+                        "
+                        (change)="selectFiltersToggleSelectAll(filterKey)">
+                        {{
+                          this.selectFiltersIsAllSelected(filterKey)
+                            ? 'Unselect All'
+                            : ''
+                        }}
+                        {{
+                          !this.selectFiltersIsAllSelected(filterKey) &&
+                          !this.selectFiltersIsIndeterminate(filterKey)
+                            ? 'Select All'
+                            : ''
+                        }}
+                      </mat-checkbox>
+                    </mat-option>
+                    @for (
+                      option of selectFiltersOptionsSelectionsFiltered$[
+                        filterKey
+                      ] | async;
+                      track option.value
+                    ) {
+                      <mat-option
+                        disabled
+                        [value]="option.value"
+                        class="select-option">
+                        <mat-checkbox
+                          [checked]="
+                            selectFiltersOptionsSelectionModel[
+                              filterKey
+                            ]!.isSelected(option.value)
+                          "
+                          (change)="
+                            selectFiltersOptionsSelectionModel[
+                              filterKey
+                            ]!.toggle(option.value)
+                          ">
+                          {{ option.value }}
+                        </mat-checkbox>
+                      </mat-option>
+                    }
+                  </mat-autocomplete>
+                  <button
+                    type="button"
+                    matSuffix
+                    mat-icon-button
+                    (click)="
+                      $event.stopPropagation();
+                      this.filterFormGetFormControl(filterKey).reset(null);
+                      this.selectFiltersResetSupplementaryControls(filterKey)
+                    ">
+                    <mat-icon>clear</mat-icon>
+                  </button>
+                </mat-form-field>
+              }
+              @if (filterKey === this.filterFormHighlightSelectFilterKey) {
+                <div class="col mb-3">
+                  <mat-button-toggle-group
+                    class="px-0 w-100 justify-content-center"
+                    [formControlName]="this.filterFormHighlightSelectFilterKey">
+                    @for (
+                      option of Object.entries(filterFormHighlightMap);
+                      track option[0]
+                    ) {
+                      <mat-button-toggle
+                        class="highlight-radio"
+                        [value]="option[0]">
+                        <span
+                          class="color-box"
+                          [ngStyle]="{ 'background-color': option[0] }"></span>
+                      </mat-button-toggle>
+                    }
+                    <mat-button-toggle class="highlight-radio" [value]="null">
+                      <mat-icon class="highlight-radio-cancel">cancel</mat-icon>
+                    </mat-button-toggle>
+                  </mat-button-toggle-group>
+                </div>
+              }
+            }
+          </div>
+        </form>
+      </mat-drawer>
+
+      <mat-drawer-content>
+        <div
+          class="col px-0 overflow-auto scroll-position-preserve base-table-container"
+          (appClickOutsideTable)="filterFormHighlightSelectedColor = undefined">
+          <table
+            mat-table
+            [dataSource]="dataSource"
+            [trackBy]="dataSourceTrackBy"
+            matSort>
+            <!-- Projected Column Definitions  -->
+            <ng-content />
+
+            <!-- Column Definitions  -->
+            @for (column of dataColumnsDisplayValues; track column) {
+              <ng-container [matColumnDef]="column">
+                <th
+                  mat-header-cell
+                  *matHeaderCellDef
+                  [mat-sort-header]="column"
+                  [class.sticky-cell]="isStickyColumn(column)"
+                  class="px-2">
+                  <div>
+                    {{ this.displayedColumnsTransform(column) }}
+                  </div>
+                </th>
+                <td
+                  mat-cell
+                  *matCellDef="let row"
+                  [class.sticky-cell]="isStickyColumn(column)"
+                  class="px-2">
+                  <div>
+                    @if (this.displayedColumnsTime.includes(column)) {
+                      {{
+                        this.dataColumnsGetUnsafeValueByPath(row, column)
+                          | appTxnTime
+                      }}
+                    }
+                    @if (this.dateFiltersValues.includes(column)) {
+                      {{
+                        this.dataColumnsGetUnsafeValueByPath(row, column)
+                          | date: 'MM/dd/yyyy'
+                      }}
+                    }
+                    @if (
+                      !this.dateFiltersValues.includes(column) &&
+                      !this.displayedColumnsTime.includes(column)
+                    ) {
+                      {{ this.dataColumnsGetUnsafeValueByPath(row, column) }}
+                    }
+                  </div>
+                </td>
+              </ng-container>
+            }
+
+            <tr
+              mat-header-row
+              *matHeaderRowDef="this.displayedColumns; sticky: true"></tr>
+            @if (recentlyOpenRows$ | async; as recentlyOpenRows) {
+              <tr
+                mat-row
+                *matRowDef="
+                  let row;
+                  columns: this.displayedColumns;
+                  let i = index
+                "
+                [class.recentlyOpenRowHighlight]="
+                  isRecentlyOpened(row, recentlyOpenRows)
+                "
+                [class.no-select]="
+                  filterFormHighlightSelectedColor !== undefined
+                "
+                (click)="filterFormAssignSelectedColorToRow($event, row, i)"
+                [style.cursor]="
+                  filterFormHighlightSelectedColor !== undefined
+                    ? 'pointer'
+                    : 'default'
+                "></tr>
+            }
+          </table>
+        </div>
+      </mat-drawer-content>
+    </mat-drawer-container>
+
+    <mat-paginator
+      [pageSizeOptions]="pageSizeOptions"
+      [pageSize]="pageSize"
+      showFirstLastButtons
+      aria-label="Select page of periodic elements"
+      class="col-auto ms-auto table-paginator">
+    </mat-paginator>
+  `,
+  styleUrl: './base-table.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class BaseTableComponent<
+  TData extends object,
+  TDataColumn extends (keyof TData & string) | (string & {}),
+  TDisplayColumn extends TDataColumn,
+  TFilterKeys extends keyof TData & string,
+  THighlightKey extends (keyof TData & string) | TFilterKeys,
+  TSelection = { [K in keyof TData]: string },
+>
+  extends AbstractBaseTable<
+    TData,
+    TDataColumn,
+    TDisplayColumn,
+    TFilterKeys,
+    THighlightKey,
+    TSelection
+  >
+  implements OnInit, ISelectionMasterToggle, AfterContentInit
+{
+  @Input({ required: true })
+  override dataColumnsValues!: TDataColumn[];
+
+  @Input({ required: true })
+  override dataColumnsIgnoreValues!: TDataColumn[];
+
+  @Input()
+  override dataColumnsProjected: TDataColumn[] = [];
+
+  /**
+   * Accepts columns that are not data columns. Includes display columns for select, actions.
+   */
+  @Input({ required: true })
+  override displayedColumns!: TDisplayColumn[];
+
+  @Input({ required: true })
+  override displayColumnHeaderMap: Partial<
+    Record<TDataColumn | IFilterForm['filterFormFullTextFilterKey'], string>
+  > = {};
+
+  @Input({ required: true })
+  override stickyColumns!: TDisplayColumn[];
+
+  @Input({ required: true })
+  override selectFiltersValues!: TDataColumn[];
+
+  @Input({ required: true })
+  override dateFiltersValues!: TDataColumn[];
+
+  @Input({ required: true })
+  override dateFiltersValuesIgnore!: TDataColumn[];
+
+  @Input({ required: true })
+  override displayedColumnsTime!: TDataColumn[];
+
+  override filterFormFormGroup!: FormGroup;
+
+  override filterFormFilterKeys!: TFilterKeys[];
+
+  override dataSource!: MatTableDataSource<TData, MatPaginator>;
+
+  @Input({ required: true })
+  override dataSourceTrackBy!: TrackByFunction<TData>;
+
+  @Input()
+  override filterFormHighlightSelectFilterKey = '' as THighlightKey;
+
+  @ContentChildren(MatColumnDef) columnDefs!: QueryList<MatColumnDef>;
+
+  @Input()
+  showToolbar = true;
+
+  ngAfterContentInit(): void {
+    this.columnDefs.forEach((colDef) => this.table.addColumnDef(colDef));
+  }
+
+  ngOnInit(): void {
+    this.dataSource = new MatTableDataSource(this.data);
+    this.dataSource.sortingDataAccessor = this.sortingAccessor;
+    this.dataColumnsDisplayValues = this.dataColumnsValues.filter(
+      (val) =>
+        !this.dataColumnsIgnoreValues.includes(val) &&
+        !this.dataColumnsProjected.includes(val),
+    );
+    this.displayedColumns.push(
+      ...(this.dataColumnsProjected as TDisplayColumn[]),
+      ...(this.dataColumnsDisplayValues as TDisplayColumn[]),
+    );
+    this.filterFormFilterKeys = this.filterFormFilterKeysCreate();
+    this.filterFormFormGroup = this.filterFormGroupCreate();
+    this.updatePageSizeOptions(this.dataSource.data.length);
+    this.selectFiltersInitialize(this.dataSource.data);
+    this.dataSource.filterPredicate = this.filterFormFilterPredicateCreate();
+  }
+}

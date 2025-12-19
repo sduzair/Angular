@@ -9,6 +9,7 @@
     - [Environment Variables Dev (`.env`)](#environment-variables-dev-env)
     - [API (Backend) and MongoDB Containers](#api-backend-and-mongodb-containers)
     - [App (Frontend)](#app-frontend)
+    - [Mongodb Setup Routines](#mongodb-setup-routines)
   - [Production Setup](#production-setup)
     - [Provisioning MongoDB Atlas Database (`strTxnDB`)](#provisioning-mongodb-atlas-database-strtxndb)
       - [Prerequisites](#prerequisites)
@@ -55,6 +56,20 @@ This container automatically runs the initialization script to load mock data.
     ```
 
 The angular dev server is configured to proxy requests to the api
+
+### Mongodb Setup Routines
+
+- Connect to db
+
+    ```bash
+    mongosh "mongodb://root:examplepassword@localhost:27018/strTxnDB?authSource=admin"
+    ```
+
+- Reset test session
+
+    ```bash
+    db.sessions.updateOne({ UserId: 'test-user' }, { $set: { Version: 0, data: {} } })
+    ```
 
 ## Production Setup
 

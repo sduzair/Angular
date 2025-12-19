@@ -1,0 +1,39 @@
+::ng-deep .mat-mdc-dialog-container {
+  --mat-dialog-container-shape: 16px;
+}
+
+mat-dialog-content {
+  min-width: 500px;
+  padding: 24px !important;
+}
+
+.role-card {
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--mat-sys-level2);
+  }
+
+  .role-icon {
+    font-size: 64px;
+    width: 64px;
+    height: 64px;
+    margin-inline: auto;
+    color: #1976d2;
+  }
+
+  .role-username {
+    color: #1976d2;
+  }
+
+  h3 {
+    font-size: 20px;
+  }
+}
+
+.admin-card .role-icon,
+.admin-card .role-username {
+  color: #7b1fa2;
+}

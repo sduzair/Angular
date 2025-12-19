@@ -1,10 +1,8 @@
 # Dockerfile
 FROM mongo:8.0.9
 
-# Copy the users data file and initialization script into the container
-COPY data/MOCK_DATA_cashDepositComplete.json /docker-entrypoint-initdb.d/
-COPY data/MOCK_DATA_cashWithdrawalComplete.json /docker-entrypoint-initdb.d/
-COPY data/init.sh /docker-entrypoint-initdb.d/
+# Copy source data and initialization script into container
+COPY data/ /docker-entrypoint-initdb.d/
 
 # Ensure the initialization script is executable
 RUN chmod +x /docker-entrypoint-initdb.d/init.sh

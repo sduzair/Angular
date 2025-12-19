@@ -1,0 +1,160 @@
+{
+  "id": 699077,
+  "num_rows": 20,
+  "file_format": "json",
+  "name": "conductorWithSubjectNotFocal",
+  "array": true,
+  "columns": [
+    {
+      "name": "partyKey",
+      "null_percentage": 0,
+      "type": "Digit Sequence",
+      "format": "##########",
+      "formula": "this.to_s"
+    },
+    {
+      "name": "nameOfEntity",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "surname",
+      "null_percentage": 0,
+      "type": "Last Name",
+      "formula": "if nameOfEntity then ''\nelse this end"
+    },
+    {
+      "name": "givenName",
+      "null_percentage": 0,
+      "type": "First Name",
+      "formula": "if nameOfEntity then ''\nelse this end"
+    },
+    {
+      "name": "otherOrInitial",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "wasConductedOnBehalf",
+      "null_percentage": 0,
+      "type": "Boolean",
+      "formula": "false"
+    },
+    {
+      "name": "onBehalfOf[0]",
+      "null_percentage": 99,
+      "type": "JSON Array",
+      "minItems": 0,
+      "maxItems": 10,
+      "formula": null
+    },
+    {
+      "name": "accountOpen",
+      "null_percentage": 0,
+      "type": "Datetime",
+      "min": "01/01/2000",
+      "max": "06/26/2024",
+      "format": "%-m/%-d/%Y",
+      "formula": null
+    },
+    {
+      "name": "accountClose",
+      "null_percentage": 99,
+      "type": "Datetime",
+      "min": "01/01/2025",
+      "max": "06/26/2025",
+      "format": "%-m/%-d/%Y",
+      "formula": null
+    },
+    {
+      "name": "accountNo",
+      "null_percentage": 0,
+      "type": "Digit Sequence",
+      "format": "#######",
+      "formula": "epoch(accountOpen).to_s()[0,7]"
+    },
+    {
+      "name": "accountBranch",
+      "null_percentage": 0,
+      "type": "Digit Sequence",
+      "format": "",
+      "formula": "accountNo.reverse[0,5]"
+    },
+    {
+      "name": "accountType",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": "if nameOfEntity then 'Business'\nelse 'Personal' end"
+    },
+    {
+      "name": "accountCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "CAD"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "accountStatus",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Active"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "certapayAccount",
+      "null_percentage": 0,
+      "type": "Character Sequence",
+      "format": "^^^^^^^^^^^^^^^^^^^",
+      "formula": null
+    },
+    {
+      "name": "mobile",
+      "null_percentage": 0,
+      "type": "Character Sequence",
+      "format": "###-###-####",
+      "formula": null
+    },
+    {
+      "name": "contactName",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": "lower(givenName)"
+    },
+    {
+      "name": "contactEmail",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": "email = concat(\n  lower(surname),                 # surname (first part before space)\n  lower(givenName),                # given name (second part after space)\n  hex(surname)[0,3],              # first 3 chars of surname's hex\n  \"@dummy.com\"\n)\n\nemail"
+    }
+  ]
+}

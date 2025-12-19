@@ -1,0 +1,28 @@
+@use '@angular/material' as mat;
+
+:host {
+  @include mat.expansion-overrides(
+    (
+      header-collapsed-state-height: 72px,
+      header-expanded-state-height: 72px,
+    )
+  );
+  @media (max-width: 1200px) {
+    @include mat.expansion-overrides(
+      (
+        header-collapsed-state-height: 132px,
+        header-expanded-state-height: 132px,
+      )
+    );
+  }
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+.value {
+  font-size: 16px;
+}
