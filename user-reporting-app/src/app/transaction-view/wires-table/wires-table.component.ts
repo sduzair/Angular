@@ -33,7 +33,9 @@ import { TableSelectionType } from '../transaction-view.component';
       [selection]="selection"
       [selectionKey]="'flowOfFundsAmlTransactionId'"
       [hasMasterToggle]="false"
-      [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'">
+      [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'"
+      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
+      [sortedBy]="'transactionDate'">
       <!-- Selection Model -->
       <ng-container matColumnDef="select">
         <th
@@ -119,7 +121,7 @@ export class WiresTableComponent<
     'flowOfFundsAmlTransactionId',
   ];
 
-  dataColumnsIgnoreValues = [
+  dataColumnsIgnoreValues: (keyof WireSourceData)[] = [
     'transactionld',
     'crdrCode',
     'creditorld',
@@ -172,11 +174,18 @@ export class WiresTableComponent<
     '_hiddenSenderOrderingInsName',
     '_hiddenSenderOrderingInsStreet',
     '_hiddenSenderOrderingInsCity',
-  ] satisfies (keyof WireSourceData)[];
+  ];
 
   displayedColumns = ['select' as const];
 
-  displayColumnHeaderMap = {
+  displayColumnHeaderMap: Partial<
+    Record<
+      | Extract<keyof WireSourceData, string>
+      | IFilterForm['filterFormFullTextFilterKey']
+      | (string & {}),
+      string
+    >
+  > = {
     account: 'Account',
     accountCurrencyAmount: 'Acct Amt',
     accountCurrencyCd: 'Acct Ccy',
@@ -302,6 +311,10 @@ export class WiresTableComponent<
   dataSourceTrackBy: TrackByFunction<WireSourceData> = (_, record) => {
     return record.flowOfFundsAmlTransactionId;
   };
+
+  sortingAccessorDateTimeTuples: (keyof WireSourceData)[][] = [
+    ['transactionDate', 'transactionTime'],
+  ];
 
   @Input({ required: true })
   selection!: SelectionModel<TSelection>;

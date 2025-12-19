@@ -33,7 +33,9 @@ import { TableSelectionType } from '../transaction-view.component';
       [selection]="selection"
       [selectionKey]="'flowOfFundsAmlTransactionId'"
       [hasMasterToggle]="false"
-      [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'">
+      [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'"
+      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
+      [sortedBy]="'transactionDate'">
       <!-- Selection Model -->
       <ng-container matColumnDef="select">
         <th
@@ -459,6 +461,9 @@ export class AbmTableComponent<
   dateFiltersValuesIgnore: (keyof AbmSourceData)[] = ['transactionTime'];
   displayedColumnsTime: (keyof AbmSourceData)[] = ['transactionTime'];
 
+  sortingAccessorDateTimeTuples: (keyof AbmSourceData)[][] = [
+    ['transactionDate', 'transactionTime'],
+  ];
   dataSourceTrackBy: TrackByFunction<AbmSourceData> = (_, record) => {
     return record.flowOfFundsAmlTransactionId;
   };

@@ -1,14 +1,16 @@
-import { Directive, inject } from '@angular/core';
+import { Directive, ErrorHandler, inject } from '@angular/core';
 import { ControlValueAccessor, NgControl } from '@angular/forms';
 import { MatDatepickerInput } from '@angular/material/datepicker';
-import { format, isValid, parse } from 'date-fns/fp';
+import { format, isValid, parse } from 'date-fns';
 
-export const TRANSACTION_DATE_FORMAT = 'yyyy/MM/dd';
+const TRANSACTION_DATE_INPUT_FORMATS = ['yyyy/MM/dd', 'MM/dd/yyyy'] as const;
+const TRANSACTION_DATE_OUTPUT_FORMAT = 'yyyy/MM/dd';
 
 @Directive({
   selector: '[appTransactionDate]',
 })
 export class TransactionDateDirective implements ControlValueAccessor {
+  private errorHandler = inject(ErrorHandler);
   ngControl = inject(NgControl);
   private datepickerInput =
     inject<MatDatepickerInput<Date>>(MatDatepickerInput);
@@ -33,12 +35,14 @@ export class TransactionDateDirective implements ControlValueAccessor {
       throw new Error('Expected string type');
     }
 
-    const parsedDate = TransactionDateDirective.parse(value);
-    if (!isValid(parsedDate)) {
-      throw new Error('Parsing error');
+    let parsedDate: Date | undefined;
+    try {
+      parsedDate = TransactionDateDirective.parse(value);
+    } catch (error) {
+      this.errorHandler.handleError(error);
     }
 
-    this.datepickerInput.value = parsedDate;
+    this.datepickerInput.value = parsedDate ?? null;
   }
 
   registerOnChange(fn: (_: unknown) => void): void {
@@ -56,6 +60,23 @@ export class TransactionDateDirective implements ControlValueAccessor {
     this.datepickerInput.disabled = isDisabled;
   }
 
-  static parse = parse(new Date(), TRANSACTION_DATE_FORMAT);
-  static format = format(TRANSACTION_DATE_FORMAT);
+  static parse(dateStr: string) {
+    for (const format of TRANSACTION_DATE_INPUT_FORMATS) {
+      const parsedDate = parse(dateStr, format, new Date());
+      if (!isValid(parsedDate)) continue;
+      return parsedDate;
+    }
+    throw new ParsingError('Transaction date', dateStr);
+  }
+  static format(date: Date) {
+    return format(date, TRANSACTION_DATE_OUTPUT_FORMAT);
+  }
+}
+
+class ParsingError extends Error {
+  constructor(message: string, val: string, name = 'Parsing Error') {
+    super(`[${name}]: ${message}`);
+    this.name = name;
+    Object.setPrototypeOf(this, ParsingError.prototype);
+  }
 }

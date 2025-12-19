@@ -17,7 +17,7 @@ import {
   ValidatorFn,
 } from '@angular/forms';
 import { startWith } from 'rxjs';
-import { SPECIAL_EMPTY_VALUE } from './mark-as-cleared.directive';
+import { MARKED_AS_CLEARED } from './mark-as-cleared.directive';
 
 @Directive({
   selector: '[appControlToggle]',
@@ -32,9 +32,8 @@ export class ControlToggleDirective implements OnInit {
   @Input({ required: false }) appControlToggleValue?: unknown;
   @Output() readonly addControlGroup = new EventEmitter();
 
-  // todo: verify if readonly only in bulk edit
   @HostBinding('attr.readonly') get isReadonly(): boolean | null {
-    return this.depPropControl.value === SPECIAL_EMPTY_VALUE ? true : null;
+    return this.depPropControl.value === MARKED_AS_CLEARED ? true : null;
   }
 
   get controlToWatch() {
@@ -79,10 +78,9 @@ export class ControlToggleDirective implements OnInit {
           this.depPropControl.reset();
 
           // clear dependent control
-          this.depPropControl.setValue(SPECIAL_EMPTY_VALUE, {
+          this.depPropControl.setValue(MARKED_AS_CLEARED, {
             emitEvent: false,
           });
-          this.depPropControl.markAsDirty();
           return;
         }
 

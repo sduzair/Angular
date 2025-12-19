@@ -24,6 +24,7 @@ import {
   transactionSearchResolver,
   TransactionViewComponent,
 } from './transaction-view/transaction-view.component';
+import { CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE } from './aml/case-record.state.fixture';
 
 export const routes: Routes = [
   {
@@ -60,8 +61,8 @@ export const routes: Routes = [
           // { provide: CASE_RECORD_INITIAL_STATE, useValue: DEFAULT_SESSION_STATE },
           {
             provide: CASE_RECORD_INITIAL_STATE,
-            useValue: DEFAULT_CASE_RECORD_STATE,
-            // useValue: SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE,
+            // useValue: DEFAULT_CASE_RECORD_STATE,
+            useValue: CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE,
           },
           CaseRecordStore,
         ],

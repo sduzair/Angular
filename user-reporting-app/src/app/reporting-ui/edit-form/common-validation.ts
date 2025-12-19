@@ -1,22 +1,21 @@
+import { FormGroup } from '@angular/forms';
 import {
+  AccountHolder,
   CompletingAction,
   ConductorNpdData,
   StartingAction,
 } from '../reporting-ui-table/reporting-ui-table.component';
-import { RecursiveOmit } from './edit-form.component';
+import { RecursiveOmit, TypedForm } from './edit-form.component';
+
+export const hasPersonName = (cond: AccountHolder) =>
+  !!cond.givenName && !!cond.surname && (true || !!cond.otherOrInitial);
+
+export const hasEntityName = (cond: AccountHolder) => !!cond.nameOfEntity;
 
 export function hasMissingConductorInfo(
   value: RecursiveOmit<StartingAction, keyof ConductorNpdData>,
 ) {
   if (value.wasCondInfoObtained === false) return false;
-
-  const hasPersonName = (
-    cond: Exclude<typeof value.conductors, undefined>[number],
-  ) => !!cond.givenName && !!cond.surname && !!cond.otherOrInitial;
-
-  const hasEntityName = (
-    cond: Exclude<typeof value.conductors, undefined>[number],
-  ) => !!cond.nameOfEntity;
 
   if (
     value.wasCondInfoObtained === true &&
@@ -29,10 +28,12 @@ export function hasMissingConductorInfo(
   return true;
 }
 
-export function hasMissingCibcInfo(
-  action:
-    | RecursiveOmit<StartingAction, keyof ConductorNpdData>
-    | CompletingAction,
+export function hasMissingAccountInfo(
+  action: FormGroup<
+    TypedForm<
+      RecursiveOmit<StartingAction, keyof ConductorNpdData> | CompletingAction
+    >
+  >['value'],
 ) {
   if (action.fiuNo !== '010') return false;
 

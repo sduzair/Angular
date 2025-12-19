@@ -22,3 +22,8 @@ mat-toolbar-row.header-toolbar-row {
   justify-content: space-between;
   @include mat.button-density(5);
 }
+
+::ng-deep .tab-group div.base-table-container {
+  min-height: 70dvh;
+  height: 70dvh;
+}

@@ -30,7 +30,7 @@ export const FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE = {
     Cash: 'Cash',
     Cheque: 'Cheque',
     'Domestic Funds Transfer': 'Domestic Funds Transfer',
-    'Email Money Transfer': 'Email Money Transfer',
+    'Email money transfer': 'Email money transfer',
     'International Funds Transfer': 'International Funds Transfer',
     Other: 'Other',
   },
@@ -43,6 +43,7 @@ export const FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE = {
   amountCurrency: {
     CAD: 'CAD',
     USD: 'USD',
+    INR: 'INR',
   },
   accountCurrency: {
     CAD: 'CAD',

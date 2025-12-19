@@ -6,7 +6,7 @@ mat-toolbar-row.header-toolbar-row {
   @include mat.button-density(5);
 }
 
-mat-drawer-content > div {
+.base-table-container {
   min-height: 80dvh;
   height: 80dvh;
 }
@@ -89,6 +89,10 @@ mat-drawer-container {
 /* Filter chips styling */
 .filter-chips {
   @include mat.chips-density(0);
+}
+
+.filter-chips mat-chip {
+  max-width: unset;
 }
 
 mat-chip-set.mat-mdc-chip-set.mdc-evolution-chip-set.filter-chips {
@@ -190,6 +194,7 @@ mat-button-toggle.highlight-radio {
 }
 
 .color-pallette {
+  flex: 0 0 auto;
   @include mat.chips-overrides(
     (
       container-shape-radius: 50%,
@@ -228,6 +233,14 @@ mat-button-toggle.highlight-radio {
     user-select: none;
     pointer-events: none;
   }
+
+  ::ng-deep .mdc-evolution-chip-set__chips {
+    flex-flow: row;
+  }
+}
+
+.filter-btn {
+  flex: 0 0 auto;
 }
 
 .no-select {

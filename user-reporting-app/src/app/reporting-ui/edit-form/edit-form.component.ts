@@ -13,6 +13,7 @@ import {
   FormArray,
   FormControl,
   FormGroup,
+  isFormGroup,
   ReactiveFormsModule,
   ValidationErrors,
   ValidatorFn,
@@ -31,7 +32,6 @@ import { MatFormField } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import {
@@ -52,7 +52,6 @@ import {
   shareReplay,
   startWith,
   switchMap,
-  take,
   tap,
 } from 'rxjs/operators';
 import {
@@ -76,9 +75,12 @@ import {
   StrTxnFlowOfFunds,
   WithVersion,
 } from '../reporting-ui-table/reporting-ui-table.component';
+import { ClearFieldDirective } from './clear-field.directive';
 import {
-  hasMissingCibcInfo,
+  hasEntityName,
+  hasMissingAccountInfo,
   hasMissingConductorInfo,
+  hasPersonName,
 } from './common-validation';
 import { ControlToggleDirective } from './control-toggle.directive';
 import { FormOptions, FormOptionsService } from './form-options.service';
@@ -87,6 +89,8 @@ import { ToggleEditFieldDirective } from './toggle-edit-field.directive';
 import { TransactionDateDirective } from './transaction-date.directive';
 import { TransactionDetailsPanelComponent } from './transaction-details-panel/transaction-details-panel.component';
 import { TransactionTimeDirective } from './transaction-time.directive';
+import { ValidateOnParentChangesDirective } from './validate-on-parent-changes.directive';
+import { SnackbarQueueService } from '../../snackbar-queue.service';
 
 @Component({
   selector: 'app-edit-form',
@@ -101,6 +105,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
     ControlToggleDirective,
     ToggleEditFieldDirective,
     MarkAsClearedDirective,
+    ClearFieldDirective,
     MatFormField,
     MatToolbarModule,
     MatIconModule,
@@ -116,6 +121,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
     MatOptionModule,
     MatSelectModule,
     MatBadgeModule,
+    ValidateOnParentChangesDirective,
   ],
   template: `
     <div class="container px-0 mb-5">
@@ -129,9 +135,6 @@ import { TransactionTimeDirective } from './transaction-time.directive';
         </button>
         <div class="flex-fill"></div>
 
-        <!-- <ng-container
-        *ngIf="isNotAudit; else auditDropdown"
-        > -->
         @if (!isAudit) {
           <button
             mat-flat-button
@@ -151,6 +154,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
             }
           </button>
         }
+
         @if (isAudit) {
           <mat-form-field>
             <mat-select
@@ -167,10 +171,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
             </mat-select>
           </mat-form-field>
         }
-        <!-- <ng-template #auditDropdown>
-        <!-- Standalone Dropdown, not part of editForm --
-      </ng-template> -->
       </mat-toolbar>
+
       @if (isSingleEdit || isAudit) {
         @if (editType$ | async; as editType) {
           <app-transaction-details-panel
@@ -243,6 +245,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                           matSuffix>
                           <mat-icon>clear</mat-icon>
                         </button>
+                        <mat-error>This field is required</mat-error>
                       </mat-form-field>
                       <mat-form-field class="col-xl-4" data-testid="timeOfTxn">
                         <mat-label>Time of Transaction</mat-label>
@@ -276,6 +279,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                           matSuffix>
                           <mat-icon>clear</mat-icon>
                         </button>
+                        <mat-error>This field is required</mat-error>
                       </mat-form-field>
                       <div class="col-xl-4 d-flex">
                         <mat-checkbox
@@ -316,6 +320,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                           matSuffix>
                           <mat-icon>clear</mat-icon>
                         </button>
+                        <mat-error>This field is required</mat-error>
                       </mat-form-field>
                       <mat-form-field class="col" data-testid="timeOfPosting">
                         <mat-label>Time of Posting</mat-label>
@@ -334,6 +339,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                           matSuffix>
                           <mat-icon>clear</mat-icon>
                         </button>
+                        <mat-error>This field is required</mat-error>
                       </mat-form-field>
                     </div>
                     <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">
@@ -386,6 +392,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                           matSuffix>
                           <mat-icon>clear</mat-icon>
                         </button>
+                        <mat-error>This field is required</mat-error>
                       </mat-form-field>
                       <mat-form-field
                         class="col"
@@ -404,6 +411,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                           matSuffix>
                           <mat-icon>clear</mat-icon>
                         </button>
+                        <mat-error>This field is required</mat-error>
                       </mat-form-field>
                     </div>
                     <div class="row row-cols-1">
@@ -442,6 +450,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                           matSuffix>
                           <mat-icon>clear</mat-icon>
                         </button>
+                        <mat-error>This field is required</mat-error>
                       </mat-form-field>
                     </div>
                     <div class="row row-cols-md-3">
@@ -474,6 +483,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                           matSuffix>
                           <mat-icon>clear</mat-icon>
                         </button>
+                        <mat-error>This field is required</mat-error>
                       </mat-form-field>
                     </div>
                     <div class="row row-cols-md-3">
@@ -492,6 +502,13 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                           matSuffix>
                           <mat-icon>clear</mat-icon>
                         </button>
+                        @if (
+                          editForm.controls.reportingEntityLocationNo.hasError(
+                            'required'
+                          )
+                        ) {
+                          <mat-error>This field is required</mat-error>
+                        }
                       </mat-form-field>
                       <mat-form-field
                         class="col-md-8"
@@ -540,8 +557,16 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                       <mat-expansion-panel [expanded]="true">
                         <mat-expansion-panel-header class="my-3">
                           <mat-panel-title
-                            class="d-flex align-items-center gap-2"
-                            ><h1>Starting Action #{{ saIndex + 1 }}</h1>
+                            class="d-flex align-items-center gap-2">
+                            <h1>Starting Action #{{ saIndex + 1 }}</h1>
+                            <span class="mat-h1 mb-0 text-break">
+                              ({{
+                                saAction.controls.amount.value ?? 0
+                                  | currency
+                                    : saAction.controls.currency.value ?? ''
+                              }})
+                            </span>
+
                             <button
                               type="button"
                               mat-icon-button
@@ -608,6 +633,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                           <div
                             class="col"
@@ -662,6 +688,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                           <mat-form-field
                             class="col"
@@ -684,6 +711,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                         </div>
                         <!-- Amount Section -->
@@ -723,6 +751,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                           <div
                             class="col"
@@ -777,6 +806,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                         </div>
                         <!-- Account Information -->
@@ -788,7 +818,10 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               'startingActions-' + saIndex + '-fiuNo'
                             ">
                             <mat-label>FIU Number</mat-label>
-                            <input matInput formControlName="fiuNo" />
+                            <input
+                              matInput
+                              formControlName="fiuNo"
+                              appValidateOnParentChanges />
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
@@ -813,6 +846,19 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            @if (
+                              saAction.controls.fiuNo.hasError(
+                                'missingAccountInfo'
+                              )
+                            ) {
+                              <mat-error>
+                                {{
+                                  saAction.controls.fiuNo.errors![
+                                    'missingAccountInfo'
+                                  ]
+                                }}
+                              </mat-error>
+                            }
                           </mat-form-field>
                           <mat-form-field
                             class="col"
@@ -845,6 +891,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                           <mat-form-field
                             class="col"
@@ -877,6 +924,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                         </div>
                         <!-- Account Information -->
@@ -935,6 +983,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                           <mat-form-field
                             class="col"
@@ -957,6 +1006,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                           <div
                             class="col"
@@ -1011,6 +1061,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                           <div
                             class="col"
@@ -1065,6 +1116,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                         </div>
                         <!-- Account Open/Close -->
@@ -1109,6 +1161,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                           <mat-form-field
                             class="col"
@@ -1120,7 +1173,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matInput
                               formControlName="accountClose"
                               [matDatepicker]="accountClosePicker"
-                              appTransactionDate />
+                              appTransactionDate
+                              appValidateOnParentChanges />
                             <mat-datepicker-toggle
                               matIconSuffix
                               [for]="
@@ -1151,6 +1205,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                         </div>
                         <div class="row">
@@ -1188,6 +1243,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                         </div>
                         <!-- Account Holders Section -->
@@ -1278,6 +1334,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -1289,7 +1348,10 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       '-surname'
                                     ">
                                     <mat-label>Surname</mat-label>
-                                    <input matInput formControlName="surname" />
+                                    <input
+                                      matInput
+                                      formControlName="surname"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -1298,6 +1360,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -1311,7 +1376,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <mat-label>GivenName</mat-label>
                                     <input
                                       matInput
-                                      formControlName="givenName" />
+                                      formControlName="givenName"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -1320,6 +1386,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -1333,7 +1402,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="otherOrInitial" />
+                                      formControlName="otherOrInitial"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -1342,6 +1412,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -1355,7 +1428,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <mat-label>Name of Entity</mat-label>
                                     <input
                                       matInput
-                                      formControlName="nameOfEntity" />
+                                      formControlName="nameOfEntity"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -1364,6 +1438,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                 </div>
                               </mat-expansion-panel>
@@ -1466,6 +1543,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -1477,7 +1557,10 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       '-surname'
                                     ">
                                     <mat-label>Surname</mat-label>
-                                    <input matInput formControlName="surname" />
+                                    <input
+                                      matInput
+                                      formControlName="surname"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -1486,6 +1569,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -1499,7 +1585,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <mat-label>GivenName</mat-label>
                                     <input
                                       matInput
-                                      formControlName="givenName" />
+                                      formControlName="givenName"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -1508,6 +1595,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -1521,7 +1611,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="otherOrInitial" />
+                                      formControlName="otherOrInitial"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -1530,6 +1621,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -1543,7 +1637,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <mat-label>Name of Entity</mat-label>
                                     <input
                                       matInput
-                                      formControlName="nameOfEntity" />
+                                      formControlName="nameOfEntity"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -1552,6 +1647,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -1574,6 +1672,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -1596,6 +1697,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                 </div>
                               </mat-expansion-panel>
@@ -1696,6 +1800,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -1707,7 +1814,10 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       '-surname'
                                     ">
                                     <mat-label>Surname</mat-label>
-                                    <input matInput formControlName="surname" />
+                                    <input
+                                      matInput
+                                      formControlName="surname"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -1716,6 +1826,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -1729,7 +1842,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <mat-label>GivenName</mat-label>
                                     <input
                                       matInput
-                                      formControlName="givenName" />
+                                      formControlName="givenName"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -1738,6 +1852,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -1751,7 +1868,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="otherOrInitial" />
+                                      formControlName="otherOrInitial"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -1760,6 +1878,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -1773,7 +1894,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <mat-label>Name of Entity</mat-label>
                                     <input
                                       matInput
-                                      formControlName="nameOfEntity" />
+                                      formControlName="nameOfEntity"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -1782,6 +1904,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                 </div>
                                 <!-- On Behalf Of Subsection -->
@@ -1879,6 +2004,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                               matSuffix>
                                               <mat-icon>clear</mat-icon>
                                             </button>
+                                            <mat-error
+                                              >This field is required</mat-error
+                                            >
                                           </mat-form-field>
                                           <mat-form-field
                                             class="col"
@@ -1894,7 +2022,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                             <mat-label>Surname</mat-label>
                                             <input
                                               matInput
-                                              formControlName="surname" />
+                                              formControlName="surname"
+                                              appValidateOnParentChanges />
                                             <button
                                               [disabled]="this.isBulkEdit"
                                               type="button"
@@ -1903,6 +2032,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                               matSuffix>
                                               <mat-icon>clear</mat-icon>
                                             </button>
+                                            <mat-error
+                                              >This field is required</mat-error
+                                            >
                                           </mat-form-field>
                                           <mat-form-field
                                             class="col"
@@ -1918,7 +2050,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                             <mat-label>GivenName</mat-label>
                                             <input
                                               matInput
-                                              formControlName="givenName" />
+                                              formControlName="givenName"
+                                              appValidateOnParentChanges />
                                             <button
                                               [disabled]="this.isBulkEdit"
                                               type="button"
@@ -1927,6 +2060,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                               matSuffix>
                                               <mat-icon>clear</mat-icon>
                                             </button>
+                                            <mat-error
+                                              >This field is required</mat-error
+                                            >
                                           </mat-form-field>
                                           <mat-form-field
                                             class="col"
@@ -1944,7 +2080,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                             >
                                             <input
                                               matInput
-                                              formControlName="otherOrInitial" />
+                                              formControlName="otherOrInitial"
+                                              appValidateOnParentChanges />
                                             <button
                                               [disabled]="this.isBulkEdit"
                                               type="button"
@@ -1953,6 +2090,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                               matSuffix>
                                               <mat-icon>clear</mat-icon>
                                             </button>
+                                            <mat-error
+                                              >This field is required</mat-error
+                                            >
                                           </mat-form-field>
                                           <mat-form-field
                                             class="col"
@@ -1970,7 +2110,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                             >
                                             <input
                                               matInput
-                                              formControlName="nameOfEntity" />
+                                              formControlName="nameOfEntity"
+                                              appValidateOnParentChanges />
                                             <button
                                               [disabled]="this.isBulkEdit"
                                               type="button"
@@ -1979,6 +2120,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                               matSuffix>
                                               <mat-icon>clear</mat-icon>
                                             </button>
+                                            <mat-error
+                                              >This field is required</mat-error
+                                            >
                                           </mat-form-field>
                                         </div>
                                       </mat-expansion-panel>
@@ -2054,6 +2198,13 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                           <mat-panel-title
                             class="d-flex align-items-center gap-2"
                             ><h1>Completing Action #{{ caIndex + 1 }}</h1>
+                            <span class="mat-h1 mb-0 text-break">
+                              ({{
+                                caAction.controls.amount.value ?? 0
+                                  | currency
+                                    : caAction.controls.currency.value ?? ''
+                              }})
+                            </span>
                             <button
                               type="button"
                               [attr.data-testid]="
@@ -2121,6 +2272,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                           <mat-form-field
                             class="col"
@@ -2147,6 +2299,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                         </div>
                         <!-- Amount Section -->
@@ -2186,6 +2339,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                           <div
                             class="col"
@@ -2240,6 +2394,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                           <mat-form-field
                             class="col"
@@ -2275,6 +2430,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                           <mat-form-field
                             class="col"
@@ -2310,6 +2466,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                         </div>
                         <!-- Account Information -->
@@ -2321,7 +2478,10 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               'completingActions-' + caIndex + '-fiuNo'
                             ">
                             <mat-label>FIU Number</mat-label>
-                            <input matInput formControlName="fiuNo" />
+                            <input
+                              matInput
+                              formControlName="fiuNo"
+                              appValidateOnParentChanges />
                             <button
                               [disabled]="!this.isBulkEdit"
                               type="button"
@@ -2346,6 +2506,19 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            @if (
+                              caAction.controls.fiuNo.hasError(
+                                'missingAccountInfo'
+                              )
+                            ) {
+                              <mat-error>
+                                {{
+                                  caAction.controls.fiuNo.errors![
+                                    'missingAccountInfo'
+                                  ]
+                                }}
+                              </mat-error>
+                            }
                           </mat-form-field>
                           <mat-form-field
                             class="col"
@@ -2378,6 +2551,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                           <mat-form-field
                             class="col"
@@ -2410,6 +2584,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                         </div>
                         <!-- Account Information -->
@@ -2468,6 +2643,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                           <mat-form-field
                             class="col"
@@ -2492,6 +2668,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                           <div
                             class="col"
@@ -2548,6 +2726,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                           <div
                             class="col"
@@ -2602,6 +2781,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                         </div>
                         <!-- Account Open/Close -->
@@ -2646,6 +2826,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                           <mat-form-field
                             class="col"
@@ -2657,7 +2838,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matInput
                               formControlName="accountClose"
                               [matDatepicker]="accountClosePicker"
-                              appTransactionDate />
+                              appTransactionDate
+                              appValidateOnParentChanges />
                             <mat-datepicker-toggle
                               matIconSuffix
                               [for]="
@@ -2688,6 +2870,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
+                            <mat-error>This field is required</mat-error>
                           </mat-form-field>
                         </div>
                         <!-- Account Holders Section -->
@@ -2780,6 +2963,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -2791,7 +2977,10 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       '-surname'
                                     ">
                                     <mat-label>Surname</mat-label>
-                                    <input matInput formControlName="surname" />
+                                    <input
+                                      matInput
+                                      formControlName="surname"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -2800,6 +2989,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -2813,7 +3005,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <mat-label>GivenName</mat-label>
                                     <input
                                       matInput
-                                      formControlName="givenName" />
+                                      formControlName="givenName"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -2822,6 +3015,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -2835,7 +3031,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="otherOrInitial" />
+                                      formControlName="otherOrInitial"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -2844,6 +3041,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -2857,7 +3057,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <mat-label>Name of Entity</mat-label>
                                     <input
                                       matInput
-                                      formControlName="nameOfEntity" />
+                                      formControlName="nameOfEntity"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -2866,6 +3067,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                 </div>
                               </mat-expansion-panel>
@@ -2970,6 +3174,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -2981,7 +3188,10 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       '-surname'
                                     ">
                                     <mat-label>Surname</mat-label>
-                                    <input matInput formControlName="surname" />
+                                    <input
+                                      matInput
+                                      formControlName="surname"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -2990,6 +3200,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -3003,7 +3216,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <mat-label>GivenName</mat-label>
                                     <input
                                       matInput
-                                      formControlName="givenName" />
+                                      formControlName="givenName"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -3012,6 +3226,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -3025,7 +3242,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="otherOrInitial" />
+                                      formControlName="otherOrInitial"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -3034,6 +3252,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -3047,7 +3268,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <mat-label>Name of Entity</mat-label>
                                     <input
                                       matInput
-                                      formControlName="nameOfEntity" />
+                                      formControlName="nameOfEntity"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -3056,6 +3278,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -3078,6 +3303,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -3100,6 +3328,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                 </div>
                               </mat-expansion-panel>
@@ -3199,6 +3430,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -3210,7 +3444,10 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       '-surname'
                                     ">
                                     <mat-label>Surname</mat-label>
-                                    <input matInput formControlName="surname" />
+                                    <input
+                                      matInput
+                                      formControlName="surname"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -3219,6 +3456,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -3232,7 +3472,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <mat-label>GivenName</mat-label>
                                     <input
                                       matInput
-                                      formControlName="givenName" />
+                                      formControlName="givenName"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -3241,6 +3482,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -3254,7 +3498,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="otherOrInitial" />
+                                      formControlName="otherOrInitial"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -3263,6 +3508,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -3276,7 +3524,8 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                     <mat-label>Name of Entity</mat-label>
                                     <input
                                       matInput
-                                      formControlName="nameOfEntity" />
+                                      formControlName="nameOfEntity"
+                                      appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -3285,6 +3534,9 @@ import { TransactionTimeDirective } from './transaction-time.directive';
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
                                   </mat-form-field>
                                 </div>
                               </mat-expansion-panel>
@@ -3326,7 +3578,7 @@ import { TransactionTimeDirective } from './transaction-time.directive';
 })
 // eslint-disable-next-line rxjs-angular-x/prefer-composition
 export class EditFormComponent implements AfterViewChecked {
-  private snackBar = inject(MatSnackBar);
+  private snackbarQ = inject(SnackbarQueueService);
 
   readonly editType = input.required<EditFormEditType>();
   protected readonly editType$ = toObservable(this.editType);
@@ -3369,7 +3621,6 @@ export class EditFormComponent implements AfterViewChecked {
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  // local reference
   private editForm: EditFormType | null = null;
   private editFormValueBefore: EditFormValueType | null = null;
   _ = this.editForm$
@@ -3454,12 +3705,12 @@ export class EditFormComponent implements AfterViewChecked {
 
   protected onSave(): void {
     // console.log(
-    //   "🚀 ~ EditFormComponent ~ onSubmit ~ this.userForm!.getRawValue():",
+    //   '🚀 ~ EditFormComponent ~ onSubmit ~ this.userForm!.getRawValue():',
     //   this.editForm!.getRawValue(),
     // );
 
     if (this.isSaved) {
-      this.snackBar.open('Edits already saved!', 'Dismiss', {
+      this.snackbarQ.open('Edits already saved!', 'Dismiss', {
         duration: 5000,
       });
       return;
@@ -3499,99 +3750,106 @@ export class EditFormComponent implements AfterViewChecked {
     const { editType, disabled = false } = options;
     const createEmptyArrays = editType === 'BULK_EDIT';
 
-    const editForm = new FormGroup({
-      etag: new FormControl<number>({
-        value: txn?.changeLogs.at(-1)?.etag ?? 0,
-        disabled,
-      }),
-      wasTxnAttempted: new FormControl({
-        value: ChangeLog.getToggleInitVal(
-          'wasTxnAttempted',
-          txn?.wasTxnAttempted,
-          editType === 'BULK_EDIT',
+    const editForm = new FormGroup(
+      {
+        etag: new FormControl<number>({
+          value: txn?.changeLogs.at(-1)?.etag ?? 0,
+          disabled,
+        }),
+        wasTxnAttempted: new FormControl({
+          value: ChangeLog.getToggleInitVal(
+            'wasTxnAttempted',
+            txn?.wasTxnAttempted,
+            editType === 'BULK_EDIT',
+          ),
+          disabled,
+        }),
+        wasTxnAttemptedReason: new FormControl(
+          { value: txn?.wasTxnAttemptedReason || '', disabled },
+          Validators.required,
         ),
-        disabled,
-      }),
-      wasTxnAttemptedReason: new FormControl(
-        { value: txn?.wasTxnAttemptedReason || '', disabled },
-        Validators.required,
-      ),
-      dateOfTxn: new FormControl({ value: txn?.dateOfTxn || '', disabled }, [
-        Validators.required,
-        dateValidator(),
-      ]),
-      timeOfTxn: new FormControl(
-        { value: txn?.timeOfTxn || '', disabled },
-        Validators.required,
-      ),
-      hasPostingDate: new FormControl({
-        value: ChangeLog.getToggleInitVal(
-          'hasPostingDate',
-          txn?.hasPostingDate,
-          editType === 'BULK_EDIT',
+        dateOfTxn: new FormControl({ value: txn?.dateOfTxn || '', disabled }, [
+          Validators.required,
+          dateValidator(),
+        ]),
+        timeOfTxn: new FormControl(
+          { value: txn?.timeOfTxn || '', disabled },
+          Validators.required,
         ),
-        disabled,
-      }),
-      dateOfPosting: new FormControl(
-        { value: txn?.dateOfPosting || '', disabled },
-        [Validators.required, dateValidator()],
-      ),
-      timeOfPosting: new FormControl(
-        { value: txn?.timeOfPosting || '', disabled },
-        Validators.required,
-      ),
-      methodOfTxn: new FormControl(
-        { value: txn?.methodOfTxn || '', disabled },
-        Validators.required,
-        this.methodOfTxnValidator(),
-      ),
-      methodOfTxnOther: new FormControl(
-        { value: txn?.methodOfTxnOther || '', disabled },
-        Validators.required,
-      ),
-      reportingEntityTxnRefNo: new FormControl({
-        value: txn?.reportingEntityTxnRefNo!,
-        disabled,
-      }),
-      purposeOfTxn: new FormControl({
-        value: txn?.purposeOfTxn || '',
-        disabled,
-      }),
-      reportingEntityLocationNo: new FormControl(
-        { value: txn?.reportingEntityLocationNo || '', disabled },
-        [Validators.required, Validators.minLength(5), Validators.maxLength(5)],
-      ),
-      startingActions: new FormArray(
-        txn?.startingActions?.map((action) =>
-          this.createStartingActionGroup({
-            action,
-            options: { editType, disabled },
-          }),
-        ) ||
-          (createEmptyArrays
-            ? [
-                this.createStartingActionGroup({
-                  options: { editType, disabled },
-                }),
-              ]
-            : []),
-      ),
-      completingActions: new FormArray(
-        txn?.completingActions?.map((action) =>
-          this.createCompletingActionGroup({
-            action,
-            options: { editType, disabled },
-          }),
-        ) ||
-          (createEmptyArrays
-            ? [
-                this.createCompletingActionGroup({
-                  options: { editType, disabled },
-                }),
-              ]
-            : []),
-      ),
-    }) satisfies FormGroup<TypedForm<WithVersion<StrTxnEditForm>>>;
+        hasPostingDate: new FormControl({
+          value: ChangeLog.getToggleInitVal(
+            'hasPostingDate',
+            txn?.hasPostingDate,
+            editType === 'BULK_EDIT',
+          ),
+          disabled,
+        }),
+        dateOfPosting: new FormControl(
+          { value: txn?.dateOfPosting || '', disabled },
+          [Validators.required, dateValidator()],
+        ),
+        timeOfPosting: new FormControl(
+          { value: txn?.timeOfPosting || '', disabled },
+          Validators.required,
+        ),
+        methodOfTxn: new FormControl(
+          { value: txn?.methodOfTxn || '', disabled },
+          Validators.required,
+          this.methodOfTxnValidator(),
+        ),
+        methodOfTxnOther: new FormControl(
+          { value: txn?.methodOfTxnOther || '', disabled },
+          Validators.required,
+        ),
+        reportingEntityTxnRefNo: new FormControl({
+          value: txn?.reportingEntityTxnRefNo!,
+          disabled,
+        }),
+        purposeOfTxn: new FormControl({
+          value: txn?.purposeOfTxn || '',
+          disabled,
+        }),
+        reportingEntityLocationNo: new FormControl(
+          { value: txn?.reportingEntityLocationNo || '', disabled },
+          [
+            Validators.required,
+            Validators.minLength(5),
+            Validators.maxLength(5),
+          ],
+        ),
+        startingActions: new FormArray(
+          txn?.startingActions?.map((action) =>
+            this.createStartingActionGroup({
+              action,
+              options: { editType, disabled },
+            }),
+          ) ||
+            (createEmptyArrays
+              ? [
+                  this.createStartingActionGroup({
+                    options: { editType, disabled },
+                  }),
+                ]
+              : []),
+        ),
+        completingActions: new FormArray(
+          txn?.completingActions?.map((action) =>
+            this.createCompletingActionGroup({
+              action,
+              options: { editType, disabled },
+            }),
+          ) ||
+            (createEmptyArrays
+              ? [
+                  this.createCompletingActionGroup({
+                    options: { editType, disabled },
+                  }),
+                ]
+              : []),
+        ),
+      },
+      { updateOn: 'change' },
+    ) satisfies FormGroup<TypedForm<WithVersion<StrTxnEditForm>>>;
 
     return editForm;
   }
@@ -3624,7 +3882,7 @@ export class EditFormComponent implements AfterViewChecked {
             value: action?.directionOfSA || '',
             disabled,
           },
-          [],
+          [Validators.required],
           this.directionOfSAValidator(),
         ),
         typeOfFunds: new FormControl(
@@ -3632,7 +3890,7 @@ export class EditFormComponent implements AfterViewChecked {
             value: action?.typeOfFunds || '',
             disabled,
           },
-          [],
+          [Validators.required],
           this.typeOfFundsValidator(),
         ),
         typeOfFundsOther: new FormControl(
@@ -3648,7 +3906,9 @@ export class EditFormComponent implements AfterViewChecked {
           [],
           this.amountCurrencyValidator(),
         ),
-        fiuNo: new FormControl({ value: action?.fiuNo || '', disabled }),
+        fiuNo: new FormControl({ value: action?.fiuNo || '', disabled }, [
+          accountInfoValidator(),
+        ]),
         branch: new FormControl({ value: action?.branch || '', disabled }, [
           Validators.minLength(5),
           Validators.maxLength(5),
@@ -3670,17 +3930,20 @@ export class EditFormComponent implements AfterViewChecked {
           value: action?.accountOpen || '',
           disabled,
         }),
-        accountClose: new FormControl({
-          value: action?.accountClose || '',
-          disabled,
-        }),
+        accountClose: new FormControl(
+          {
+            value: action?.accountClose || '',
+            disabled,
+          },
+          [accountCloseDateValidator()],
+        ),
         accountStatus: new FormControl(
           {
             value: action?.accountStatus || '',
             disabled,
           },
           [],
-          this.accountStatusValidator(),
+          [this.accountStatusValidator()],
         ),
         howFundsObtained: new FormControl({
           value: action?.howFundsObtained || '',
@@ -3765,7 +4028,6 @@ export class EditFormComponent implements AfterViewChecked {
         ),
       },
       [
-        cibcInfoValidator(),
         accountHolderValidator(),
         sourceOfFundsValidator(),
         conductorValidator(),
@@ -3832,7 +4094,9 @@ export class EditFormComponent implements AfterViewChecked {
           value: action?.valueInCad || null,
           disabled,
         }),
-        fiuNo: new FormControl({ value: action?.fiuNo || '', disabled }),
+        fiuNo: new FormControl({ value: action?.fiuNo || '', disabled }, [
+          accountInfoValidator(),
+        ]),
         branch: new FormControl({ value: action?.branch || '', disabled }, [
           Validators.minLength(5),
           Validators.maxLength(5),
@@ -3862,10 +4126,13 @@ export class EditFormComponent implements AfterViewChecked {
           value: action?.accountOpen || '',
           disabled,
         }),
-        accountClose: new FormControl({
-          value: action?.accountClose || '',
-          disabled,
-        }),
+        accountClose: new FormControl(
+          {
+            value: action?.accountClose || '',
+            disabled,
+          },
+          [accountCloseDateValidator()],
+        ),
         accountStatus: new FormControl(
           {
             value: action?.accountStatus || '',
@@ -3940,12 +4207,7 @@ export class EditFormComponent implements AfterViewChecked {
               : []),
         ),
       },
-      [
-        cibcInfoValidator(),
-        accountHolderValidator(),
-        involedInValidator(),
-        beneficiaryValidator(),
-      ],
+      [accountHolderValidator(), involedInValidator(), beneficiaryValidator()],
     ) satisfies FormGroup<TypedForm<CompletingAction>>;
 
     if (disabled) {
@@ -3971,16 +4233,29 @@ export class EditFormComponent implements AfterViewChecked {
         disabled: false,
       }),
       partyKey: new FormControl({ value: holder?.partyKey || '', disabled }),
-      givenName: new FormControl({ value: holder?.givenName || '', disabled }),
-      otherOrInitial: new FormControl({
-        value: holder?.otherOrInitial || '',
-        disabled,
-      }),
-      surname: new FormControl({ value: holder?.surname || '', disabled }),
-      nameOfEntity: new FormControl({
-        value: holder?.nameOfEntity || '',
-        disabled,
-      }),
+      givenName: new FormControl({ value: holder?.givenName || '', disabled }, [
+        personOrEntityValidator(),
+      ]),
+      otherOrInitial: new FormControl(
+        {
+          value: holder?.otherOrInitial || '',
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
+      surname: new FormControl(
+        { value: holder?.surname || '', disabled },
+
+        [personOrEntityValidator()],
+      ),
+      nameOfEntity: new FormControl(
+        {
+          value: holder?.nameOfEntity || '',
+          disabled,
+        },
+
+        [personOrEntityValidator()],
+      ),
     }) satisfies FormGroup<TypedForm<AccountHolder>>;
   }
 
@@ -4252,6 +4527,7 @@ export class EditFormComponent implements AfterViewChecked {
         | FormArray<FormGroup<TypedForm<CompletingAction>>>
     ).at(actionIndex);
 
+    if (action.controls.accountHolders.value.length === 1) return;
     if (action.controls.accountHolders!.disabled) return;
     if (this.isAudit) return;
 
@@ -4275,6 +4551,7 @@ export class EditFormComponent implements AfterViewChecked {
   protected removeSourceOfFunds(saIndex: number, index: number): void {
     const startingAction = this.editForm!.controls.startingActions.at(saIndex);
 
+    if (startingAction.controls.sourceOfFunds.value.length === 1) return;
     if (startingAction.controls.sourceOfFunds.disabled) return;
     if (this.isAudit) return;
 
@@ -4298,6 +4575,7 @@ export class EditFormComponent implements AfterViewChecked {
   protected removeConductor(saIndex: number, index: number): void {
     const startingAction = this.editForm!.controls.startingActions.at(saIndex);
 
+    if (startingAction.controls.conductors.value.length === 1) return;
     if (startingAction.controls.conductors.disabled) return;
     if (this.isAudit) return;
 
@@ -4337,6 +4615,11 @@ export class EditFormComponent implements AfterViewChecked {
 
     if (
       startingAction.controls.conductors.at(conductorIndex).controls.onBehalfOf
+        .value.length === 1
+    )
+      return;
+    if (
+      startingAction.controls.conductors.at(conductorIndex).controls.onBehalfOf
         .disabled
     )
       return;
@@ -4366,6 +4649,7 @@ export class EditFormComponent implements AfterViewChecked {
     const completingAction =
       this.editForm!.controls.completingActions.at(caIndex);
 
+    if (completingAction.controls.involvedIn.value.length === 1) return;
     if (completingAction.controls.involvedIn!.disabled) return;
     if (this.isAudit) return;
 
@@ -4391,6 +4675,7 @@ export class EditFormComponent implements AfterViewChecked {
     const completingAction =
       this.editForm!.controls.completingActions.at(caIndex);
 
+    if (completingAction.controls.beneficiaries.value.length === 1) return;
     if (completingAction.controls.beneficiaries!.disabled) return;
     if (this.isAudit) return;
 
@@ -4415,7 +4700,6 @@ export class EditFormComponent implements AfterViewChecked {
       }
 
       return this.formOptionsService.formOptions$.pipe(
-        take(1),
         map((formOptions) => {
           return EditFormComponent.validateFormOptions(
             control.value,
@@ -4437,7 +4721,6 @@ export class EditFormComponent implements AfterViewChecked {
       }
 
       return this.formOptionsService.formOptions$.pipe(
-        take(1),
         map((formOptions) => {
           return EditFormComponent.validateFormOptions(
             control.value,
@@ -4459,7 +4742,6 @@ export class EditFormComponent implements AfterViewChecked {
       }
 
       return this.formOptionsService.formOptions$.pipe(
-        take(1),
         map((formOptions) => {
           return EditFormComponent.validateFormOptions(
             control.value,
@@ -4481,7 +4763,6 @@ export class EditFormComponent implements AfterViewChecked {
       }
 
       return this.formOptionsService.formOptions$.pipe(
-        take(1),
         map((formOptions) => {
           return EditFormComponent.validateFormOptions(
             control.value,
@@ -4503,7 +4784,6 @@ export class EditFormComponent implements AfterViewChecked {
       }
 
       return this.formOptionsService.formOptions$.pipe(
-        take(1),
         map((formOptions) => {
           return EditFormComponent.validateFormOptions(
             control.value,
@@ -4525,7 +4805,6 @@ export class EditFormComponent implements AfterViewChecked {
       }
 
       return this.formOptionsService.formOptions$.pipe(
-        take(1),
         map((formOptions) => {
           return EditFormComponent.validateFormOptions(
             control.value,
@@ -4547,7 +4826,6 @@ export class EditFormComponent implements AfterViewChecked {
       }
 
       return this.formOptionsService.formOptions$.pipe(
-        take(1),
         map((formOptions) => {
           return EditFormComponent.validateFormOptions(
             control.value,
@@ -4569,7 +4847,6 @@ export class EditFormComponent implements AfterViewChecked {
       }
 
       return this.formOptionsService.formOptions$.pipe(
-        take(1),
         map((formOptions) => {
           return EditFormComponent.validateFormOptions(
             control.value,
@@ -4678,14 +4955,23 @@ export function isValidDate(value: string) {
   return true;
 }
 
-function cibcInfoValidator(): ValidatorFn {
+function accountInfoValidator(): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
-    const value = control.value as
-      | RecursiveOmit<StartingAction, keyof ConductorNpdData>
-      | CompletingAction;
+    const actionControl = control.parent as FormGroup<
+      TypedForm<
+        RecursiveOmit<StartingAction, keyof ConductorNpdData> | CompletingAction
+      >
+    > | null;
 
-    if (hasMissingCibcInfo(value)) {
-      return { missingCibcInfo: true };
+    if (!actionControl) return null;
+
+    console.assert(
+      isFormGroup(actionControl),
+      'Assert parent control is action group',
+    );
+
+    if (hasMissingAccountInfo(actionControl.value)) {
+      return { missingAccountInfo: 'Missing account info' };
     }
     return null;
   };
@@ -4739,6 +5025,70 @@ function involedInValidator(): ValidatorFn {
 // todo:
 function beneficiaryValidator(): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
+    return null;
+  };
+}
+
+function accountCloseDateValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const actionControl = control.parent as FormGroup<
+      TypedForm<
+        RecursiveOmit<StartingAction, keyof ConductorNpdData> & CompletingAction
+      >
+    > | null;
+
+    if (!actionControl) return null;
+
+    console.assert(
+      isFormGroup(actionControl),
+      'Assert parent control is action group',
+    );
+
+    const value = actionControl.value as RecursiveOmit<
+      StartingAction,
+      keyof ConductorNpdData
+    >;
+
+    if (!value) return null;
+
+    if (
+      actionControl.controls.accountStatus.value === 'Closed' &&
+      !actionControl.controls.accountClose.value
+    ) {
+      return { required: true };
+    }
+
+    return null;
+  };
+}
+
+function personOrEntityValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const subjectGroupCtrl = control.parent as FormGroup<
+      TypedForm<AccountHolder>
+    > | null;
+
+    if (!subjectGroupCtrl) return null;
+
+    console.assert(
+      isFormGroup(subjectGroupCtrl),
+      'Assert parent control is subject group',
+    );
+
+    const value = subjectGroupCtrl.value as RecursiveOmit<
+      StartingAction,
+      keyof ConductorNpdData
+    >;
+
+    if (!value) return null;
+
+    if (
+      !hasPersonName(subjectGroupCtrl.value as AccountHolder) &&
+      !hasEntityName(subjectGroupCtrl.value as AccountHolder)
+    ) {
+      return { required: true };
+    }
+
     return null;
   };
 }

@@ -72,7 +72,7 @@ import { AbstractTransactionViewComponent } from './abstract-transaction-view.co
     </div>
     @if (selectionModel$ | async; as selectionModel) {
       <mat-tab-group
-        class="col"
+        class="col tab-group"
         mat-stretch-tabs="false"
         mat-align-tabs="start">
         <mat-tab>

@@ -25,8 +25,8 @@ import { CaseRecordStore } from './case-record.store';
   ],
 
   template: `
-    <div class="container-fluid px-0">
-      <div class="row row-cols-1 mx-0">
+    <div class="container-fluid px-0 overflow-y-auto overflow-x-hidden h-100">
+      <div class="row row-cols-1 mx-0 sticky-top">
         <mat-toolbar class="col">
           <mat-toolbar-row class="px-0 header-toolbar-row">
             <h1>-- TITLE HERE --</h1>

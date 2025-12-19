@@ -10,7 +10,7 @@ import {
   ReviewPeriod,
   StrTransactionWithChangeLogs,
 } from './case-record.store';
-import { SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE } from './case-record.state.fixture';
+import { CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE } from './case-record.state.fixture';
 
 @Injectable({
   providedIn: 'root',
@@ -20,8 +20,8 @@ export class CaseRecordService {
 
   fetchCaseRecordByAmlId(amlId: string): Observable<GetCaseRecordResponse> {
     return of({
-      ...SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE,
-      lastUpdated: SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE.lastUpdated ?? '',
+      ...CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE,
+      lastUpdated: CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE.lastUpdated ?? '',
       selections: [],
     }).pipe(delay(1000));
     // return this.http.get<GetCaseRecordResponse>(
@@ -38,7 +38,7 @@ export class CaseRecordService {
 
   fetchSelections(caseRecordId: string): Observable<FetchSelectionsResponse> {
     return of({
-      selections: SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE.selections,
+      selections: CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE.selections,
     }).pipe(delay(100));
     // return this.http.get<FetchSelectionsResponse>(
     //   `/api/case-record/${caseRecordId}/selections`,
@@ -56,10 +56,11 @@ export class CaseRecordService {
   }
 
   editSelections(caseRecordId: string, payload: EditSelectionsRequest) {
-    return this.http.put<void>(
-      `/api/case-record/${caseRecordId}/selections/edit`,
-      payload! as EditSelectionsRequest,
-    );
+    return of(void 0).pipe(delay(150));
+    // return this.http.put<void>(
+    //   `/api/case-record/${caseRecordId}/selections/edit`,
+    //   payload! as EditSelectionsRequest,
+    // );
   }
 }
 

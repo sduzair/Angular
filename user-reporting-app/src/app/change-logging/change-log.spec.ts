@@ -1,4 +1,4 @@
-import { SPECIAL_EMPTY_VALUE } from '../reporting-ui/edit-form/mark-as-cleared.directive';
+import { MARKED_AS_CLEARED } from '../reporting-ui/edit-form/mark-as-cleared.directive';
 import {
   StartingAction,
   StrTransaction,
@@ -785,7 +785,7 @@ describe('ChangeLog', () => {
       it('should clear simple props marked for clearing', () => {
         transactionBefore.dateOfTxn = '2024/09/23';
 
-        transactionAfter.dateOfTxn = SPECIAL_EMPTY_VALUE;
+        transactionAfter.dateOfTxn = MARKED_AS_CLEARED;
 
         const changes = ChangeLog.generateChangeLogs(
           transactionBefore,
@@ -797,7 +797,7 @@ describe('ChangeLog', () => {
           {
             op: 'replace',
             path: '/dateOfTxn',
-            value: SPECIAL_EMPTY_VALUE,
+            value: MARKED_AS_CLEARED,
           },
         ]);
       });

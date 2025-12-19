@@ -9,8 +9,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
-import { MatTreeModule, MatTree } from '@angular/material/tree';
-import { RouterOutlet, Router } from '@angular/router';
+import { MatTree, MatTreeModule } from '@angular/material/tree';
+import { Router, RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-nav-layout',
@@ -23,7 +23,8 @@ import { RouterOutlet, Router } from '@angular/router';
     MatButtonModule,
   ],
   template: `
-    <mat-sidenav-container class="shell d-flex flex-column min-vh-100">
+    <mat-sidenav-container
+      class="shell d-flex flex-column h-100 overflow-hidden">
       <mat-sidenav mode="side" opened disableClose fixedInViewport class="nav">
         <mat-toolbar class="mb-3">Poacher UI</mat-toolbar>
 
@@ -69,8 +70,7 @@ import { RouterOutlet, Router } from '@angular/router';
         </mat-tree>
       </mat-sidenav>
 
-      <mat-sidenav-content
-        class="flex-filled d-flex flex-column justify-content-center overflow-hidden">
+      <mat-sidenav-content class="overflow-hidden">
         <router-outlet></router-outlet>
       </mat-sidenav-content>
     </mat-sidenav-container>

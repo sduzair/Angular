@@ -11,7 +11,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NgControl, ValidatorFn } from '@angular/forms';
 import { MatFormField } from '@angular/material/form-field';
 
-export const SPECIAL_EMPTY_VALUE = null;
+export const MARKED_AS_CLEARED = null;
 
 @Directive({
   selector: '[appMarkAsCleared]',
@@ -38,8 +38,30 @@ export class MarkAsClearedDirective implements AfterViewInit {
     $event.stopPropagation();
 
     this.control.enable();
-    // Set special empty val on control
-    this.control.setValue(SPECIAL_EMPTY_VALUE);
+    this.control.setValue(null);
+
+    // Temporarily pause model to view updates
+    this.origWriteValue = this.valueAccessor?.writeValue.bind(
+      this.valueAccessor,
+    );
+    this.valueAccessor!.writeValue = () => {
+      /* empty */
+    };
+    // Temporarily pause validation
+    this.originalValidators = this.control.validator
+      ? [this.control.validator]
+      : null;
+    this.control.clearValidators();
+
+    this.control.setValue(MARKED_AS_CLEARED, { emitEvent: false });
+    this.control.updateValueAndValidity();
+
+    // Restore view updates and validation
+    setTimeout(() => {
+      this.valueAccessor!.writeValue = this.origWriteValue!;
+      this.control.setValidators(this.originalValidators!);
+      // control.updateValueAndValidity();
+    });
   }
 
   private matIconElement: HTMLElement | null = null;
@@ -55,7 +77,7 @@ export class MarkAsClearedDirective implements AfterViewInit {
   private updateIconClass(): void {
     console.assert(!!this.matIconElement);
 
-    if (this.control?.value === SPECIAL_EMPTY_VALUE) {
+    if (!this.control!.disabled && this.control!.value === MARKED_AS_CLEARED) {
       this.renderer.addClass(this.matIconElement, 'mat-warn');
     } else {
       this.renderer.removeClass(this.matIconElement, 'mat-warn');

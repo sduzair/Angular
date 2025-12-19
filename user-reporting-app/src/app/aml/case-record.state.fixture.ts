@@ -6,7 +6,7 @@ export const AML_ID_DEV_OR_TEST_ONLY_FIXTURE = 99999999;
 export const CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE =
   '33a41dcc-ab8e-4a9b-89ea-c6a2fec46356';
 
-export const SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE: CaseRecordState = {
+export const CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE: CaseRecordState = {
   caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
   amlId: String(AML_ID_DEV_OR_TEST_ONLY_FIXTURE),
   transactionSearchParams: {

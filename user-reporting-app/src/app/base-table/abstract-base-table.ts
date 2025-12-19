@@ -842,31 +842,35 @@ export abstract class AbstractBaseTable<
   sortedBy?: TDataColumn;
 
   sortingAccessor = (data: TData, sortHeaderId: string) => {
-    const tupleIndex = this.sortingAccessorDateTimeTuples.findIndex(
+    const headerTupleIndex = this.sortingAccessorDateTimeTuples.findIndex(
       (tuple) => tuple[0] === sortHeaderId,
     );
 
-    if (tupleIndex > -1) {
-      const date = TransactionDateDirective.parse(
+    if (headerTupleIndex > -1) {
+      const dateColVal =
         this.dataColumnsGetUnsafeValueByPath(
           data,
-          this.sortingAccessorDateTimeTuples[tupleIndex][0],
-        ) ?? '',
-      );
-      if (!isValid(date)) return 0;
+          this.sortingAccessorDateTimeTuples[headerTupleIndex][0],
+        ) ?? '';
+
+      if (!dateColVal) return -1;
+
+      const date = TransactionDateDirective.parse(dateColVal);
 
       const time = TransactionTimeDirective.parseAndFormatTime(
         this.dataColumnsGetUnsafeValueByPath(
           data,
-          this.sortingAccessorDateTimeTuples[tupleIndex][1],
+          this.sortingAccessorDateTimeTuples[headerTupleIndex][1],
         ),
       );
 
       const [hours, minutes, seconds] = (time ?? '00:00:00')
         .split(':')
         .map(Number);
+
       return date.setHours(hours, minutes, seconds);
     }
+
     return this.dataColumnsGetUnsafeValueByPath(data, sortHeaderId);
   };
 

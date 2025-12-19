@@ -104,6 +104,7 @@ export default defineConfig([
           ],
         },
       ],
+      'no-constant-binary-expression': 'off',
     },
   },
   {

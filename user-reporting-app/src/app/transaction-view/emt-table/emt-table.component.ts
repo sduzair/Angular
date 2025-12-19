@@ -33,7 +33,9 @@ import { TableSelectionType } from '../transaction-view.component';
       [selection]="selection"
       [selectionKey]="'flowOfFundsAmlTransactionId'"
       [hasMasterToggle]="false"
-      [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'">
+      [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'"
+      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
+      [sortedBy]="'depositedTimeDate'">
       <!-- Selection Model -->
       <ng-container matColumnDef="select">
         <th
@@ -258,6 +260,10 @@ export class EmtTableComponent<
   displayedColumnsTime: (keyof EmtSourceData)[] = [
     'depositedTimeTime',
     'f2rDeptime',
+  ];
+
+  sortingAccessorDateTimeTuples: (keyof EmtSourceData)[][] = [
+    ['depositedTimeDate', 'depositedTimeTime'],
   ];
 
   dataSourceTrackBy: TrackByFunction<EmtSourceData> = (_, record) => {

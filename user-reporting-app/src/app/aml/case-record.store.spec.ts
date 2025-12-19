@@ -11,7 +11,7 @@ import {
   errorInterceptor,
 } from '../app-error-handler.service';
 import { CaseRecordState, CaseRecordStore } from './case-record.store';
-import { SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE } from './case-record.state.fixture';
+import { CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE } from './case-record.state.fixture';
 
 describe('SessionDataService', () => {
   let store: CaseRecordStore;
@@ -36,8 +36,8 @@ describe('SessionDataService', () => {
     store = TestBed.inject(CaseRecordStore);
     httpMock = TestBed.inject(HttpTestingController);
 
-    mockAmlId = SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE.amlId;
-    mockCaseRecordState = SESSION_STATE_DEV_OR_TEST_ONLY_FIXTURE;
+    mockAmlId = CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE.amlId;
+    mockCaseRecordState = CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE;
   });
 
   afterEach(() => {

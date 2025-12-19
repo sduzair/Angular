@@ -40,7 +40,6 @@ import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatSelectModule } from '@angular/material/select';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatToolbar } from '@angular/material/toolbar';
 import { Router } from '@angular/router';
@@ -81,6 +80,7 @@ import {
   SourceSys,
   TransactionSearchService,
 } from './transaction-search.service';
+import { SnackbarQueueService } from '../snackbar-queue.service';
 
 export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
   isErrorState(
@@ -539,7 +539,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
 export class TransactionSearchComponent implements OnInit {
   private caseRecordService = inject(CaseRecordService);
   private transactionSearchService = inject(TransactionSearchService);
-  private snackBar = inject(MatSnackBar);
+  private snackbarQ = inject(SnackbarQueueService);
   private router = inject(Router);
   private destroyRef = inject(DestroyRef);
   private errorHandler = inject(ErrorHandler);
@@ -778,7 +778,7 @@ export class TransactionSearchComponent implements OnInit {
   // todo: implement loading state in view
   onTransactionSearch() {
     if (this.searchParamsForm.invalid) {
-      this.snackBar.open(
+      this.snackbarQ.open(
         'Please enter transaction search filters before searching',
         'Dismiss',
         {

@@ -126,7 +126,11 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
               <mat-icon>cancel</mat-icon>
             </mat-chip>
           </mat-chip-set>
-          <button type="button" mat-raised-button (click)="drawer.toggle()">
+          <button
+            type="button"
+            class="filter-btn"
+            mat-raised-button
+            (click)="drawer.toggle()">
             <mat-icon>filter_list</mat-icon>
             Filter
           </button>
@@ -375,7 +379,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
 
       <mat-drawer-content>
         <div
-          class="col px-0 overflow-auto scroll-position-preserve"
+          class="col px-0 overflow-auto scroll-position-preserve base-table-container"
           (appClickOutsideTable)="filterFormHighlightSelectedColor = undefined">
           <table
             mat-table

@@ -8,7 +8,6 @@ import {
   inject,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import {
   BehaviorSubject,
   EMPTY,
@@ -36,7 +35,7 @@ import {
 import { AuthService } from '../auth.service';
 import * as ChangeLog from '../change-logging/change-log';
 import {
-  hasMissingCibcInfo,
+  hasMissingAccountInfo,
   hasMissingConductorInfo,
 } from '../reporting-ui/edit-form/common-validation';
 import { EditFormValueType } from '../reporting-ui/edit-form/edit-form.component';
@@ -46,13 +45,14 @@ import {
   _hiddenValidationType,
 } from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import { DeepPartial } from '../test-helpers';
+import { TransactionSearchComponent } from '../transaction-search/transaction-search.component';
 import {
   AddSelectionsRequest,
   CaseRecordService,
   CreateCaseRecordRequest,
   EditSelectionsRequest,
 } from './case-record.service';
-import { TransactionSearchComponent } from '../transaction-search/transaction-search.component';
+import { SnackbarQueueService } from '../snackbar-queue.service';
 
 export const DEFAULT_CASE_RECORD_STATE: CaseRecordState = {
   caseRecordId: '',
@@ -85,7 +85,6 @@ export class CaseRecordStore implements OnDestroy {
   private destroyRef = inject(DestroyRef);
   private errorHandler = inject(ErrorHandler);
   private readonly initialState = inject(CASE_RECORD_INITIAL_STATE);
-  private snackBar = inject(MatSnackBar);
   private auth = inject(AuthService);
 
   // --- STATE STREAMS ---
@@ -584,7 +583,7 @@ export class CaseRecordStore implements OnDestroy {
 
   private editSelections(caseRecordId: string, payload: EditSelectionsRequest) {
     return this.api.editSelections(caseRecordId, payload).pipe(
-      (tap(() => {
+      tap(() => {
         const { pendingChanges } = payload;
 
         const strTransactionsClone = structuredClone(
@@ -630,7 +629,7 @@ export class CaseRecordStore implements OnDestroy {
         }
 
         return EMPTY;
-      })),
+      }),
     );
   }
 }
@@ -759,8 +758,8 @@ export function setRowValidationInfo(
     errors.push('conductorMissing');
 
   if (
-    transaction.startingActions.some(hasMissingCibcInfo) ||
-    transaction.completingActions.some(hasMissingCibcInfo)
+    transaction.startingActions.some(hasMissingAccountInfo) ||
+    transaction.completingActions.some(hasMissingAccountInfo)
   )
     errors.push('bankInfoMissing');
 

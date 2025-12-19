@@ -33,7 +33,9 @@ import { TableSelectionType } from '../transaction-view.component';
       [selection]="selection"
       [selectionKey]="'flowOfFundsAmlTransactionId'"
       [hasMasterToggle]="false"
-      [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'">
+      [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'"
+      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
+      [sortedBy]="'transactionDate'">
       <!-- Selection Model -->
       <ng-container matColumnDef="select">
         <th
@@ -362,6 +364,10 @@ export class OlbTableComponent<
   dateFiltersValuesIgnore: (keyof OlbSourceData)[] = ['transactionTime'];
 
   displayedColumnsTime: (keyof OlbSourceData)[] = ['transactionTime'];
+
+  sortingAccessorDateTimeTuples: (keyof OlbSourceData)[][] = [
+    ['transactionDate', 'transactionTime'],
+  ];
 
   dataSourceTrackBy: TrackByFunction<OlbSourceData> = (_, record) => {
     return record.flowOfFundsAmlTransactionId;
