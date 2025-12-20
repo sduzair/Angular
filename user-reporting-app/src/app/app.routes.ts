@@ -1,9 +1,9 @@
 import type { Routes } from '@angular/router';
 import { lastUpdatedResolver, savingStatusResolver } from './aml/aml.component';
+import { CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE } from './aml/case-record.state.fixture';
 import {
   CASE_RECORD_INITIAL_STATE,
   CaseRecordStore,
-  DEFAULT_CASE_RECORD_STATE,
 } from './aml/case-record.store';
 import { hasRoleGuard, isAuthenticatedGuard } from './auth.service';
 import { LoginComponent } from './login/login.component';
@@ -24,7 +24,6 @@ import {
   transactionSearchResolver,
   TransactionViewComponent,
 } from './transaction-view/transaction-view.component';
-import { CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE } from './aml/case-record.state.fixture';
 
 export const routes: Routes = [
   {
@@ -71,7 +70,13 @@ export const routes: Routes = [
           savingStatus$: savingStatusResolver,
         },
         data: { reuse: true },
+        title: (route) => `AML - ${route.params['amlId']}`,
         children: [
+          {
+            path: '',
+            redirectTo: 'transaction-view',
+            pathMatch: 'full',
+          },
           {
             path: 'transaction-view',
             component: TransactionViewComponent,
@@ -80,25 +85,21 @@ export const routes: Routes = [
               initSelections: initSelectionsResolver,
             },
             data: { reuse: true },
-            title: (route) => `Transaction View - ${route.params['amlId']}`,
+            title: () => 'Transaction View',
           },
           {
             path: 'reporting-ui',
-            title: (route) => `Reporting UI - ${route.params['amlId']}`,
+            title: () => 'Reporting UI',
             children: [
               {
                 path: '',
-                redirectTo: 'table',
-                pathMatch: 'full',
-              },
-              {
-                path: 'table',
                 component: ReportingUiTableComponent,
                 resolve: {
                   strTransactionData$: strTransactionsEditedResolver,
                   savingEdits$: savingEditsResolver,
                 },
                 data: { reuse: true },
+                title: () => 'Table',
               },
               {
                 path: 'edit-form/bulk-edit',
@@ -136,3 +137,9 @@ export const routes: Routes = [
   },
   { path: '**', component: PageNotFoundComponent },
 ];
+
+export interface Breadcrumb {
+  label: string;
+  url: string;
+  isLast: boolean;
+}

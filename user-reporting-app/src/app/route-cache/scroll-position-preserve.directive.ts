@@ -7,7 +7,7 @@ import {
   OnInit,
 } from '@angular/core';
 import { Router, NavigationStart, NavigationEnd } from '@angular/router';
-import { filter } from 'rxjs';
+import { delay, filter } from 'rxjs';
 import { ScrollPositionService } from './scroll-position.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
@@ -23,14 +23,14 @@ export class ScrollPositionPreserveDirective implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     // Generate unique route key
-    this.routeKey = this.router.url || 'default-route';
+    this.routeKey = this.router.routerState.snapshot.url || 'default-route';
 
     // Listen for navigation events to save scroll before leaving
     this.router.events
       .pipe(
-        takeUntilDestroyed(this.destroyRef),
         filter((event) => event instanceof NavigationStart),
-        filter(() => this.router.url.includes(this.routeKey)),
+        filter(() => this.router.routerState.snapshot.url === this.routeKey),
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe(() => {
         this.saveScrollPositions();
@@ -39,9 +39,11 @@ export class ScrollPositionPreserveDirective implements OnInit, OnDestroy {
     // Listen for when navigating TO this route (handles cached route reattachment)
     this.router.events
       .pipe(
-        takeUntilDestroyed(this.destroyRef),
         filter((event) => event instanceof NavigationEnd),
-        filter(() => this.router.url.includes(this.routeKey)),
+        filter(() => this.router.routerState.snapshot.url === this.routeKey),
+        // Wait for the browser to attach the view and paint
+        delay(0),
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe(() => {
         this.restoreScrollPositions();
@@ -56,7 +58,12 @@ export class ScrollPositionPreserveDirective implements OnInit, OnDestroy {
   private saveScrollPositions(): void {
     const positions: Record<string, [number, number]> = {};
 
-    this.getScrollableElements().forEach((element, index) => {
+    const scrollableElements = this.getScrollableElements();
+
+    console.assert(scrollableElements.every((ele) => ele.isConnected));
+
+    scrollableElements.forEach((element, index) => {
+      console.assert(element.isConnected);
       positions[index] = [element.scrollTop, element.scrollLeft];
     });
 
@@ -70,6 +77,9 @@ export class ScrollPositionPreserveDirective implements OnInit, OnDestroy {
     if (!positions) return;
 
     const scrollableElements = this.getScrollableElements();
+
+    console.assert(scrollableElements.every((ele) => ele.isConnected));
+
     scrollableElements.forEach((element, index) => {
       if (positions[index] !== undefined) {
         // eslint-disable-next-line no-param-reassign

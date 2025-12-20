@@ -559,12 +559,9 @@ export class ReportingUiTableComponent implements AfterViewInit {
 
   navigateToEditForm(record: StrTransactionWithChangeLogs) {
     this.recentlyOpenedRowsSubject.next([record.flowOfFundsAmlTransactionId]);
-    this.router.navigate(
-      [`../edit-form/${record.flowOfFundsAmlTransactionId}`],
-      {
-        relativeTo: this.route,
-      },
-    );
+    this.router.navigate([`edit-form/${record.flowOfFundsAmlTransactionId}`], {
+      relativeTo: this.route,
+    });
   }
 
   @ViewChild('baseTable') baseTable!: BaseTableComponent<
@@ -582,7 +579,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
         (strTxn) => strTxn.flowOfFundsAmlTransactionId,
       );
     this.recentlyOpenedRowsSubject.next(selectedTransactionsForBulkEdit);
-    this.router.navigate(['../edit-form/bulk-edit'], {
+    this.router.navigate(['edit-form/bulk-edit'], {
       relativeTo: this.route,
       state: {
         selectedTransactionsForBulkEdit,
@@ -593,7 +590,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
   navigateToAuditForm(record: StrTransactionWithChangeLogs) {
     this.recentlyOpenedRowsSubject.next([record.flowOfFundsAmlTransactionId]);
 
-    this.router.navigate([`../audit/${record.flowOfFundsAmlTransactionId}`], {
+    this.router.navigate([`audit/${record.flowOfFundsAmlTransactionId}`], {
       relativeTo: this.route,
     });
   }

@@ -26,7 +26,7 @@ export const FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE = {
     Other: 'Other',
   },
   typeOfFunds: {
-    'Funds Withdrawal': 'Funds Withdrawal',
+    'Funds withdrawal': 'Funds withdrawal',
     Cash: 'Cash',
     Cheque: 'Cheque',
     'Domestic Funds Transfer': 'Domestic Funds Transfer',
@@ -63,7 +63,7 @@ export const FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE = {
     'Deposit to account': 'Deposit to account',
     'Cash Withdrawal': 'Cash Withdrawal',
     'Issued Cheque': 'Issued Cheque',
-    'Outgoing Email Transfer': 'Outgoing Email Transfer',
+    'Outgoing email money transfer': 'Outgoing email money transfer',
     Other: 'Other',
   },
 } as const;

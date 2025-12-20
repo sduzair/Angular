@@ -4885,7 +4885,7 @@ export class EditFormComponent implements AfterViewChecked {
   private route = inject(ActivatedRoute);
 
   protected navigateBack() {
-    this.router.navigate(['../../table'], {
+    this.router.navigate(['../../'], {
       relativeTo: this.route,
     });
   }
