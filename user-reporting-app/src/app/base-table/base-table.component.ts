@@ -391,7 +391,9 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
 
             <!-- Column Definitions  -->
             @for (column of dataColumnsDisplayValues; track column) {
-              <ng-container [matColumnDef]="column">
+              <ng-container
+                [matColumnDef]="column"
+                [sticky]="isStickyColumn(column)">
                 <th
                   mat-header-cell
                   *matHeaderCellDef

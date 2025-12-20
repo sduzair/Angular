@@ -62,6 +62,16 @@ export class CaseRecordService {
     //   payload! as EditSelectionsRequest,
     // );
   }
+
+  resetSelections(caseRecordId: string, selectionIds: string[]) {
+    const payload: ResetSelectionsRequest = { selectionIds };
+    return of(void 0).pipe(delay(150));
+
+    // return this.http.put<void>(
+    //   `/api/case-record/${caseRecordId}/selections/reset`,
+    //   payload,
+    // );
+  }
 }
 
 export interface GetCaseRecordResponse {
@@ -138,6 +148,10 @@ interface UpdateSearchParamsResponse {
 
 export interface EditSelectionsRequest {
   pendingChanges: WithVersion<PendingChange>[];
+}
+
+interface ResetSelectionsRequest {
+  selectionIds: StrTxnFlowOfFunds['flowOfFundsAmlTransactionId'][];
 }
 
 interface BulkUpdateTransactionsConflictResponse {

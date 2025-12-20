@@ -60,6 +60,7 @@ import {
 } from '../../aml/case-record.store';
 import * as ChangeLog from '../../change-logging/change-log';
 import { setError } from '../../form-helpers';
+import { SnackbarQueueService } from '../../snackbar-queue.service';
 import { PreemptiveErrorStateMatcher } from '../../transaction-search/transaction-search.component';
 import {
   AccountHolder,
@@ -90,7 +91,6 @@ import { TransactionDateDirective } from './transaction-date.directive';
 import { TransactionDetailsPanelComponent } from './transaction-details-panel/transaction-details-panel.component';
 import { TransactionTimeDirective } from './transaction-time.directive';
 import { ValidateOnParentChangesDirective } from './validate-on-parent-changes.directive';
-import { SnackbarQueueService } from '../../snackbar-queue.service';
 
 @Component({
   selector: 'app-edit-form',
@@ -143,11 +143,11 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
             form="edit-form"
             [disabled]="
               (editFormHasChanges$ | async) === false ||
-              (sessionDataService.isSaving$ | async)
+              (caseRecordStore.isSaving$ | async)
             "
             [matBadge]="selectedTransactionsForBulkEditLength"
             [matBadgeHidden]="!isBulkEdit">
-            @if (sessionDataService.isSaving$ | async) {
+            @if (caseRecordStore.isSaving$ | async) {
               Saving...
             } @else {
               Save
@@ -3700,7 +3700,7 @@ export class EditFormComponent implements AfterViewChecked {
   // ----------------------
   // Form Submission
   // ----------------------
-  protected sessionDataService = inject(CaseRecordStore);
+  protected caseRecordStore = inject(CaseRecordStore);
   protected isSaved = false;
 
   protected onSave(): void {
@@ -3720,7 +3720,7 @@ export class EditFormComponent implements AfterViewChecked {
 
     const editType = this.editType();
     if (editType.type === 'SINGLE_EDIT') {
-      this.sessionDataService.saveEditForm({
+      this.caseRecordStore.saveEditForm({
         editType: 'SINGLE_EDIT',
         flowOfFundsAmlTransactionId:
           editType.payload.flowOfFundsAmlTransactionId,
@@ -3729,10 +3729,10 @@ export class EditFormComponent implements AfterViewChecked {
     }
 
     if (editType.type === 'BULK_EDIT') {
-      this.sessionDataService.saveEditForm({
+      this.caseRecordStore.saveEditForm({
         editType: 'BULK_EDIT',
         editFormValue: this.editForm!.value,
-        selections: editType.payload,
+        selectionIds: editType.payload,
       });
     }
   }
@@ -5097,7 +5097,7 @@ export const singleEditTypeResolver: ResolveFn<EditFormEditType> = (
   route: ActivatedRouteSnapshot,
   _: RouterStateSnapshot,
 ) => {
-  return inject(CaseRecordStore).strTransactionData$.pipe(
+  return inject(CaseRecordStore).selectionsComputed$.pipe(
     map((strTransactionData) => {
       const strTransaction = strTransactionData.find(
         (txn) =>
@@ -5123,7 +5123,7 @@ export const bulkEditTypeResolver: ResolveFn<EditFormEditType> = (
 
   if (!selectedTransactionsForBulkEdit) throw new Error('Unknown edit type');
 
-  return inject(CaseRecordStore).strTransactionData$.pipe(
+  return inject(CaseRecordStore).selectionsComputed$.pipe(
     map((strTransactionData) => {
       const strTransactions = strTransactionData.filter((txn) =>
         selectedTransactionsForBulkEdit.includes(

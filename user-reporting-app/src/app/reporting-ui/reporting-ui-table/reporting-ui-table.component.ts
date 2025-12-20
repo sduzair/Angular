@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
 import {
+  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
+  inject,
   Input,
   TrackByFunction,
   ViewChild,
-  inject,
 } from '@angular/core';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatButtonModule } from '@angular/material/button';
@@ -16,7 +17,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { ActivatedRoute, ResolveFn, Router } from '@angular/router';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, combineLatestWith, map, Observable } from 'rxjs';
 import {
   CaseRecordStore,
   StrTransactionWithChangeLogs,
@@ -74,10 +75,13 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
           Manual Upload
         </button>
         <!-- Selection Model -->
-        <ng-container matColumnDef="select">
+        <ng-container
+          matColumnDef="select"
+          [sticky]="baseTable.isStickyColumn('select')">
           <th
             mat-header-cell
             *matHeaderCellDef
+            class="px-0"
             [class.sticky-cell]="baseTable.isStickyColumn('select')">
             @if (baseTable.hasMasterToggle) {
               <div>
@@ -96,6 +100,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
           <td
             mat-cell
             *matCellDef="let row; let i = index"
+            class="px-0"
             [class.sticky-cell]="baseTable.isStickyColumn('select')">
             <div>
               <mat-checkbox
@@ -108,18 +113,18 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
           </td>
         </ng-container>
         <!-- Actions column -->
-        <ng-container matColumnDef="actions">
+        <ng-container
+          matColumnDef="actions"
+          [sticky]="baseTable.isStickyColumn('actions')">
           <th
             mat-header-cell
             *matHeaderCellDef
+            class="px-0"
             [class.sticky-cell]="baseTable.isStickyColumn('actions')">
             <div>
               <button
                 type="button"
-                [disabled]="
-                  (baseTable.hasSelections$ | async) === false ||
-                  (sessionDataService.isSaving$ | async)
-                "
+                [disabled]="isActionHeaderDisabled$ | async"
                 mat-icon-button
                 (click)="navigateToBulkEdit()"
                 [matBadge]="baseTable.selection.selected.length"
@@ -127,7 +132,24 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
                 <mat-icon>edit</mat-icon>
               </button>
               <button type="button" mat-icon-button class="invisible">
-                <mat-icon>history</mat-icon>
+                <mat-icon
+                  class="text-primary"
+                  [class.text-opacity-50]="isActionHeaderDisabled$ | async">
+                  history
+                </mat-icon>
+              </button>
+              <button
+                type="button"
+                [disabled]="isActionHeaderDisabled$ | async"
+                mat-icon-button
+                (click)="resetSelectedTxns()"
+                [matBadge]="baseTable.selection.selected.length"
+                [matBadgeHidden]="!baseTable.selection.hasValue()">
+                <mat-icon
+                  class="text-danger"
+                  [class.text-opacity-50]="isActionHeaderDisabled$ | async">
+                  restart_alt
+                </mat-icon>
               </button>
             </div>
           </th>
@@ -138,6 +160,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
               backgroundColor:
                 row[baseTable.filterFormHighlightSelectFilterKey] || '',
             }"
+            class="px-0"
             [class.sticky-cell]="baseTable.isStickyColumn('actions')">
             <div>
               <button
@@ -151,13 +174,18 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
                 type="button"
                 mat-icon-button
                 (click)="navigateToAuditForm(row)">
-                <mat-icon>history</mat-icon>
+                <mat-icon class="text-primary">history</mat-icon>
+              </button>
+              <button type="button" mat-icon-button (click)="resetTxn(row)">
+                <mat-icon class="text-danger">restart_alt</mat-icon>
               </button>
             </div>
           </td>
         </ng-container>
         <!-- Validation Info column -->
-        <ng-container matColumnDef="_hiddenValidation">
+        <ng-container
+          matColumnDef="_hiddenValidation"
+          [sticky]="baseTable.isStickyColumn('_hiddenValidation')">
           <th
             mat-header-cell
             *matHeaderCellDef
@@ -190,8 +218,11 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
   styleUrl: './reporting-ui-table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ReportingUiTableComponent {
+export class ReportingUiTableComponent implements AfterViewInit {
+  protected caseRecordStore = inject(CaseRecordStore);
   private dialog = inject(MatDialog);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
   async openManualUploadStepper() {
     const {
       ManualUploadStepperComponent,
@@ -403,7 +434,6 @@ export class ReportingUiTableComponent {
   stickyColumns: (StrTransactionDataColumnKey | 'actions' | 'select')[] = [
     'actions',
     'select',
-    '_mongoid',
     '_hiddenValidation',
   ];
 
@@ -475,11 +505,10 @@ export class ReportingUiTableComponent {
     ['dateOfPosting', 'timeOfPosting'],
   ];
 
-  sessionDataService = inject(CaseRecordStore);
   filterFormHighlightSideEffect = (
     highlights: { txnId: string; newColor: string }[],
   ) => {
-    this.sessionDataService.saveHighlightEdits(highlights);
+    this.caseRecordStore.saveHighlightEdits(highlights);
   };
 
   private recentlyOpenedRowsSubject = new BehaviorSubject([] as string[]);
@@ -496,7 +525,7 @@ export class ReportingUiTableComponent {
     const colors: Record<_hiddenValidationType, string> = {
       conductorMissing: '#dc3545',
       bankInfoMissing: '#ba005c',
-      editedTxn: '#0d6efd',
+      edited: '#0d6efd',
       invalidMethodOfTxn: '#0d6efd',
       invalidTypeOfFunds: '#0d6efd',
       invalidAccountType: '#0d6efd',
@@ -528,8 +557,6 @@ export class ReportingUiTableComponent {
     return brightness > 125 ? '#000000' : '#ffffff';
   }
 
-  private route = inject(ActivatedRoute);
-  private router = inject(Router);
   navigateToEditForm(record: StrTransactionWithChangeLogs) {
     this.recentlyOpenedRowsSubject.next([record.flowOfFundsAmlTransactionId]);
     this.router.navigate(
@@ -571,7 +598,27 @@ export class ReportingUiTableComponent {
     });
   }
 
+  resetSelectedTxns() {
+    const selectedIds = this.baseTable.selection.selected.map(
+      (strTxn) => strTxn.flowOfFundsAmlTransactionId,
+    );
+    this.caseRecordStore.resetSelections(selectedIds);
+  }
+
+  resetTxn(record: StrTransactionWithChangeLogs) {
+    this.caseRecordStore.resetSelections([record.flowOfFundsAmlTransactionId]);
+  }
+
   // template helpers
+
+  protected isActionHeaderDisabled$?: Observable<boolean>;
+  ngAfterViewInit(): void {
+    this.isActionHeaderDisabled$ = this.baseTable.hasSelections$.pipe(
+      combineLatestWith(this.caseRecordStore.isSaving$),
+      map(([hasSelections, isSaving]) => !hasSelections || isSaving),
+    );
+  }
+
   getColorForValidationChip(error: _hiddenValidationType): string {
     return ReportingUiTableComponent.getColorForValidationChip(error);
   }
@@ -583,7 +630,7 @@ export class ReportingUiTableComponent {
 export const strTransactionsEditedResolver: ResolveFn<
   Observable<StrTransactionWithChangeLogs[]>
 > = async () => {
-  return inject(CaseRecordStore).strTransactionData$;
+  return inject(CaseRecordStore).selectionsComputed$;
 };
 
 export const savingEditsResolver: ResolveFn<
@@ -593,7 +640,7 @@ export const savingEditsResolver: ResolveFn<
 };
 
 export type _hiddenValidationType =
-  | 'editedTxn'
+  | 'edited'
   | 'conductorMissing'
   | 'bankInfoMissing'
   | InvalidFormOptionsErrorKeys

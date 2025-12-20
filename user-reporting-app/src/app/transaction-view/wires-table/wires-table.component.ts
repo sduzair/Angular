@@ -37,11 +37,13 @@ import { TableSelectionType } from '../transaction-view.component';
       [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
       [sortedBy]="'transactionDate'">
       <!-- Selection Model -->
-      <ng-container matColumnDef="select">
+      <ng-container
+        matColumnDef="select"
+        [sticky]="baseTable.isStickyColumn('select')">
         <th
           mat-header-cell
           *matHeaderCellDef
-          class="px-2"
+          class="px-0"
           [class.sticky-cell]="baseTable.isStickyColumn('select')">
           @if (baseTable.hasMasterToggle) {
             <div>
@@ -58,6 +60,7 @@ import { TableSelectionType } from '../transaction-view.component';
         <td
           mat-cell
           *matCellDef="let row; let i = index"
+          class="px-0"
           [class.sticky-cell]="baseTable.isStickyColumn('select')"
           [ngStyle]="{
             backgroundColor:
@@ -269,7 +272,12 @@ export class WiresTableComponent<
     >
   >;
 
-  stickyColumns: ('select' | keyof WireSourceData)[] = ['select'];
+  stickyColumns: ('select' | keyof WireSourceData)[] = [
+    'select',
+    'postingDate',
+    'transactionDate',
+    'transactionTime',
+  ];
 
   selectFiltersValues: (keyof WireSourceData)[] = [
     'awiBic',
