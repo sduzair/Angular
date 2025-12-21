@@ -45,7 +45,8 @@ import {
   _hiddenValidationType,
 } from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import { DeepPartial } from '../test-helpers';
-import { TransactionSearchComponent } from '../transaction-search/transaction-search.component';
+import { type RouteExtrasFromSearch } from '../transaction-search/transaction-search.component';
+import { TransactionSearchResponse } from '../transaction-search/transaction-search.service';
 import {
   AddSelectionsRequest,
   CaseRecordService,
@@ -54,9 +55,10 @@ import {
 } from './case-record.service';
 
 export const DEFAULT_CASE_RECORD_STATE: CaseRecordState = {
+  searchResult: [],
   caseRecordId: '',
   amlId: '',
-  transactionSearchParams: {
+  searchParams: {
     accountNumbersSelection: [],
     partyKeysSelection: [],
     productTypesSelection: [],
@@ -165,7 +167,7 @@ export class CaseRecordStore implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    console.log('Service destroyed - cleaning up streams');
+    console.info('Service destroyed - cleaning up streams');
 
     // Complete all Subjects
     this._state$.complete();
@@ -516,9 +518,7 @@ export class CaseRecordStore implements OnDestroy {
     });
   }
 
-  setSearchParams(
-    searchParam: (typeof TransactionSearchComponent.prototype.searchParamsForm)['value'],
-  ) {
+  setSearchParams(searchParam: RouteExtrasFromSearch['searchParams']) {
     const searchParamsClone = structuredClone(searchParam);
     const {
       accountNumbers = [],
@@ -529,7 +529,7 @@ export class CaseRecordStore implements OnDestroy {
     } = searchParamsClone;
     this._state$.next({
       ...this._state$.value,
-      transactionSearchParams: {
+      searchParams: {
         accountNumbersSelection:
           accountNumbers?.map(({ value }) => value) ?? [],
         partyKeysSelection: partyKeys?.map(({ value }) => value) ?? [],
@@ -554,7 +554,7 @@ export class CaseRecordStore implements OnDestroy {
         ({
           caseRecordId,
           amlId,
-          transactionSearchParams,
+          searchParams,
           createdAt,
           createdBy,
           status,
@@ -562,29 +562,27 @@ export class CaseRecordStore implements OnDestroy {
           lastUpdated,
         }) => {
           this._state$.next({
+            ...this._state$.value,
             caseRecordId,
             amlId,
-            transactionSearchParams: {
+            searchParams: {
               accountNumbersSelection:
-                transactionSearchParams.accountNumbersSelection ?? [],
-              partyKeysSelection:
-                transactionSearchParams.partyKeysSelection ?? [],
-              productTypesSelection:
-                transactionSearchParams.productTypesSelection ?? [],
-              reviewPeriodSelection:
-                transactionSearchParams.reviewPeriodSelection ?? [],
-              sourceSystemsSelection:
-                transactionSearchParams.sourceSystemsSelection ?? [],
+                searchParams.accountNumbersSelection ?? [],
+              partyKeysSelection: searchParams.partyKeysSelection ?? [],
+              productTypesSelection: searchParams.productTypesSelection ?? [],
+              reviewPeriodSelection: searchParams.reviewPeriodSelection ?? [],
+              sourceSystemsSelection: searchParams.sourceSystemsSelection ?? [],
             },
             createdAt,
             createdBy,
             status,
             etag,
             lastUpdated,
-            selections: [],
           });
         },
       ),
+      // access case record state directly
+      map(() => undefined),
     );
   }
 
@@ -594,7 +592,7 @@ export class CaseRecordStore implements OnDestroy {
       tap(({ caseRecordId, etag }) => {
         this._state$.next({
           ...this._state$.value,
-          transactionSearchParams: { ...payloadClone },
+          searchParams: { ...payloadClone },
           caseRecordId,
           etag: etag,
         });
@@ -733,6 +731,13 @@ export class CaseRecordStore implements OnDestroy {
       }),
     );
   }
+
+  setSearchResult(searchResult: TransactionSearchResponse) {
+    this._state$.next({
+      ...this._state$.value,
+      searchResult,
+    });
+  }
 }
 
 export interface PendingChange {
@@ -743,7 +748,7 @@ export interface PendingChange {
 export interface CaseRecordState {
   caseRecordId: string;
   amlId: string;
-  transactionSearchParams: {
+  searchParams: {
     partyKeysSelection: string[];
     accountNumbersSelection: string[];
     sourceSystemsSelection: string[];
@@ -760,6 +765,8 @@ export interface CaseRecordState {
   // table partial update use
   selectionsToChange?: PendingChange['flowOfFundsAmlTransactionId'][];
   selectionsToAdd?: StrTransactionWithChangeLogs['flowOfFundsAmlTransactionId'][];
+
+  searchResult: TransactionSearchResponse;
 }
 
 // Hidden props prefixed with '_hidden' are ignored by the change logging service.
@@ -851,7 +858,7 @@ export function setRowValidationInfo(
   const errors: _hiddenValidationType[] = [];
   if (
     transaction.changeLogs.length > 0 &&
-    !transaction.changeLogs.every((log) => log.path === 'highlightColor')
+    !transaction.changeLogs.every((log) => log.path === '/highlightColor')
   )
     errors.push('edited');
 

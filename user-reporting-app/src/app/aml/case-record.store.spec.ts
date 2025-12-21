@@ -10,8 +10,8 @@ import {
   AppErrorHandlerService,
   errorInterceptor,
 } from '../app-error-handler.service';
-import { CaseRecordState, CaseRecordStore } from './case-record.store';
 import { CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE } from './case-record.state.fixture';
+import { CaseRecordState, CaseRecordStore } from './case-record.store';
 
 describe('SessionDataService', () => {
   let store: CaseRecordStore;
@@ -95,7 +95,7 @@ describe('SessionDataService', () => {
   //         amlId: '999999',
   //         version: 0,
   //         data: {
-  //           transactionSearchParams: {
+  //           searchParams: {
   //             accountNumbersSelection: [],
   //             partyKeysSelection: [],
   //             productTypesSelection: [],
@@ -122,7 +122,7 @@ describe('SessionDataService', () => {
   //         amlId: mockAmlId,
   //         version: mockVersion,
   //         data: {
-  //           transactionSearchParams: mockTransactionSearchParam,
+  //           searchParams: mockTransactionSearchParam,
   //           strTransactions: mockStrTransactionsEdited = [],
   //         },
   //         updatedAt: mockUpdatedAt,
@@ -138,12 +138,12 @@ describe('SessionDataService', () => {
   //       const {
   //         amlId,
   //         version,
-  //         data: { transactionSearchParams, strTransactions },
+  //         data: { searchParams, strTransactions },
   //       } = await result;
 
   //       expect(amlId).toBe(mockAmlId);
   //       expect(version).toBe(mockVersion);
-  //       expect(transactionSearchParams).toEqual(mockTransactionSearchParam);
+  //       expect(searchParams).toEqual(mockTransactionSearchParam);
   //       expect(strTransactions).toEqual(mockStrTransactionsEdited);
   //       expect(store['_caseRecordState$'].value.version).toBe(mockVersion);
   //     });
@@ -211,7 +211,7 @@ describe('SessionDataService', () => {
   //       await result;
 
   //       const {
-  //         transactionSearchParams: {
+  //         searchParams: {
   //           accountNumbersSelection,
   //           partyKeysSelection,
   //           productTypesSelection,
@@ -236,7 +236,7 @@ describe('SessionDataService', () => {
   //   //       service["sessionState"].next({
   //   //         amlId: mockAmlId,
   //   //         version: 1,
-  //   //         transactionSearchParams: mockSessionState.data.transactionSearchParams,
+  //   //         searchParams: mockSessionState.data.searchParams,
   //   //         strTransactionsEdited: [
   //   //           {
   //   //             _hiddenStrTxnId: "txn-1",

@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable rxjs-angular-x/prefer-composition */
 /* eslint-disable rxjs-angular-x/prefer-async-pipe */
 import { SelectionModel } from '@angular/cdk/collections';
 import { COMMA, ENTER } from '@angular/cdk/keycodes';
@@ -275,7 +274,6 @@ export abstract class AbstractBaseTable<
           filter(
             () => this.selectFiltersIsUniqueOptionsCacheDirty.get(key) === true,
           ),
-          tap(console.log),
           map(() => {
             // lazily recompute readonly select filter options
             this.selectFiltersUniqueFilterOptions[key] =
@@ -917,7 +915,6 @@ export abstract class AbstractBaseTable<
     const toggleObject = {
       [this.selectionKey]: row[this.selectionKey],
     };
-    console.log('togglerow table', toggleObject);
     this.selection.toggle(toggleObject as TSelection);
   }
 

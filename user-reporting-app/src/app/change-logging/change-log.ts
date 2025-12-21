@@ -32,7 +32,9 @@ export function generateChangeLogs<T extends object>(
     key !== '_id' &&
     key !== 'changeLogs' &&
     key !== 'etag' &&
-    key !== 'caseRecordId';
+    key !== 'caseRecordId' &&
+    !key.startsWith('npd') &&
+    key !== 'sourceId';
 
   function isIgnoredChange(val1: any, val2: any) {
     return (

@@ -45,6 +45,7 @@ import {
   ISelectionMasterToggle,
 } from './abstract-base-table';
 import { ClickOutsideTableDirective } from './click-outside-table.directive';
+import { CamelToTitlePipe } from '../reporting-ui/reporting-ui-table/camel-to-title.pipe';
 
 @Component({
   selector: 'app-base-table',
@@ -78,6 +79,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
     MatButtonToggleModule,
     ClickOutsideTableDirective,
     ScrollPositionPreserveDirective,
+    CamelToTitlePipe,
   ],
   template: `
     @if (showToolbar) {
@@ -331,7 +333,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                               filterKey
                             ]!.toggle(option.value)
                           ">
-                          {{ option.value }}
+                          {{ option.value | camelToTitle }}
                         </mat-checkbox>
                       </mat-option>
                     }

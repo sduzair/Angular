@@ -5,12 +5,12 @@ import {
   StrTxnFlowOfFunds,
   WithVersion,
 } from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
+import { CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE } from './case-record.state.fixture';
 import {
   PendingChange,
   ReviewPeriod,
   StrTransactionWithChangeLogs,
 } from './case-record.store';
-import { CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE } from './case-record.state.fixture';
 
 @Injectable({
   providedIn: 'root',
@@ -22,7 +22,6 @@ export class CaseRecordService {
     return of({
       ...CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE,
       lastUpdated: CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE.lastUpdated ?? '',
-      selections: [],
     }).pipe(delay(1000));
     // return this.http.get<GetCaseRecordResponse>(
     //   `/api/aml/${amlId}/case-record`,
@@ -77,7 +76,7 @@ export class CaseRecordService {
 export interface GetCaseRecordResponse {
   caseRecordId: string;
   amlId: string;
-  transactionSearchParams: {
+  searchParams: {
     partyKeysSelection?: string[] | null;
     accountNumbersSelection?: string[] | null;
     sourceSystemsSelection?: string[] | null;
@@ -93,7 +92,7 @@ export interface GetCaseRecordResponse {
 
 interface CreateSessionRequest {
   amlId: string;
-  transactionSearchParams: {
+  searchParams: {
     partyKeysSelection?: string[] | null;
     accountNumbersSelection?: string[] | null;
     sourceSystemsSelection?: string[] | null;
@@ -131,7 +130,7 @@ interface RemoveSelectionsRequest {
 
 interface UpdateSearchParamsRequest {
   etag: number;
-  transactionSearchParams: {
+  searchParams: {
     partyKeysSelection?: string[] | null;
     accountNumbersSelection?: string[] | null;
     sourceSystemsSelection?: string[] | null;

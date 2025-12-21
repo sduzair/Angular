@@ -14,7 +14,7 @@ mat-sidenav {
   width: 240px;
 }
 
-.nav {
+.app-nav {
   // border-right: 1px solid var(--mat-sys-outline-variant);
   /* Local density for buttons if desired */
   @include mat.button-density(-1);
@@ -37,24 +37,33 @@ mat-sidenav {
       title-text-weight: var(--mat-sys-headline-small-weight),
     )
   );
+
+  button[mat-icon-button] {
+    color: var(--mat-sys-on-surface);
+    --mat-icon-button-state-layer-size: 24px;
+  }
 }
 
-.nav mat-tree-node:hover {
+.app-nav mat-tree-node:first-of-type {
+  margin-bottom: 0.5rem !important;
+
+  a {
+    justify-content: center;
+  }
+}
+
+/* Custom utility to fix icon sizes if needed */
+.icon-size-20 {
+  font-size: 20px;
+  height: 20px;
+  width: 20px;
+}
+
+.app-hover-bg:hover,
+.app-hover-bg-active {
   background: color-mix(in oklab, var(--mat-sys-on-surface) 8%, transparent);
 }
 
-.nav button[mat-icon-button] {
-  color: var(--mat-sys-on-surface);
-}
-
-.nav .link {
-  cursor: pointer;
-}
-
-.nav mat-toolbar {
-  border-bottom: 1px solid var(--mat-sys-outline-variant);
-}
-
-mat-tree-node:first-of-type {
-  margin-bottom: 0.5rem !important;
+mat-tree-node a {
+  color: var(--mat-tree-node-text-color, var(--mat-sys-on-surface));
 }

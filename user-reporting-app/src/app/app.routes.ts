@@ -1,5 +1,4 @@
 import type { Routes } from '@angular/router';
-import { lastUpdatedResolver, savingStatusResolver } from './aml/aml.component';
 import { CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE } from './aml/case-record.state.fixture';
 import {
   CASE_RECORD_INITIAL_STATE,
@@ -14,14 +13,9 @@ import {
   EditFormComponent,
   singleEditTypeResolver,
 } from './reporting-ui/edit-form/edit-form.component';
+import { ReportingUiTableComponent } from './reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import {
-  ReportingUiTableComponent,
-  savingEditsResolver,
-  strTransactionsEditedResolver,
-} from './reporting-ui/reporting-ui-table/reporting-ui-table.component';
-import {
-  initSelectionsResolver,
-  transactionSearchResolver,
+  searchResultResolver,
   TransactionViewComponent,
 } from './transaction-view/transaction-view.component';
 
@@ -65,10 +59,6 @@ export const routes: Routes = [
           },
           CaseRecordStore,
         ],
-        resolve: {
-          lastUpdated$: lastUpdatedResolver,
-          savingStatus$: savingStatusResolver,
-        },
         data: { reuse: true },
         title: (route) => `AML - ${route.params['amlId']}`,
         children: [
@@ -81,11 +71,11 @@ export const routes: Routes = [
             path: 'transaction-view',
             component: TransactionViewComponent,
             resolve: {
-              transactionSearch: transactionSearchResolver,
-              initSelections: initSelectionsResolver,
+              searchResult: searchResultResolver,
             },
             data: { reuse: true },
             title: () => 'Transaction View',
+            runGuardsAndResolvers: 'paramsOrQueryParamsChange',
           },
           {
             path: 'reporting-ui',
@@ -94,10 +84,6 @@ export const routes: Routes = [
               {
                 path: '',
                 component: ReportingUiTableComponent,
-                resolve: {
-                  strTransactionData$: strTransactionsEditedResolver,
-                  savingEdits$: savingEditsResolver,
-                },
                 data: { reuse: true },
                 title: () => 'Table',
               },

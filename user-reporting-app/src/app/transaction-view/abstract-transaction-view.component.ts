@@ -1,30 +1,36 @@
 import { SelectionModel } from '@angular/cdk/collections';
-import { Component, ChangeDetectionStrategy, input } from '@angular/core';
-import { toObservable } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import {
-  shareReplay,
-  map,
-  switchMap,
-  startWith,
-  debounceTime,
   combineLatestWith,
+  debounceTime,
+  map,
+  shareReplay,
+  startWith,
+  switchMap,
 } from 'rxjs';
-import { TransactionSearchResponse } from '../transaction-search/transaction-search.service';
+import { CaseRecordStore } from '../aml/case-record.store';
 import { TableSelectionType } from './transaction-view.component';
 
 @Component({ template: '', changeDetection: ChangeDetectionStrategy.OnPush })
 export abstract class AbstractTransactionViewComponent {
-  readonly transactionSearch = input.required<TransactionSearchResponse>();
-  readonly initSelections = input.required<TableSelectionType[]>();
-
-  transactionSearch$ = toObservable(this.transactionSearch).pipe(
-    shareReplay({ bufferSize: 1, refCount: true }),
-  );
-  initSelections$ = toObservable(this.initSelections).pipe(
+  readonly searchResult$ = inject(CaseRecordStore).state$.pipe(
+    map(({ searchResult }) => searchResult),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  searchFlowOfFundsSet$ = this.transactionSearch$.pipe(
+  readonly selections$ = inject(CaseRecordStore).state$.pipe(
+    map(({ selections }) => {
+      return selections.map(
+        (txn) =>
+          ({
+            flowOfFundsAmlTransactionId: txn.flowOfFundsAmlTransactionId,
+          }) satisfies TableSelectionType,
+      );
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  searchFlowOfFundsSet$ = this.searchResult$.pipe(
     map((search) => {
       return new Set(
         search
@@ -34,7 +40,7 @@ export abstract class AbstractTransactionViewComponent {
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
-  searchAbmSet$ = this.transactionSearch$.pipe(
+  searchAbmSet$ = this.searchResult$.pipe(
     map((search) => {
       return new Set(
         search
@@ -45,7 +51,7 @@ export abstract class AbstractTransactionViewComponent {
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  searchOlbSet$ = this.transactionSearch$.pipe(
+  searchOlbSet$ = this.searchResult$.pipe(
     map((search) => {
       return new Set(
         search
@@ -55,7 +61,7 @@ export abstract class AbstractTransactionViewComponent {
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
-  searchEmtSet$ = this.transactionSearch$.pipe(
+  searchEmtSet$ = this.searchResult$.pipe(
     map((search) => {
       return new Set(
         search
@@ -65,7 +71,7 @@ export abstract class AbstractTransactionViewComponent {
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
-  searchWiresSet$ = this.transactionSearch$.pipe(
+  searchWiresSet$ = this.searchResult$.pipe(
     map((search) => {
       return new Set(
         search
@@ -76,7 +82,7 @@ export abstract class AbstractTransactionViewComponent {
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  selectionModel$ = this.initSelections$.pipe(
+  selectionModel$ = this.selections$.pipe(
     map(
       (selections) =>
         new SelectionModel(true, selections, true, this.selectionComparator),
@@ -88,7 +94,7 @@ export abstract class AbstractTransactionViewComponent {
     return o1.flowOfFundsAmlTransactionId === o2.flowOfFundsAmlTransactionId;
   }
 
-  protected selections$ = this.selectionModel$.pipe(
+  protected selectionsCurrent$ = this.selectionModel$.pipe(
     switchMap((selectionModel) =>
       selectionModel.changed.pipe(
         map(() => selectionModel.selected),
@@ -98,7 +104,7 @@ export abstract class AbstractTransactionViewComponent {
     shareReplay({ bufferSize: 1, refCount: true }), // Share among multiple subscribers
   );
 
-  fofSourceDataSelectionCount$ = this.selections$.pipe(
+  fofSourceDataSelectionCount$ = this.selectionsCurrent$.pipe(
     debounceTime(200),
     combineLatestWith(this.searchFlowOfFundsSet$),
     map(
@@ -108,7 +114,7 @@ export abstract class AbstractTransactionViewComponent {
     ),
   );
 
-  abmSourceDataSelectionCount$ = this.selections$.pipe(
+  abmSourceDataSelectionCount$ = this.selectionsCurrent$.pipe(
     debounceTime(200),
     combineLatestWith(this.searchAbmSet$),
     map(
@@ -118,7 +124,7 @@ export abstract class AbstractTransactionViewComponent {
     ),
   );
 
-  olbSourceDataSelectionCount$ = this.selections$.pipe(
+  olbSourceDataSelectionCount$ = this.selectionsCurrent$.pipe(
     debounceTime(200),
     combineLatestWith(this.searchOlbSet$),
     map(
@@ -128,7 +134,7 @@ export abstract class AbstractTransactionViewComponent {
     ),
   );
 
-  emtSourceDataSelectionCount$ = this.selections$.pipe(
+  emtSourceDataSelectionCount$ = this.selectionsCurrent$.pipe(
     debounceTime(200),
     combineLatestWith(this.searchEmtSet$),
     map(
@@ -138,7 +144,7 @@ export abstract class AbstractTransactionViewComponent {
     ),
   );
 
-  wiresSourceDataSelectionCount$ = this.selections$.pipe(
+  wiresSourceDataSelectionCount$ = this.selectionsCurrent$.pipe(
     debounceTime(200),
     combineLatestWith(this.searchWiresSet$),
     map(

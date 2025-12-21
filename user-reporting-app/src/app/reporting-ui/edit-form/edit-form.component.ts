@@ -547,7 +547,7 @@ import { ValidateOnParentChangesDirective } from './validate-on-parent-changes.d
                 </button>
                 <div
                   formArrayName="startingActions"
-                  class="w-100 d-flex flex-column gap-3">
+                  class="w-100 d-flex flex-column gap-3 mb-5">
                   @for (
                     saAction of editForm.controls.startingActions.controls;
                     track saAction.value._id;
@@ -2186,7 +2186,7 @@ import { ValidateOnParentChangesDirective } from './validate-on-parent-changes.d
                 </button>
                 <div
                   formArrayName="completingActions"
-                  class="w-100 d-flex flex-column gap-3">
+                  class="w-100 d-flex flex-column gap-3 mb-5">
                   @for (
                     caAction of editForm.controls.completingActions.controls;
                     track caAction.value._id;
@@ -3576,7 +3576,6 @@ import { ValidateOnParentChangesDirective } from './validate-on-parent-changes.d
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-// eslint-disable-next-line rxjs-angular-x/prefer-composition
 export class EditFormComponent implements AfterViewChecked {
   private snackbarQ = inject(SnackbarQueueService);
 
@@ -3625,7 +3624,7 @@ export class EditFormComponent implements AfterViewChecked {
   private editFormValueBefore: EditFormValueType | null = null;
   _ = this.editForm$
     .pipe(takeUntilDestroyed())
-    // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
+    // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
     .subscribe((form) => {
       this.editForm = form;
     });
@@ -3847,6 +3846,7 @@ export class EditFormComponent implements AfterViewChecked {
                 ]
               : []),
         ),
+        highlightColor: new FormControl(txn?.highlightColor ?? ''),
       },
       { updateOn: 'change' },
     ) satisfies FormGroup<TypedForm<WithVersion<StrTxnEditForm>>>;
@@ -5198,7 +5198,6 @@ export type TypedForm<T> = {
 export type StrTxnEditForm = RecursiveOmit<
   StrTransaction,
   | keyof StrTxnFlowOfFunds
-  | 'highlightColor'
   | keyof ConductorNpdData
   | '_hiddenFullName'
   | '_hiddenSaAmount'

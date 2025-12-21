@@ -57,7 +57,7 @@ export default defineConfig([
 
       // RxJS best practices
       'rxjs-angular-x/prefer-async-pipe': 'error',
-      'rxjs-angular-x/prefer-composition': 'warn',
+      'rxjs-angular-x/prefer-composition': 'off',
       'rxjs-angular-x/prefer-takeuntil': [
         'error',
         {

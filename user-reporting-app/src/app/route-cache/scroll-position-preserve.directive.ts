@@ -6,10 +6,10 @@ import {
   OnDestroy,
   OnInit,
 } from '@angular/core';
-import { Router, NavigationStart, NavigationEnd } from '@angular/router';
-import { delay, filter } from 'rxjs';
-import { ScrollPositionService } from './scroll-position.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationEnd, NavigationStart, Router } from '@angular/router';
+import { delay, filter, map } from 'rxjs';
+import { ScrollPositionService } from './scroll-position.service';
 
 @Directive({
   selector: '[appScrollPositionPreserve]',
@@ -30,10 +30,17 @@ export class ScrollPositionPreserveDirective implements OnInit, OnDestroy {
       .pipe(
         filter((event) => event instanceof NavigationStart),
         filter(() => this.router.routerState.snapshot.url === this.routeKey),
+        map(() => this.getscrollableEles()),
+        filter((scrollableEles) => {
+          return (
+            scrollableEles.length > 0 &&
+            scrollableEles.every((ele) => ele.isConnected)
+          );
+        }),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe(() => {
-        this.saveScrollPositions();
+      .subscribe((scrollableEles) => {
+        this.saveScrollPositions(scrollableEles);
       });
 
     // Listen for when navigating TO this route (handles cached route reattachment)
@@ -41,28 +48,32 @@ export class ScrollPositionPreserveDirective implements OnInit, OnDestroy {
       .pipe(
         filter((event) => event instanceof NavigationEnd),
         filter(() => this.router.routerState.snapshot.url === this.routeKey),
+        map(() => this.getscrollableEles()),
+        filter((scrollableEles) => {
+          return (
+            scrollableEles.length > 0 &&
+            scrollableEles.every((ele) => ele.isConnected)
+          );
+        }),
         // Wait for the browser to attach the view and paint
         delay(0),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe(() => {
-        this.restoreScrollPositions();
+      .subscribe((scrollableEles) => {
+        this.restoreScrollPositions(scrollableEles);
       });
   }
 
   ngOnDestroy(): void {
     // Fallback for non-cached routes
-    this.saveScrollPositions();
+    const scrollEles = this.getscrollableEles();
+    this.saveScrollPositions(scrollEles);
   }
 
-  private saveScrollPositions(): void {
+  private saveScrollPositions(scrollableEles: HTMLElement[]): void {
     const positions: Record<string, [number, number]> = {};
 
-    const scrollableElements = this.getScrollableElements();
-
-    console.assert(scrollableElements.every((ele) => ele.isConnected));
-
-    scrollableElements.forEach((element, index) => {
+    scrollableEles.forEach((element, index) => {
       console.assert(element.isConnected);
       positions[index] = [element.scrollTop, element.scrollLeft];
     });
@@ -72,15 +83,12 @@ export class ScrollPositionPreserveDirective implements OnInit, OnDestroy {
     }
   }
 
-  private restoreScrollPositions(): void {
+  private restoreScrollPositions(scrollableEles: HTMLElement[]): void {
     const positions = this.scrollService.getScrollPositions(this.routeKey);
     if (!positions) return;
 
-    const scrollableElements = this.getScrollableElements();
-
-    console.assert(scrollableElements.every((ele) => ele.isConnected));
-
-    scrollableElements.forEach((element, index) => {
+    scrollableEles.forEach((element, index) => {
+      console.assert(element.isConnected);
       if (positions[index] !== undefined) {
         // eslint-disable-next-line no-param-reassign
         element.scrollTop = positions[index][0];
@@ -93,7 +101,7 @@ export class ScrollPositionPreserveDirective implements OnInit, OnDestroy {
 
   static SCROLLABLE_ELE = 'scroll-position-preserve' as const;
 
-  private getScrollableElements(): HTMLElement[] {
+  private getscrollableEles(): HTMLElement[] {
     const container = this.elementRef.nativeElement as HTMLElement;
     const elements = container.querySelectorAll(
       `.${ScrollPositionPreserveDirective.SCROLLABLE_ELE}`,

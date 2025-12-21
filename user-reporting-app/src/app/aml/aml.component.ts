@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  Input,
   inject,
   OnInit,
 } from '@angular/core';
@@ -12,16 +11,14 @@ import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import {
-  ActivatedRoute,
   ActivatedRouteSnapshot,
   NavigationEnd,
   PRIMARY_OUTLET,
-  ResolveFn,
   Router,
   RouterModule,
   RouterOutlet,
 } from '@angular/router';
-import { filter, map, Observable, startWith, tap } from 'rxjs';
+import { filter, map, Observable, startWith } from 'rxjs';
 import { CaseRecordStore } from './case-record.store';
 import { Breadcrumb } from '../app.routes';
 
@@ -98,11 +95,9 @@ import { Breadcrumb } from '../app.routes';
 })
 export class AmlComponent implements OnInit {
   private readonly _router = inject(Router);
-  @Input()
-  lastUpdated$!: Observable<string>;
+  lastUpdated$ = inject(CaseRecordStore).lastUpdated$;
 
-  @Input()
-  savingStatus$!: Observable<boolean>;
+  savingStatus$ = inject(CaseRecordStore).isSaving$;
 
   breadcrumbs$!: Observable<Breadcrumb[]>;
 
@@ -172,17 +167,3 @@ export class AmlComponent implements OnInit {
     return breadcrumbs;
   }
 }
-
-export const lastUpdatedResolver: ResolveFn<Observable<string>> = async (
-  _route,
-  _state,
-) => {
-  return inject(CaseRecordStore).lastUpdated$;
-};
-
-export const savingStatusResolver: ResolveFn<Observable<boolean>> = async (
-  _route,
-  _state,
-) => {
-  return inject(CaseRecordStore).isSaving$;
-};

@@ -37,6 +37,7 @@ import {
 import { RouterTestingHarness } from '@angular/router/testing';
 import { enCA } from 'date-fns/locale';
 import { of } from 'rxjs';
+import { CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE } from '../../aml/case-record.state.fixture';
 import {
   CASE_RECORD_INITIAL_STATE,
   CaseRecordState,
@@ -51,10 +52,6 @@ import {
 import { createAuthServiceSpy } from '../../auth.service.spec';
 import { LoginComponent } from '../../login/login.component';
 import { activateTabs, findEl } from '../../test-helpers';
-import {
-  lastUpdatedResolver,
-  savingStatusResolver,
-} from './../../aml/aml.component';
 import {
   AppErrorHandlerService,
   errorInterceptor,
@@ -72,7 +69,6 @@ import {
   FormOptionsService,
 } from './form-options.service';
 import { TransactionTimeDirective } from './transaction-time.directive';
-import { CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE } from '../../aml/case-record.state.fixture';
 
 @Component({
   selector: 'app-transaction-search',
@@ -137,20 +133,15 @@ describe('EditFormComponent', () => {
                   providers: [
                     {
                       provide: CASE_RECORD_INITIAL_STATE,
-                      useValue: SESSION_STATE_FIXTURE,
+                      useValue: CASE_RECORD_STATE_FIXTURE,
                     },
                     CaseRecordStore,
                   ],
-                  resolve: {
-                    lastUpdated$: lastUpdatedResolver,
-                    savingStatus$: savingStatusResolver,
-                  },
                   data: { reuse: true },
                   children: [
                     {
                       path: 'reporting-ui',
-                      title: (route) =>
-                        `Reporting UI - ${route.params['amlId']}`,
+                      title: () => 'Reporting UI',
                       children: [
                         {
                           path: 'edit-form/bulk-edit',
@@ -1596,10 +1587,11 @@ const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
   ],
 };
 
-const SESSION_STATE_FIXTURE: CaseRecordState = {
+const CASE_RECORD_STATE_FIXTURE: CaseRecordState = {
+  searchResult: [],
   caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
   amlId: '9999999',
-  transactionSearchParams: {
+  searchParams: {
     accountNumbersSelection: [],
     partyKeysSelection: [],
     productTypesSelection: [],
@@ -1635,7 +1627,6 @@ const SESSION_STATE_FIXTURE: CaseRecordState = {
       _hiddenTxnType: '',
       _hiddenAmlId: '',
       _hiddenStrTxnId: '',
-      _version: 0,
       changeLogs: [],
       sourceId: 'Manual',
       caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,

@@ -17,10 +17,10 @@ export class CachedRouteReuseStrategy implements RouteReuseStrategy {
     handle: DetachedRouteHandle | null,
   ): void {
     // Stores the detached route handle when shouldDetach returns true
-    if (handle && route.data['reuse'] === true) {
-      const key = this.getRouteKey(route);
-      this.handlers.set(key, handle);
-    }
+    if (!handle || route.data['reuse'] !== true) return;
+
+    const key = this.getRouteKey(route);
+    this.handlers.set(key, handle);
   }
   shouldAttach(route: ActivatedRouteSnapshot): boolean {
     // Checks if a stored route should be reattached
@@ -34,22 +34,17 @@ export class CachedRouteReuseStrategy implements RouteReuseStrategy {
       ? (this.handlers.get(key) ?? null)
       : null;
   }
-  /**
-   * Determines if the router should reuse the current route instance.
-   * Reload current page with
-   * this.router.navigateByUrl(this.router.url, {
-   *   onSameUrlNavigation: "reload",
-   * });
-   */
+
   shouldReuseRoute(
-    _future: ActivatedRouteSnapshot,
-    _curr: ActivatedRouteSnapshot,
+    future: ActivatedRouteSnapshot,
+    curr: ActivatedRouteSnapshot,
   ): boolean {
-    // return future.routeConfig === curr.routeConfig;
-    return false;
+    return future.routeConfig === curr.routeConfig;
   }
 
   private getRouteKey(route: ActivatedRouteSnapshot): string {
-    return route.routeConfig?.path ?? '';
+    return route.pathFromRoot
+      .map((v) => v.url.map((segment) => segment.toString()).join('/'))
+      .join('/');
   }
 }

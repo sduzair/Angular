@@ -69,6 +69,7 @@ import {
 } from 'rxjs';
 import { CaseRecordService } from '../aml/case-record.service';
 import { setError } from '../form-helpers';
+import { SnackbarQueueService } from '../snackbar-queue.service';
 import { AccountNumberSelectableTableComponent } from './account-number-selectable-table/account-number-selectable-table.component';
 import { PartyKeySelectableTableComponent } from './party-key-selectable-table/party-key-selectable-table.component';
 import { ProductTypeSelectableTableComponent } from './product-type-selectable-table/product-type-selectable-table.component';
@@ -78,9 +79,9 @@ import {
   AccountNumber,
   PartyKey,
   SourceSys,
+  TransactionSearchResponse,
   TransactionSearchService,
 } from './transaction-search.service';
-import { SnackbarQueueService } from '../snackbar-queue.service';
 
 export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
   isErrorState(
@@ -122,7 +123,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
           <button
             type="button"
             mat-flat-button
-            (click)="onTransactionSearch()"
+            (click)="onSearch()"
             [disabled]="isSourceRefreshTimeLoading || (isLoading$ | async)">
             <mat-icon>search</mat-icon>
             Search
@@ -535,10 +536,9 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-// eslint-disable-next-line rxjs-angular-x/prefer-composition
 export class TransactionSearchComponent implements OnInit {
   private caseRecordService = inject(CaseRecordService);
-  private transactionSearchService = inject(TransactionSearchService);
+  private searchService = inject(TransactionSearchService);
   private snackbarQ = inject(SnackbarQueueService);
   private router = inject(Router);
   private destroyRef = inject(DestroyRef);
@@ -573,7 +573,7 @@ export class TransactionSearchComponent implements OnInit {
     },
     {
       updateOn: 'change',
-      validators: [transactionSearchParamsExistValidator],
+      validators: [searchParamsExistValidator],
     },
   );
   readonly maxDate = new Date();
@@ -590,13 +590,13 @@ export class TransactionSearchComponent implements OnInit {
       this.isLoading$.next(true);
     }),
     switchMap((amlId) =>
-      this.transactionSearchService.getPartyAccountInfoByAmlId(amlId!).pipe(
+      this.searchService.getPartyAccountInfoByAmlId(amlId!).pipe(
         combineLatestWith(this.caseRecordService.fetchCaseRecordByAmlId(amlId)),
         tap(
           ([
             { amlId },
             {
-              transactionSearchParams: {
+              searchParams: {
                 reviewPeriodSelection,
                 partyKeysSelection,
                 accountNumbersSelection,
@@ -688,16 +688,13 @@ export class TransactionSearchComponent implements OnInit {
         ),
       ).map((value) => ({ value }));
     }),
-    tap(console.log),
   );
   isSourceRefreshTimeLoading = true;
-  sourceRefreshTimeData$ = this.transactionSearchService
-    .fetchSourceRefreshTime()
-    .pipe(
-      finalize(() => {
-        this.isSourceRefreshTimeLoading = false;
-      }),
-    );
+  sourceRefreshTimeData$ = this.searchService.fetchSourceRefreshTime().pipe(
+    finalize(() => {
+      this.isSourceRefreshTimeLoading = false;
+    }),
+  );
 
   public isLoading$ = new BehaviorSubject<boolean>(false);
 
@@ -730,7 +727,7 @@ export class TransactionSearchComponent implements OnInit {
         }),
         takeUntilDestroyed(this.destroyRef),
       )
-      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
       .subscribe();
   }
 
@@ -765,7 +762,7 @@ export class TransactionSearchComponent implements OnInit {
   //             };,
   //           ),
   //           finalize(() => {
-  //             this.transactionSearchParamsLoadingStateSubject.next(false);
+  //             this.searchParamsLoadingStateSubject.next(false);
   //           }),
   //         ),
   //       ),
@@ -776,7 +773,7 @@ export class TransactionSearchComponent implements OnInit {
   // }
 
   // todo: implement loading state in view
-  onTransactionSearch() {
+  onSearch() {
     if (this.searchParamsForm.invalid) {
       this.snackbarQ.open(
         'Please enter transaction search filters before searching',
@@ -787,19 +784,41 @@ export class TransactionSearchComponent implements OnInit {
       );
       return;
     }
-    console.log(
-      '🚀 ~ TransactionSearchComponent ~ onLoad ~ this.form.value:',
-      this.searchParamsForm.value,
-    );
+    const {
+      accountNumbers = [],
+      partyKeys = [],
+      productTypes = [],
+      reviewPeriods = [],
+      sourceSystems = [],
+    } = this.searchParamsForm.value;
 
-    this.router.navigate(
-      ['/aml', this.searchParamsForm.value.amlId!, 'transaction-view'],
-      {
-        state: {
-          searchParams: this.searchParamsForm.value,
-        },
-      },
-    );
+    this.searchService
+      .searchTransactions({
+        accountNumbersSelection: accountNumbers?.map((sel) => sel.value) ?? [],
+        partyKeysSelection: partyKeys?.map((sel) => sel.value) ?? [],
+        productTypesSelection: productTypes?.map((sel) => sel.value) ?? [],
+        reviewPeriodSelection: reviewPeriods,
+        sourceSystemsSelection: sourceSystems?.map((sel) => sel.value) ?? [],
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
+      .subscribe((searchResult) => {
+        this.router.navigate(
+          ['/aml', this.searchParamsForm.value.amlId!, 'transaction-view'],
+          {
+            state: {
+              searchParams: {
+                accountNumbers,
+                partyKeys,
+                productTypes,
+                reviewPeriods,
+                sourceSystems,
+              },
+              searchResult,
+            } satisfies RouteExtrasFromSearch,
+          },
+        );
+      });
   }
 
   createReviewPeriodGroup({
@@ -920,7 +939,7 @@ export interface ProductType {
   value: string;
 }
 
-function transactionSearchParamsExistValidator(
+function searchParamsExistValidator(
   control: AbstractControl,
 ): ValidationErrors | null {
   const txnSearchParamsCtrl =
@@ -932,7 +951,7 @@ function transactionSearchParamsExistValidator(
     !txnSearchParamsCtrl.contains('productTypes') ||
     !txnSearchParamsCtrl.contains('reviewPeriods')
   ) {
-    return { transactionSearchParamsExist: false };
+    return { searchParamsExist: false };
   }
   return null;
 }
@@ -990,4 +1009,18 @@ function overlappingReviewPeriodsValidator(
     }
   }
   return null;
+}
+
+export interface RouteExtrasFromSearch {
+  searchParams: {
+    accountNumbers: AccountNumber[] | null;
+    partyKeys: PartyKey[] | null;
+    productTypes: ProductType[] | null;
+    reviewPeriods: Partial<{
+      start: string | null;
+      end: string | null;
+    }>[];
+    sourceSystems: SourceSys[] | null;
+  };
+  searchResult: TransactionSearchResponse;
 }

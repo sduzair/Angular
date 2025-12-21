@@ -1,4 +1,5 @@
 import { TEST_USER_ADMIN } from '../auth.fixture';
+import { TRANSACTION_SEARCH_RES_DEV_ONLY } from '../transaction-search/transaction-search.data.fixture';
 import { SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE } from './case-record.selections.data.fixture';
 import { CaseRecordState } from './case-record.store';
 
@@ -7,9 +8,10 @@ export const CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE =
   '33a41dcc-ab8e-4a9b-89ea-c6a2fec46356';
 
 export const CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE: CaseRecordState = {
+  searchResult: TRANSACTION_SEARCH_RES_DEV_ONLY,
   caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
   amlId: String(AML_ID_DEV_OR_TEST_ONLY_FIXTURE),
-  transactionSearchParams: {
+  searchParams: {
     partyKeysSelection: ['3415674561', '1846597320'],
     accountNumbersSelection: [
       '84255 / 5582195',
@@ -38,7 +40,6 @@ export const CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE: CaseRecordState = {
     _hiddenTxnType: txn.flowOfFundsSource,
     _hiddenAmlId: String(AML_ID_DEV_OR_TEST_ONLY_FIXTURE),
     _hiddenStrTxnId: txn.flowOfFundsAmlTransactionId,
-    _version: 0,
     changeLogs: [],
     caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
   })),

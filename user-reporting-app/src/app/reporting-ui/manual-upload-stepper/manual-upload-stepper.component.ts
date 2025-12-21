@@ -247,7 +247,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
         tap((event) => this.onDragOver(event)),
         takeUntilDestroyed(this.destroyRef),
       )
-      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
       .subscribe();
 
     fromEvent<DragEvent>(this.dropZone.nativeElement, 'dragleave')
@@ -255,7 +255,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
         tap((event) => this.onDragLeave(event)),
         takeUntilDestroyed(this.destroyRef),
       )
-      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
       .subscribe();
   }
 
@@ -358,7 +358,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
         finalize(() => this._processingFile$.next(false)),
         takeUntilDestroyed(this.destroyRef),
       )
-      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
       .subscribe({
         next: (strTxns = []) => {
           this.parsedData = strTxns;
@@ -371,7 +371,6 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
               [] as _hiddenValidationType[],
             ),
           );
-          console.log('Processed transactions:', this.parsedData);
         },
       });
   }
@@ -436,7 +435,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
         tap(() => stepper.next()),
         takeUntilDestroyed(this.destroyRef),
       )
-      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
       .subscribe();
   }
 

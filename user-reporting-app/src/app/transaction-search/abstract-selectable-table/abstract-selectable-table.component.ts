@@ -16,7 +16,6 @@ import { MatTableDataSource } from '@angular/material/table';
   template: '',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-// eslint-disable-next-line rxjs-angular-x/prefer-composition
 export abstract class AbstractSelectableTableComponent<T>
   implements ControlValueAccessor, OnInit
 {
@@ -78,7 +77,7 @@ export abstract class AbstractSelectableTableComponent<T>
 
     this.selection.changed
       .pipe(takeUntilDestroyed(this.destroyRef))
-      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
       .subscribe(() => {
         this.onChange(this.selection.selected);
         this.onTouched();

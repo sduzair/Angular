@@ -1,13 +1,5 @@
-import { SelectionModel } from '@angular/cdk/collections';
 import { CommonModule } from '@angular/common';
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-  InputSignal,
-} from '@angular/core';
-import { toObservable } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatChip } from '@angular/material/chips';
 import { MatSelectModule } from '@angular/material/select';
@@ -19,26 +11,15 @@ import {
   Router,
   RouterStateSnapshot,
 } from '@angular/router';
-import {
-  combineLatestWith,
-  debounceTime,
-  map,
-  shareReplay,
-  startWith,
-  switchMap,
-} from 'rxjs';
+import { combineLatestWith, debounceTime, map } from 'rxjs';
 import { CaseRecordStore } from '../aml/case-record.store';
-import { TransactionSearchComponent } from '../transaction-search/transaction-search.component';
-import {
-  TransactionSearchResponse,
-  TransactionSearchService,
-} from '../transaction-search/transaction-search.service';
+import { RouteExtrasFromSearch } from '../transaction-search/transaction-search.component';
 import { AbmTableComponent } from './abm-table/abm-table.component';
+import { AbstractTransactionViewComponent } from './abstract-transaction-view.component';
 import { EmtTableComponent } from './emt-table/emt-table.component';
 import { FofTableComponent } from './fof-table/fof-table.component';
 import { OlbTableComponent } from './olb-table/olb-table.component';
 import { WiresTableComponent } from './wires-table/wires-table.component';
-import { AbstractTransactionViewComponent } from './abstract-transaction-view.component';
 
 @Component({
   selector: 'app-transaction-view',
@@ -137,105 +118,70 @@ import { AbstractTransactionViewComponent } from './abstract-transaction-view.co
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TransactionViewComponent extends AbstractTransactionViewComponent {
-  fofSourceData$ = this.transactionSearch$.pipe(
+  fofSourceData$ = this.searchResult$.pipe(
     map(
       (search) =>
         search.find((res) => res.sourceId === 'FlowOfFunds')?.sourceData!,
     ),
   );
 
-  abmSourceData$ = this.transactionSearch$.pipe(
+  abmSourceData$ = this.searchResult$.pipe(
     map((search) => search.find((res) => res.sourceId === 'ABM')?.sourceData!),
   );
 
-  olbSourceData$ = this.transactionSearch$.pipe(
+  olbSourceData$ = this.searchResult$.pipe(
     map((search) => search.find((res) => res.sourceId === 'OLB')?.sourceData!),
   );
 
-  emtSourceData$ = this.transactionSearch$.pipe(
+  emtSourceData$ = this.searchResult$.pipe(
     map((search) => search.find((res) => res.sourceId === 'EMT')?.sourceData!),
   );
 
-  wiresSourceData$ = this.transactionSearch$.pipe(
+  wiresSourceData$ = this.searchResult$.pipe(
     map(
       (search) => search.find((res) => res.sourceId === 'Wires')?.sourceData!,
     ),
   );
 
-  private selectionsLastSaved$ = this.initSelections$.pipe(
+  private selectionsLastSaved$ = this.selections$.pipe(
     map(
       (selections) =>
         new Set(selections.map((sel) => sel.flowOfFundsAmlTransactionId)),
     ),
   );
 
-  selectionControlHasChanges$ = this.selections$.pipe(debounceTime(200)).pipe(
-    combineLatestWith(this.selectionsLastSaved$),
-    map(
-      ([selections, selectionsLastSaved]) =>
-        selections.length !== selectionsLastSaved.size ||
-        !selections.every((sel) =>
-          selectionsLastSaved.has(sel.flowOfFundsAmlTransactionId),
-        ),
-    ),
-  );
+  selectionControlHasChanges$ = this.selectionsCurrent$
+    .pipe(debounceTime(200))
+    .pipe(
+      combineLatestWith(this.selectionsLastSaved$),
+      map(
+        ([selections, selectionsLastSaved]) =>
+          selections.length !== selectionsLastSaved.size ||
+          !selections.every((sel) =>
+            selectionsLastSaved.has(sel.flowOfFundsAmlTransactionId),
+          ),
+      ),
+    );
 }
 
-export const transactionSearchResolver: ResolveFn<TransactionSearchResponse> = (
-  route: ActivatedRouteSnapshot,
+export const searchResultResolver: ResolveFn<boolean> = (
+  _route: ActivatedRouteSnapshot,
   _state: RouterStateSnapshot,
 ) => {
-  const txnSearchService = inject(TransactionSearchService);
   const caseRecordStore = inject(CaseRecordStore);
 
-  const searchParams:
-    | (typeof TransactionSearchComponent.prototype.searchParamsForm)['value']
-    | undefined =
-    inject(Router).currentNavigation()?.extras.state?.['searchParams'];
+  const routeExtras = inject(Router).currentNavigation()?.extras.state as
+    | RouteExtrasFromSearch
+    | undefined;
 
-  const amlId = route.paramMap.get('amlId')!;
-
-  if (!searchParams) {
-    return caseRecordStore.fetchCaseRecordByAmlId(amlId).pipe(
-      switchMap(({ transactionSearchParams }) => {
-        return txnSearchService.searchTransactions({
-          accountNumbersSelection:
-            transactionSearchParams.accountNumbersSelection ?? [],
-          partyKeysSelection: transactionSearchParams.partyKeysSelection ?? [],
-          productTypesSelection:
-            transactionSearchParams.productTypesSelection ?? [],
-          reviewPeriodSelection:
-            transactionSearchParams.reviewPeriodSelection ?? [],
-          sourceSystemsSelection:
-            transactionSearchParams.sourceSystemsSelection ?? [],
-        });
-      }),
-    );
+  if (!routeExtras) {
+    return true;
   }
 
+  const { searchParams, searchResult } = routeExtras;
   caseRecordStore.setSearchParams(searchParams);
-  return caseRecordStore.state$.pipe(
-    switchMap(({ transactionSearchParams }) => {
-      return txnSearchService.searchTransactions(transactionSearchParams);
-    }),
-  );
-};
-
-export const initSelectionsResolver: ResolveFn<
-  { flowOfFundsAmlTransactionId: string }[]
-> = (_route: ActivatedRouteSnapshot, _state: RouterStateSnapshot) => {
-  return inject(CaseRecordStore)
-    .fetchSelections()
-    .pipe(
-      map(({ selections }) => {
-        return selections.map(
-          (txn) =>
-            ({
-              flowOfFundsAmlTransactionId: txn.flowOfFundsAmlTransactionId,
-            }) satisfies TableSelectionType,
-        );
-      }),
-    );
+  caseRecordStore.setSearchResult(searchResult);
+  return true;
 };
 
 export interface TableSelectionType {

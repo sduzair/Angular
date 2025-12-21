@@ -4,7 +4,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
-  Input,
   TrackByFunction,
   ViewChild,
 } from '@angular/core';
@@ -48,7 +47,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
     @if (savingEdits$ | async; as savingIds) {
       <app-base-table
         #baseTable
-        [data]="(strTransactionData$ | async) ?? []"
+        [data]="(selectionsComputed$ | async) ?? []"
         [dataColumnsValues]="dataColumnsValues"
         [dataColumnsIgnoreValues]="dataColumnsIgnoreValues"
         [dataColumnsProjected]="dataColumnsProjected"
@@ -173,10 +172,15 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
               <button
                 type="button"
                 mat-icon-button
-                (click)="navigateToAuditForm(row)">
+                (click)="navigateToAuditForm(row)"
+                [disabled]="isEditDisabled(row, savingIds)">
                 <mat-icon class="text-primary">history</mat-icon>
               </button>
-              <button type="button" mat-icon-button (click)="resetTxn(row)">
+              <button
+                type="button"
+                mat-icon-button
+                (click)="resetTxn(row)"
+                [disabled]="isEditDisabled(row, savingIds)">
                 <mat-icon class="text-danger">restart_alt</mat-icon>
               </button>
             </div>
@@ -223,6 +227,9 @@ export class ReportingUiTableComponent implements AfterViewInit {
   private dialog = inject(MatDialog);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  selectionsComputed$ = inject(CaseRecordStore).selectionsComputed$;
+  savingEdits$ = inject(CaseRecordStore).activeSaveIds$;
+
   async openManualUploadStepper() {
     const {
       ManualUploadStepperComponent,
@@ -234,10 +241,6 @@ export class ReportingUiTableComponent implements AfterViewInit {
       panelClass: 'upload-stepper-dialog',
     });
   }
-  @Input()
-  strTransactionData$!: Observable<StrTransactionWithChangeLogs[]>;
-  @Input()
-  savingEdits$!: Observable<string[]>;
 
   dataSourceTrackBy: TrackByFunction<StrTransactionWithChangeLogs> = (
     _,
@@ -245,50 +248,6 @@ export class ReportingUiTableComponent implements AfterViewInit {
   ) => {
     return txn.flowOfFundsAmlTransactionId;
   };
-
-  // override filterFormAssignSelectedColorToRow(
-  //   row: EditedTransaction,
-  //   event: MouseEvent,
-  // ): void {
-  //   if (typeof this.filterFormHighlightSelectedColor === "undefined") return;
-
-  //   let beforeRows: StrTxn[] = [];
-  //   if (event.ctrlKey) {
-  //     beforeRows = this.dataSource.filteredData;
-  //   } else {
-  //     beforeRows = [row];
-  //   }
-  //   // Apply selectedColor to rows
-  //   const payload: EditTabChangeLogsRes[] = beforeRows
-  //     .map((row) => {
-  //       // make optimistic highlight
-  //       const oldTxnHighlight: Pick<StrTxn, "highlightColor"> = {
-  //         highlightColor: row.highlightColor,
-  //       };
-  //       const newTxnHighlight: Pick<StrTxn, "highlightColor"> = {
-  //         highlightColor: this.filterFormHighlightSelectedColor,
-  //       };
-  //       row.highlightColor = this.filterFormHighlightSelectedColor;
-  //       const changes: ChangeLogWithoutVersion[] = [];
-  //       this.changeLogService.compareProperties(
-  //         oldTxnHighlight,
-  //         newTxnHighlight,
-  //         changes,
-  //       );
-  //       return changes.length > 0
-  //         ? { strTxnId: row.flowOfFundsAmlTransactionId, changeLogs: changes }
-  //         : null;
-  //     })
-  //     .filter(
-  //       (editTabChangeLog): editTabChangeLog is EditTabChangeLogsRes =>
-  //         !!editTabChangeLog,
-  //     );
-  //   this.sessionDataService.updateHighlights({
-  //     type: "BULK_EDIT_RESULT",
-  //     payload,
-  //   });
-  //   return;
-  // }
 
   dataColumnsValues: StrTransactionDataColumnKey[] = [
     'highlightColor',
@@ -624,13 +583,13 @@ export class ReportingUiTableComponent implements AfterViewInit {
   }
 }
 
-export const strTransactionsEditedResolver: ResolveFn<
+export const selectionsComputedResolver: ResolveFn<
   Observable<StrTransactionWithChangeLogs[]>
 > = async () => {
   return inject(CaseRecordStore).selectionsComputed$;
 };
 
-export const savingEditsResolver: ResolveFn<
+export const activeSaveIdsResolver: ResolveFn<
   Observable<string[]>
 > = async () => {
   return inject(CaseRecordStore).activeSaveIds$;

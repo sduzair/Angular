@@ -11,7 +11,6 @@ import {
   Router,
   provideRouter,
   withComponentInputBinding,
-  withDebugTracing,
   withNavigationErrorHandler,
   withRouterConfig,
 } from '@angular/router';

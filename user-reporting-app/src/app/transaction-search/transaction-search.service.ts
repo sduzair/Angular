@@ -1,9 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { delay, map, of, timer } from 'rxjs';
+import { ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE } from '../aml/case-record.state.fixture';
 import { ReviewPeriod } from '../aml/case-record.store';
 import { TableSelectionType } from '../transaction-view/transaction-view.component';
-import { ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE } from '../aml/case-record.state.fixture';
 import { TRANSACTION_SEARCH_RES_DEV_ONLY } from './transaction-search.data.fixture';
 
 @Injectable({
