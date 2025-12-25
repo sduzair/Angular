@@ -46,7 +46,10 @@ import {
 } from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import { DeepPartial } from '../test-helpers';
 import { type RouteExtrasFromSearch } from '../transaction-search/transaction-search.component';
-import { TransactionSearchResponse } from '../transaction-search/transaction-search.service';
+import {
+  AccountNumber,
+  TransactionSearchResponse,
+} from '../transaction-search/transaction-search.service';
 import {
   AddSelectionsRequest,
   CaseRecordService,
@@ -530,8 +533,7 @@ export class CaseRecordStore implements OnDestroy {
     this._state$.next({
       ...this._state$.value,
       searchParams: {
-        accountNumbersSelection:
-          accountNumbers?.map(({ value }) => value) ?? [],
+        accountNumbersSelection: accountNumbers ?? [],
         partyKeysSelection: partyKeys?.map(({ value }) => value) ?? [],
         productTypesSelection: productTypes?.map(({ value }) => value) ?? [],
         reviewPeriodSelection: reviewPeriods,
@@ -750,7 +752,7 @@ export interface CaseRecordState {
   amlId: string;
   searchParams: {
     partyKeysSelection: string[];
-    accountNumbersSelection: string[];
+    accountNumbersSelection: AccountNumber[];
     sourceSystemsSelection: string[];
     productTypesSelection: string[];
     reviewPeriodSelection: ReviewPeriod[];

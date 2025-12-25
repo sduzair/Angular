@@ -74,7 +74,8 @@ export class AccountNumberSelectableTableComponent
 {
   get data() {
     return Array.from({ length: 5 }, () => ({
-      value: '',
+      transit: '',
+      account: '',
     }));
   }
 
@@ -89,6 +90,6 @@ export class AccountNumberSelectableTableComponent
     a: AccountNumber,
     b: AccountNumber,
   ) => boolean {
-    return (a, b) => a.value === b.value;
+    return (a, b) => a.transit === b.transit && a.account === b.account;
   }
 }

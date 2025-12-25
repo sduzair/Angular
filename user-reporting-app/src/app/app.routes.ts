@@ -117,6 +117,15 @@ export const routes: Routes = [
               },
             ],
           },
+          {
+            path: 'analytics',
+            loadComponent: () =>
+              import('./analytics/analytics.component').then(
+                (m) => m.AnalyticsComponent,
+              ),
+            data: { reuse: true },
+            title: () => 'Analytics',
+          },
         ],
       },
     ],

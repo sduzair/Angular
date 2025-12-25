@@ -8,7 +8,6 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
 import { AbstractSelectableTableComponent } from '../abstract-selectable-table/abstract-selectable-table.component';
-import { PartyKey } from '../transaction-search.service';
 
 @Component({
   selector: 'app-party-key-selectable-table',
@@ -67,30 +66,27 @@ import { PartyKey } from '../transaction-search.service';
   styleUrl: './party-key-selectable-table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PartyKeySelectableTableComponent
-  extends AbstractSelectableTableComponent<PartyKey>
+export class PartyKeySelectableTableComponent<T extends { value: string }>
+  extends AbstractSelectableTableComponent<T>
   implements ControlValueAccessor
 {
   get data() {
     return Array.from({ length: 5 }, () => ({
       value: '',
-    }));
+    })) as T[];
   }
 
   @Input({ required: true })
-  set data(value: PartyKey[]) {
+  set data(value: T[]) {
     this.dataSource.data = value;
   }
 
-  protected override displayedColumns: (keyof PartyKey | (string & {}))[] = [
+  protected override displayedColumns: (keyof T | (string & {}))[] = [
     'select',
     'value',
   ];
 
-  protected override getSelectionComparator(): (
-    a: PartyKey,
-    b: PartyKey,
-  ) => boolean {
+  protected override getSelectionComparator(): (a: T, b: T) => boolean {
     return (a, b) => a.value === b.value;
   }
 }

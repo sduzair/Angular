@@ -1,7 +1,10 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { delay, map, of, timer } from 'rxjs';
-import { ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE } from '../aml/case-record.state.fixture';
+import {
+  ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE,
+  SUBJECT_INFO_BY_PARTY_KEY_DEV_OR_TEST_ONLY_FIXTURE,
+} from '../aml/case-record.state.fixture';
 import { ReviewPeriod } from '../aml/case-record.store';
 import { TableSelectionType } from '../transaction-view/transaction-view.component';
 import { TRANSACTION_SEARCH_RES_DEV_ONLY } from './transaction-search.data.fixture';
@@ -15,6 +18,16 @@ export class TransactionSearchService {
   getPartyAccountInfoByAmlId(amlId: string) {
     return timer(1000).pipe(
       map(() => ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE),
+    );
+  }
+
+  getSubjectInfoByPartyKey(partyKey: string) {
+    return timer(100).pipe(
+      map(() => {
+        return SUBJECT_INFO_BY_PARTY_KEY_DEV_OR_TEST_ONLY_FIXTURE.find(
+          (sub) => sub.partyKey === partyKey,
+        );
+      }),
     );
   }
 
@@ -107,10 +120,6 @@ export class TransactionSearchService {
   }
 }
 
-export interface SourceSys {
-  value: string;
-}
-
 export interface SourceSysRefreshTime {
   value: string;
   refresh?: string | Date;
@@ -118,16 +127,13 @@ export interface SourceSysRefreshTime {
 }
 
 export interface AccountNumber {
-  value: string;
-}
-
-export interface PartyKey {
-  value: string;
+  transit: string;
+  account: string;
 }
 
 interface TransactionSearchRequest {
   partyKeysSelection: string[];
-  accountNumbersSelection: string[];
+  accountNumbersSelection: AccountNumber[];
   sourceSystemsSelection: string[];
   productTypesSelection: string[];
   reviewPeriodSelection: ReviewPeriod[];

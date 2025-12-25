@@ -77,8 +77,6 @@ import { ReviewPeriodDateDirective } from './review-period-date.directive';
 import { SourceRefreshSelectableTableComponent } from './source-refresh-selectable-table/source-refresh-selectable-table.component';
 import {
   AccountNumber,
-  PartyKey,
-  SourceSys,
   TransactionSearchResponse,
   TransactionSearchService,
 } from './transaction-search.service';
@@ -550,20 +548,20 @@ export class TransactionSearchComponent implements OnInit {
         Validators.required,
         Validators.pattern('^[0-9]+$'),
       ]),
-      partyKeys: new FormControl({ value: [] as PartyKey[], disabled: true }, [
-        Validators.required,
-        atleastOneSelectionValidator,
-      ]),
+      partyKeys: new FormControl(
+        { value: [] as { value: string }[], disabled: true },
+        [Validators.required, atleastOneSelectionValidator],
+      ),
       accountNumbers: new FormControl(
         { value: [] as AccountNumber[], disabled: true },
         [Validators.required, atleastOneSelectionValidator],
       ),
       sourceSystems: new FormControl(
-        { value: [] as SourceSys[], disabled: true },
+        { value: [] as { value: string }[], disabled: true },
         [Validators.required, atleastOneSelectionValidator],
       ),
       productTypes: new FormControl(
-        { value: [] as ProductType[], disabled: true },
+        { value: [] as { value: string }[], disabled: true },
         [Validators.required, atleastOneSelectionValidator],
       ),
       reviewPeriods: new FormArray(
@@ -583,7 +581,7 @@ export class TransactionSearchComponent implements OnInit {
   }
 
   private loadClick$ = new Subject<void>();
-  loadCase$ = this.loadClick$.pipe(
+  loadCaseRecord$ = this.loadClick$.pipe(
     map(() => this.searchParamsForm.value.amlId!.trim()),
     distinctUntilChanged(),
     tap(() => {
@@ -623,9 +621,7 @@ export class TransactionSearchComponent implements OnInit {
                 partyKeys: (partyKeysSelection ?? []).map((p) => ({
                   value: p,
                 })),
-                accountNumbers: (accountNumbersSelection ?? []).map((a) => ({
-                  value: a,
-                })),
+                accountNumbers: accountNumbersSelection ?? [],
                 sourceSystems: (sourceSystemsSelection ?? []).map((s) => ({
                   value: s,
                 })),
@@ -669,24 +665,28 @@ export class TransactionSearchComponent implements OnInit {
     startWith(false),
   );
 
-  partyKeysData$ = this.loadCase$.pipe(
+  partyKeysData$ = this.loadCaseRecord$.pipe(
     map(([{ partyKeys }]) => {
-      return partyKeys.map((p) => ({ value: p.partyKey }) as PartyKey);
+      return partyKeys.map((p) => ({ value: p.partyKey }));
     }),
   );
-  accountNumbersData$ = this.loadCase$.pipe(
+  accountNumbersData$ = this.loadCaseRecord$.pipe(
     map(([{ partyKeys }]) => {
+      // gets unique accounts
       return Array.from(
         new Set(
           partyKeys
             .flatMap((p) => p.accountModels)
             .map((accountModel) => {
               return accountModel.accountTransit
-                ? `${accountModel.accountTransit.trim()} / ${accountModel.accountNumber.trim()}`
+                ? `${accountModel.accountNumber.trim()} / ${accountModel.accountTransit.trim()}`
                 : `${accountModel.accountNumber.trim()}`;
             }),
         ),
-      ).map((value) => ({ value }));
+      ).map((val) => {
+        const [account, transit] = val.split(/\s\/\s/);
+        return { transit, account };
+      });
     }),
   );
   isSourceRefreshTimeLoading = true;
@@ -794,7 +794,7 @@ export class TransactionSearchComponent implements OnInit {
 
     this.searchService
       .searchTransactions({
-        accountNumbersSelection: accountNumbers?.map((sel) => sel.value) ?? [],
+        accountNumbersSelection: accountNumbers ?? [],
         partyKeysSelection: partyKeys?.map((sel) => sel.value) ?? [],
         productTypesSelection: productTypes?.map((sel) => sel.value) ?? [],
         reviewPeriodSelection: reviewPeriods,
@@ -935,10 +935,6 @@ export class TransactionSearchComponent implements OnInit {
   }
 }
 
-export interface ProductType {
-  value: string;
-}
-
 function searchParamsExistValidator(
   control: AbstractControl,
 ): ValidationErrors | null {
@@ -1014,13 +1010,13 @@ function overlappingReviewPeriodsValidator(
 export interface RouteExtrasFromSearch {
   searchParams: {
     accountNumbers: AccountNumber[] | null;
-    partyKeys: PartyKey[] | null;
-    productTypes: ProductType[] | null;
+    partyKeys: { value: string }[] | null;
+    productTypes: { value: string }[] | null;
     reviewPeriods: Partial<{
       start: string | null;
       end: string | null;
     }>[];
-    sourceSystems: SourceSys[] | null;
+    sourceSystems: { value: string }[] | null;
   };
   searchResult: TransactionSearchResponse;
 }

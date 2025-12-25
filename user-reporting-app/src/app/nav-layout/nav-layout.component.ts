@@ -156,6 +156,12 @@ export class NavLayoutComponent implements AfterViewInit {
           matIcon: 'table_chart',
           id: '/aml/12345/reporting-ui',
         },
+        {
+          name: 'Analytics',
+          route: '/aml/12345/analytics',
+          matIcon: 'analytics',
+          id: '/aml/12345/analytics',
+        },
       ],
     },
   ];

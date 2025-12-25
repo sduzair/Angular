@@ -11,6 +11,7 @@ import {
   ReviewPeriod,
   StrTransactionWithChangeLogs,
 } from './case-record.store';
+import { AccountNumber } from '../transaction-search/transaction-search.service';
 
 @Injectable({
   providedIn: 'root',
@@ -78,7 +79,7 @@ export interface GetCaseRecordResponse {
   amlId: string;
   searchParams: {
     partyKeysSelection?: string[] | null;
-    accountNumbersSelection?: string[] | null;
+    accountNumbersSelection?: AccountNumber[] | null;
     sourceSystemsSelection?: string[] | null;
     productTypesSelection?: string[] | null;
     reviewPeriodSelection?: ReviewPeriod[] | null;

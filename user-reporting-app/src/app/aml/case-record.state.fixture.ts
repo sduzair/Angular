@@ -14,9 +14,9 @@ export const CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE: CaseRecordState = {
   searchParams: {
     partyKeysSelection: ['3415674561', '1846597320'],
     accountNumbersSelection: [
-      '84255 / 5582195',
-      '31980 / 8692413',
-      '87594 / 5647218',
+      { transit: '84255', account: '5582195' },
+      { transit: '31980', account: '8692413' },
+      { transit: '87594', account: '5647218' },
     ],
     sourceSystemsSelection: ['ABM', 'OLB'],
     productTypesSelection: [
@@ -72,3 +72,20 @@ export const ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE = {
     },
   ],
 };
+
+export const SUBJECT_INFO_BY_PARTY_KEY_DEV_OR_TEST_ONLY_FIXTURE = [
+  {
+    partyKey: '3415674561',
+    surname: 'Carter',
+    givenName: 'James',
+    otherOrInitial: 'L',
+    nameOfEntity: '',
+  },
+  {
+    partyKey: '1846597320',
+    surname: 'Nguyen',
+    givenName: 'Laura',
+    otherOrInitial: 'M',
+    nameOfEntity: '',
+  },
+];
