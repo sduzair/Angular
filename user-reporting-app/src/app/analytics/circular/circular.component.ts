@@ -2,9 +2,7 @@ import { formatCurrency } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  DestroyRef,
   ElementRef,
-  inject,
   Input,
   OnChanges,
   OnDestroy,
@@ -12,7 +10,6 @@ import {
   SimpleChanges,
   ViewChild,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { GraphChart, GraphSeriesOption } from 'echarts/charts';
 import {
   LegendComponent,
@@ -22,9 +19,8 @@ import {
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
-import { map } from 'rxjs';
-import { CaseRecordStore } from '../../aml/case-record.store';
 import { StrTransaction } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
+import { AccountNumber } from '../../transaction-search/transaction-search.service';
 
 // Register only what you need
 echarts.use([GraphChart, LegendComponent, TooltipComponent, CanvasRenderer]);
@@ -38,54 +34,45 @@ type ECOption = echarts.ComposeOption<
   selector: 'app-circular',
   imports: [],
   template: `
-    <div class="circular-container">
-      <div #chartContainer class="chart"></div>
+    <div
+      class="h-800 w-100 position-relative border rounded shadow-sm overflow-hidden">
+      <div #chartContainer class="w-100 h-100"></div>
     </div>
   `,
   styleUrl: './circular.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CircularComponent implements OnInit, OnChanges, OnDestroy {
-  private caseRecord = inject(CaseRecordStore);
-  private destroyRef = inject(DestroyRef);
-
   @ViewChild('chartContainer', { static: true }) chartContainer!: ElementRef;
 
-  @Input() transactionData: StrTransaction[] = [];
+  @Input({ required: true }) transactionData: StrTransaction[] = [];
+
+  @Input({ required: true })
+  partyKeysSelection: string[] = [];
+
+  @Input({ required: true })
+  accountNumbersSelection: AccountNumber[] = [];
 
   private myChart: echarts.ECharts | undefined;
   private resizeObserver: ResizeObserver | undefined;
 
   ngOnInit(): void {
-    this.caseRecord.state$
-      .pipe(
-        map(
-          ({
-            searchParams: { partyKeysSelection, accountNumbersSelection },
-          }) => {
-            return {
-              partyKeysSelection,
-              accountNumbersSelection,
-            };
-          },
-        ),
-      )
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
-      .subscribe(({ partyKeysSelection, accountNumbersSelection }) => {
-        const focalSubjects = new Set(partyKeysSelection);
-        const focalAccounts = new Set(
-          accountNumbersSelection.map(({ account }) => account),
-        );
-        this.initChart(focalSubjects, focalAccounts);
-      });
+    const focalSubjects = new Set(this.partyKeysSelection);
+    const focalAccounts = new Set(
+      this.accountNumbersSelection.map(({ account }) => account),
+    );
+    this.initChart(focalSubjects, focalAccounts);
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (!changes['transactionData'] || changes['transactionData'].firstChange)
       return;
 
-    // this.updateChart(focalAccounts, focalSubjects);
+    const focalSubjects = new Set(this.partyKeysSelection);
+    const focalAccounts = new Set(
+      this.accountNumbersSelection.map(({ account }) => account),
+    );
+    this.updateChart(focalAccounts, focalSubjects);
   }
 
   ngOnDestroy(): void {
@@ -179,12 +166,6 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
                 <strong>Account Holder</strong><br/>
               `;
             }
-            // return `
-            //   <strong>Transaction</strong><br/>
-            //   Amount: $${params.data.value}<br/>
-            //   Date: ${params.data.date}<br/>
-            //   Ref: ${params.data.ref}
-            // `;
           }
           return '';
         },
@@ -203,6 +184,31 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
             { type: 'all', title: 'Select All' },
             { type: 'inverse', title: 'Invert' },
           ],
+          selectorPosition: 'start',
+          selectorItemGap: 8,
+          selectorButtonGap: 15,
+
+          // Style the selector buttons
+          selectorLabel: {
+            show: true,
+            color: '#333',
+            fontSize: 12,
+            fontWeight: 500,
+            borderRadius: 4,
+            padding: [4, 8, 4, 8], // [top, right, bottom, left]
+            backgroundColor: '#f0f0f0',
+            borderColor: '#d0d0d0',
+            borderWidth: 1,
+          },
+
+          // Hover state
+          emphasis: {
+            selectorLabel: {
+              color: '#fff',
+              backgroundColor: '#5470c6',
+              borderColor: '#5470c6',
+            },
+          },
         },
       ],
       series: [
@@ -227,9 +233,6 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
               return name;
             }) as LabelFormatter,
             distance: 4,
-          },
-          labelLayout: {
-            hideOverlap: true,
           },
           edgeSymbolSize: 15,
           lineStyle: {
