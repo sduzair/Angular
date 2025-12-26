@@ -17,6 +17,8 @@ import {
   GridComponentOption,
   LegendComponent,
   LegendComponentOption,
+  TitleComponent,
+  TitleComponentOption,
   TooltipComponent,
   TooltipComponentOption,
 } from 'echarts/components';
@@ -31,6 +33,7 @@ echarts.use([
   GridComponent,
   LegendComponent,
   TooltipComponent,
+  TitleComponent,
   CanvasRenderer,
   DataZoomComponent,
 ]);
@@ -41,6 +44,7 @@ type ECOption = echarts.ComposeOption<
   | GridComponentOption
   | LegendComponentOption
   | TooltipComponentOption
+  | TitleComponentOption
   | DataZoomComponentOption
 >;
 
@@ -53,7 +57,6 @@ type ECOption = echarts.ComposeOption<
       <div #chartContainer class="w-100 h-100"></div>
     </div>
   `,
-  styleUrl: './monthly-txn-volume.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MonthlyTxnVolumeComponent implements OnInit, OnChanges, OnDestroy {
@@ -148,6 +151,12 @@ export class MonthlyTxnVolumeComponent implements OnInit, OnChanges, OnDestroy {
     });
 
     const option: ECOption = {
+      title: {
+        text: 'Monthly Transaction Volume by Account',
+        subtext: 'Incoming vs. Outgoing Funds per Account',
+        left: 'center',
+        top: 10,
+      },
       tooltip: {
         trigger: 'axis',
         axisPointer: {
@@ -216,7 +225,7 @@ export class MonthlyTxnVolumeComponent implements OnInit, OnChanges, OnDestroy {
       },
       legend: {
         data: series.map((s) => s.name as string),
-        top: 50,
+        top: 60,
         type: 'scroll', // Allow scrolling if too many accounts
         pageButtonPosition: 'end',
       },

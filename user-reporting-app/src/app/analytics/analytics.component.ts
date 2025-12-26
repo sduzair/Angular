@@ -5,14 +5,19 @@ import { CircularComponent } from './circular/circular.component';
 import { CaseRecordStore } from '../aml/case-record.store';
 import { map, shareReplay } from 'rxjs';
 import { MonthlyTxnVolumeComponent } from './monthly-txn-volume/monthly-txn-volume.component';
+import { TxnMethodBreakdownComponent } from './txn-method-breakdown/txn-method-breakdown.component';
 
 @Component({
   selector: 'app-analytics',
-  imports: [CommonModule, CircularComponent, MonthlyTxnVolumeComponent],
+  imports: [
+    CommonModule,
+    CircularComponent,
+    MonthlyTxnVolumeComponent,
+    TxnMethodBreakdownComponent,
+  ],
   template: `
-    <div class="row">
+    <div class="row g-2">
       <div class="col-6">
-        <h1>Financial Analysis</h1>
         <app-circular
           [transactionData]="(selections$ | async) || []"
           [accountNumbersSelection]="(accountNumbersSelection$ | async) || []"
@@ -20,13 +25,19 @@ import { MonthlyTxnVolumeComponent } from './monthly-txn-volume/monthly-txn-volu
         </app-circular>
       </div>
       <div class="col-6">
-        <h1>Financial Analysis</h1>
-        <app-monthly-txn-volume [transactionData]="(selections$ | async) || []">
-        </app-monthly-txn-volume>
+        <div class="row row-cols-1 g-2">
+          <app-monthly-txn-volume
+            class="col"
+            [transactionData]="(selections$ | async) || []">
+          </app-monthly-txn-volume>
+          <app-txn-method-breakdown
+            class="col"
+            [transactionData]="(selections$ | async) || []">
+          </app-txn-method-breakdown>
+        </div>
       </div>
     </div>
   `,
-  styleUrl: './analytics.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AnalyticsComponent {

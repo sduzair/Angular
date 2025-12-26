@@ -14,6 +14,8 @@ import { GraphChart, GraphSeriesOption } from 'echarts/charts';
 import {
   LegendComponent,
   LegendComponentOption,
+  TitleComponent,
+  TitleComponentOption,
   TooltipComponent,
   TooltipComponentOption,
 } from 'echarts/components';
@@ -23,11 +25,20 @@ import { StrTransaction } from '../../reporting-ui/reporting-ui-table/reporting-
 import { AccountNumber } from '../../transaction-search/transaction-search.service';
 
 // Register only what you need
-echarts.use([GraphChart, LegendComponent, TooltipComponent, CanvasRenderer]);
+echarts.use([
+  GraphChart,
+  LegendComponent,
+  TooltipComponent,
+  CanvasRenderer,
+  TitleComponent,
+]);
 
 // Combine an Option type with only required components and charts via ComposeOption
 type ECOption = echarts.ComposeOption<
-  GraphSeriesOption | LegendComponentOption | TooltipComponentOption
+  | GraphSeriesOption
+  | LegendComponentOption
+  | TooltipComponentOption
+  | TitleComponentOption
 >;
 
 @Component({
@@ -39,7 +50,6 @@ type ECOption = echarts.ComposeOption<
       <div #chartContainer class="w-100 h-100"></div>
     </div>
   `,
-  styleUrl: './circular.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CircularComponent implements OnInit, OnChanges, OnDestroy {
@@ -123,6 +133,13 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
     const { nodes, links } = normalize(nodesMap, linksMap);
 
     const option: ECOption = {
+      title: {
+        text: 'Circular Flow of Funds Analysis',
+        subtext:
+          'Interactive relationship mapping between subjects and accounts',
+        left: 'left',
+        top: 10,
+      },
       tooltip: {
         trigger: 'item',
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
