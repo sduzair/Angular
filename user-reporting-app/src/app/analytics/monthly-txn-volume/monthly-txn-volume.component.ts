@@ -1,14 +1,19 @@
 import {
+  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
+  EventEmitter,
+  inject,
   Input,
   OnChanges,
   OnDestroy,
-  OnInit,
+  Output,
   SimpleChanges,
   ViewChild,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { BarChart, BarSeriesOption } from 'echarts/charts';
 import {
   DataZoomComponent,
@@ -24,8 +29,10 @@ import {
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
+import { debounceTime, distinctUntilChanged, Subject } from 'rxjs';
 import { TransactionDateDirective } from '../../reporting-ui/edit-form/transaction-date.directive';
 import { StrTransaction } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
+import { formatCurrencyLocal } from '../circular/circular.component';
 
 // Register only what you need
 echarts.use([
@@ -59,15 +66,23 @@ type ECOption = echarts.ComposeOption<
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MonthlyTxnVolumeComponent implements OnInit, OnChanges, OnDestroy {
-  @ViewChild('chartContainer', { static: true }) chartContainer!: ElementRef;
+export class MonthlyTxnVolumeComponent
+  implements OnChanges, OnDestroy, AfterViewInit
+{
+  private destroyRef = inject(DestroyRef);
   private myChart: echarts.ECharts | undefined;
   private resizeObserver: ResizeObserver | undefined;
 
   @Input({ required: true }) transactionData: StrTransaction[] = [];
+  @Output() readonly zoomChange = new EventEmitter<{
+    start: string;
+    end: string;
+  }>();
+  @ViewChild('chartContainer', { static: true }) chartContainer!: ElementRef;
 
-  ngOnInit(): void {
+  ngAfterViewInit() {
     this.initChart();
+    this.setupDataZoomListener();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -80,6 +95,7 @@ export class MonthlyTxnVolumeComponent implements OnInit, OnChanges, OnDestroy {
   ngOnDestroy(): void {
     this.myChart?.dispose();
     this.resizeObserver?.disconnect();
+    this.myChart?.off('datazoom');
   }
 
   private initChart(): void {
@@ -104,14 +120,6 @@ export class MonthlyTxnVolumeComponent implements OnInit, OnChanges, OnDestroy {
     const { monthlyData, accounts } = this.processMonthlyDataByAccount(
       this.transactionData,
     );
-
-    // Months visible initially
-    const totalMonths = monthlyData.length;
-    const visibleMonths = INIT_VISIBLE_MONTHS;
-
-    // Calculate percentage for dataZoom
-    const startPercent = 0;
-    const endPercent = Math.min(100, (visibleMonths / totalMonths) * 100);
 
     // Create series for each account (credits and debits)
     const series: ECOption['series'] = [];
@@ -152,8 +160,8 @@ export class MonthlyTxnVolumeComponent implements OnInit, OnChanges, OnDestroy {
 
     const option: ECOption = {
       title: {
-        text: 'Monthly Transaction Volume by Account',
-        subtext: 'Incoming vs. Outgoing Funds per Account',
+        text: 'Monthly Transaction Volume',
+        subtext: 'Incoming vs. Outgoing Funds for Account',
         left: 'center',
         top: 10,
       },
@@ -163,11 +171,10 @@ export class MonthlyTxnVolumeComponent implements OnInit, OnChanges, OnDestroy {
           type: 'shadow',
         },
         confine: true,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        formatter: (params: any) => {
+        formatter: (params: ToolTipFormatterParams) => {
           if (!Array.isArray(params)) return '';
 
-          const month = params[0].axisValue;
+          const month = 'axisValue' in params[0] ? params[0].axisValue : null;
           let result = `<strong>${month}</strong><br/><br/>`;
 
           // Group by account
@@ -178,7 +185,7 @@ export class MonthlyTxnVolumeComponent implements OnInit, OnChanges, OnDestroy {
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           params.forEach((item: any) => {
-            const match = item.seriesName.match(/^(.+) \((Credit|Debit)\)$/);
+            const match = item.seriesName.match(/^(.+) \((CR|DB)\)$/);
             if (match) {
               const account = match[1];
               const type = match[2];
@@ -188,7 +195,7 @@ export class MonthlyTxnVolumeComponent implements OnInit, OnChanges, OnDestroy {
               }
 
               const data = accountMap.get(account)!;
-              if (type === 'Credit') {
+              if (type === 'CR') {
                 data.credit = item.value;
               } else {
                 data.debit = Math.abs(item.value);
@@ -204,11 +211,11 @@ export class MonthlyTxnVolumeComponent implements OnInit, OnChanges, OnDestroy {
             if (data.credit > 0 || data.debit > 0) {
               result += `<strong>${account}</strong><br/>`;
               if (data.credit > 0) {
-                result += `  ↑ Credit: $${data.credit.toLocaleString()}<br/>`;
+                result += `  ↑ Credit: ${formatCurrencyLocal(data.credit)}<br/>`;
                 totalCredits += data.credit;
               }
               if (data.debit > 0) {
-                result += `  ↓ Debit: $${data.debit.toLocaleString()}<br/>`;
+                result += `  ↓ Debit: ${formatCurrencyLocal(data.debit)}<br/>`;
                 totalDebits += data.debit;
               }
               result += '<br/>';
@@ -216,9 +223,9 @@ export class MonthlyTxnVolumeComponent implements OnInit, OnChanges, OnDestroy {
           });
 
           result += `<hr style="margin: 4px 0"/>`;
-          result += `<strong>Total Credits: $${totalCredits.toLocaleString()}</strong><br/>`;
-          result += `<strong>Total Debits: $${totalDebits.toLocaleString()}</strong><br/>`;
-          result += `<strong>Net Flow: $${(totalCredits - totalDebits).toLocaleString()}</strong>`;
+          // result += `<strong>Total Credits: ${formatCurrencyLocal(totalCredits)}</strong><br/>`;
+          // result += `<strong>Total Debits: ${formatCurrencyLocal(totalDebits)}</strong><br/>`;
+          result += `<strong>Net Flow: ${formatCurrencyLocal(totalCredits - totalDebits)}</strong>`;
 
           return result;
         },
@@ -248,8 +255,8 @@ export class MonthlyTxnVolumeComponent implements OnInit, OnChanges, OnDestroy {
         {
           type: 'slider', // Interactive slider at the bottom
           xAxisIndex: 0,
-          start: startPercent,
-          end: endPercent,
+          start: 0,
+          end: 100,
           height: 25, // Slider height
           bottom: 10, // Position from bottom
           handleSize: '110%', // Handle size
@@ -267,15 +274,17 @@ export class MonthlyTxnVolumeComponent implements OnInit, OnChanges, OnDestroy {
             // Format the label to show month names
             return monthlyData[value]?.month || '';
           },
+          throttle: 100,
         },
         {
           type: 'inside', // Mouse wheel / touch zoom
           xAxisIndex: 0,
-          start: startPercent,
-          end: endPercent,
+          start: 0,
+          end: 100,
           zoomOnMouseWheel: true,
           moveOnMouseMove: true,
           moveOnMouseWheel: false,
+          throttle: 100,
         },
       ],
       yAxis: {
@@ -316,7 +325,7 @@ export class MonthlyTxnVolumeComponent implements OnInit, OnChanges, OnDestroy {
       const month = date.getMonth() + 1;
       const year = date.getFullYear();
 
-      const monthKey = `${year}-${month}`;
+      const monthKey = `${year}-${String(month).padStart(2, '0')}`;
 
       // Initialize month if new
       if (!monthMap.has(monthKey)) {
@@ -398,6 +407,68 @@ export class MonthlyTxnVolumeComponent implements OnInit, OnChanges, OnDestroy {
     '#ea7ccc',
     '#5cb85c',
   ];
+
+  // Expose chart instance for parent component access
+  public getChartInstance() {
+    return this.myChart;
+  }
+
+  private zoomSubject = new Subject<{ start: string; end: string }>();
+
+  // Public method to set up datazoom listener from parent
+  private setupDataZoomListener(): void {
+    if (!this.myChart) return;
+
+    // Set up debounced subscription
+    this.zoomSubject
+      .pipe(
+        debounceTime(1000),
+        distinctUntilChanged(
+          (prev, curr) => prev.start === curr.start && prev.end === curr.end,
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
+      .subscribe(({ start, end }) => {
+        // Emit to parent component
+        this.zoomChange.emit({ start, end });
+      });
+
+    this.myChart.on('datazoom', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const option = this.myChart!.getOption() as any;
+      const dataZoom = option['dataZoom']?.[0] as DataZoomComponentOption;
+      console.assert(dataZoom.type === 'slider');
+
+      if (!dataZoom) return;
+
+      // Get the actual month/year strings from xAxis data
+      const xAxisData = option.xAxis?.[0]?.data as string[];
+
+      const startValue = dataZoom.startValue as number;
+      const endValue = dataZoom.endValue as number;
+
+      if (!xAxisData || startValue === undefined || endValue === undefined)
+        return;
+
+      const startMonth = xAxisData[startValue];
+      const endMonth = xAxisData[endValue];
+
+      // Convert from "Jan 2024" format to "YYYY-MM" format
+      const startMonthKey = this.convertToMonthKey(startMonth);
+      const endMonthKey = this.convertToMonthKey(endMonth);
+
+      this.zoomSubject.next({ start: startMonthKey, end: endMonthKey });
+    });
+  }
+
+  private convertToMonthKey(monthStr: string): string {
+    // Convert "Jan 2024" to "2024-01"
+    const date = new Date(monthStr);
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    return `${year}-${month}`;
+  }
 }
 
 interface AccountMonthlyData {
@@ -407,4 +478,8 @@ interface AccountMonthlyData {
   accountNetFlow: Map<string, number>;
 }
 
-const INIT_VISIBLE_MONTHS = 6;
+type CallbackType = Exclude<
+  NonNullable<TooltipComponentOption['formatter']>,
+  string
+>;
+type ToolTipFormatterParams = Parameters<CallbackType>[0];

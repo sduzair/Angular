@@ -73,6 +73,7 @@ export default defineConfig([
       '@typescript-eslint/no-unused-vars': 'off',
       'no-param-reassign': ['error', { props: true }],
       '@typescript-eslint/prefer-for-of': 'off',
+      'prefer-const': 'off',
 
       // Lazy-loading
       'no-restricted-imports': [

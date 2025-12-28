@@ -6,9 +6,11 @@ import {
   OnChanges,
   OnDestroy,
   OnInit,
+  signal,
   SimpleChanges,
   ViewChild,
 } from '@angular/core';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { PieChart } from 'echarts/charts';
 import {
   GraphicComponent,
@@ -21,8 +23,17 @@ import {
   TooltipComponentOption,
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
-import { StrTransaction } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import { CanvasRenderer } from 'echarts/renderers';
+import { StrTransaction } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
+import {
+  DETAILS_OF_DISPOSITION,
+  TYPE_OF_FUNDS,
+} from '../circular/circular.component';
+import { CommonModule } from '@angular/common';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
+import { MatIcon } from '@angular/material/icon';
+import { formatCurrencyLocal } from '../circular/circular.component';
 
 echarts.use([
   PieChart,
@@ -43,13 +54,36 @@ type ECOption = echarts.ComposeOption<
 
 @Component({
   selector: 'app-txn-method-breakdown',
-  imports: [],
+  imports: [
+    CommonModule,
+    MatButtonToggleModule,
+    MatSelectModule,
+    MatFormFieldModule,
+    MatIcon,
+  ],
   template: `
     <div
       class="h-400 w-100 position-relative border rounded shadow-sm overflow-hidden">
+      <!-- Direction Toggle -->
+      <mat-button-toggle-group
+        class="direction-toggle float-end z-1 me-1 mt-1"
+        [value]="viewMode()"
+        (change)="setViewMode($event.value)"
+        hideSingleSelectionIndicator>
+        <mat-button-toggle value="credits">
+          <mat-icon>arrow_upward</mat-icon>
+          <span>Credits</span>
+        </mat-button-toggle>
+        <mat-button-toggle value="debits">
+          <mat-icon>arrow_downward</mat-icon>
+          <span>Debits</span>
+        </mat-button-toggle>
+      </mat-button-toggle-group>
+
       <div #chartContainer class="w-100 h-100"></div>
     </div>
   `,
+  styleUrl: 'txn-method-breakdown.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TxnMethodBreakdownComponent
@@ -61,6 +95,8 @@ export class TxnMethodBreakdownComponent
 
   private myChart: echarts.ECharts | undefined;
   private resizeObserver: ResizeObserver | undefined;
+
+  viewMode = signal<ViewMode>('credits');
 
   ngOnInit(): void {
     this.initChart();
@@ -79,6 +115,11 @@ export class TxnMethodBreakdownComponent
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     }
+  }
+
+  setViewMode(mode: ViewMode): void {
+    this.viewMode.set(mode);
+    this.updateChart();
   }
 
   private initChart(): void {
@@ -100,19 +141,46 @@ export class TxnMethodBreakdownComponent
     if (!this.myChart) return;
 
     const methodData = this.processMethodData(this.transactionData);
-    const totalValue = methodData.reduce((sum, m) => sum + m.value, 0);
+    const mode = this.viewMode();
 
-    // Color mapping based on value ranges
-    const getColorByValue = (avgValue: number): string => {
-      if (avgValue > 5000) return '#ee6666'; // High Value (Red)
-      if (avgValue > 2000) return '#fac858'; // Medium Value (Orange)
-      return '#91cc75'; // Low Value (Green)
+    // Extract relevant data based on view mode
+    const chartData = methodData
+      .map(
+        (m) =>
+          ({
+            name: m.name,
+            value: mode === 'credits' ? m.credits : m.debits,
+            count: mode === 'credits' ? m.creditCount : m.debitCount,
+            avgValue: mode === 'credits' ? m.avgCreditValue : m.avgDebitValue,
+            // Keep both for tooltip
+            credits: m.credits,
+            debits: m.debits,
+          }) satisfies ChartData,
+      )
+      .filter((d) => d.value > 0); // Only show methods with transactions
+
+    const totalValue = chartData.reduce((sum, m) => sum + m.value, 0);
+
+    // Different color schemes for credits vs debits
+    const getColorByMode = (avgValue: number, mode: ViewMode): string => {
+      if (mode === 'credits') {
+        if (avgValue > 5000) return '#52c41a'; // High incoming (Green)
+        if (avgValue > 2000) return '#73d13d'; // Medium incoming
+        return '#95de64'; // Low incoming
+      } else {
+        if (avgValue > 5000) return '#f5222d'; // High outgoing (Red)
+        if (avgValue > 2000) return '#ff4d4f'; // Medium outgoing
+        return '#ff7875'; // Low outgoing
+      }
     };
 
     const option: ECOption = {
       title: {
-        text: 'Transaction Method Breakdown',
-        subtext: 'How funds are moved',
+        text: `Transaction Method Breakdown - ${mode === 'credits' ? 'Credits' : 'Debits'}`,
+        subtext:
+          mode === 'credits'
+            ? 'Incoming Funds by Method'
+            : 'Outgoing Funds by Method',
         left: 'left',
         top: 10,
       },
@@ -121,16 +189,20 @@ export class TxnMethodBreakdownComponent
         confine: true,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         formatter: (params: any) => {
-          const data = params.data as MethodData;
+          const data = params.data as ChartData;
           const percent = ((data.value / totalValue) * 100).toFixed(1);
 
           return `
             <strong>${params.name}</strong><br/>
             <hr style="margin: 4px 0; border-color: #ddd"/>
-            Total Amount: $${data.value.toLocaleString()}<br/>
+            ${mode === 'credits' ? 'Credit' : 'Debit'} Amount: ${formatCurrencyLocal(data.value)}<br/>
             Transaction Count: ${data.count.toLocaleString()}<br/>
-            Average Value: $${data.avgValue.toLocaleString()}<br/>
-            Percentage: ${percent}%
+            Percentage: ${percent}%<br/>
+            <hr style="margin: 4px 0; border-color: #ddd"/>
+            <em style="font-size: 11px; color: #999;">
+              Total Credits: ${formatCurrencyLocal(data.credits)}<br/>
+              Total Debits: ${formatCurrencyLocal(data.debits)}
+            </em>
           `;
         },
       },
@@ -140,11 +212,10 @@ export class TxnMethodBreakdownComponent
         top: 'middle',
         itemGap: 15,
         formatter: (name: string) => {
-          const method = methodData.find((m) => m.name === name);
+          const method = chartData.find((m) => m.name === name);
           if (!method) return name;
 
-          const percent = ((method.value / totalValue) * 100).toFixed(1);
-          return `${name} (${percent}%)`;
+          return `${name}: ${formatCurrencyLocal(method.value)}`;
         },
         textStyle: {
           fontSize: 13,
@@ -154,15 +225,17 @@ export class TxnMethodBreakdownComponent
         {
           name: 'Transaction Methods',
           type: 'pie',
-          radius: ['45%', '70%'], // Donut style: [innerRadius, outerRadius]
-          center: ['60%', '50%'], // Shifted right for legend
-          data: methodData.map((method) => ({
+          radius: ['45%', '70%'],
+          center: ['60%', '50%'],
+          data: chartData.map((method) => ({
             name: method.name,
             value: method.value,
             count: method.count,
             avgValue: method.avgValue,
+            credits: method.credits,
+            debits: method.debits,
             itemStyle: {
-              color: getColorByValue(method.avgValue),
+              color: getColorByMode(method.avgValue, mode),
               borderColor: '#fff',
               borderWidth: 2,
             },
@@ -185,8 +258,8 @@ export class TxnMethodBreakdownComponent
             position: 'outside',
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             formatter: (params: any) => {
-              const percent = ((params.value / totalValue) * 100).toFixed(1);
-              return `{name|${params.name}}\n{value|$${(params.value / 1000).toFixed(0)}k} ({percent|${percent}%})`;
+              // const percent = ((params.value / totalValue) * 100).toFixed(1);
+              return `{name|${params.name}}\n{value|$${(params.value / 1000).toFixed(0)}k}`;
             },
             rich: {
               name: {
@@ -211,88 +284,208 @@ export class TxnMethodBreakdownComponent
             length2: 10,
             smooth: true,
           },
+          animationType: 'scale',
+          animationEasing: 'elasticOut',
+          animationDelay: 0,
         },
       ],
-      // Add a graphic element to show total in center
+      // Center graphic showing total
       graphic: [
         {
           type: 'text',
-          left: 'center',
-          top: '46%',
+          right: '3%',
+          top: '44%',
           style: {
-            text: 'Total',
+            text: mode === 'credits' ? 'Total Credits' : 'Total Debits',
             align: 'center',
             fill: '#999',
-            fontSize: 14,
+            fontSize: 13,
           },
         },
         {
           type: 'text',
-          left: 'center',
+          right: '3%',
           top: '50%',
           style: {
             text: `$${(totalValue / 1000).toFixed(0)}k`,
             align: 'center',
-            fill: '#333',
+            fill: mode === 'credits' ? '#52c41a' : '#f5222d',
             fontSize: 22,
             fontWeight: 'bold',
+          },
+        },
+        {
+          type: 'text',
+          right: '3%',
+          top: '56%',
+          style: {
+            text: `${chartData.reduce((sum, d) => sum + d.count, 0)} txns`,
+            align: 'center',
+            fill: '#999',
+            fontSize: 11,
           },
         },
       ],
     };
 
-    this.myChart.setOption(option);
+    this.myChart.setOption(option, { notMerge: true });
   }
 
   private processMethodData(data: StrTransaction[]): MethodData[] {
-    const methodMap = new Map<string, { total: number; count: number }>();
-
-    data.forEach((txn) => {
-      // Determine method from multiple possible fields
-      let method = txn.sourceId;
-
-      // Normalize method names
-      if (!method) method = 'Unknown';
-
-      // Map to friendly names
-      const methodMapping: Record<string, string> = {
-        ABM: 'ABM Cash',
-        OLB: 'Online Banking',
-        EMT: 'Email Transfer (EMT)',
-        Wires: 'Wire Transfer',
-      };
-
-      const friendlyName = methodMapping[method] || method;
-      const amount = txn.flowOfFundsTransactionCurrencyAmount || 0;
-
-      if (!methodMap.has(friendlyName)) {
-        methodMap.set(friendlyName, { total: 0, count: 0 });
+    const methodMap = new Map<
+      string,
+      {
+        credits: number;
+        debits: number;
+        creditCount: number;
+        debitCount: number;
       }
+    >();
 
-      const methodData = methodMap.get(friendlyName)!;
-      methodData.total += amount;
-      methodData.count += 1;
-    });
+    data.forEach(
+      ({
+        flowOfFundsCreditAmount,
+        flowOfFundsDebitAmount,
+        methodOfTxn,
+        startingActions = [],
+        completingActions = [],
+      }) => {
+        // Determine txn method
+        const txnMethod = getTxnMethod(
+          startingActions[0].typeOfFunds,
+          completingActions[0].detailsOfDispo,
+          methodOfTxn,
+        )!;
+
+        const friendlyName = METHOD_FRIENDLY_NAME[txnMethod];
+
+        // Separate credits and debits
+        const creditAmount = flowOfFundsCreditAmount || 0;
+        const debitAmount = flowOfFundsDebitAmount || 0;
+
+        if (!methodMap.has(friendlyName)) {
+          methodMap.set(friendlyName, {
+            credits: 0,
+            debits: 0,
+            creditCount: 0,
+            debitCount: 0,
+          });
+        }
+
+        const methodData = methodMap.get(friendlyName)!;
+
+        if (creditAmount > 0) {
+          methodData.credits += creditAmount;
+          methodData.creditCount += 1;
+        }
+
+        if (debitAmount > 0) {
+          methodData.debits += debitAmount;
+          methodData.debitCount += 1;
+        }
+      },
+    );
 
     // Convert to array and calculate averages
     const result: MethodData[] = [];
     methodMap.forEach((data, name) => {
       result.push({
         name: name,
-        value: data.total,
-        count: data.count,
-        avgValue: data.total / data.count,
+        credits: data.credits,
+        debits: data.debits,
+        creditCount: data.creditCount,
+        debitCount: data.debitCount,
+        avgCreditValue:
+          data.creditCount > 0 ? data.credits / data.creditCount : 0,
+        avgDebitValue: data.debitCount > 0 ? data.debits / data.debitCount : 0,
       });
     });
 
     // Sort by total value descending
-    return result.sort((a, b) => b.value - a.value);
+    return result.sort((a, b) => b.credits + b.debits - (a.credits + a.debits));
   }
 }
 
 interface MethodData {
   name: string;
+  credits: number;
+  debits: number;
+  creditCount: number;
+  debitCount: number;
+  avgCreditValue: number;
+  avgDebitValue: number;
+}
+
+type ViewMode = 'credits' | 'debits';
+
+type METHOD_OF_TXN = 'ABM' | 'In-Person' | 'In-Person' | 'Online' | 'Other';
+
+interface ChartData {
+  name: string;
   value: number;
   count: number;
   avgValue: number;
+  credits: number;
+  debits: number;
+}
+
+export const METHOD_ENUM = {
+  Unknown: 0,
+  ABM: 1,
+  Cheque: 2,
+  OLB: 3,
+  EMT: 4,
+  Wires: 5,
+} as const;
+
+export const METHOD_FRIENDLY_NAME = {
+  0: 'Unknown',
+  1: 'ABM Cash',
+  2: 'Cheque',
+  3: 'Online Banking',
+  4: 'Email Transfer (EMT)',
+  5: 'Wire Transfer',
+} as Record<number, string>;
+
+export function getTxnMethod(
+  typeOfFunds: string | null,
+  detailsOfDispo: string | null,
+  methodOfTxn: string | null,
+) {
+  const typeOfFundsType = typeOfFunds as TYPE_OF_FUNDS | null;
+  const detailsOfDispoType = detailsOfDispo as DETAILS_OF_DISPOSITION | null;
+  // note: method of txn may not be identical to txn method which is used for purposes of charting
+  const methodOfTxnType = methodOfTxn as METHOD_OF_TXN | null;
+
+  let method;
+
+  if (typeOfFundsType === 'Cash' && detailsOfDispoType === 'Deposit to account')
+    method = METHOD_ENUM.ABM;
+
+  if (
+    typeOfFundsType === 'Funds withdrawal' &&
+    detailsOfDispoType === 'Cash Withdrawal'
+  )
+    method = METHOD_ENUM.ABM;
+
+  if (
+    typeOfFundsType === 'Cheque' &&
+    detailsOfDispoType === 'Deposit to account'
+  )
+    method = METHOD_ENUM.Cheque;
+
+  if (methodOfTxnType === 'Online') method = METHOD_ENUM.OLB;
+
+  if (typeOfFundsType === 'Email money transfer') method = METHOD_ENUM.EMT;
+
+  if (
+    typeOfFundsType === 'Funds withdrawal' &&
+    detailsOfDispoType === 'Outgoing email money transfer'
+  )
+    method = METHOD_ENUM.EMT;
+
+  if (typeOfFundsType === 'International Funds Transfer')
+    method = METHOD_ENUM.Wires;
+
+  return method;
 }

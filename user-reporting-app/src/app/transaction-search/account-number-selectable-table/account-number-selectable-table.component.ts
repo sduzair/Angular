@@ -76,6 +76,7 @@ export class AccountNumberSelectableTableComponent
     return Array.from({ length: 5 }, () => ({
       transit: '',
       account: '',
+      currency: '',
     }));
   }
 

@@ -1,0 +1,13 @@
+@use '@angular/material' as mat;
+
+mat-form-field {
+  @include mat.form-field-density(-4);
+}
+
+::ng-deep .start-end .mdc-evolution-chip-set__chips {
+  display: flex;
+}
+
+::ng-deep .txn-period-chips .mdc-evolution-chip__text-label {
+  font-size: var(--mat-sys-title-large-size);
+}

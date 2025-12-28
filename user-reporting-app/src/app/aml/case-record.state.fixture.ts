@@ -14,9 +14,9 @@ export const CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE: CaseRecordState = {
   searchParams: {
     partyKeysSelection: ['3415674561', '1846597320'],
     accountNumbersSelection: [
-      { transit: '84255', account: '5582195' },
-      { transit: '31980', account: '8692413' },
-      { transit: '87594', account: '5647218' },
+      { transit: '84255', account: '5582195', currency: 'CAD' },
+      { transit: '31980', account: '8692413', currency: 'CAD' },
+      { transit: '87594', account: '5647218', currency: 'CAD' },
     ],
     sourceSystemsSelection: ['ABM', 'OLB'],
     productTypesSelection: [

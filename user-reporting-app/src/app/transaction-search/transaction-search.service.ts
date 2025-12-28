@@ -129,6 +129,7 @@ export interface SourceSysRefreshTime {
 export interface AccountNumber {
   transit: string;
   account: string;
+  currency?: 'CAD' | 'USD' | (string & {});
 }
 
 interface TransactionSearchRequest {
