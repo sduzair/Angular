@@ -11,3 +11,11 @@ mat-form-field {
 ::ng-deep .txn-period-chips .mdc-evolution-chip__text-label {
   font-size: var(--mat-sys-title-large-size);
 }
+
+::ng-deep .txn-period-chips .mdc-evolution-chip-set__chips {
+  flex-flow: nowrap;
+}
+
+.risk-metrics {
+  scrollbar-width: thin;
+}

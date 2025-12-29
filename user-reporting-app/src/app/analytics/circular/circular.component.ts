@@ -57,7 +57,7 @@ type ECOption = echarts.ComposeOption<
   imports: [],
   template: `
     <div
-      class="h-800 w-100 position-relative border rounded shadow-sm overflow-hidden">
+      class="h-900 w-100 position-relative border rounded shadow-sm overflow-hidden">
       <div #chartContainer class="w-100 h-100"></div>
     </div>
   `,

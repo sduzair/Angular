@@ -40,52 +40,145 @@ import { MatIcon } from '@angular/material/icon';
   ],
   template: `
     <div class="row g-2">
-      <mat-toolbar class="col-12 mt-1 justify-content-end">
-        <!-- Period Display -->
-        <div class="row row-cols-auto d-flex align-items-center">
-          <mat-icon class="col ps-0">date_range</mat-icon>
-          <span class="col small">Transaction Period:</span>
-          <mat-chip-set
-            class="txn-period-chips col d-flex align-items-center px-0">
-            @if (filterForm.value.periodStart) {
-              <mat-chip class="fs-6">
-                {{ formatMonthYear(filterForm.value.periodStart) }}
-              </mat-chip>
-            }
-            @if (filterForm.value.periodStart && filterForm.value.periodEnd) {
-              <span class="mx-1 fst-italic small">to</span>
-            }
-            @if (filterForm.value.periodEnd) {
-              <mat-chip class="fs-6">
-                {{ formatMonthYear(filterForm.value.periodEnd) }}
-              </mat-chip>
-            }
-          </mat-chip-set>
-        </div>
-        <div class="flex-fill"></div>
-        <!-- Account Filter -->
-        <form class="row" [formGroup]="filterForm">
-          <mat-form-field
-            class="account-select px-0"
-            appearance="outline"
-            subscriptSizing="dynamic">
-            <mat-label>Account</mat-label>
-            <mat-select
-              formControlName="account"
-              (selectionChange)="setSelectedAccountFromSelect($event.value)">
-              @for (
-                account of availableAccounts$ | async;
-                track account.account
-              ) {
-                <mat-option [value]="account.account">
-                  {{ account.transit }}-{{ account.account }} ({{
-                    account.currency
-                  }})
-                </mat-option>
+      <mat-toolbar class="col-12 mt-1">
+        <div class="d-flex w-100 align-items-center gap-3">
+          <!-- Period Display -->
+          <div class="d-flex align-items-center gap-2">
+            <mat-icon>date_range</mat-icon>
+            <span class="small">Period:</span>
+            <mat-chip-set class="txn-period-chips d-flex align-items-center">
+              @if (filterForm.value.periodStart) {
+                <mat-chip>
+                  {{ formatMonthYear(filterForm.value.periodStart) }}
+                </mat-chip>
               }
-            </mat-select>
-          </mat-form-field>
-        </form>
+              @if (filterForm.value.periodStart && filterForm.value.periodEnd) {
+                <span class="mx-1 fst-italic small">to</span>
+              }
+              @if (filterForm.value.periodEnd) {
+                <mat-chip>
+                  {{ formatMonthYear(filterForm.value.periodEnd) }}
+                </mat-chip>
+              }
+            </mat-chip-set>
+          </div>
+
+          <!-- Risk Metrics Display -->
+          @if (riskMetrics$ | async; as metrics) {
+            <div
+              class="d-flex align-items-center gap-2 border-start ps-3 overflow-x-auto risk-metrics">
+              <!-- <mat-icon
+                [class.text-danger]="metrics.riskLevel === 'HIGH'"
+                [class.text-warning]="metrics.riskLevel === 'MEDIUM'"
+                [class.text-success]="metrics.riskLevel === 'LOW'">
+                {{
+                  metrics.riskLevel === 'HIGH'
+                    ? 'warning'
+                    : metrics.riskLevel === 'MEDIUM'
+                      ? 'info'
+                      : 'check_circle'
+                }}
+              </mat-icon>
+              <span
+                class="small fw-bold"
+                [class.text-danger]="metrics.riskLevel === 'HIGH'"
+                [class.text-warning]="metrics.riskLevel === 'MEDIUM'">
+                {{ metrics.riskLevel }}
+              </span>
+
+              <span class="vr"></span> -->
+
+              <div class="d-flex gap-3 small">
+                <div>
+                  <span class="text-muted">Flow:</span>
+                  <strong
+                    [class.text-danger]="metrics.flowThroughRatio > 0.85"
+                    [class.text-warning]="
+                      metrics.flowThroughRatio > 0.7 &&
+                      metrics.flowThroughRatio <= 0.85
+                    ">
+                    {{ metrics.flowThroughRatio | number: '1.2-2' }}
+                  </strong>
+                </div>
+
+                <div>
+                  <span class="text-muted">Velocity:</span>
+                  <strong [class.text-danger]="metrics.velocityRatio > 50000">
+                    {{
+                      metrics.velocityRatio
+                        | currency: 'CAD' : 'symbol' : '1.0-0'
+                    }}/d
+                  </strong>
+                </div>
+
+                <div>
+                  <span class="text-muted">Structure:</span>
+                  <strong
+                    [class.text-danger]="metrics.structuralActivityRatio > 0.7"
+                    [class.text-warning]="
+                      metrics.structuralActivityRatio > 0.5 &&
+                      metrics.structuralActivityRatio <= 0.7
+                    ">
+                    {{ metrics.structuralActivityRatio | number: '1.2-2' }}
+                  </strong>
+                </div>
+
+                <span class="vr"></span>
+
+                <div>
+                  <span class="text-muted">In:</span>
+                  <strong class="text-success">
+                    {{
+                      metrics.totalInflow | currency: 'CAD' : 'symbol' : '1.0-0'
+                    }}
+                  </strong>
+                </div>
+
+                <div>
+                  <span class="text-muted">Out:</span>
+                  <strong class="text-danger">
+                    {{
+                      metrics.totalOutflow
+                        | currency: 'CAD' : 'symbol' : '1.0-0'
+                    }}
+                  </strong>
+                </div>
+              </div>
+
+              <!-- @if (metrics.riskFlags.length > 0) {
+                <span class="vr"></span>
+                <mat-chip-set class="d-flex">
+                  @for (flag of metrics.riskFlags; track flag) {
+                    <mat-chip class="small" highlighted>{{ flag }}</mat-chip>
+                  }
+                </mat-chip-set>
+              } -->
+            </div>
+          }
+
+          <div class="flex-grow-1"></div>
+
+          <!-- Account Filter -->
+          <form [formGroup]="filterForm">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Account</mat-label>
+              <mat-select
+                formControlName="account"
+                (selectionChange)="setSelectedAccountFromSelect($event.value)">
+                @for (
+                  account of availableAccounts$ | async;
+                  track account.account
+                ) {
+                  <mat-option [value]="account.account">
+                    {{ account.transit }}-{{ account.account }} ({{
+                      account.currency
+                    }})
+                  </mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </form>
+        </div>
       </mat-toolbar>
 
       <div class="col-6">
@@ -251,6 +344,121 @@ export class AnalyticsComponent implements AfterViewInit {
     this.filterForm.controls.account.setValue(value);
   }
 
+  // Calculate risk metrics from filtered transactions
+  riskMetrics$ = combineLatest([
+    this.filteredSelectionsByAccountAndPeriod$,
+    this.filterForm.controls.account.valueChanges,
+  ]).pipe(
+    map(([transactions, selectedAccount]) => {
+      if (!transactions.length || !selectedAccount) {
+        return {
+          totalInflow: 0,
+          totalOutflow: 0,
+          transactionCount: 0,
+          timeSpanDays: 0,
+          flowThroughRatio: 0,
+          velocityRatio: 0,
+          structuralActivityRatio: 0,
+          riskLevel: 'LOW',
+          riskFlags: [],
+        };
+      }
+
+      const REPORTING_THRESHOLD = 10000; // CAD $10,000 threshold
+
+      let totalInflow = 0;
+      let totalOutflow = 0;
+      let belowThresholdCount = 0;
+      const dates: Date[] = [];
+
+      // Separate inflows and outflows based on account position
+      transactions.forEach((txn) => {
+        const amount =
+          txn.flowOfFundsCreditAmount || txn.flowOfFundsDebitAmount || 0;
+
+        // Determine if this is an inflow or outflow for the selected account
+        if (txn.flowOfFundsCreditedAccount === selectedAccount) {
+          // Money coming INTO the selected account (credit)
+          totalInflow += txn.flowOfFundsCreditAmount || 0;
+        } else if (txn.flowOfFundsDebitedAccount === selectedAccount) {
+          // Money going OUT of the selected account (debit)
+          totalOutflow += txn.flowOfFundsDebitAmount || 0;
+        }
+
+        // Check if below threshold (for structuring detection)
+        if (amount < REPORTING_THRESHOLD * 0.9) {
+          belowThresholdCount++;
+        }
+
+        // Collect dates for time span calculation
+        const dateStr = txn.dateOfTxn || txn.flowOfFundsTransactionDate;
+        if (dateStr) {
+          dates.push(TransactionDateDirective.parse(dateStr));
+        }
+      });
+
+      // Calculate time span in days
+      const sortedDates = dates.sort((a, b) => a.getTime() - b.getTime());
+      const timeSpanDays =
+        sortedDates.length > 1
+          ? Math.ceil(
+              (sortedDates[sortedDates.length - 1].getTime() -
+                sortedDates[0].getTime()) /
+                (1000 * 60 * 60 * 24),
+            ) || 1
+          : 1;
+
+      // 1. Flow-Through Ratio (layering detection)
+      const maxFlow = Math.max(totalInflow, totalOutflow);
+      const minFlow = Math.min(totalInflow, totalOutflow);
+      const flowThroughRatio = maxFlow > 0 ? minFlow / maxFlow : 0;
+
+      // 2. Velocity Ratio (funds movement per day)
+      const velocityRatio = totalOutflow / timeSpanDays;
+
+      // 3. Structural Activity Ratio (threshold avoidance)
+      const structuralActivityRatio =
+        transactions.length > 0 ? belowThresholdCount / transactions.length : 0;
+
+      // Risk Assessment
+      const riskFlags: string[] = [];
+      let riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' = 'LOW';
+
+      if (flowThroughRatio > 0.85) {
+        riskFlags.push('Potential layering activity');
+        riskLevel = 'HIGH';
+      }
+
+      if (velocityRatio > 50000) {
+        riskFlags.push('High transaction velocity');
+        riskLevel = 'HIGH';
+      }
+
+      if (structuralActivityRatio > 0.7) {
+        riskFlags.push('Potential structuring/threshold avoidance');
+        riskLevel = riskLevel === 'HIGH' ? 'HIGH' : 'MEDIUM';
+      }
+
+      if (flowThroughRatio > 0.7 && flowThroughRatio <= 0.85) {
+        riskFlags.push('Moderate flow-through activity');
+        riskLevel = riskLevel === 'LOW' ? 'MEDIUM' : riskLevel;
+      }
+
+      return {
+        totalInflow,
+        totalOutflow,
+        transactionCount: transactions.length,
+        timeSpanDays,
+        flowThroughRatio,
+        velocityRatio,
+        structuralActivityRatio,
+        riskLevel,
+        riskFlags,
+      } as RiskMetrics;
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
   // template helper
   formatMonthYear(monthKey: string): string {
     if (!monthKey) return '';
@@ -271,4 +479,16 @@ export class AnalyticsComponent implements AfterViewInit {
       { emitEvent: true },
     );
   }
+}
+
+interface RiskMetrics {
+  totalInflow: number;
+  totalOutflow: number;
+  transactionCount: number;
+  timeSpanDays: number;
+  flowThroughRatio: number;
+  velocityRatio: number;
+  structuralActivityRatio: number;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  riskFlags: string[];
 }

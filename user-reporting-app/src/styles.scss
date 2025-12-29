@@ -195,6 +195,7 @@ html {
   --mat-dialog-container-max-width: 920px;
 }
 
+/* Ensure explicit height for ECharts */
 .h-400 {
   height: 400px;
 }
@@ -204,5 +205,9 @@ html {
 }
 
 .h-800 {
-  height: 800px; /* Ensure explicit height for ECharts */
+  height: 800px;
+}
+
+.h-900 {
+  height: 900px;
 }
