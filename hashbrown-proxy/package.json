@@ -1,0 +1,22 @@
+{
+  "name": "hashbrown-proxy",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file=.env.development ./bin/www",
+    "start:prod": "node --env-file=.env ./bin/www",
+    "dev": "node --env-file=.env.development --watch ./bin/www"
+  },
+  "dependencies": {
+    "@hashbrownai/openai": "^0.4.1",
+    "cookie-parser": "~1.4.4",
+    "debug": "~2.6.9",
+    "express": "~4.16.1",
+    "morgan": "~1.9.1"
+  },
+  "devDependencies": {
+    "express-generator": "^4.16.1"
+  },
+  "packageManager": "pnpm@10.25.0"
+}
