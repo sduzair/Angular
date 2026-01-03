@@ -91,7 +91,7 @@ export class TxnMethodBreakdownComponent
 {
   @ViewChild('chartContainer', { static: true }) chartContainer!: ElementRef;
 
-  @Input() transactionData: StrTransaction[] = [];
+  @Input({ required: true }) filteredSelections: StrTransaction[] = [];
 
   private myChart: echarts.ECharts | undefined;
   private resizeObserver: ResizeObserver | undefined;
@@ -103,7 +103,10 @@ export class TxnMethodBreakdownComponent
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['transactionData'] && !changes['transactionData'].firstChange) {
+    if (
+      changes['filteredSelections'] &&
+      !changes['filteredSelections'].firstChange
+    ) {
       this.updateChart();
     }
   }
@@ -132,7 +135,7 @@ export class TxnMethodBreakdownComponent
     });
     this.resizeObserver.observe(this.chartContainer.nativeElement);
 
-    if (this.transactionData.length > 0) {
+    if (this.filteredSelections.length > 0) {
       this.updateChart();
     }
   }
@@ -140,7 +143,7 @@ export class TxnMethodBreakdownComponent
   private updateChart(): void {
     if (!this.myChart) return;
 
-    const methodData = this.processMethodData(this.transactionData);
+    const methodData = this.processMethodData(this.filteredSelections);
     const mode = this.viewMode();
 
     // Extract relevant data based on view mode
@@ -439,17 +442,17 @@ export const METHOD_ENUM = {
 } as const;
 
 export const METHOD_FRIENDLY_NAME = {
-  0: 'Unknown',
-  1: 'ABM Cash',
-  2: 'Cheque',
-  3: 'Online Banking',
-  4: 'Email Transfer (EMT)',
-  5: 'Wire Transfer',
-} as Record<number, string>;
+  0: 'Unknown' as const,
+  1: 'ABM Cash' as const,
+  2: 'Cheque' as const,
+  3: 'Online Banking' as const,
+  4: 'Email Transfer (EMT)' as const,
+  5: 'Wire Transfer' as const,
+};
 
 export function getTxnMethod(
-  typeOfFunds: string | null,
-  detailsOfDispo: string | null,
+  typeOfFunds: TYPE_OF_FUNDS | (string & {}) | null,
+  detailsOfDispo: DETAILS_OF_DISPOSITION | (string & {}) | null,
   methodOfTxn: string | null,
 ) {
   const typeOfFundsType = typeOfFunds as TYPE_OF_FUNDS | null;
@@ -472,6 +475,9 @@ export function getTxnMethod(
     typeOfFundsType === 'Cheque' &&
     detailsOfDispoType === 'Deposit to account'
   )
+    method = METHOD_ENUM.Cheque;
+
+  if (typeOfFundsType === 'Cheque' && detailsOfDispoType === 'Issued Cheque')
     method = METHOD_ENUM.Cheque;
 
   if (methodOfTxnType === 'Online') method = METHOD_ENUM.OLB;

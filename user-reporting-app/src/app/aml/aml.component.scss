@@ -16,3 +16,19 @@ mat-toolbar-row.header-toolbar-row {
   align-items: center;
   gap: 0.5em;
 }
+
+mat-drawer-container {
+  @include mat.sidenav-overrides(
+    (
+      container-width: auto,
+    )
+  );
+}
+
+mat-drawer {
+  --mat-sidenav-container-elevation-shadow: var(--mat-sys-level3);
+}
+
+::ng-deep mat-drawer .mat-drawer-inner-container {
+  overflow: hidden;
+}

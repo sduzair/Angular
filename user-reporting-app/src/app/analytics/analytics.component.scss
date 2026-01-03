@@ -1,4 +1,5 @@
 @use '@angular/material' as mat;
+@use '../typography-scaling.scss' as typo;
 
 mat-form-field {
   @include mat.form-field-density(-4);
@@ -9,13 +10,13 @@ mat-form-field {
 }
 
 ::ng-deep .txn-period-chips .mdc-evolution-chip__text-label {
-  font-size: var(--mat-sys-title-large-size);
+  font-size: 1.25rem;
 }
 
 ::ng-deep .txn-period-chips .mdc-evolution-chip-set__chips {
   flex-flow: nowrap;
 }
 
-.risk-metrics {
+.risk-display {
   scrollbar-width: thin;
 }

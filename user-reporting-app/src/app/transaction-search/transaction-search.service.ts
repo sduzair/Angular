@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { delay, map, of, timer } from 'rxjs';
 import {
   ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE,
+  SUBJECT_INFO_BY_ACCOUNT_DEV_OR_TEST_ONLY_FIXTURE,
   SUBJECT_INFO_BY_PARTY_KEY_DEV_OR_TEST_ONLY_FIXTURE,
 } from '../aml/case-record.state.fixture';
 import { ReviewPeriod } from '../aml/case-record.store';
@@ -117,6 +118,16 @@ export class TransactionSearchService {
     //   '/api/transactions/search',
     //   payload,
     // );
+  }
+
+  getPartyKeysByAccount(account: string | number) {
+    return timer(100).pipe(
+      map(() => {
+        return SUBJECT_INFO_BY_ACCOUNT_DEV_OR_TEST_ONLY_FIXTURE.find(
+          ({ accountNumber }) => accountNumber === String(account),
+        )?.partyKeys!;
+      }),
+    );
   }
 }
 

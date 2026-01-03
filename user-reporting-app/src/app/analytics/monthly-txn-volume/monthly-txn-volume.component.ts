@@ -73,7 +73,7 @@ export class MonthlyTxnVolumeComponent
   private myChart: echarts.ECharts | undefined;
   private resizeObserver: ResizeObserver | undefined;
 
-  @Input({ required: true }) transactionData: StrTransaction[] = [];
+  @Input({ required: true }) filteredSelections: StrTransaction[] = [];
   @Output() readonly zoomChange = new EventEmitter<{
     start: string;
     end: string;
@@ -86,7 +86,10 @@ export class MonthlyTxnVolumeComponent
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (!changes['transactionData'] || changes['transactionData'].firstChange)
+    if (
+      !changes['filteredSelections'] ||
+      changes['filteredSelections'].firstChange
+    )
       return;
 
     this.updateChart();
@@ -109,7 +112,7 @@ export class MonthlyTxnVolumeComponent
     });
     this.resizeObserver.observe(this.chartContainer.nativeElement);
 
-    if (this.transactionData.length > 0) {
+    if (this.filteredSelections.length > 0) {
       this.updateChart();
     }
   }
@@ -118,7 +121,7 @@ export class MonthlyTxnVolumeComponent
     if (!this.myChart) return;
 
     const { monthlyData, accounts } = this.processMonthlyDataByAccount(
-      this.transactionData,
+      this.filteredSelections,
     );
 
     // Create series for each account (credits and debits)

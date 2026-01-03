@@ -29,6 +29,7 @@ import {
   MAT_FORM_FIELD_DEFAULT_OPTIONS,
   MatFormFieldDefaultOptions,
 } from '@angular/material/form-field';
+import { provideHashbrown } from '@hashbrownai/angular';
 import { enCA } from 'date-fns/locale';
 import {
   AppErrorHandlerService,
@@ -36,6 +37,7 @@ import {
 } from './app-error-handler.service';
 import { routes } from './app.routes';
 import { CachedRouteReuseStrategy } from './route-cache/preserve-route-reuse-strategy';
+import { provideMarkdown } from 'ngx-markdown';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -75,5 +77,15 @@ export const appConfig: ApplicationConfig = {
         restoreFocus: true,
       } satisfies MatDialogConfig,
     },
+    provideHashbrown({
+      baseUrl: '/api/chat',
+      middleware: [
+        (req) => {
+          console.info('[Hashbrown Request]', req);
+          return req;
+        },
+      ],
+    }),
+    provideMarkdown(),
   ],
 };

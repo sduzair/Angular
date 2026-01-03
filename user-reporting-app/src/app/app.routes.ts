@@ -18,6 +18,7 @@ import {
   searchResultResolver,
   TransactionViewComponent,
 } from './transaction-view/transaction-view.component';
+import { GraphDataService } from './analytics/graph-data.service';
 
 export const routes: Routes = [
   {
@@ -58,6 +59,7 @@ export const routes: Routes = [
             useValue: CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE,
           },
           CaseRecordStore,
+          GraphDataService,
         ],
         data: { reuse: true },
         title: (route) => `AML - ${route.params['amlId']}`,

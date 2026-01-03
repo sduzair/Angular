@@ -1,6 +1,13 @@
 {
-  "/api": {
-    "target": "http://localhost:5110",
-    "secure": false
+  "/api/chat/**": {
+    "target": "http://127.0.0.1:3000",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  },
+  "/api/**": {
+    "target": "http://127.0.0.1:5110",
+    "secure": false,
+    "changeOrigin": true
   }
 }

@@ -25,8 +25,8 @@ export const CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE: CaseRecordState = {
     ],
     reviewPeriodSelection: [
       {
-        start: '2025/09/01',
-        end: '2025/09/01',
+        start: '2024/01/01',
+        end: '2025/06/01',
       },
     ],
   },
@@ -72,6 +72,32 @@ export const ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE = {
     },
   ],
 };
+
+export const SUBJECT_INFO_BY_ACCOUNT_DEV_OR_TEST_ONLY_FIXTURE = [
+  {
+    accountTransit: '84255',
+    accountNumber: '5582195',
+    partyKeys: ['3415674561', '1846597320'],
+  },
+  {
+    accountTransit: '31980',
+    accountNumber: '8692413',
+    partyKeys: ['3415674561', '1846597320'],
+  },
+  {
+    accountTransit: '87594',
+    accountNumber: '5647218',
+    partyKeys: ['3415674561', '1846597320'],
+  },
+  {
+    accountNumber: '4242424242424242',
+    partyKeys: ['3415674561'],
+  },
+  {
+    accountNumber: '5555555555554444',
+    partyKeys: ['1846597320'],
+  },
+];
 
 export const SUBJECT_INFO_BY_PARTY_KEY_DEV_OR_TEST_ONLY_FIXTURE = [
   {

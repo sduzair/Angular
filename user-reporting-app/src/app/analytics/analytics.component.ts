@@ -43,7 +43,7 @@ import { MatIcon } from '@angular/material/icon';
       <mat-toolbar class="col-12 mt-1">
         <div class="d-flex w-100 align-items-center gap-3">
           <!-- Period Display -->
-          <div class="d-flex align-items-center gap-2">
+          <div class="d-flex align-items-center gap-2 fs-5">
             <mat-icon>date_range</mat-icon>
             <span class="small">Period:</span>
             <mat-chip-set class="txn-period-chips d-flex align-items-center">
@@ -66,7 +66,7 @@ import { MatIcon } from '@angular/material/icon';
           <!-- Risk Metrics Display -->
           @if (riskMetrics$ | async; as metrics) {
             <div
-              class="d-flex align-items-center gap-2 border-start ps-3 overflow-x-auto risk-metrics">
+              class="d-flex align-items-center gap-2 border-start ps-3 overflow-x-auto fs-5 risk-display">
               <!-- <mat-icon
                 [class.text-danger]="metrics.riskLevel === 'HIGH'"
                 [class.text-warning]="metrics.riskLevel === 'MEDIUM'"
@@ -166,7 +166,7 @@ import { MatIcon } from '@angular/material/icon';
                 formControlName="account"
                 (selectionChange)="setSelectedAccountFromSelect($event.value)">
                 @for (
-                  account of availableAccounts$ | async;
+                  account of accountsSelection$ | async;
                   track account.account
                 ) {
                   <mat-option [value]="account.account">
@@ -183,10 +183,10 @@ import { MatIcon } from '@angular/material/icon';
 
       <div class="col-6">
         <app-circular
-          [transactionData]="
+          [filteredSelections]="
             (filteredSelectionsByAccountAndPeriod$ | async) || []
           "
-          [accountNumbersSelection]="(accountNumbersSelection$ | async) || []"
+          [accountNumbersSelection]="(accountsSelection$ | async) || []"
           [partyKeysSelection]="(partyKeysSelection$ | async) || []">
         </app-circular>
       </div>
@@ -194,12 +194,12 @@ import { MatIcon } from '@angular/material/icon';
         <div class="row row-cols-1 g-2">
           <app-monthly-txn-volume
             class="col"
-            [transactionData]="(filteredSelectionsByAccount$ | async) || []"
+            [filteredSelections]="(filteredSelectionsByAccount$ | async) || []"
             (zoomChange)="onZoomChange($event)">
           </app-monthly-txn-volume>
           <app-txn-method-breakdown
             class="col"
-            [transactionData]="
+            [filteredSelections]="
               (filteredSelectionsByAccountAndPeriod$ | async) || []
             ">
           </app-txn-method-breakdown>
@@ -228,7 +228,7 @@ export class AnalyticsComponent implements AfterViewInit {
   monthlyChart!: MonthlyTxnVolumeComponent;
   ngAfterViewInit(): void {
     // Auto-select first account when available accounts load
-    this.availableAccounts$
+    this.accountsSelection$
       .pipe(
         take(1),
         filter((accounts) => accounts.length > 0),
@@ -248,14 +248,10 @@ export class AnalyticsComponent implements AfterViewInit {
     }),
   );
 
-  accountNumbersSelection$ = this.caseRecord$.pipe(
+  accountsSelection$ = this.caseRecord$.pipe(
     map(({ searchParams: { accountNumbersSelection } }) => {
       return accountNumbersSelection;
     }),
-  );
-
-  // Available accounts derived from case record
-  availableAccounts$ = this.accountNumbersSelection$.pipe(
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 

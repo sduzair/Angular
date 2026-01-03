@@ -67,7 +67,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
   private snackbarQ = inject(SnackbarQueueService);
   @ViewChild('chartContainer', { static: true }) chartContainer!: ElementRef;
 
-  @Input({ required: true }) transactionData: StrTransaction[] = [];
+  @Input({ required: true }) filteredSelections: StrTransaction[] = [];
 
   @Input({ required: true })
   partyKeysSelection: string[] = [];
@@ -87,7 +87,10 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (!changes['transactionData'] || changes['transactionData'].firstChange)
+    if (
+      !changes['filteredSelections'] ||
+      changes['filteredSelections'].firstChange
+    )
       return;
 
     const focalSubjects = new Set(this.partyKeysSelection);
@@ -117,7 +120,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
     });
     this.resizeObserver.observe(this.chartContainer.nativeElement);
 
-    if (this.transactionData.length > 0) {
+    if (this.filteredSelections.length > 0) {
       this.updateChart(focalSubjects, focalAccounts);
     }
 
@@ -149,18 +152,25 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
     const nodesMap = new Map<string, GraphNode>();
     const linksMap = new Map<string, Link>();
 
-    this.transactionData.forEach((txn) => {
-      buildNodesAndAccountHolderLinks(
-        txn,
+    this.filteredSelections.forEach((txn) => {
+      buildNodesAndAccountHolderLinks({
+        transaction: txn,
         nodesMap,
         linksMap,
         focalSubjects,
         focalAccounts,
-      );
+      });
     });
-    this.transactionData.forEach((txn) => {
-      buildLinks(txn, linksMap, focalSubjects, nodesMap);
+
+    this.filteredSelections.forEach((txn) => {
+      buildTransactionLinks({
+        transaction: txn,
+        linksMap,
+        focalSubjects,
+        nodesMap,
+      });
     });
+
     const { nodes, links } = normalize(nodesMap, linksMap);
 
     const option: ECOption = {
@@ -178,7 +188,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
           if (params.dataType === 'node') {
             const node = params.data as GraphNode;
             const displayData = extractNodeDisplayData(node);
-            return formatNodeDataAsHtml(displayData);
+            return displayData ? formatNodeDataAsHtml(displayData) : '';
           } else {
             const link = params.data as Link;
 
@@ -199,7 +209,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
       },
       legend: [
         {
-          data: CATEGORIES.map((c) => c.name),
+          data: NODES.map((c) => c.name),
           orient: 'vertical',
           left: 'left',
           top: 'middle',
@@ -245,19 +255,22 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
           layout: 'circular',
           data: nodes,
           links,
-          categories: CATEGORIES,
+          categories: NODES,
           roam: true,
           label: {
             show: true,
             position: 'right',
-            formatter: (({ name, data }) => {
+            formatter: (({ data }) => {
               const node = data as GraphNode;
 
-              if (node.category === CATEGORY_ENUM.Account) return;
-              if (node.category === CATEGORY_ENUM.FocalAccount)
+              if (node.category === NODE_ENUM.Account) return;
+
+              if (node.category === NODE_ENUM.FocalAccount)
                 return `#${node.name}`;
 
-              return name;
+              if (node.nodeType === 'subject') return node.subjectName;
+
+              return node.name;
             }) as LabelFormatter,
             distance: 4,
           },
@@ -288,16 +301,23 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
 /**
  * Creates nodes and links for subjects and accounts
  */
-function buildNodesAndAccountHolderLinks(
-  transaction: StrTransaction,
-  nodesMap: Map<string | null, GraphNode>,
-  linksMap: Map<string, Link>,
-  focalSubjects: Set<string>,
-  focalAccounts: Set<string>,
-) {
+export function buildNodesAndAccountHolderLinks({
+  transaction,
+  nodesMap,
+  linksMap,
+  focalSubjects,
+  focalAccounts,
+}: {
+  transaction: StrTransaction;
+  nodesMap: Map<string | null, GraphNode>;
+  linksMap: Map<string, Link>;
+  focalSubjects: Set<string>;
+  focalAccounts: Set<string>;
+}) {
   // SA account and subjects nodes and links
   for (const {
     conductors = [],
+    branch: saTransit,
     account: saAccount,
     accountHolders = [],
     typeOfFunds: saTypeOfFunds,
@@ -307,15 +327,15 @@ function buildNodesAndAccountHolderLinks(
     const isAccountInfoMissingSA = !saAccount && typeOfFunds !== 'Cash';
 
     let accountId = saAccount;
-    let accountCategory: number = CATEGORY_ENUM.Account;
+    let accountCategory: number = NODE_ENUM.Account;
 
     if (isAccountInfoMissingSA) {
       accountId = generateUnknownNodeKey();
-      accountCategory = CATEGORY_ENUM.UnknownNode;
+      accountCategory = NODE_ENUM.UnknownNode;
     }
 
     if (saAccount && focalAccounts.has(saAccount)) {
-      accountCategory = CATEGORY_ENUM.FocalAccount;
+      accountCategory = NODE_ENUM.FocalAccount;
     }
 
     if (!nodesMap.has(accountId)) {
@@ -323,6 +343,7 @@ function buildNodesAndAccountHolderLinks(
         id: accountId ?? '',
         category: accountCategory,
         nodeType: 'account',
+        transit: saTransit,
         account: saAccount ?? '',
         name: saAccount ?? '',
         rawCredit: 0,
@@ -344,7 +365,9 @@ function buildNodesAndAccountHolderLinks(
         id: conductorId,
         category,
         nodeType: 'subject',
-        name: conductorName,
+        subjectName: conductorName,
+        relatedTransit: saTransit,
+        relatedAccount: saAccount,
         rawCredit: 0,
         rawDebit: 0,
         creditsByMethod: {},
@@ -371,7 +394,9 @@ function buildNodesAndAccountHolderLinks(
           id: accountHolderId,
           category,
           nodeType: 'subject',
-          name: accountHolderName,
+          subjectName: accountHolderName,
+          relatedTransit: saTransit,
+          relatedAccount: saAccount,
           rawCredit: 0,
           rawDebit: 0,
           creditsByMethod: {},
@@ -405,6 +430,7 @@ function buildNodesAndAccountHolderLinks(
   // CA account and subjects nodes and links
   for (const {
     beneficiaries = [],
+    branch: caTransit,
     account: caAccount,
     accountHolders = [],
     detailsOfDispo: caDetailsOfDispo,
@@ -415,15 +441,15 @@ function buildNodesAndAccountHolderLinks(
       !caAccount && detailsOfDispo !== 'Cash Withdrawal';
 
     let accountId = caAccount;
-    let accountCategory: number = CATEGORY_ENUM.Account;
+    let accountCategory: number = NODE_ENUM.Account;
 
     if (isAccountInfoMissingCA) {
       accountId = generateUnknownNodeKey();
-      accountCategory = CATEGORY_ENUM.UnknownNode;
+      accountCategory = NODE_ENUM.UnknownNode;
     }
 
     if (caAccount && focalAccounts.has(caAccount)) {
-      accountCategory = CATEGORY_ENUM.FocalAccount;
+      accountCategory = NODE_ENUM.FocalAccount;
     }
 
     if (!nodesMap.has(accountId)) {
@@ -431,6 +457,7 @@ function buildNodesAndAccountHolderLinks(
         id: accountId ?? '',
         category: accountCategory,
         nodeType: 'account',
+        transit: caTransit,
         account: caAccount ?? '',
         name: caAccount ?? '',
         rawCredit: 0,
@@ -455,7 +482,9 @@ function buildNodesAndAccountHolderLinks(
           id: beneficiaryId,
           category,
           nodeType: 'subject',
-          name: beneficiaryName,
+          subjectName: beneficiaryName,
+          relatedTransit: caTransit,
+          relatedAccount: caAccount,
           rawCredit: 0,
           rawDebit: 0,
           creditsByMethod: {},
@@ -478,7 +507,9 @@ function buildNodesAndAccountHolderLinks(
           id: accountHolderId,
           category,
           nodeType: 'subject',
-          name: accountHolderName,
+          subjectName: accountHolderName,
+          relatedTransit: caTransit,
+          relatedAccount: caAccount,
           rawCredit: 0,
           rawDebit: 0,
           creditsByMethod: {},
@@ -513,20 +544,25 @@ function buildNodesAndAccountHolderLinks(
 /**
  * Creates links for in/out transactions
  */
-function buildLinks(
-  transaction: StrTransaction,
-  linksMap: Map<string, Link>,
-  focalSubjects: Set<string>,
-  nodesMap: Map<string, GraphNode>,
-) {
-  const { flowOfFundsDebitAmount, flowOfFundsCreditAmount, methodOfTxn } =
-    transaction;
+export function buildTransactionLinks({
+  transaction,
+  nodesMap,
+  linksMap,
+  focalSubjects,
+}: {
+  transaction: StrTransaction;
+  nodesMap: Map<string, GraphNode>;
+  linksMap: Map<string, Link>;
+  focalSubjects: Set<string>;
+}) {
+  const { methodOfTxn } = transaction;
 
   for (const {
     directionOfSA,
     conductors = [],
     typeOfFunds: saTypeOfFunds,
     account: saAccount,
+    amount: saAmount,
   } of transaction.startingActions) {
     const addEmptyConductor = conductors.length === 0;
     if (addEmptyConductor) {
@@ -549,13 +585,10 @@ function buildLinks(
         const direction = directionOfSA as DIRECTION_OF_SA | null;
         if (!direction) continue;
 
-        const txnAmount =
-          direction === 'In'
-            ? (flowOfFundsCreditAmount ?? 0)
-            : (flowOfFundsDebitAmount ?? 0);
-
-        let { subjectId: conductorId, isFocal: conductorIsFocal } =
-          getSubjectIdAndCategory(conductor, focalSubjects);
+        let { subjectId: conductorId } = getSubjectIdAndCategory(
+          conductor,
+          focalSubjects,
+        );
 
         const typeOfFunds = saTypeOfFunds as TYPE_OF_FUNDS;
         const detailsOfDispo = caDetailsOfDispo as DETAILS_OF_DISPOSITION;
@@ -563,74 +596,58 @@ function buildLinks(
           getTxnMethod(typeOfFunds, detailsOfDispo, methodOfTxn) ??
           METHOD_ENUM.Unknown;
 
+        let nodeCon = nodesMap.get(conductorId)!;
+
         const isCashWithdrawal =
-          typeOfFunds === 'Funds withdrawal' &&
-          detailsOfDispo === 'Cash Withdrawal';
+          txnMethod === METHOD_ENUM.ABM && direction === 'Out';
+        const isChequeWithdrawal =
+          txnMethod === METHOD_ENUM.Cheque && direction === 'Out';
 
         const isCashDeposit =
-          typeOfFunds === 'Cash' && detailsOfDispo === 'Deposit to account';
+          txnMethod === METHOD_ENUM.ABM && direction === 'In';
+        const isChequeDeposit =
+          txnMethod === METHOD_ENUM.Cheque && direction === 'In';
 
-        if (direction === 'In' && isCashDeposit) {
-          const nodeCon = nodesMap.get(conductorId)!;
-          addToDebits(nodeCon, txnMethod, txnAmount);
-
-          const nodeBen = nodesMap.get(
-            caAccount ? caAccount : generateUnknownNodeKey(),
-          )!;
-          addToCredits(nodeBen, txnMethod, txnAmount);
-
-          continue;
+        if (isCashWithdrawal || isChequeWithdrawal) {
+          conductorId = saAccount ? saAccount : generateUnknownNodeKey();
+          nodeCon = nodesMap.get(conductorId)!;
         }
 
-        if (direction === 'Out' && isCashWithdrawal) {
-          const nodeCon = nodesMap.get(
-            saAccount ? saAccount : generateUnknownNodeKey(),
-          )!;
-          addToDebits(nodeCon, txnMethod, txnAmount);
-
-          const nodeBen = nodesMap.get(conductorId)!;
-          addToCredits(nodeBen, txnMethod, txnAmount);
-
-          continue;
-        }
-
-        if (direction === 'In' && !isCashDeposit) {
-          const nodeCon = nodesMap.get(conductorId)!;
-          addToCredits(nodeCon, txnMethod, txnAmount);
-        }
-
-        if (direction === 'Out' && !isCashWithdrawal) {
-          const nodeCon = nodesMap.get(conductorId)!;
-          addToDebits(nodeCon, txnMethod, txnAmount);
-        }
+        addToDebits(nodeCon, txnMethod, saAmount ?? 0);
 
         for (const beneficiary of beneficiaries) {
-          let { subjectId: beneficiaryId, isFocal: beneficiaryIsFocal } =
-            getSubjectIdAndCategory(beneficiary, focalSubjects);
-
-          console.assert(
-            (conductorIsFocal && beneficiaryIsFocal) === false,
-            'Assert cond and ben both are not focal',
+          let { subjectId: beneficiaryId } = getSubjectIdAndCategory(
+            beneficiary,
+            focalSubjects,
           );
+          let nodeBen = nodesMap.get(beneficiaryId)!;
 
-          // Update or create link
+          if (isCashDeposit || isChequeDeposit) {
+            beneficiaryId = caAccount ? caAccount : generateUnknownNodeKey();
+            nodeBen = nodesMap.get(beneficiaryId)!;
+
+            createOrUpdateBidirectionalLink(
+              linksMap,
+              conductorId,
+              beneficiaryId,
+              direction,
+              saAmount ?? 0,
+            );
+
+            addToCredits(nodeBen, txnMethod, saAmount ?? 0);
+
+            break;
+          }
+
           createOrUpdateBidirectionalLink(
             linksMap,
             conductorId,
             beneficiaryId,
             direction,
-            txnAmount,
+            saAmount ?? 0,
           );
 
-          if (direction === 'In') {
-            const nodeBen = nodesMap.get(beneficiaryId)!;
-            addToCredits(nodeBen, txnMethod, txnAmount);
-          }
-
-          if (direction === 'Out') {
-            const nodeBen = nodesMap.get(beneficiaryId)!;
-            addToDebits(nodeBen, txnMethod, txnAmount);
-          }
+          addToCredits(nodeBen, txnMethod, saAmount ?? 0);
         }
       }
     }
@@ -641,8 +658,11 @@ function buildLinks(
    */
   function addToDebits(node: GraphNode, txnMethod: number, txnAmount: number) {
     // eslint-disable-next-line no-param-reassign
-    node.debitsByMethod[txnMethod] =
-      (node.debitsByMethod[txnMethod] ?? 0) + txnAmount;
+    node.debitsByMethod[txnMethod] ??= { amount: 0, count: 0 };
+    // eslint-disable-next-line no-param-reassign
+    node.debitsByMethod[txnMethod].amount += txnAmount;
+    // eslint-disable-next-line no-param-reassign
+    node.debitsByMethod[txnMethod]!.count += 1;
     // eslint-disable-next-line no-param-reassign
     node.rawDebit += txnAmount;
   }
@@ -652,18 +672,21 @@ function buildLinks(
    */
   function addToCredits(node: GraphNode, txnMethod: number, txnAmount: number) {
     // eslint-disable-next-line no-param-reassign
-    node.creditsByMethod[txnMethod] =
-      (node.creditsByMethod[txnMethod] ?? 0) + txnAmount;
+    node.creditsByMethod[txnMethod] ??= { amount: 0, count: 0 };
+    // eslint-disable-next-line no-param-reassign
+    node.creditsByMethod[txnMethod].amount += txnAmount;
+    // eslint-disable-next-line no-param-reassign
+    node.creditsByMethod[txnMethod]!.count += 1;
     // eslint-disable-next-line no-param-reassign
     node.rawCredit += txnAmount;
   }
 }
 
-function getSubjectIdAndCategory(
+export function getSubjectIdAndCategory(
   subject: Subject | undefined,
   focalSubjects: Set<string>,
 ) {
-  let category = CATEGORY_ENUM.UnknownNode as number;
+  let category = NODE_ENUM.UnknownNode as number;
   let name = 'Unknown Subject';
   let isFocal = false;
 
@@ -697,32 +720,32 @@ function getSubjectIdAndCategory(
   isFocal = !!subject.partyKey && focalSubjects.has(subject.partyKey);
 
   if (isFocal && isPerson) {
-    category = CATEGORY_ENUM.FocalPersonSubject;
+    category = NODE_ENUM.FocalPersonSubject;
     name = `${subject.givenName} ${subject.otherOrInitial} ${subject.surname}`;
   }
 
   if (isFocal && isEntity) {
-    category = CATEGORY_ENUM.FocalEntitySubject;
+    category = NODE_ENUM.FocalEntitySubject;
     name = `${subject.nameOfEntity}`;
   }
 
   if (!isFocal && isClient && isPerson) {
-    category = CATEGORY_ENUM.CibcPersonSubject;
+    category = NODE_ENUM.CibcPersonSubject;
     name = `${subject.givenName} ${subject.otherOrInitial} ${subject.surname}`;
   }
 
   if (!isFocal && isClient && isEntity) {
-    category = CATEGORY_ENUM.CibcEntitySubject;
+    category = NODE_ENUM.CibcEntitySubject;
     name = `${subject.nameOfEntity}`;
   }
 
   if (!isFocal && !isClient && isPerson) {
-    category = CATEGORY_ENUM.PersonSubject;
+    category = NODE_ENUM.PersonSubject;
     name = `${subject.givenName} ${subject.otherOrInitial ? subject.otherOrInitial + ' ' : ''}${subject.surname}`;
   }
 
   if (!isFocal && !isClient && isEntity) {
-    category = CATEGORY_ENUM.EntitySubject;
+    category = NODE_ENUM.EntitySubject;
     name = `${subject.nameOfEntity}`;
   }
 
@@ -732,6 +755,13 @@ function getSubjectIdAndCategory(
     name,
     isFocal,
   };
+}
+
+function isFocalClient(node: GraphNode) {
+  return (
+    node.category == NODE_ENUM.FocalPersonSubject ||
+    node.category == NODE_ENUM.FocalEntitySubject
+  );
 }
 
 function getLinkId(source: string, target: string) {
@@ -845,7 +875,7 @@ function normalize(
       size = SYMBOL_MIN_SIZE + normalized * SYMBOL_MAX_SIZE;
     }
 
-    if (node.category === CATEGORY_ENUM.Account) {
+    if (node.category === NODE_ENUM.Account) {
       size = SYMBOL_ACCOUNT_SIZE;
     }
 
@@ -896,7 +926,7 @@ function normalize(
 
 const COLOR_FOCAL_PERSON = '#d32f2f';
 const COLOR_FOCAL_ENTITY = '#00e676';
-const CATEGORIES = [
+const NODES = [
   { name: 'CIBC Person', itemStyle: { color: '#1e88e5' } }, // 0 - Modern blue
   { name: 'CIBC Entity', itemStyle: { color: '#43a047' } }, // 1 - Forest green
   { name: 'Account', itemStyle: { color: '#ffa726' } }, // 2 - Warm orange
@@ -909,7 +939,7 @@ const CATEGORIES = [
   { name: 'Focal Account', itemStyle: { color: '#ff2f65' } }, // 9 - Deep amber
 ];
 
-export const CATEGORY_ENUM = {
+export const NODE_ENUM = {
   CibcPersonSubject: 0,
   CibcEntitySubject: 1,
   Account: 2,
@@ -922,16 +952,25 @@ export const CATEGORY_ENUM = {
   FocalAccount: 9,
 } as const;
 
-export function getCategory(num: number) {
-  const index = (Object.values(CATEGORY_ENUM) as number[]).findIndex(
+export function getNodeName(num: number) {
+  const index = (Object.values(NODE_ENUM) as number[]).findIndex(
     (val) => val === num,
   );
-  return CATEGORIES[index].name;
+  return NODES[index].name;
 }
 
 function generateUnknownNodeKey() {
   return `UNKNOWN-${crypto.randomUUID()}`;
 }
+
+export const CATEGORY_LABEL: Record<number, string> = {
+  7: 'an individual',
+  8: 'a business/entity',
+  3: 'an individual',
+  4: 'a business/entity',
+  0: 'an individual',
+  1: 'a business/entity',
+};
 
 interface Subject {
   partyKey: string | null;
@@ -955,7 +994,7 @@ export type DETAILS_OF_DISPOSITION =
   | 'Issued Cheque'
   | 'Outgoing email money transfer';
 
-type Link = NonNullable<GraphSeriesOption['links']>[number] &
+export type Link = NonNullable<GraphSeriesOption['links']>[number] &
   LinkAccountHolderOrTransaction;
 
 type LinkAccountHolderOrTransaction =
@@ -977,23 +1016,32 @@ type LinkAccountHolderOrTransaction =
 
 export type GraphNode = GraphNodeItemOption & GraphNodeAccountOrSubject;
 
-type GraphNodeAccountOrSubject =
+type GraphNodeAccountOrSubject = {
+  rawCredit: number;
+  rawDebit: number;
+  creditsByMethod: MethodAmount;
+  debitsByMethod: MethodAmount;
+} & (
   | {
       nodeType: 'account';
-      account: string;
-      rawCredit: number;
-      rawDebit: number;
-      creditsByMethod: Record<number, number>;
-      debitsByMethod: Record<number, number>;
+      transit?: string | null;
+      account?: string | null;
     }
   | {
       nodeType: 'subject';
-      name: string;
-      rawCredit: number;
-      rawDebit: number;
-      creditsByMethod: Record<number, number>;
-      debitsByMethod: Record<number, number>;
-    };
+      subjectName: string;
+      relatedTransit?: string | null;
+      relatedAccount?: string | null;
+    }
+);
+
+export type CategoryKey =
+  | (typeof NODE_ENUM)[keyof typeof NODE_ENUM]
+  | (number & {});
+
+export type MethodAmount = Partial<
+  Record<CategoryKey, { amount: number; count: number }>
+>;
 
 type GraphNodeItemOption = Extract<
   NonNullable<GraphSeriesOption['data']>[number],

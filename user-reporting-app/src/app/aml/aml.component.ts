@@ -19,8 +19,11 @@ import {
   RouterOutlet,
 } from '@angular/router';
 import { filter, map, Observable, startWith } from 'rxjs';
-import { CaseRecordStore } from './case-record.store';
 import { Breadcrumb } from '../app.routes';
+import { CaseRecordStore } from './case-record.store';
+import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatButtonModule } from '@angular/material/button';
+import { ChatbotComponent } from '../chatbot/chatbot.component';
 
 @Component({
   selector: 'app-aml',
@@ -32,6 +35,9 @@ import { Breadcrumb } from '../app.routes';
     MatProgressSpinner,
     MatIcon,
     RouterModule,
+    MatSidenavModule,
+    MatButtonModule,
+    ChatbotComponent,
   ],
   template: `
     <div class="container-fluid px-0 overflow-y-auto overflow-x-hidden h-100">
@@ -83,11 +89,30 @@ import { Breadcrumb } from '../app.routes';
           </mat-toolbar-row>
         </mat-toolbar>
       </div>
-      <div class="row mx-0">
-        <div class="col">
-          <router-outlet />
-        </div>
-      </div>
+      <mat-drawer-container hasBackdrop="false" appScrollPositionPreserve>
+        <mat-drawer
+          position="end"
+          #drawer
+          class="shadow-lg border my-5"
+          style="max-height: 80dvh;">
+          <app-chatbot />
+        </mat-drawer>
+        <mat-drawer-content class="overflow-hidden">
+          <div class="row mx-0">
+            <div class="col">
+              <router-outlet />
+            </div>
+          </div>
+        </mat-drawer-content>
+      </mat-drawer-container>
+      <button
+        type="button"
+        mat-fab
+        color="primary"
+        class="position-fixed end-0 bottom-0 me-4 mb-4 z-3"
+        (click)="drawer.toggle()">
+        <mat-icon>auto_awesome</mat-icon>
+      </button>
     </div>
   `,
   styleUrl: './aml.component.scss',

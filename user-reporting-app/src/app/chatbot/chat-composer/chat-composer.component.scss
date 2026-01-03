@@ -1,0 +1,39 @@
+:host {
+  display: block;
+  padding: 16px;
+}
+
+.composer-container {
+  position: relative;
+  background: #fff;
+}
+
+.textareaWrapper {
+  padding: 16px 48px 16px 16px;
+}
+
+textarea {
+  width: 100%;
+  border: none;
+  color: var(--mat-sys-on-surface);
+  background: none;
+  outline: none;
+  overflow: none;
+  padding: 0;
+  margin: 0;
+}
+
+.send-button {
+  color: var(--mat-sys-primary);
+}
+
+.chat-composer {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+
+  &::placeholder {
+    color: var(--mat-sys-on-surface-variant);
+    opacity: 0.6;
+  }
+}

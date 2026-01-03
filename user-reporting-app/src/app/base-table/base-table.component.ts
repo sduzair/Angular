@@ -143,7 +143,10 @@ import { CamelToTitlePipe } from '../reporting-ui/reporting-ui-table/camel-to-ti
       class="overflow-visible"
       hasBackdrop="false"
       appScrollPositionPreserve>
-      <mat-drawer class="form-drawer" position="end" #drawer>
+      <mat-drawer
+        class="form-drawer border-top border-bottom border-start shadow-sm"
+        position="end"
+        #drawer>
         <form
           [formGroup]="filterFormFormGroup"
           class="h-100 d-flex flex-column container px-0">

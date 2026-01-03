@@ -1,9 +1,10 @@
 import { METHOD_FRIENDLY_NAME } from '../txn-method-breakdown/txn-method-breakdown.component';
 import {
-  CATEGORY_ENUM,
   formatCurrencyLocal,
-  getCategory,
+  getNodeName,
   GraphNode,
+  MethodAmount,
+  NODE_ENUM,
 } from './circular.component';
 
 /**
@@ -19,161 +20,92 @@ export function getNodeDataTextToCopy(node: GraphNode) {
  * Extract display data from node - single source of truth
  */
 export function extractNodeDisplayData(node: GraphNode): NodeDisplayData {
-  const data: NodeDisplayData = {
-    title: '',
-    description: '',
-    type: getCategory(node.category as number),
-    sections: [],
-    methodBreakdown: [],
-  };
-
-  if (node.nodeType === 'account' && node.category == CATEGORY_ENUM.Account) {
-    data.title = `Account: ${node.account}`;
-    data.description =
-      'This is a specific account owned by an external subject who transacted with the focal client.';
+  if (node.nodeType === 'account' && node.category == NODE_ENUM.Account) {
+    const data: NodeDisplayData = {
+      title: `Account: ${node.account}`,
+      // description:
+      //   'This is a specific account owned by an external subject who transacted with the focal client.',
+      category: node.category as number,
+      categoryName: getNodeName(node.category as number),
+      transit: node.transit,
+      account: node.account,
+      sections: [],
+      methodBreakdown: [],
+    };
+    return data;
   }
-  if (
-    node.nodeType === 'account' &&
-    node.category == CATEGORY_ENUM.FocalAccount
-  ) {
-    data.title = `Account: ${node.account}`;
-    data.description =
-      'This account belongs to the focal client (the primary entity under investigation). ' +
-      'Deposits represent incoming cash flows that increased the account balance. ' +
-      'Withdrawals represent outgoing cash flows that decreased the account balance. ' +
-      'Net shows the overall change in account balance (positive means more money came in than went out).';
-
-    data.sections = [
-      {
-        header: 'Cash',
-        items: [
-          {
-            label: 'Deposits',
-            value: formatCurrencyLocal(node.rawCredit),
-            color: '#52c41a',
-            icon: '←',
-          },
-          {
-            label: 'Withdrawals',
-            value: formatCurrencyLocal(node.rawDebit),
-            color: '#f5222d',
-            icon: '→',
-          },
-          {
-            label: 'Net',
-            value: formatCurrencyLocal(node.rawCredit - node.rawDebit),
-            color: '#999',
-            icon: '',
-          },
-        ],
-      },
-    ];
+  if (node.nodeType === 'account' && node.category == NODE_ENUM.FocalAccount) {
+    const data: NodeDisplayData = {
+      title: `Account: ${node.account}`,
+      // description:
+      //   'This account belongs to the focal client (the primary entity under investigation). ',
+      category: node.category as number,
+      categoryName: getNodeName(node.category as number),
+      transit: node.transit,
+      account: node.account,
+      sections: [],
+      // Add method breakdown includes only cash
+      methodBreakdown: extractMethodBreakdownData(
+        node.creditsByMethod,
+        node.debitsByMethod,
+      ),
+    };
+    return data;
   }
 
-  if (
-    node.nodeType === 'subject' &&
-    (node.category === CATEGORY_ENUM.FocalEntitySubject ||
-      node.category === CATEGORY_ENUM.FocalPersonSubject)
-  ) {
-    data.title = node.name;
-    data.description =
-      'This is the focal subject - the primary person or entity under investigation. ' +
-      'The amounts shown represent the aggregate financial activity of this focal subject with all external parties. ' +
-      'Received: Total amount the focal subject received FROM all external subjects and entities across all transactions. ' +
-      'Sent: Total amount the focal subject sent TO all external subjects and entities across all transactions. ' +
-      'Net: The overall financial position (positive means the focal subject received more than they sent out, negative means they sent out more than received). ' +
-      'Transaction Method Breakdown shows how these total amounts are distributed across different payment methods.';
-
-    data.sections = [
-      {
-        header: 'Focal Client',
-        items: [
-          {
-            label: 'Received',
-            value: formatCurrencyLocal(node.rawCredit),
-            color: '#52c41a',
-            icon: '←',
-          },
-          {
-            label: 'Sent',
-            value: formatCurrencyLocal(node.rawDebit),
-            color: '#f5222d',
-            icon: '→',
-          },
-          {
-            label: 'Net',
-            value: formatCurrencyLocal(node.rawCredit - node.rawDebit),
-            color: '#999',
-            icon: '',
-          },
-        ],
-      },
-    ];
-
-    // Add method breakdown
-    data.methodBreakdown = extractMethodBreakdownData(
-      node.creditsByMethod,
-      node.debitsByMethod,
-    );
+  if (node.nodeType === 'subject') {
+    const data: NodeDisplayData = {
+      title: node.subjectName,
+      // description:
+      //   'This is the focal subject - the primary person or entity under investigation. ',
+      category: node.category as number,
+      categoryName: getNodeName(node.category as number),
+      transit: node.relatedTransit,
+      account: node.relatedAccount,
+      sections: [
+        {
+          header: 'Summary',
+          items: [
+            {
+              label: 'Received',
+              value: formatCurrencyLocal(node.rawCredit),
+              color: '#52c41a',
+              icon: '←',
+            },
+            {
+              label: 'Sent',
+              value: formatCurrencyLocal(node.rawDebit),
+              color: '#f5222d',
+              icon: '→',
+            },
+            {
+              label: 'Net',
+              value: formatCurrencyLocal(node.rawCredit - node.rawDebit),
+              color: '#999',
+              icon: '',
+            },
+          ],
+        },
+      ],
+      // Add method breakdown
+      methodBreakdown: extractMethodBreakdownData(
+        node.creditsByMethod,
+        node.debitsByMethod,
+      ),
+    };
+    return data;
   }
 
-  if (
-    node.nodeType === 'subject' &&
-    node.category !== CATEGORY_ENUM.FocalEntitySubject &&
-    node.category !== CATEGORY_ENUM.FocalPersonSubject
-  ) {
-    data.title = node.name;
-    data.description =
-      'This is an external subject (third-party person or entity) that transacted with the focal client. ' +
-      'The amounts represent the total financial relationship between the focal client and this external party. ' +
-      'Received: Total amount the focal client received FROM this external subject across all transaction methods. ' +
-      'Sent: Total amount the focal client sent TO this external subject across all transaction methods. ' +
-      'Net: The net position (positive indicates focal client received more, negative indicates focal client sent more). ' +
-      'Transaction Method Breakdown shows how these amounts were split across different payment methods (wire, check, cash, etc.).';
-
-    data.sections = [
-      {
-        header: 'Focal Client',
-        items: [
-          {
-            label: 'Received',
-            value: formatCurrencyLocal(node.rawCredit),
-            color: '#52c41a',
-            icon: '←',
-          },
-          {
-            label: 'Sent',
-            value: formatCurrencyLocal(node.rawDebit),
-            color: '#f5222d',
-            icon: '→',
-          },
-          {
-            label: 'Net',
-            value: formatCurrencyLocal(node.rawCredit - node.rawDebit),
-            color: '#999',
-            icon: '',
-          },
-        ],
-      },
-    ];
-
-    // Add method breakdown
-    data.methodBreakdown = extractMethodBreakdownData(
-      node.creditsByMethod,
-      node.debitsByMethod,
-    );
-  }
-
-  return data;
+  throw new Error('Unkonwn node type');
 }
 
 /**
  * Extract method breakdown data
  */
 function extractMethodBreakdownData(
-  creditsByMethod: Record<number, number>,
-  debitsByMethod: Record<number, number>,
-): { method: string; received?: string; sent?: string }[] {
+  creditsByMethod: MethodAmount,
+  debitsByMethod: MethodAmount,
+): MethodBreakDown[] {
   const creditKeys = Object.keys(creditsByMethod).map(Number);
   const debitKeys = Object.keys(debitsByMethod).map(Number);
   const allMethods = new Set([...creditKeys, ...debitKeys]);
@@ -183,18 +115,29 @@ function extractMethodBreakdownData(
   // Sort by total amount
   const methodsWithTotals = Array.from(allMethods)
     .map((method) => {
-      const received = creditsByMethod[method] ?? 0;
-      const sent = debitsByMethod[method] ?? 0;
-      return { method, received, sent, total: received + sent };
+      const received = creditsByMethod[method]?.amount ?? 0;
+      const sent = debitsByMethod[method]?.amount ?? 0;
+      return {
+        method,
+        received,
+        sent,
+        total: received + sent,
+        receivedCount: creditsByMethod[method]?.count,
+        sentCount: debitsByMethod[method]?.count,
+      };
     })
     .sort((a, b) => b.total - a.total);
 
   return methodsWithTotals
     .filter(({ received, sent }) => received > 0 || sent > 0)
-    .map(({ method, received, sent }) => ({
-      method: METHOD_FRIENDLY_NAME[method] ?? 'Unknown',
+    .map(({ method, received, sent, receivedCount, sentCount }) => ({
+      method:
+        METHOD_FRIENDLY_NAME[method as keyof typeof METHOD_FRIENDLY_NAME] ??
+        'Unknown',
       received: received > 0 ? formatCurrencyLocal(received) : undefined,
       sent: sent > 0 ? formatCurrencyLocal(sent) : undefined,
+      receivedCount,
+      sentCount,
     }));
 }
 
@@ -203,7 +146,9 @@ function extractMethodBreakdownData(
  */
 export function formatNodeDataAsHtml(data: NodeDisplayData): string {
   let html = `<strong>${data.title}</strong><br/>`;
-  html += `Type: ${data.type}<br/>`;
+  html += `Type: ${data.categoryName}<br/>`;
+  html += data.transit ? `Transit: ${data.transit}<br/>` : '';
+  html += data.account ? `Account: ${data.account}<br/>` : '';
 
   if (data.sections && data.sections.length > 0) {
     data.sections.forEach((section) => {
@@ -235,12 +180,18 @@ export function formatNodeDataAsHtml(data: NodeDisplayData): string {
       if (methodData.received) {
         html += `<span style="font-size: 12px; color: #52c41a;">`;
         html += `  ← Received: ${methodData.received}`;
+        if (methodData.receivedCount) {
+          html += ` (${methodData.receivedCount} tx)`;
+        }
         html += `</span><br/>`;
       }
 
       if (methodData.sent) {
         html += `<span style="font-size: 12px; color: #f5222d;">`;
         html += `  → Sent: ${methodData.sent}`;
+        if (methodData.sentCount) {
+          html += ` (${methodData.sentCount} tx)`;
+        }
         html += `</span><br/>`;
       }
 
@@ -254,9 +205,12 @@ export function formatNodeDataAsHtml(data: NodeDisplayData): string {
 /**
  * Format display data as plain text
  */
-function formatNodeDataAsText(data: NodeDisplayData): string {
+function formatNodeDataAsText(data: NodeDisplayData | undefined): string {
+  if (!data) return '';
   let text = `${data.title}\n`;
-  text += `Type: ${data.type}\n`;
+  text += `Type: ${data.categoryName}\n`;
+  text += data.transit ? `Transit: ${data.transit}\n` : '';
+  text += data.account ? `Account: ${data.account}\n` : '';
 
   if (data.sections && data.sections.length > 0) {
     data.sections.forEach((section) => {
@@ -280,11 +234,19 @@ function formatNodeDataAsText(data: NodeDisplayData): string {
       text += `\n${methodData.method}:\n`;
 
       if (methodData.received) {
-        text += `  Received: ${methodData.received}\n`;
+        text += `  Received: ${methodData.received}`;
+        if (methodData.receivedCount) {
+          text += ` (${methodData.receivedCount} tx)`;
+        }
+        text += '\n';
       }
 
       if (methodData.sent) {
-        text += `  Sent: ${methodData.sent}\n`;
+        text += `  Sent: ${methodData.sent}`;
+        if (methodData.sentCount) {
+          text += ` (${methodData.sentCount} tx)`;
+        }
+        text += '\n';
       }
     });
   }
@@ -293,10 +255,13 @@ function formatNodeDataAsText(data: NodeDisplayData): string {
 }
 
 // Define the data structure
-interface NodeDisplayData {
+export interface NodeDisplayData {
   title: string;
-  description: string;
-  type: string;
+  // description: string;
+  category: number;
+  categoryName: string;
+  transit?: string | null;
+  account?: string | null;
   sections?: {
     header?: string;
     items: {
@@ -306,9 +271,13 @@ interface NodeDisplayData {
       icon?: string;
     }[];
   }[];
-  methodBreakdown?: {
-    method: string;
-    received?: string;
-    sent?: string;
-  }[];
+  methodBreakdown?: MethodBreakDown[];
+}
+
+interface MethodBreakDown {
+  method: string;
+  received?: string;
+  sent?: string;
+  receivedCount?: number;
+  sentCount?: number;
 }

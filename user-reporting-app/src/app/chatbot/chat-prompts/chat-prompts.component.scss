@@ -1,0 +1,28 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  position: absolute;
+  bottom: 0px;
+  left: 0;
+  align-items: flex-start;
+}
+
+button {
+  text-align: left;
+  background: var(--mat-sys-surface);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--mat-sys-corner-small);
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--mat-sys-on-surface);
+  flex-grow: 0;
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+}
