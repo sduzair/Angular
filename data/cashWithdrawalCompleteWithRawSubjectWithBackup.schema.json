@@ -937,8 +937,8 @@
       "name": "completingActions.beneficiaries",
       "null_percentage": 0,
       "type": "JSON Array",
-      "minItems": 2,
-      "maxItems": 2,
+      "minItems": 1,
+      "maxItems": 1,
       "formula": null
     },
     {

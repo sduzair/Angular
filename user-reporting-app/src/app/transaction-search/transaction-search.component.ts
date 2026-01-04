@@ -128,379 +128,375 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
           </button>
         </mat-toolbar>
 
-        <form [formGroup]="searchParamsForm" class="search-form">
-          <div class="col">
-            <div class="row g-3">
-              <!-- Search Form Section -->
-              <div class="col-12">
-                <!-- AML ID Input -->
-                <mat-toolbar
-                  class="row row-cols-auto flex-row align-items-baseline">
-                  <mat-form-field class="col">
-                    <mat-label>AML ID</mat-label>
-                    <input
-                      matInput
-                      formControlName="amlId"
-                      placeholder="Enter AML ID" />
-                    <mat-icon matSuffix>search</mat-icon>
-                    @if (searchParamsForm.controls.amlId.hasError('required')) {
-                      <mat-error> AML ID is required </mat-error>
-                    }
-                    @if (searchParamsForm.controls.amlId.hasError('pattern')) {
-                      <mat-error> AML ID must be numbers only </mat-error>
-                    }
-                  </mat-form-field>
-                  <button
-                    type="button"
-                    mat-raised-button
-                    class="col search-btn"
-                    (click)="onLoad()"
-                    [disabled]="
-                      isSourceRefreshTimeLoading ||
-                      (isLoading$ | async) ||
-                      !searchParamsForm.controls.amlId.valid
-                    ">
-                    Load
-                  </button>
-                  <div class="flex-fill"></div>
-                  <button
-                    type="button"
-                    mat-raised-button
-                    class="col search-btn"
-                    [disabled]="
-                      isSourceRefreshTimeLoading ||
-                      (isLoading$ | async) ||
-                      !searchParamsForm.controls.amlId.valid ||
-                      !searchParamsBefore ||
-                      (formHasChanges$ | async) === false
-                    ">
-                    Save
-                  </button>
-                </mat-toolbar>
-              </div>
-              <div class="col-12 col-xl-8">
-                <!-- Filter Sections -->
-                <div class="row g-3">
-                  <!-- Parties Filter -->
-                  <div class="col-12 col-lg-6 filter-card">
-                    <mat-card>
-                      <mat-card-header>
-                        <mat-card-title>Parties</mat-card-title>
-                        <mat-card-subtitle>
-                          <div
-                            class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
-                            <div class="mat-mdc-form-field-error-wrapper px-0">
-                              <div class="mat-mdc-form-field-bottom-align">
-                                @if (
-                                  searchParamsForm.controls.partyKeys.hasError(
-                                    'atleastOneSelection'
-                                  )
-                                ) {
-                                  <mat-error>
-                                    Atleast one selection must exist
-                                  </mat-error>
-                                }
-                              </div>
+        <form [formGroup]="searchParamsForm" class="search-form col">
+          <div class="row g-3">
+            <!-- Search Form Section -->
+            <div class="col-12">
+              <!-- AML ID Input -->
+              <mat-toolbar
+                class="row row-cols-auto flex-row align-items-baseline px-0">
+                <mat-form-field class="col ps-0">
+                  <mat-label>AML ID</mat-label>
+                  <input
+                    matInput
+                    formControlName="amlId"
+                    placeholder="Enter AML ID" />
+                  <mat-icon matSuffix>search</mat-icon>
+                  @if (searchParamsForm.controls.amlId.hasError('required')) {
+                    <mat-error> AML ID is required </mat-error>
+                  }
+                  @if (searchParamsForm.controls.amlId.hasError('pattern')) {
+                    <mat-error> AML ID must be numbers only </mat-error>
+                  }
+                </mat-form-field>
+                <button
+                  type="button"
+                  mat-raised-button
+                  class="col search-btn"
+                  (click)="onLoad()"
+                  [disabled]="
+                    isSourceRefreshTimeLoading ||
+                    (isLoading$ | async) ||
+                    !searchParamsForm.controls.amlId.valid
+                  ">
+                  Load
+                </button>
+                <div class="flex-fill"></div>
+                <button
+                  type="button"
+                  mat-raised-button
+                  class="col search-btn"
+                  [disabled]="
+                    isSourceRefreshTimeLoading ||
+                    (isLoading$ | async) ||
+                    !searchParamsForm.controls.amlId.valid ||
+                    !searchParamsBefore ||
+                    (formHasChanges$ | async) === false
+                  ">
+                  Save
+                </button>
+              </mat-toolbar>
+            </div>
+            <div class="col-12 col-xl-8">
+              <!-- Filter Sections -->
+              <div class="row g-3">
+                <!-- Parties Filter -->
+                <div class="col-12 col-lg-6 filter-card">
+                  <mat-card>
+                    <mat-card-header>
+                      <mat-card-title>Parties</mat-card-title>
+                      <mat-card-subtitle>
+                        <div
+                          class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
+                          <div class="mat-mdc-form-field-error-wrapper px-0">
+                            <div class="mat-mdc-form-field-bottom-align">
+                              @if (
+                                searchParamsForm.controls.partyKeys.hasError(
+                                  'atleastOneSelection'
+                                )
+                              ) {
+                                <mat-error>
+                                  Atleast one selection must exist
+                                </mat-error>
+                              }
                             </div>
                           </div>
-                        </mat-card-subtitle>
-                      </mat-card-header>
-                      <mat-card-content>
-                        <app-party-key-selectable-table
-                          formControlName="partyKeys"
-                          [data]="(partyKeysData$ | async) || []"
-                          [isLoading]="(isLoading$ | async) || false">
-                        </app-party-key-selectable-table>
-                      </mat-card-content>
-                    </mat-card>
-                  </div>
+                        </div>
+                      </mat-card-subtitle>
+                    </mat-card-header>
+                    <mat-card-content>
+                      <app-party-key-selectable-table
+                        formControlName="partyKeys"
+                        [data]="(partyKeysData$ | async) || []"
+                        [isLoading]="(isLoading$ | async) || false">
+                      </app-party-key-selectable-table>
+                    </mat-card-content>
+                  </mat-card>
+                </div>
 
-                  <!-- Accounts Filter -->
-                  <div class="col-12 col-lg-6 filter-card">
-                    <mat-card>
-                      <mat-card-header>
-                        <mat-card-title>Accounts / Products</mat-card-title>
-                        <mat-card-subtitle>
-                          <div
-                            class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
-                            <div class="mat-mdc-form-field-error-wrapper px-0">
-                              <div class="mat-mdc-form-field-bottom-align">
-                                @if (
-                                  searchParamsForm.controls.accountNumbers.hasError(
-                                    'atleastOneSelection'
-                                  )
-                                ) {
-                                  <mat-error>
-                                    Atleast one selection must exist
-                                  </mat-error>
-                                }
-                              </div>
+                <!-- Accounts Filter -->
+                <div class="col-12 col-lg-6 filter-card">
+                  <mat-card>
+                    <mat-card-header>
+                      <mat-card-title>Accounts / Products</mat-card-title>
+                      <mat-card-subtitle>
+                        <div
+                          class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
+                          <div class="mat-mdc-form-field-error-wrapper px-0">
+                            <div class="mat-mdc-form-field-bottom-align">
+                              @if (
+                                searchParamsForm.controls.accountNumbers.hasError(
+                                  'atleastOneSelection'
+                                )
+                              ) {
+                                <mat-error>
+                                  Atleast one selection must exist
+                                </mat-error>
+                              }
                             </div>
                           </div>
-                        </mat-card-subtitle>
-                      </mat-card-header>
-                      <mat-card-content>
-                        <app-account-number-selectable-table
-                          formControlName="accountNumbers"
-                          [data]="(accountNumbersData$ | async) || []"
-                          [isLoading]="(isLoading$ | async) || false">
-                        </app-account-number-selectable-table>
-                      </mat-card-content>
-                    </mat-card>
-                  </div>
+                        </div>
+                      </mat-card-subtitle>
+                    </mat-card-header>
+                    <mat-card-content>
+                      <app-account-number-selectable-table
+                        formControlName="accountNumbers"
+                        [data]="(accountNumbersData$ | async) || []"
+                        [isLoading]="(isLoading$ | async) || false">
+                      </app-account-number-selectable-table>
+                    </mat-card-content>
+                  </mat-card>
+                </div>
 
-                  <!-- Product Types Filter -->
-                  <div class="col-12 col-lg-6 filter-card">
-                    <mat-card>
-                      <mat-card-header>
-                        <mat-card-title>Product Types</mat-card-title>
-                        <mat-card-subtitle>
-                          <div
-                            class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
-                            <div class="mat-mdc-form-field-error-wrapper px-0">
-                              <div class="mat-mdc-form-field-bottom-align">
-                                @if (
-                                  searchParamsForm.controls.productTypes.hasError(
-                                    'atleastOneSelection'
-                                  )
-                                ) {
-                                  <mat-error>
-                                    Atleast one selection must exist
-                                  </mat-error>
-                                }
-                              </div>
+                <!-- Product Types Filter -->
+                <div class="col-12 col-lg-6 filter-card">
+                  <mat-card>
+                    <mat-card-header>
+                      <mat-card-title>Product Types</mat-card-title>
+                      <mat-card-subtitle>
+                        <div
+                          class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
+                          <div class="mat-mdc-form-field-error-wrapper px-0">
+                            <div class="mat-mdc-form-field-bottom-align">
+                              @if (
+                                searchParamsForm.controls.productTypes.hasError(
+                                  'atleastOneSelection'
+                                )
+                              ) {
+                                <mat-error>
+                                  Atleast one selection must exist
+                                </mat-error>
+                              }
                             </div>
                           </div>
-                        </mat-card-subtitle>
-                      </mat-card-header>
-                      <mat-card-content>
-                        <app-product-type-selectable-table
-                          formControlName="productTypes"
-                          [isLoading]="(isLoading$ | async) || false">
-                        </app-product-type-selectable-table>
-                      </mat-card-content>
-                    </mat-card>
-                  </div>
+                        </div>
+                      </mat-card-subtitle>
+                    </mat-card-header>
+                    <mat-card-content>
+                      <app-product-type-selectable-table
+                        formControlName="productTypes"
+                        [isLoading]="(isLoading$ | async) || false">
+                      </app-product-type-selectable-table>
+                    </mat-card-content>
+                  </mat-card>
+                </div>
 
-                  <!-- Date Range -->
-                  <div class="col-12 col-lg-6 filter-card">
-                    <mat-card>
-                      <mat-card-header>
-                        <mat-card-title>
-                          <mat-toolbar class="card-toolbar px-0">
-                            <span>Review Period</span>
-                            <div class="flex-fill"></div>
-                            <button
-                              type="button"
-                              mat-flat-button
-                              (click)="addReviewPeriod()"
-                              [disabled]="
-                                isSourceRefreshTimeLoading ||
-                                (isLoading$ | async) ||
-                                isFormDisabled
-                              ">
-                              <mat-icon>library_add</mat-icon>
-                              Add
-                            </button>
-                          </mat-toolbar>
-                        </mat-card-title>
-                        <mat-card-subtitle>
-                          <div
-                            class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
-                            <div class="mat-mdc-form-field-error-wrapper px-0">
-                              <div class="mat-mdc-form-field-bottom-align">
-                                @if (
-                                  searchParamsForm.controls.reviewPeriods.hasError(
-                                    'overlappingReviewPeriods'
-                                  )
-                                ) {
-                                  <mat-error>
-                                    Review periods must not overlap
-                                  </mat-error>
-                                }
-                              </div>
+                <!-- Date Range -->
+                <div class="col-12 col-lg-6 filter-card">
+                  <mat-card>
+                    <mat-card-header>
+                      <mat-card-title>
+                        <mat-toolbar class="card-toolbar px-0">
+                          <span>Review Period</span>
+                          <div class="flex-fill"></div>
+                          <button
+                            type="button"
+                            mat-flat-button
+                            (click)="addReviewPeriod()"
+                            [disabled]="
+                              isSourceRefreshTimeLoading ||
+                              (isLoading$ | async) ||
+                              isFormDisabled
+                            ">
+                            <mat-icon>library_add</mat-icon>
+                            Add
+                          </button>
+                        </mat-toolbar>
+                      </mat-card-title>
+                      <mat-card-subtitle>
+                        <div
+                          class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
+                          <div class="mat-mdc-form-field-error-wrapper px-0">
+                            <div class="mat-mdc-form-field-bottom-align">
+                              @if (
+                                searchParamsForm.controls.reviewPeriods.hasError(
+                                  'overlappingReviewPeriods'
+                                )
+                              ) {
+                                <mat-error>
+                                  Review periods must not overlap
+                                </mat-error>
+                              }
                             </div>
                           </div>
-                        </mat-card-subtitle>
-                      </mat-card-header>
-                      <mat-card-content>
-                        <div formArrayName="reviewPeriods">
-                          <div>
-                            @for (
-                              period of searchParamsForm.controls.reviewPeriods
-                                .controls;
-                              track period;
-                              let i = $index
-                            ) {
-                              <div [formGroupName]="i">
-                                <div
-                                  class="row review-period-input mt-2 justify-content-evenly"
-                                  [class.loading]="
-                                    isSourceRefreshTimeLoading ||
-                                    (isLoading$ | async) ||
-                                    false
-                                  ">
-                                  <mat-form-field class="col">
-                                    <mat-label>Start MM/YYYY</mat-label>
-                                    <input
-                                      matInput
-                                      [matDatepicker]="startPicker"
-                                      formControlName="start"
-                                      readonly
-                                      appReviewPeriodDate
-                                      [max]="maxDate" />
-                                    <mat-datepicker-toggle
-                                      matSuffix
-                                      [for]="
-                                        startPicker
-                                      "></mat-datepicker-toggle>
-                                    <mat-datepicker
-                                      #startPicker
-                                      startView="multi-year"
-                                      (yearSelected)="
-                                        chosenYearHandler(
-                                          $event,
-                                          startPicker,
-                                          'start',
-                                          i
-                                        )
-                                      "
-                                      (monthSelected)="
-                                        chosenMonthHandler(
-                                          $event,
-                                          startPicker,
-                                          'start',
-                                          i
-                                        )
-                                      "></mat-datepicker>
-                                    @if (
-                                      period.controls.start.hasError('required')
-                                    ) {
-                                      <mat-error>
-                                        Start month is required
-                                      </mat-error>
-                                    }
-                                    @if (
-                                      period.controls.start.hasError(
-                                        'startBeforeEndReviewPeriod'
+                        </div>
+                      </mat-card-subtitle>
+                    </mat-card-header>
+                    <mat-card-content>
+                      <div formArrayName="reviewPeriods">
+                        <div>
+                          @for (
+                            period of searchParamsForm.controls.reviewPeriods
+                              .controls;
+                            track period;
+                            let i = $index
+                          ) {
+                            <div [formGroupName]="i">
+                              <div
+                                class="row review-period-input mt-2 justify-content-evenly"
+                                [class.loading]="
+                                  isSourceRefreshTimeLoading ||
+                                  (isLoading$ | async) ||
+                                  false
+                                ">
+                                <mat-form-field class="col">
+                                  <mat-label>Start MM/YYYY</mat-label>
+                                  <input
+                                    matInput
+                                    [matDatepicker]="startPicker"
+                                    formControlName="start"
+                                    readonly
+                                    appReviewPeriodDate
+                                    [max]="maxDate" />
+                                  <mat-datepicker-toggle
+                                    matSuffix
+                                    [for]="startPicker"></mat-datepicker-toggle>
+                                  <mat-datepicker
+                                    #startPicker
+                                    startView="multi-year"
+                                    (yearSelected)="
+                                      chosenYearHandler(
+                                        $event,
+                                        startPicker,
+                                        'start',
+                                        i
                                       )
-                                    ) {
-                                      <mat-error>
-                                        Start month must be before end month
-                                      </mat-error>
-                                    }
-                                  </mat-form-field>
-                                  <span
-                                    class="sk skw-6 skh-7 col-auto flex-grow-1 mx-3"></span>
-                                  <mat-form-field class="col">
-                                    <mat-label>End MM/YYYY</mat-label>
-                                    <input
-                                      matInput
-                                      [matDatepicker]="endPicker"
-                                      formControlName="end"
-                                      readonly
-                                      appReviewPeriodDate
-                                      [max]="maxDate" />
-                                    <mat-datepicker-toggle
-                                      matSuffix
-                                      [for]="endPicker"></mat-datepicker-toggle>
-                                    <mat-datepicker
-                                      #endPicker
-                                      startView="multi-year"
-                                      (yearSelected)="
-                                        chosenYearHandler(
-                                          $event,
-                                          endPicker,
-                                          'end',
-                                          i
-                                        )
-                                      "
-                                      (monthSelected)="
-                                        chosenMonthHandler(
-                                          $event,
-                                          endPicker,
-                                          'end',
-                                          i
-                                        )
-                                      "></mat-datepicker>
-                                    @if (
-                                      period.controls.end.hasError('required')
-                                    ) {
-                                      <mat-error>
-                                        End month is required
-                                      </mat-error>
-                                    }
-                                  </mat-form-field>
-                                  <span
-                                    class="sk skw-6 skh-7 col-auto flex-grow-1 mx-3"></span>
-                                  <div
-                                    class="col-1 px-0 d-flex align-items-center">
-                                    <button
-                                      type="button"
-                                      mat-icon-button
-                                      color="warn"
-                                      (click)="removeReviewPeriod(i)"
-                                      [disabled]="
-                                        searchParamsForm.controls.reviewPeriods
-                                          .controls.length === 1 ||
-                                        isFormDisabled ||
-                                        isSourceRefreshTimeLoading ||
-                                        (isLoading$ | async)
-                                      "
-                                      matTooltip="Remove period"
-                                      class="mb-4">
-                                      <mat-icon>delete</mat-icon>
-                                    </button>
-                                  </div>
+                                    "
+                                    (monthSelected)="
+                                      chosenMonthHandler(
+                                        $event,
+                                        startPicker,
+                                        'start',
+                                        i
+                                      )
+                                    "></mat-datepicker>
+                                  @if (
+                                    period.controls.start.hasError('required')
+                                  ) {
+                                    <mat-error>
+                                      Start month is required
+                                    </mat-error>
+                                  }
+                                  @if (
+                                    period.controls.start.hasError(
+                                      'startBeforeEndReviewPeriod'
+                                    )
+                                  ) {
+                                    <mat-error>
+                                      Start month must be before end month
+                                    </mat-error>
+                                  }
+                                </mat-form-field>
+                                <span
+                                  class="sk skw-6 skh-7 col-auto flex-grow-1 mx-3"></span>
+                                <mat-form-field class="col">
+                                  <mat-label>End MM/YYYY</mat-label>
+                                  <input
+                                    matInput
+                                    [matDatepicker]="endPicker"
+                                    formControlName="end"
+                                    readonly
+                                    appReviewPeriodDate
+                                    [max]="maxDate" />
+                                  <mat-datepicker-toggle
+                                    matSuffix
+                                    [for]="endPicker"></mat-datepicker-toggle>
+                                  <mat-datepicker
+                                    #endPicker
+                                    startView="multi-year"
+                                    (yearSelected)="
+                                      chosenYearHandler(
+                                        $event,
+                                        endPicker,
+                                        'end',
+                                        i
+                                      )
+                                    "
+                                    (monthSelected)="
+                                      chosenMonthHandler(
+                                        $event,
+                                        endPicker,
+                                        'end',
+                                        i
+                                      )
+                                    "></mat-datepicker>
+                                  @if (
+                                    period.controls.end.hasError('required')
+                                  ) {
+                                    <mat-error>
+                                      End month is required
+                                    </mat-error>
+                                  }
+                                </mat-form-field>
+                                <span
+                                  class="sk skw-6 skh-7 col-auto flex-grow-1 mx-3"></span>
+                                <div
+                                  class="col-1 px-0 d-flex align-items-center">
+                                  <button
+                                    type="button"
+                                    mat-icon-button
+                                    color="warn"
+                                    (click)="removeReviewPeriod(i)"
+                                    [disabled]="
+                                      searchParamsForm.controls.reviewPeriods
+                                        .controls.length === 1 ||
+                                      isFormDisabled ||
+                                      isSourceRefreshTimeLoading ||
+                                      (isLoading$ | async)
+                                    "
+                                    matTooltip="Remove period"
+                                    class="mb-4">
+                                    <mat-icon>delete</mat-icon>
+                                  </button>
                                 </div>
                               </div>
-                            }
-                          </div>
-                        </div>
-                      </mat-card-content></mat-card
-                    >
-                  </div>
-                </div>
-              </div>
-
-              <!-- System Information Section -->
-              <div class="col-12 col-xl-4 system-info">
-                <mat-card>
-                  <mat-card-header>
-                    <mat-card-title>System Information</mat-card-title>
-                    <mat-card-subtitle>
-                      <div
-                        class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
-                        <div class="mat-mdc-form-field-error-wrapper px-0">
-                          <div class="mat-mdc-form-field-bottom-align">
-                            @if (
-                              searchParamsForm.controls.sourceSystems.hasError(
-                                'atleastOneSelection'
-                              )
-                            ) {
-                              <mat-error>
-                                Atleast one selection must exist
-                              </mat-error>
-                            }
-                          </div>
+                            </div>
+                          }
                         </div>
                       </div>
-                    </mat-card-subtitle>
-                  </mat-card-header>
-
-                  <mat-card-content>
-                    <app-source-refresh-selectable-table
-                      formControlName="sourceSystems"
-                      [data]="(sourceRefreshTimeData$ | async) || []"
-                      [isLoading]="
-                        isSourceRefreshTimeLoading ||
-                        (isLoading$ | async) ||
-                        false
-                      ">
-                    </app-source-refresh-selectable-table>
-                  </mat-card-content>
-                </mat-card>
+                    </mat-card-content></mat-card
+                  >
+                </div>
               </div>
+            </div>
+
+            <!-- System Information Section -->
+            <div class="col-12 col-xl-4 system-info">
+              <mat-card>
+                <mat-card-header>
+                  <mat-card-title>System Information</mat-card-title>
+                  <mat-card-subtitle>
+                    <div
+                      class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
+                      <div class="mat-mdc-form-field-error-wrapper px-0">
+                        <div class="mat-mdc-form-field-bottom-align">
+                          @if (
+                            searchParamsForm.controls.sourceSystems.hasError(
+                              'atleastOneSelection'
+                            )
+                          ) {
+                            <mat-error>
+                              Atleast one selection must exist
+                            </mat-error>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  </mat-card-subtitle>
+                </mat-card-header>
+
+                <mat-card-content>
+                  <app-source-refresh-selectable-table
+                    formControlName="sourceSystems"
+                    [data]="(sourceRefreshTimeData$ | async) || []"
+                    [isLoading]="
+                      isSourceRefreshTimeLoading ||
+                      (isLoading$ | async) ||
+                      false
+                    ">
+                  </app-source-refresh-selectable-table>
+                </mat-card-content>
+              </mat-card>
             </div>
           </div>
         </form>

@@ -11,7 +11,7 @@ import * as inWire from '../../../../data/wireInCompleteWithBackup.json';
 
 import { StrTransaction } from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 
-const IMPORT_SIZE = 20;
+export const IMPORT_SIZE = 20;
 
 const inEmtNonCibcSenderData = (inEmtNonCibcSender as any).default.slice(0, IMPORT_SIZE);
 const inEmtCibcSenderData = (inEmtCibcSender as any).default.slice(0, IMPORT_SIZE);
