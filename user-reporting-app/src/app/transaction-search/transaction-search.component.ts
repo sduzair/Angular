@@ -166,6 +166,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                   type="button"
                   mat-raised-button
                   class="col search-btn"
+                  (click)="onSave()"
                   [disabled]="
                     isSourceRefreshTimeLoading ||
                     (isLoading$ | async) ||
@@ -531,6 +532,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TransactionSearchComponent implements OnInit {
+  private snackBarQ = inject(SnackbarQueueService);
   private caseRecordService = inject(CaseRecordService);
   private searchService = inject(TransactionSearchService);
   private snackbarQ = inject(SnackbarQueueService);
@@ -564,6 +566,8 @@ export class TransactionSearchComponent implements OnInit {
         [] as ReturnType<typeof this.createReviewPeriodGroup>[],
         [overlappingReviewPeriodsValidator],
       ),
+      caseRecordId: new FormControl(''),
+      etag: new FormControl(Number.NaN),
     },
     {
       updateOn: 'change',
@@ -584,12 +588,13 @@ export class TransactionSearchComponent implements OnInit {
       this.isLoading$.next(true);
     }),
     switchMap((amlId) =>
-      this.searchService.getPartyAccountInfoByAmlId(amlId!).pipe(
-        combineLatestWith(this.caseRecordService.fetchCaseRecordByAmlId(amlId)),
+      this.searchService.getAmlPartyAccountInfo(amlId!).pipe(
+        combineLatestWith(this.caseRecordService.fetchCaseRecord(amlId)),
         tap(
           ([
             { amlId },
             {
+              caseRecordId,
               searchParams: {
                 reviewPeriodSelection,
                 partyKeysSelection,
@@ -597,6 +602,7 @@ export class TransactionSearchComponent implements OnInit {
                 sourceSystemsSelection,
                 productTypesSelection,
               },
+              etag,
             },
           ]) => {
             this.searchParamsForm.enable();
@@ -624,6 +630,8 @@ export class TransactionSearchComponent implements OnInit {
                 productTypes: (productTypesSelection ?? []).map((p) => ({
                   value: p,
                 })),
+                caseRecordId,
+                etag,
               },
               { emitEvent: false }, // prevents value changes emission on aml id which disables form
             );
@@ -727,17 +735,36 @@ export class TransactionSearchComponent implements OnInit {
       .subscribe();
   }
 
-  saveSearchParams() {
-    // return this.amlSessionService.updateSession(
-    //   String(this.form.value.amlId),
-    //   {
-    //     partyKeysSelection: partyKeys?.map((p) => p.value),
-    //     accountNumbersSelection: accountNumbers?.map((a) => a.value),
-    //     sourceSystemsSelection: sourceSystems?.map((s) => s.value),
-    //     productTypesSelection: productTypes?.map((p) => p.value),
-    //     reviewPeriodSelection: reviewPeriods,
-    //   },
-    // );
+  onSave() {
+    this.isLoading$.next(true);
+
+    const {
+      caseRecordId,
+      accountNumbers,
+      partyKeys,
+      productTypes,
+      reviewPeriods,
+      sourceSystems,
+      etag,
+    } = this.searchParamsForm.value;
+
+    this.caseRecordService
+      .updateCaseRecord(caseRecordId!, {
+        accountNumbersSelection: accountNumbers ?? [],
+        partyKeysSelection: (partyKeys ?? []).map((item) => item.value),
+        productTypesSelection: (productTypes ?? []).map((item) => item.value),
+        reviewPeriodSelection: reviewPeriods ?? [],
+        sourceSystemsSelection: (sourceSystems ?? []).map((item) => item.value),
+        eTag: etag!,
+      })
+      .pipe(
+        finalize(() => this.isLoading$.next(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
+      .subscribe(() => {
+        this.snackBarQ.open('Updated search parameters');
+      });
   }
 
   get isFormDisabled() {

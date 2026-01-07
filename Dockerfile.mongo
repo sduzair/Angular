@@ -1,9 +1,0 @@
-# Dockerfile
-FROM mongo:8.0.9
-
-# Copy source data and initialization script into container
-COPY data/ /docker-entrypoint-initdb.d/
-
-# Ensure the initialization script is executable
-RUN chmod +x /docker-entrypoint-initdb.d/init.sh
-

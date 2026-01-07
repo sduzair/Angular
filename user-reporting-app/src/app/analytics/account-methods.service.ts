@@ -4,25 +4,19 @@ import { combineLatest, map, Observable, shareReplay } from 'rxjs';
 import { CaseRecordStore } from '../aml/case-record.store';
 import { TransactionDateDirective } from '../reporting-ui/edit-form/transaction-date.directive';
 import {
-  AccountHolder,
-  Beneficiary,
-  Conductor,
-} from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
-import {
   CATEGORY_LABEL,
   getSubjectIdAndCategory,
   NODE_ENUM,
 } from './circular/circular.component';
+import { fiuMap } from './fiu';
 import {
   getTxnMethod,
   METHOD_ENUM,
   METHOD_FRIENDLY_NAME,
 } from './txn-method-breakdown/txn-method-breakdown.component';
-import { Validators } from '@angular/forms';
-import { fiuMap } from './fiu';
 
 @Injectable()
-export class GraphDataService {
+export class AccountMethodsService {
   private caseRecord = inject(CaseRecordStore);
 
   private selections$ = this.caseRecord.state$.pipe(
@@ -272,51 +266,6 @@ export class GraphDataService {
   getAllAccountMethods$(): Observable<AccountMethods[]> {
     return this.accountMethods$;
   }
-
-  getAccountMethodsByAccount$(account: string): Observable<AccountMethods[]> {
-    return this.accountMethods$.pipe(
-      map((methods) => methods.filter((m) => m.account === account)),
-    );
-  }
-
-  getAccountCreditMethods$(
-    account: string,
-  ): Observable<AccountMethods | undefined> {
-    return this.accountMethods$.pipe(
-      map((methods) =>
-        methods.find((m) => m.account === account && m.type === 'credits'),
-      ),
-    );
-  }
-
-  getAccountDebitMethods$(
-    account: string,
-  ): Observable<AccountMethods | undefined> {
-    return this.accountMethods$.pipe(
-      map((methods) =>
-        methods.find((m) => m.account === account && m.type === 'debits'),
-      ),
-    );
-  }
-
-  getCombinedMethodMap$(account: string): Observable<{
-    credits: Partial<Record<MethodKey, MethodVal>>;
-    debits: Partial<Record<MethodKey, MethodVal>>;
-  }> {
-    return this.accountMethods$.pipe(
-      map((methods) => {
-        const credits =
-          methods.find((m) => m.account === account && m.type === 'credits')
-            ?.methodMap ?? {};
-
-        const debits =
-          methods.find((m) => m.account === account && m.type === 'debits')
-            ?.methodMap ?? {};
-
-        return { credits, debits };
-      }),
-    );
-  }
 }
 
 interface AccountMethods {
@@ -357,7 +306,6 @@ function addSubject({
   methodEntry,
   subjectRelation,
   fiu,
-  transit,
   account,
   methodKey,
   flowOfFundsTransactionDesc,

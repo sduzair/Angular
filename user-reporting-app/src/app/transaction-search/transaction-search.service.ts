@@ -1,14 +1,11 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { delay, map, of, timer } from 'rxjs';
-import {
-  ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE,
-  SUBJECT_INFO_BY_ACCOUNT_DEV_OR_TEST_ONLY_FIXTURE,
-  SUBJECT_INFO_BY_PARTY_KEY_DEV_OR_TEST_ONLY_FIXTURE,
-} from '../aml/case-record.state.fixture';
+import { map, timer } from 'rxjs';
+// import { SUBJECT_INFO_BY_PARTY_KEY_DEV_OR_TEST_ONLY_FIXTURE } from '../aml/case-record.state.fixture';
 import { ReviewPeriod } from '../aml/case-record.store';
 import { TableSelectionType } from '../transaction-view/transaction-view.component';
-import { TRANSACTION_SEARCH_RES_DEV_ONLY } from './transaction-search.data.fixture';
+// import { TRANSACTION_SEARCH_RES_DEV_ONLY } from './transaction-search.data.fixture';
+// import { ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE } from '../aml/case-record.state.fixture';
 
 @Injectable({
   providedIn: 'root',
@@ -16,20 +13,25 @@ import { TRANSACTION_SEARCH_RES_DEV_ONLY } from './transaction-search.data.fixtu
 export class TransactionSearchService {
   private http = inject(HttpClient);
 
-  getPartyAccountInfoByAmlId(amlId: string) {
-    return timer(1000).pipe(
-      map(() => ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE),
+  getAmlPartyAccountInfo(amlId: string) {
+    // return timer(1000).pipe(
+    //   map(() => ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE),
+    // );
+    return this.http.get<GetAmlPartyAccountInfoRes>(
+      `/api/aml/${amlId}/partyaccountinfo`,
     );
   }
 
-  getSubjectInfoByPartyKey(partyKey: string) {
-    return timer(100).pipe(
-      map(() => {
-        return SUBJECT_INFO_BY_PARTY_KEY_DEV_OR_TEST_ONLY_FIXTURE.find(
-          (sub) => sub.partyKey === partyKey,
-        );
-      }),
-    );
+  getPartyInfo(partyKey: string) {
+    // return timer(100).pipe(
+    //   map(() => {
+    //     return SUBJECT_INFO_BY_PARTY_KEY_DEV_OR_TEST_ONLY_FIXTURE.find(
+    //       (sub) => sub.partyKey === partyKey,
+    //     );
+    //   }),
+    // );
+
+    return this.http.post<GetPartyInfoRes>('/api/partyinfo', partyKey);
   }
 
   static getProductInfo() {
@@ -112,22 +114,29 @@ export class TransactionSearchService {
     ];
   }
 
-  searchTransactions(payload: TransactionSearchRequest) {
-    return of(TRANSACTION_SEARCH_RES_DEV_ONLY).pipe(delay(200));
-    // return this.http.post<TransactionSearchResponse>(
-    //   '/api/transactions/search',
-    //   payload,
-    // );
+  searchTransactions(searchParams: TransactionSearchRequest) {
+    // return of(TRANSACTION_SEARCH_RES_DEV_ONLY).pipe(delay(200));
+    return this.http.post<TransactionSearchResponse>(
+      '/api/transaction/search',
+      searchParams,
+    );
   }
 
-  getPartyKeysByAccount(account: string | number) {
-    return timer(100).pipe(
-      map(() => {
-        return SUBJECT_INFO_BY_ACCOUNT_DEV_OR_TEST_ONLY_FIXTURE.find(
-          ({ accountNumber }) => accountNumber === String(account),
-        )?.partyKeys!;
-      }),
-    );
+  getAccountParyInfo(account: string | number) {
+    // return timer(100).pipe(
+    //   map(() => {
+    //     return SUBJECT_INFO_BY_ACCOUNT_DEV_OR_TEST_ONLY_FIXTURE.find(
+    //       ({ accountNumber }) => accountNumber === String(account),
+    //     )?.partyKeys!;
+    //   }),
+    // );
+    return this.http
+      .get<GetAccountPartyInfoRes>(`/api/account/${account}/partyinfo`)
+      .pipe(
+        map((res) => {
+          return res?.partyKeys!;
+        }),
+      );
   }
 }
 
@@ -669,4 +678,29 @@ export type SourceData =
 
 interface TableRecordUiProps {
   _uiPropHighlightColor?: string;
+}
+
+interface GetAccountPartyInfoRes {
+  accountTransit?: string;
+  accountNumber: string;
+  partyKeys: string[];
+}
+
+interface GetAmlPartyAccountInfoRes {
+  amlId: string;
+  partyKeys: {
+    partyKey: string;
+    accountModels: {
+      accountTransit?: string;
+      accountNumber: string;
+    }[];
+  }[];
+}
+
+interface GetPartyInfoRes {
+  partyKey: string;
+  surname: string;
+  givenName: string;
+  otherOrInitial: string;
+  nameOfEntity: string;
 }

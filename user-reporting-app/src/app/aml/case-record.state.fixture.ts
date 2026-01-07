@@ -37,9 +37,6 @@ export const CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE: CaseRecordState = {
   lastUpdated: '1996-06-13',
   selections: SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE.map((txn) => ({
     ...txn,
-    _hiddenTxnType: txn.flowOfFundsSource,
-    _hiddenAmlId: String(AML_ID_DEV_OR_TEST_ONLY_FIXTURE),
-    _hiddenStrTxnId: txn.flowOfFundsAmlTransactionId,
     changeLogs: [],
     caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
   })),

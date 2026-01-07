@@ -7,26 +7,49 @@ services:
     ports:
       - "5110:5110"
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
+      mongodb-seed:
+        condition: service_completed_successfully
     environment:
-      - MongoDB__ConnectionString=${MONGO_CONNECTION_STRING}
-      - MongoDB__DatabaseName=${MONGO_DATABASE}
       - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5110
+      - MongoDB__ConnectionString=mongodb://mongodb:27017/?replicaSet=rs0&directConnection=true
+      - MongoDB__DatabaseName=amldb
 
   mongodb:
     container_name: mongodb
-    build:
-      context: .
-      dockerfile: Dockerfile.mongo
-    restart: always
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
-      MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
+    image: mongo:8.0.9
     ports:
-      - "27018:27017"
+      - "27017:27017"
+    restart: always
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     volumes:
-      - ./data:/docker-entrypoint-initdb.d:ro
       - mongo-data:/data/db
+    healthcheck:
+      test: |
+        mongosh --quiet --eval "
+          try { rs.status() } catch (e) {
+            rs.initiate({_id:'rs0', members:[{_id:0, host:'mongodb:27017'}]})
+          }
+          s = rs.status()
+          if (s.myState != 1) quit(1)
+        "
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  mongodb-seed:
+    container_name: mongodb-seed
+    image: mongo:8.0.9
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: "no"
+    volumes:
+      - ./data:/seed:ro
+    command: ["bash", "/seed/seed.sh"]
+
 volumes:
   mongo-data:

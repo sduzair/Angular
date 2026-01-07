@@ -29,9 +29,6 @@ export class ManualTransactionBuilder {
 
   withMetadata(): this {
     this.transaction.changeLogs = [];
-    this.transaction._hiddenAmlId = this.value['AML Id'] ?? '';
-    this.transaction._hiddenStrTxnId = this.flowOfFundsAmlTransactionId;
-    this.transaction._hiddenTxnType = 'Manual';
     this.transaction.sourceId = 'Manual';
     return this;
   }

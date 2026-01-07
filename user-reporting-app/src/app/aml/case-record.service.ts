@@ -1,17 +1,16 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { delay, Observable, of } from 'rxjs';
 import {
   StrTxnFlowOfFunds,
-  WithVersion,
+  WithETag,
 } from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
-import { CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE } from './case-record.state.fixture';
+import { AccountNumber } from '../transaction-search/transaction-search.service';
 import {
+  CaseRecordState,
   PendingChange,
   ReviewPeriod,
   StrTransactionWithChangeLogs,
 } from './case-record.store';
-import { AccountNumber } from '../transaction-search/transaction-search.service';
 
 @Injectable({
   providedIn: 'root',
@@ -19,62 +18,70 @@ import { AccountNumber } from '../transaction-search/transaction-search.service'
 export class CaseRecordService {
   private http = inject(HttpClient);
 
-  fetchCaseRecordByAmlId(amlId: string): Observable<GetCaseRecordResponse> {
-    return of({
-      ...CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE,
-      lastUpdated: CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE.lastUpdated ?? '',
-    }).pipe(delay(1000));
-    // return this.http.get<GetCaseRecordResponse>(
-    //   `/api/aml/${amlId}/case-record`,
-    // );
+  fetchCaseRecord(amlId: string) {
+    // return of({
+    //   ...CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE,
+    //   lastUpdated: CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE.lastUpdated ?? '',
+    // }).pipe(delay(100));
+
+    return this.http.get<FetchCaseRecordRes>(`/api/aml/${amlId}/caserecord`);
   }
 
-  createCaseRecord(amlId: string, payload: CreateCaseRecordRequest) {
-    return this.http.post<CreateCaseRecordResponse>(
-      `/api/aml/${amlId}/case-record`,
+  updateCaseRecord(caseRecordId: string, payload: UpdateCaseRecordReq) {
+    return this.http.post<UpdateCaseRecordRes>(
+      `/api/caserecord/${caseRecordId}/update`,
       payload,
     );
   }
 
-  fetchSelections(caseRecordId: string): Observable<FetchSelectionsResponse> {
-    return of({
-      selections: CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE.selections,
-    }).pipe(delay(100));
-    // return this.http.get<FetchSelectionsResponse>(
-    //   `/api/case-record/${caseRecordId}/selections`,
-    // );
-  }
+  fetchSelections(caseRecordId: string) {
+    // return of({
+    //   selections: CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE.selections,
+    // }).pipe(delay(100));
 
-  addSelections(
-    caseRecordId: string,
-    payload: AddSelectionsRequest,
-  ): Observable<void> {
-    return this.http.put<void>(
-      `/api/case-record/${caseRecordId}/selections/add`,
-      payload! as AddSelectionsRequest,
+    return this.http.get<FetchSelectionsRes>(
+      `/api/caserecord/${caseRecordId}/selections`,
     );
   }
 
-  editSelections(caseRecordId: string, payload: EditSelectionsRequest) {
-    return of(void 0).pipe(delay(150));
-    // return this.http.put<void>(
-    //   `/api/case-record/${caseRecordId}/selections/edit`,
-    //   payload! as EditSelectionsRequest,
-    // );
+  addSelections(caseRecordId: string, payload: AddSelectionsReq) {
+    return this.http.post<AddSelectionsRes>(
+      `/api/caserecord/${caseRecordId}/selections/add`,
+      payload,
+    );
   }
 
-  resetSelections(caseRecordId: string, selectionIds: string[]) {
-    const payload: ResetSelectionsRequest = { selectionIds };
-    return of(void 0).pipe(delay(150));
+  removeSelections(caseRecordId: string, payload: RemoveSelectionsReq) {
+    return this.http.post<RemoveSelectionsRes>(
+      `/api/caserecord/${caseRecordId}/selections/remove`,
+      payload,
+    );
+  }
 
-    // return this.http.put<void>(
-    //   `/api/case-record/${caseRecordId}/selections/reset`,
-    //   payload,
-    // );
+  saveChanges(caseRecordId: string, payload: SaveChangesReq) {
+    // return of(void 0).pipe(delay(150));
+
+    return this.http.post<SaveChangesRes>(
+      `/api/caserecord/${caseRecordId}/selections/save`,
+      payload! as SaveChangesReq,
+    );
+  }
+
+  resetSelections(
+    caseRecordId: string,
+    pendingResets: ResetSelectionsRequest['pendingResets'],
+  ) {
+    // return of(void 0).pipe(delay(150));
+
+    const payload: ResetSelectionsRequest = { pendingResets };
+    return this.http.post<void>(
+      `/api/caserecord/${caseRecordId}/selections/reset`,
+      payload,
+    );
   }
 }
 
-export interface GetCaseRecordResponse {
+export interface FetchCaseRecordRes {
   caseRecordId: string;
   amlId: string;
   searchParams: {
@@ -91,70 +98,49 @@ export interface GetCaseRecordResponse {
   lastUpdated: string;
 }
 
-interface CreateSessionRequest {
-  amlId: string;
-  searchParams: {
-    partyKeysSelection?: string[] | null;
-    accountNumbersSelection?: string[] | null;
-    sourceSystemsSelection?: string[] | null;
-    productTypesSelection?: string[] | null;
-    reviewPeriodSelection?: ReviewPeriod[] | null;
-  };
-}
-
-export interface CreateCaseRecordRequest {
-  accountNumbersSelection: [];
-  partyKeysSelection: [];
-  productTypesSelection: [];
-  reviewPeriodSelection: [];
-  sourceSystemsSelection: [];
-}
-
-export interface CreateCaseRecordResponse {
+export interface CreateCaseRecordResp {
   amlId: string;
   caseRecordId: string;
   etag: number;
 }
 
-interface FetchSelectionsResponse {
+interface FetchSelectionsRes {
   selections: StrTransactionWithChangeLogs[];
 }
 
-export interface AddSelectionsRequest {
+export interface AddSelectionsReq {
   caseETag: number;
   selections: StrTransactionWithChangeLogs[];
 }
 
-interface RemoveSelectionsRequest {
+interface AddSelectionsRes {
+  caseETag: number;
+  count: number;
+}
+
+interface RemoveSelectionsReq {
+  caseETag: number;
   selections: StrTxnFlowOfFunds['flowOfFundsAmlTransactionId'][];
 }
 
-interface UpdateSearchParamsRequest {
-  etag: number;
-  searchParams: {
-    partyKeysSelection?: string[] | null;
-    accountNumbersSelection?: string[] | null;
-    sourceSystemsSelection?: string[] | null;
-    productTypesSelection?: string[] | null;
-    reviewPeriodSelection?: ReviewPeriod[] | null;
-  };
+interface RemoveSelectionsRes {
+  caseETag: number;
+  count: number;
 }
 
-interface UpdateSearchParamsResponse {
-  amlId: string;
-  newVersion: number;
-  updatedAt: string;
+type UpdateCaseRecordReq = WithETag<CaseRecordState['searchParams']>;
+
+type UpdateCaseRecordRes = FetchCaseRecordRes;
+
+export interface SaveChangesReq {
+  pendingChanges: WithETag<PendingChange>[];
 }
 
-export interface EditSelectionsRequest {
-  pendingChanges: WithVersion<PendingChange>[];
+export interface ResetSelectionsRequest {
+  pendingResets: { flowOfFundsAmlTransactionId: string; etag: number }[];
 }
 
-interface ResetSelectionsRequest {
-  selectionIds: StrTxnFlowOfFunds['flowOfFundsAmlTransactionId'][];
-}
-
-interface BulkUpdateTransactionsConflictResponse {
+interface SaveChangesRes {
   message: string;
   requested: number;
   succeeded: number;

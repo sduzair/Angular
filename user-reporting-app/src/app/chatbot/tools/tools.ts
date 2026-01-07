@@ -3,7 +3,7 @@ import { createTool } from '@hashbrownai/angular';
 import { s } from '@hashbrownai/core';
 import { firstValueFrom, map } from 'rxjs';
 import { CaseRecordStore } from '../../aml/case-record.store';
-import { GraphDataService } from '../../analytics/graph-data.service';
+import { AccountMethodsService } from '../../analytics/account-methods.service';
 import { TransactionSearchService } from '../../transaction-search/transaction-search.service';
 
 export const getReviewPeriod = createTool({
@@ -46,7 +46,7 @@ export const getPartyKeysByAccount = createTool({
   }),
   handler: ({ accountNo }) => {
     return firstValueFrom(
-      inject(TransactionSearchService).getPartyKeysByAccount(accountNo),
+      inject(TransactionSearchService).getAccountParyInfo(accountNo),
     );
   },
 });
@@ -60,7 +60,7 @@ export const getSubjectInfoByParyKey = createTool({
   }),
   handler: ({ partyKey }) => {
     return firstValueFrom(
-      inject(TransactionSearchService).getSubjectInfoByPartyKey(partyKey),
+      inject(TransactionSearchService).getPartyInfo(partyKey),
     );
   },
 });
@@ -70,6 +70,8 @@ export const getAccountMethods = createTool({
   description:
     'Returns aggregated transaction activity by account and direction (credits/debits), summarized by method with totals, counts, date coverage, and involved subjects.',
   handler: () => {
-    return firstValueFrom(inject(GraphDataService).getAllAccountMethods$());
+    return firstValueFrom(
+      inject(AccountMethodsService).getAllAccountMethods$(),
+    );
   },
 });

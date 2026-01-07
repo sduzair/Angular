@@ -256,7 +256,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
     'timeOfTxn',
     'dateOfPosting',
     'timeOfPosting',
-    '_hiddenTxnType',
+    'flowOfFundsSource',
     'methodOfTxn',
     'reportingEntityLocationNo',
 
@@ -298,7 +298,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
     'completingActions.0.beneficiaries.0.surname',
     'completingActions.0.beneficiaries.0.otherOrInitial',
     'completingActions.0.beneficiaries.0.nameOfEntity',
-    '_hiddenAmlId',
+    'flowOfFundsAmlId',
     'reportingEntityTxnRefNo',
   ];
 
@@ -383,8 +383,8 @@ export class ReportingUiTableComponent implements AfterViewInit {
       'Was there any other person or entity involved in the completing action?' as const,
     reportingEntityTxnRefNo: 'Transaction Reference No' as const,
     _hiddenValidation: 'Validation Info' as const,
-    _hiddenTxnType: 'Txn Type' as const,
-    _hiddenAmlId: 'AML Id' as const,
+    flowOfFundsSource: 'Source' as const,
+    flowOfFundsAmlId: 'AML Id' as const,
     fullTextFilterKey: 'Full Text' as const,
   } satisfies Partial<
     Record<'fullTextFilterKey' | StrTransactionDataColumnKey, unknown>
@@ -436,8 +436,8 @@ export class ReportingUiTableComponent implements AfterViewInit {
     'completingActions.0.beneficiaries.0.surname',
     'completingActions.0.beneficiaries.0.otherOrInitial',
     'completingActions.0.beneficiaries.0.nameOfEntity',
-    '_hiddenTxnType',
-    '_hiddenAmlId',
+    'flowOfFundsSource',
+    'flowOfFundsAmlId',
   ];
 
   dateFiltersValues: StrTransactionDataColumnKey[] = [
@@ -783,9 +783,9 @@ export type AddPrefixToObject<T, P extends string> = {
   [K in keyof T as K extends string ? `${P}${K}` : never]: T[K];
 };
 
-export type WithVersion<T = object> = T & {
+export type WithETag<T = object> = T & {
   /**
    * The last session in which the txn was edited not necessarily current session version.
    */
-  etag: number | null;
+  eTag?: number;
 };

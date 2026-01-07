@@ -74,7 +74,7 @@ import {
   StartingAction,
   StrTransaction,
   StrTxnFlowOfFunds,
-  WithVersion,
+  WithETag,
 } from '../reporting-ui-table/reporting-ui-table.component';
 import { ClearFieldDirective } from './clear-field.directive';
 import {
@@ -3607,7 +3607,7 @@ export class EditFormComponent implements AfterViewChecked {
           const txn = ChangeLog.applyChangeLogs(
             editType.payload,
             editType.payload.changeLogs.filter(
-              (log) => log.etag! <= auditVersion,
+              (log) => log.eTag! <= auditVersion,
             ),
           );
           return this.createEditForm({
@@ -3637,16 +3637,16 @@ export class EditFormComponent implements AfterViewChecked {
       ),
     ),
     tap((changes) =>
-      this.auditVersionControl.setValue(changes.at(-1)?.etag ?? 0),
+      this.auditVersionControl.setValue(changes.at(-1)?.eTag ?? 0),
     ),
     map((changes) => {
       const verMap = new Map([[0, 0]]);
 
       changes.forEach((log) => {
-        if (Array.from(verMap.values()).includes(log.etag!)) return verMap;
+        if (Array.from(verMap.values()).includes(log.eTag!)) return verMap;
 
         let lastLabelIndex = [...verMap].at(-1)![0];
-        return verMap.set(++lastLabelIndex, log.etag!);
+        return verMap.set(++lastLabelIndex, log.eTag!);
       });
 
       return Array.from(verMap.entries()).map(([key, val]) => ({
@@ -3741,7 +3741,7 @@ export class EditFormComponent implements AfterViewChecked {
     options,
   }: {
     txn?:
-      | WithVersion<StrTransactionWithChangeLogs>
+      | WithETag<StrTransactionWithChangeLogs>
       | StrTransactionWithChangeLogs
       | null;
     options: { editType: EditType; disabled?: boolean };
@@ -3752,7 +3752,7 @@ export class EditFormComponent implements AfterViewChecked {
     const editForm = new FormGroup(
       {
         etag: new FormControl<number>({
-          value: txn?.changeLogs.at(-1)?.etag ?? 0,
+          value: txn?.changeLogs.at(-1)?.eTag ?? 0,
           disabled,
         }),
         wasTxnAttempted: new FormControl({
@@ -3849,7 +3849,7 @@ export class EditFormComponent implements AfterViewChecked {
         highlightColor: new FormControl(txn?.highlightColor ?? ''),
       },
       { updateOn: 'change' },
-    ) satisfies FormGroup<TypedForm<WithVersion<StrTxnEditForm>>>;
+    ) satisfies FormGroup<TypedForm<WithETag<StrTxnEditForm>>>;
 
     return editForm;
   }

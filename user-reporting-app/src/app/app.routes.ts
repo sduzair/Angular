@@ -4,6 +4,7 @@ import {
   CASE_RECORD_INITIAL_STATE,
   CaseRecordStore,
 } from './aml/case-record.store';
+import { AccountMethodsService } from './analytics/account-methods.service';
 import { hasRoleGuard, isAuthenticatedGuard } from './auth.service';
 import { LoginComponent } from './login/login.component';
 import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
@@ -18,7 +19,6 @@ import {
   searchResultResolver,
   TransactionViewComponent,
 } from './transaction-view/transaction-view.component';
-import { GraphDataService } from './analytics/graph-data.service';
 
 export const routes: Routes = [
   {
@@ -59,7 +59,7 @@ export const routes: Routes = [
             useValue: CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE,
           },
           CaseRecordStore,
-          GraphDataService,
+          AccountMethodsService,
         ],
         data: { reuse: true },
         title: (route) => `AML - ${route.params['amlId']}`,

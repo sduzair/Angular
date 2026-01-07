@@ -14,9 +14,9 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             var testSettings = new Dictionary<string, string?>
             {
                 // Use a unique test database name
-                ["MongoDB:DatabaseName"] = "strTxnDB_test_" + Guid.NewGuid().ToString("N"),
+                ["MongoDB:DatabaseName"] = "amldb_test_" + Guid.NewGuid().ToString("N"),
             };
-            configBuilder.AddInMemoryCollection(testSettings.ToList());
+            configBuilder.AddInMemoryCollection([.. testSettings]);
         });
     }
 }
