@@ -56,6 +56,8 @@ import {
   BehaviorSubject,
   catchError,
   combineLatestWith,
+  EMPTY,
+  filter,
   finalize,
   forkJoin,
   map,
@@ -130,7 +132,11 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
             type="button"
             mat-flat-button
             (click)="onSearch()"
-            [disabled]="isSourceRefreshTimeLoading || (isLoading$ | async)">
+            [disabled]="
+              isSourceRefreshTimeLoading ||
+              (isLoadingCaseRecord$ | async) ||
+              (isLoadingSearch$ | async) === 'loading'
+            ">
             <mat-icon>search</mat-icon>
             Search
           </button>
@@ -164,8 +170,9 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                   (click)="onLoad()"
                   [disabled]="
                     isSourceRefreshTimeLoading ||
-                    (isLoading$ | async) ||
-                    !searchParamsForm.controls.amlId.valid
+                    (isLoadingCaseRecord$ | async) ||
+                    !searchParamsForm.controls.amlId.valid ||
+                    (isLoadingSearch$ | async) === 'loading'
                   ">
                   Load
                 </button>
@@ -177,10 +184,11 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                   (click)="onSave()"
                   [disabled]="
                     isSourceRefreshTimeLoading ||
-                    (isLoading$ | async) ||
+                    (isLoadingCaseRecord$ | async) ||
                     searchParamsForm.invalid ||
                     !searchParamsBefore ||
-                    (formHasChanges$ | async) === false
+                    (formHasChanges$ | async) === false ||
+                    (isLoadingSearch$ | async) === 'loading'
                   ">
                   Save
                 </button>
@@ -217,7 +225,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                       <app-party-key-selectable-table
                         formControlName="partyKeys"
                         [data]="(partyKeysData$ | async) || []"
-                        [isLoading]="(isLoading$ | async) || false">
+                        [isLoading]="(isLoadingCaseRecord$ | async) || false">
                       </app-party-key-selectable-table>
                     </mat-card-content>
                   </mat-card>
@@ -253,7 +261,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                       <app-account-number-selectable-table
                         formControlName="accountNumbers"
                         [data]="(accountNumbersData$ | async) || []"
-                        [isLoading]="(isLoading$ | async) || false">
+                        [isLoading]="(isLoadingCaseRecord$ | async) || false">
                       </app-account-number-selectable-table>
                     </mat-card-content>
                   </mat-card>
@@ -288,7 +296,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                     <mat-card-content>
                       <app-product-type-selectable-table
                         formControlName="productTypes"
-                        [isLoading]="(isLoading$ | async) || false">
+                        [isLoading]="(isLoadingCaseRecord$ | async) || false">
                       </app-product-type-selectable-table>
                     </mat-card-content>
                   </mat-card>
@@ -308,7 +316,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                             (click)="addReviewPeriod()"
                             [disabled]="
                               isSourceRefreshTimeLoading ||
-                              (isLoading$ | async) ||
+                              (isLoadingCaseRecord$ | async) ||
                               isFormDisabled
                             ">
                             <mat-icon>library_add</mat-icon>
@@ -349,7 +357,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                 class="row review-period-input mt-2 justify-content-evenly"
                                 [class.loading]="
                                   isSourceRefreshTimeLoading ||
-                                  (isLoading$ | async) ||
+                                  (isLoadingCaseRecord$ | async) ||
                                   false
                                 ">
                                 <mat-form-field class="col">
@@ -455,7 +463,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                         .controls.length === 1 ||
                                       isFormDisabled ||
                                       isSourceRefreshTimeLoading ||
-                                      (isLoading$ | async)
+                                      (isLoadingCaseRecord$ | async)
                                     "
                                     matTooltip="Remove period"
                                     class="mb-4">
@@ -506,9 +514,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                     [data]="(sourceRefreshTimeData$ | async) || []"
                     [isLoading]="
                       isSourceRefreshTimeLoading ||
-                      (isLoading$ | async) ||
+                      (isLoadingCaseRecord$ | async) ||
                       false
-                    ">
+                    "
+                    [isLoadingSearch$]="isLoadingSearch$">
                   </app-source-refresh-selectable-table>
                 </mat-card-content>
               </mat-card>
@@ -549,9 +558,9 @@ export class TransactionSearchComponent implements OnInit {
   private caseRecordService = inject(CaseRecordService);
   private searchService = inject(TransactionSearchService);
   private snackbarQ = inject(SnackbarQueueService);
-  private router = inject(Router);
   private destroyRef = inject(DestroyRef);
   private errorHandler = inject(ErrorHandler);
+  private router = inject(Router);
 
   searchParamsForm = new FormGroup(
     {
@@ -612,7 +621,8 @@ export class TransactionSearchComponent implements OnInit {
   loadCaseRecord$ = this.loadClick$.pipe(
     map(() => this.searchParamsForm.value.amlId!.trim()),
     tap(() => {
-      this.isLoading$.next(true);
+      this.isLoadingCaseRecord$.next(true);
+      this.searchParamsForm.controls.reviewPeriods.clear({ emitEvent: false });
     }),
     switchMap((amlId) =>
       this.searchService.getAmlPartyAccountInfo(amlId!).pipe(
@@ -626,9 +636,7 @@ export class TransactionSearchComponent implements OnInit {
             productTypesSelection,
           } = searchParams ?? {};
           this.searchParamsForm.enable();
-          this.searchParamsForm.controls.reviewPeriods.clear({
-            emitEvent: false,
-          });
+
           (reviewPeriodSelection ?? []).forEach((period) => {
             this.searchParamsForm.controls.reviewPeriods.push(
               this.createReviewPeriodGroup({
@@ -664,7 +672,7 @@ export class TransactionSearchComponent implements OnInit {
           this.errorHandler.handleError(err);
           return of();
         }),
-        finalize(() => this.isLoading$.next(false)),
+        finalize(() => this.isLoadingCaseRecord$.next(false)),
       ),
     ),
     shareReplay({ bufferSize: 1, refCount: true }),
@@ -673,6 +681,7 @@ export class TransactionSearchComponent implements OnInit {
   searchParamsBefore: typeof this.searchParamsForm.value | null = null;
 
   formHasChanges$ = this.searchParamsForm.valueChanges.pipe(
+    filter(() => !this.searchParamsForm.controls.partyKeys.disabled),
     map(() => {
       if (!this.searchParamsBefore) return false;
 
@@ -775,7 +784,10 @@ export class TransactionSearchComponent implements OnInit {
     }),
   );
 
-  public isLoading$ = new BehaviorSubject<boolean>(false);
+  protected isLoadingCaseRecord$ = new BehaviorSubject<boolean>(false);
+  protected isLoadingSearch$ = new BehaviorSubject<
+    'loading' | 'success' | 'fail' | null
+  >(null);
 
   @ViewChild(FormGroupDirective)
   private formDif!: FormGroupDirective;
@@ -811,7 +823,7 @@ export class TransactionSearchComponent implements OnInit {
   }
 
   onSave() {
-    this.isLoading$.next(true);
+    this.isLoadingCaseRecord$.next(true);
 
     const {
       caseRecordId,
@@ -842,7 +854,7 @@ export class TransactionSearchComponent implements OnInit {
         eTag: eTag!,
       })
       .pipe(
-        finalize(() => this.isLoading$.next(false)),
+        finalize(() => this.isLoadingCaseRecord$.next(false)),
         takeUntilDestroyed(this.destroyRef),
       )
       // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
@@ -865,7 +877,6 @@ export class TransactionSearchComponent implements OnInit {
     );
   }
 
-  // todo: implement loading state in view
   onSearch() {
     if (this.searchParamsForm.invalid) {
       this.snackbarQ.open(
@@ -885,6 +896,7 @@ export class TransactionSearchComponent implements OnInit {
       sourceSystems = [],
     } = this.searchParamsForm.value;
 
+    this.isLoadingSearch$.next('loading');
     this.searchService
       .searchTransactions({
         accountNumbersSelection: (accountNumbers ?? []).map(
@@ -900,35 +912,50 @@ export class TransactionSearchComponent implements OnInit {
           (item) => item.sourceSys,
         ),
       })
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        tap(() => {
+          this.isLoadingSearch$.next('success');
+        }),
+        catchError((error) => {
+          // Handle error and set error state
+          this.isLoadingSearch$.next('fail');
+          this.snackbarQ.open(
+            'Transaction search failed. Please try again.',
+            'Dismiss',
+            { duration: 5000 },
+          );
+          return EMPTY; // Complete the observable
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
       // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
       .subscribe((searchResult) => {
-        this.router.navigate(
-          ['/aml', this.searchParamsForm.value.amlId!, 'transaction-view'],
-          {
-            state: {
-              searchParams: {
-                accountNumbersSelection: (accountNumbers ?? []).map(
-                  ({ transit, account }) => ({
-                    transit,
-                    account,
-                  }),
-                ),
-                partyKeysSelection: (partyKeys ?? []).map(
-                  (item) => item.partyKey,
-                ),
-                productTypesSelection: (productTypes ?? []).map(
-                  (item) => item.value,
-                ),
-                reviewPeriodSelection: (reviewPeriods ?? []) as ReviewPeriod[],
-                sourceSystemsSelection: (sourceSystems ?? []).map(
-                  (item) => item.sourceSys,
-                ),
-              },
-              searchResult,
-            } satisfies RouteExtrasFromSearch,
-          },
-        );
+        // this.router.navigate(
+        //   ['/aml', this.searchParamsForm.value.amlId!, 'transaction-view'],
+        //   {
+        //     state: {
+        //       searchParams: {
+        //         accountNumbersSelection: (accountNumbers ?? []).map(
+        //           ({ transit, account }) => ({
+        //             transit,
+        //             account,
+        //           }),
+        //         ),
+        //         partyKeysSelection: (partyKeys ?? []).map(
+        //           (item) => item.partyKey,
+        //         ),
+        //         productTypesSelection: (productTypes ?? []).map(
+        //           (item) => item.value,
+        //         ),
+        //         reviewPeriodSelection: (reviewPeriods ?? []) as ReviewPeriod[],
+        //         sourceSystemsSelection: (sourceSystems ?? []).map(
+        //           (item) => item.sourceSys,
+        //         ),
+        //       },
+        //       searchResult,
+        //     } satisfies RouteExtrasFromSearch,
+        //   },
+        // );
       });
   }
 

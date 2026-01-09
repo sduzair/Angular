@@ -16,9 +16,7 @@ export class AppErrorHandlerService implements ErrorHandler {
     } else if (error instanceof HttpErrorResponse && 'message' in error.error) {
       const msg: string = error.error.message;
 
-      this.snackbarQ.open(msg, 'Dismiss', {
-        duration: undefined,
-      });
+      this.snackbarQ.open(msg, 'Dismiss');
     } else if (error instanceof HttpErrorResponse) {
       // Show detailed info for any HTTP error
       let msg: string =
@@ -28,10 +26,12 @@ export class AppErrorHandlerService implements ErrorHandler {
         duration: undefined,
       });
     } else if (error instanceof Error) {
+      console.log(error);
       this.snackbarQ.open(error.message, 'Dismiss', {
         duration: undefined,
       });
     } else {
+      console.log(error);
       this.snackbarQ.open('Some error occured!', 'Dismiss', {
         duration: undefined,
       });

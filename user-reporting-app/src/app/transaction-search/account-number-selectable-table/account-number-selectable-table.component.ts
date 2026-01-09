@@ -65,6 +65,21 @@ import { MatTableModule } from '@angular/material/table';
         </td>
       </ng-container>
 
+      <!-- Currency Column -->
+      <ng-container matColumnDef="accountCurrency">
+        <th mat-header-cell *matHeaderCellDef>Currency</th>
+        <td mat-cell *matCellDef="let row">
+          @if (!isLoading) {
+            <span>
+              {{ row.accountCurrency }}
+            </span>
+          }
+          @if (isLoading) {
+            <span class="sk skw-4 skh-2"></span>
+          }
+        </td>
+      </ng-container>
+
       <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
       <tr
         mat-row
@@ -99,7 +114,7 @@ export class AccountNumberSelectableTableComponent
     this.dataSource.data = value;
   }
   protected override displayedColumns: (keyof AccountNumberData | 'select')[] =
-    ['select', 'transit', 'account'];
+    ['select', 'transit', 'account', 'accountCurrency'];
 
   protected override trackingProps: ('transit' | 'account')[] = [
     'transit',

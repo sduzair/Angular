@@ -109,7 +109,11 @@ if (app.Environment.IsProduction())
 
 var api = app.MapGroup("/api");
 
-api.MapGet("/transaction/search", async (IMongoDatabase db, HttpResponse response, CancellationToken cancellationToken) =>
+api.MapPost("/transaction/search", async (
+    TransactionSearchRequest searchRequest,
+    IMongoDatabase db,
+    HttpResponse response,
+    CancellationToken cancellationToken) =>
 {
     response.ContentType = "application/json; charset=utf-8";
     await using var writer = new StreamWriter(response.Body);
