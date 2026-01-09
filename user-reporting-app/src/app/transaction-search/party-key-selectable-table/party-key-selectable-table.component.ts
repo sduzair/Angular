@@ -34,13 +34,28 @@ import { AbstractSelectableTableComponent } from '../abstract-selectable-table/a
         </td>
       </ng-container>
 
-      <!-- Value Column -->
-      <ng-container matColumnDef="value">
+      <!-- Party key Column -->
+      <ng-container matColumnDef="partyKey">
         <th mat-header-cell *matHeaderCellDef>Party Key</th>
         <td mat-cell *matCellDef="let element">
           @if (!isLoading) {
             <span>
-              {{ element.value }}
+              {{ element.partyKey }}
+            </span>
+          }
+          @if (isLoading) {
+            <span class="sk skw-6 skh-2"></span>
+          }
+        </td>
+      </ng-container>
+
+      <!-- Name Column -->
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef>Name</th>
+        <td mat-cell *matCellDef="let element">
+          @if (!isLoading) {
+            <span>
+              {{ element.name }}
             </span>
           }
           @if (isLoading) {
@@ -66,27 +81,39 @@ import { AbstractSelectableTableComponent } from '../abstract-selectable-table/a
   styleUrl: './party-key-selectable-table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PartyKeySelectableTableComponent<T extends { value: string }>
-  extends AbstractSelectableTableComponent<T>
+export class PartyKeySelectableTableComponent
+  extends AbstractSelectableTableComponent<PartyKeyData>
   implements ControlValueAccessor
 {
   get data() {
     return Array.from({ length: 5 }, () => ({
-      value: '',
-    })) as T[];
+      partyKey: '',
+      name: '',
+    })) satisfies PartyKeyData[];
   }
 
   @Input({ required: true })
-  set data(value: T[]) {
+  set data(value: PartyKeyData[]) {
     this.dataSource.data = value;
   }
 
-  protected override displayedColumns: (keyof T | (string & {}))[] = [
+  protected override displayedColumns: (keyof PartyKeyData | 'select')[] = [
     'select',
-    'value',
+    'partyKey',
+    'name',
   ];
 
-  protected override getSelectionComparator(): (a: T, b: T) => boolean {
-    return (a, b) => a.value === b.value;
+  protected override trackingProps: ('name' | 'partyKey')[] = ['partyKey'];
+
+  protected override getSelectionComparator(): (
+    a: PartyKeyData,
+    b: PartyKeyData,
+  ) => boolean {
+    return (a, b) => a.partyKey === b.partyKey;
   }
+}
+
+export interface PartyKeyData {
+  partyKey: string;
+  name?: string;
 }

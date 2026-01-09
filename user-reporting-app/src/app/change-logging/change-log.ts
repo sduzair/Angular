@@ -31,7 +31,7 @@ export function generateChangeLogs<T extends object>(
     !key.startsWith('flowOfFunds') &&
     key !== '_id' &&
     key !== 'changeLogs' &&
-    key !== 'etag' &&
+    key !== 'eTag' &&
     key !== 'caseRecordId' &&
     !key.startsWith('npd') &&
     key !== 'sourceId';

@@ -10,13 +10,7 @@ import tseslint from 'typescript-eslint';
 export default defineConfig([
   {
     files: ['**/*.ts'],
-    ignores: [
-      '.angular/**',
-      '.nx/**',
-      'coverage/**',
-      'dist/**',
-      '**/*data.fixture.ts',
-    ],
+    ignores: ['.angular/**', '.nx/**', 'coverage/**', 'dist/**'],
     extends: [
       eslint.configs.recommended,
       ...tseslint.configs.recommended,
@@ -88,10 +82,11 @@ export default defineConfig([
             },
             // allow test/dev fixtures when developing
             // @ts-ignore
-            ...(process.env.NODE_ENV === 'production'
-              ? [
+            ...(process.env.NODE_ENV === 'production' || true
+              ? // ...(process.env.NODE_ENV === 'production'
+                [
                   {
-                    group: ['**/*.fixture', '**/*.fixture.ts'],
+                    group: ['**/*.fixture.ts'],
                     message:
                       'Test fixtures can only be imported in .spec.ts files',
                   },
@@ -109,7 +104,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['**/*.spec.ts'],
+    files: ['**/*.spec.ts', '**/*.fixture.ts'],
     plugins: { jasmine: jasmine },
     rules: {
       'no-restricted-imports': 'off',

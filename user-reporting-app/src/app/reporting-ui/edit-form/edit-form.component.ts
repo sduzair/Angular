@@ -3751,7 +3751,7 @@ export class EditFormComponent implements AfterViewChecked {
 
     const editForm = new FormGroup(
       {
-        etag: new FormControl<number>({
+        eTag: new FormControl<number>({
           value: txn?.changeLogs.at(-1)?.eTag ?? 0,
           disabled,
         }),

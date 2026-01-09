@@ -47,7 +47,7 @@ import {
 import { DeepPartial } from '../test-helpers';
 import { type RouteExtrasFromSearch } from '../transaction-search/transaction-search.component';
 import {
-  AccountNumber,
+  AccountNumberSelection,
   TransactionSearchResponse,
 } from '../transaction-search/transaction-search.service';
 import {
@@ -71,7 +71,7 @@ export const DEFAULT_CASE_RECORD_STATE: CaseRecordState = {
   createdAt: '',
   createdBy: '',
   status: '',
-  etag: NaN,
+  eTag: NaN,
   selections: [],
   lastUpdated: '',
 };
@@ -98,7 +98,7 @@ export class CaseRecordStore implements OnDestroy {
 
   private conflict$ = new Subject<void>();
   readonly latestCaseRecordVersion$ = this._state$.pipe(
-    map((sessionState) => sessionState?.etag),
+    map((sessionState) => sessionState?.eTag),
   );
 
   readonly lastUpdated$ = this._state$.pipe(
@@ -370,9 +370,9 @@ export class CaseRecordStore implements OnDestroy {
                   ) && selection.changeLogs.length > 0
                 );
               })
-              .map(({ flowOfFundsAmlTransactionId, etag }) => ({
+              .map(({ flowOfFundsAmlTransactionId, eTag }) => ({
                 flowOfFundsAmlTransactionId,
-                etag,
+                eTag,
               }));
 
             resetSelections.push(...selectionsWithChanges);
@@ -399,10 +399,10 @@ export class CaseRecordStore implements OnDestroy {
           let payload: AddSelectionsReq | SaveChangesReq;
 
           if (newTransactions.length > 0) {
-            const { etag } = this._state$.value;
+            const { eTag } = this._state$.value;
             payload = {
               selections: newTransactions,
-              caseETag: etag,
+              caseETag: eTag,
             };
             return this.addSelections(payload);
           }
@@ -427,7 +427,7 @@ export class CaseRecordStore implements OnDestroy {
 
           this.markSavesAsComplete(incomingSaves);
 
-          return EMPTY;
+          return of();
         }),
       );
     }),
@@ -502,22 +502,9 @@ export class CaseRecordStore implements OnDestroy {
 
   setSearchParams(searchParam: RouteExtrasFromSearch['searchParams']) {
     const searchParamsClone = structuredClone(searchParam);
-    const {
-      accountNumbers = [],
-      partyKeys = [],
-      productTypes = [],
-      reviewPeriods = [],
-      sourceSystems = [],
-    } = searchParamsClone;
     this._state$.next({
       ...this._state$.value,
-      searchParams: {
-        accountNumbersSelection: accountNumbers ?? [],
-        partyKeysSelection: partyKeys?.map(({ value }) => value) ?? [],
-        productTypesSelection: productTypes?.map(({ value }) => value) ?? [],
-        reviewPeriodSelection: reviewPeriods,
-        sourceSystemsSelection: sourceSystems?.map(({ value }) => value) ?? [],
-      },
+      searchParams: searchParamsClone,
     });
   }
 
@@ -539,25 +526,31 @@ export class CaseRecordStore implements OnDestroy {
           createdAt,
           createdBy,
           status,
-          etag,
+          eTag,
           lastUpdated,
         }) => {
+          const {
+            reviewPeriodSelection,
+            partyKeysSelection,
+            accountNumbersSelection,
+            sourceSystemsSelection,
+            productTypesSelection,
+          } = searchParams ?? {};
           this._state$.next({
             ...this._state$.value,
             caseRecordId,
             amlId,
             searchParams: {
-              accountNumbersSelection:
-                searchParams.accountNumbersSelection ?? [],
-              partyKeysSelection: searchParams.partyKeysSelection ?? [],
-              productTypesSelection: searchParams.productTypesSelection ?? [],
-              reviewPeriodSelection: searchParams.reviewPeriodSelection ?? [],
-              sourceSystemsSelection: searchParams.sourceSystemsSelection ?? [],
+              accountNumbersSelection: accountNumbersSelection ?? [],
+              partyKeysSelection: partyKeysSelection ?? [],
+              productTypesSelection: productTypesSelection ?? [],
+              reviewPeriodSelection: reviewPeriodSelection ?? [],
+              sourceSystemsSelection: sourceSystemsSelection ?? [],
             },
             createdAt,
             createdBy,
             status,
-            etag,
+            eTag,
             lastUpdated,
           });
         },
@@ -566,26 +559,6 @@ export class CaseRecordStore implements OnDestroy {
       map(() => undefined),
     );
   }
-
-  // private createCaseRecord(amlId: string, payload: CreateCaseRecordReq) {
-  //   const payloadClone = structuredClone(payload);
-  //   return this.api.createCaseRecord(amlId, payloadClone).pipe(
-  //     tap(({ caseRecordId, etag }) => {
-  //       this._state$.next({
-  //         ...this._state$.value,
-  //         searchParams: { ...payloadClone },
-  //         caseRecordId,
-  //         etag: etag,
-  //       });
-  //     }),
-  //     catchError((error) => {
-  //       this.errorHandler.handleError(error);
-
-  //       return EMPTY;
-  //     }),
-  //     shareReplay(1),
-  //   );
-  // }
 
   public fetchSelections() {
     return this.api.fetchSelections(this._state$.value.caseRecordId).pipe(
@@ -619,7 +592,7 @@ export class CaseRecordStore implements OnDestroy {
           this.conflict$.next();
         }
 
-        return EMPTY;
+        return of();
       }),
     );
   }
@@ -648,7 +621,7 @@ export class CaseRecordStore implements OnDestroy {
               txn.changeLogs.push(
                 ...pendingChangeLogs.map((changeLog) => ({
                   ...changeLog,
-                  etag: (txn.changeLogs.at(-1)?.eTag ?? 0) + 1,
+                  eTag: (txn.changeLogs.at(-1)?.eTag ?? 0) + 1,
                   updatedBy: this.auth.currentUser()?.username!,
                   updatedAt: new Date().toISOString(),
                 })),
@@ -676,7 +649,7 @@ export class CaseRecordStore implements OnDestroy {
           return this.fetchSelections().pipe(switchMap(() => EMPTY));
         }
 
-        return EMPTY;
+        return of();
       }),
     );
   }
@@ -696,7 +669,7 @@ export class CaseRecordStore implements OnDestroy {
           if (!selectionIdsSet.has(selection.flowOfFundsAmlTransactionId))
             continue;
 
-          selection.etag = 0;
+          selection.eTag = 0;
           selection.changeLogs = [];
         }
 
@@ -718,7 +691,7 @@ export class CaseRecordStore implements OnDestroy {
           return this.fetchSelections().pipe(switchMap(() => EMPTY));
         }
 
-        return EMPTY;
+        return of();
       }),
     );
   }
@@ -741,7 +714,7 @@ export interface CaseRecordState {
   amlId: string;
   searchParams: {
     partyKeysSelection: string[];
-    accountNumbersSelection: AccountNumber[];
+    accountNumbersSelection: AccountNumberSelection[];
     sourceSystemsSelection: string[];
     productTypesSelection: string[];
     reviewPeriodSelection: ReviewPeriod[];
@@ -749,7 +722,7 @@ export interface CaseRecordState {
   createdAt: string;
   createdBy: string;
   status: string;
-  etag: number;
+  eTag: number;
   lastUpdated?: string;
 
   selections: StrTransactionWithChangeLogs[];
@@ -762,7 +735,7 @@ export interface CaseRecordState {
 
 // Hidden props prefixed with '_hidden' are ignored by the change logging service.
 export type StrTransactionWithChangeLogs = StrTransaction & {
-  etag: number;
+  eTag: number;
   caseRecordId: string;
   changeLogs: ChangeLogAudit[];
   _hiddenValidation?: _hiddenValidationType[];
@@ -780,8 +753,8 @@ export interface StrTransactionChangeLogs {
 }
 
 export interface ReviewPeriod {
-  start?: string | null;
-  end?: string | null;
+  start: string;
+  end: string;
 }
 
 const computeFullChangesHandler = (

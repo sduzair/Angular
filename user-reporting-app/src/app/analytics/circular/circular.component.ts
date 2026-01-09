@@ -24,7 +24,6 @@ import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { StrTransaction } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import { SnackbarQueueService } from '../../snackbar-queue.service';
-import { AccountNumber } from '../../transaction-search/transaction-search.service';
 import {
   getTxnMethod,
   METHOD_ENUM,
@@ -34,6 +33,7 @@ import {
   formatNodeDataAsHtml,
   getNodeDataTextToCopy,
 } from './clipboardHelper';
+import { AccountNumberData } from '../../transaction-search/account-number-selectable-table/account-number-selectable-table.component';
 
 // Register only what you need
 echarts.use([
@@ -73,7 +73,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
   partyKeysSelection: string[] = [];
 
   @Input({ required: true })
-  accountNumbersSelection: AccountNumber[] = [];
+  accountNumbersSelection: AccountNumberData[] = [];
 
   private myChart: echarts.ECharts | undefined;
   private resizeObserver: ResizeObserver | undefined;

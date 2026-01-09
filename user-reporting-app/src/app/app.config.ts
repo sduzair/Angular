@@ -31,10 +31,7 @@ import {
 } from '@angular/material/form-field';
 import { provideHashbrown } from '@hashbrownai/angular';
 import { enCA } from 'date-fns/locale';
-import {
-  AppErrorHandlerService,
-  errorInterceptor,
-} from './app-error-handler.service';
+import { AppErrorHandlerService } from './app-error-handler.service';
 import { routes } from './app.routes';
 import { CachedRouteReuseStrategy } from './route-cache/preserve-route-reuse-strategy';
 import { provideMarkdown } from 'ngx-markdown';
@@ -59,7 +56,7 @@ export const appConfig: ApplicationConfig = {
       // withDebugTracing(), // for debugging router
     ),
     { provide: RouteReuseStrategy, useClass: CachedRouteReuseStrategy },
-    provideHttpClient(withInterceptors([errorInterceptor])),
+    provideHttpClient(withInterceptors([])),
     provideDateFnsAdapter(MAT_DATE_FNS_FORMATS),
     { provide: MAT_DATE_LOCALE, useValue: enCA },
     { provide: ErrorHandler, useClass: AppErrorHandlerService },

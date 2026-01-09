@@ -116,6 +116,9 @@ html {
 }
 
 /* Width presets (approximate character widths) */
+.skw-2 {
+  width: 32px;
+}
 .skw-4 {
   width: 64px;
 }
@@ -210,4 +213,12 @@ html {
 
 .h-900 {
   height: 900px;
+}
+
+:root {
+  @include mat.snack-bar-overrides(
+    (
+      button-color: var(--mat-sys-inverse-primary),
+    )
+  );
 }

@@ -45,7 +45,6 @@ public class AccountNumber
 
     public string Account { get; set; } = null!;
 
-    public string Currency { get; set; } = null!;
 }
 
 public class ReviewPeriod

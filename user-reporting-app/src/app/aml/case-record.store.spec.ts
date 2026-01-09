@@ -67,7 +67,7 @@ describe('SessionDataService', () => {
     it('should emit the latest version from session state', async () => {
       const testState: CaseRecordState = {
         ...mockCaseRecordState,
-        etag: 5,
+        eTag: 5,
       };
 
       store['_state$'].next(testState);

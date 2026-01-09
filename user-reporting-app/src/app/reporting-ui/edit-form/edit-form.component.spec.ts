@@ -1633,7 +1633,7 @@ const CASE_RECORD_STATE_FIXTURE: CaseRecordState = {
     };
   }),
 
-  etag: 0,
+  eTag: 0,
   lastUpdated: '1996-06-13',
 };
 

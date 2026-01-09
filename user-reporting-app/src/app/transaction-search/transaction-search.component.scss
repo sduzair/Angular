@@ -9,14 +9,6 @@
     )
   );
 
-  .filter-card {
-    @include typo.typography-scaling(0.9);
-  }
-
-  .system-info {
-    @include typo.typography-scaling(0.9);
-  }
-
   .filter-card mat-card-content {
     min-height: 300px;
     max-height: 300px;

@@ -69,7 +69,7 @@ import { TransactionSearchService } from '../transaction-search.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProductTypeSelectableTableComponent<T extends { value: string }>
-  extends AbstractSelectableTableComponent<T>
+  extends AbstractSelectableTableComponent<{ value: string }>
   implements ControlValueAccessor
 {
   get data() {
@@ -83,12 +83,17 @@ export class ProductTypeSelectableTableComponent<T extends { value: string }>
     this.dataSource.data = value;
   }
 
-  protected override displayedColumns: (keyof T | (string & {}))[] = [
+  protected override displayedColumns: ('value' | 'select')[] = [
     'select',
     'value',
   ];
 
-  protected override getSelectionComparator(): (a: T, b: T) => boolean {
+  protected override trackingProps: 'value'[] = ['value'];
+
+  protected override getSelectionComparator(): (
+    a: { value: string },
+    b: { value: string },
+  ) => boolean {
     return (a, b) => a.value === b.value;
   }
 }

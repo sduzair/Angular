@@ -191,12 +191,57 @@ api.MapGet("/transaction/search", async (IMongoDatabase db, HttpResponse respons
     await writer.WriteAsync("]");
 });
 
+api.MapGet("/aml/{amlId}/partyaccountinfo", async (
+    string amlId,
+    IMongoDatabase database,
+    HttpContext context) =>
+{
+    var partyAccountInfoCollection = database.GetCollection<AmlPartyAccountInfo>("amlPartyAccountInfo");
+    var filter = Builders<AmlPartyAccountInfo>.Filter.Eq(x => x.AmlId, amlId);
+    var partyAccountInfo = await partyAccountInfoCollection.Find(filter).FirstOrDefaultAsync();
+
+    if (partyAccountInfo == null)
+        return Results.NotFound(new { message = $"Party account info not found for AML ID: {amlId}" });
+
+    return Results.Ok(partyAccountInfo);
+});
+
+api.MapGet("/aml/partyinfo/{partyKey}", async (
+    string partyKey,
+    IMongoDatabase database,
+    HttpContext context) =>
+{
+    var partyInfoCollection = database.GetCollection<PartyInfo>("partyInfo");
+    var filter = Builders<PartyInfo>.Filter.Eq(x => x.PartyKey, partyKey);
+    var partyInfo = await partyInfoCollection.Find(filter).FirstOrDefaultAsync();
+
+    if (partyInfo == null)
+        return Results.NotFound(new { message = $"Party info not found for Party key: {partyKey}" });
+
+    return Results.Ok(partyInfo);
+});
+
+api.MapGet("/aml/accountinfo/{account}", async (
+    string account,
+    IMongoDatabase database,
+    HttpContext context) =>
+{
+    var accountInfoCollection = database.GetCollection<AccountInfo>("accountInfo");
+    var filter = Builders<AccountInfo>.Filter.Eq(x => x.Account, account);
+    var accountInfo = await accountInfoCollection.Find(filter).FirstOrDefaultAsync();
+
+    if (accountInfo == null)
+        return Results.NotFound(new { message = $"Account info not found for Account no: {account}" });
+
+    return Results.Ok(accountInfo);
+});
+
 api.MapGet("/aml/{amlId}/caserecord", async (
     string amlId,
     IMongoDatabase database,
     HttpContext context) =>
 {
-    var caseRecords = database.GetCollection<CaseRecord>("caseRecords");
+    var caseRecords = database.GetCollection<CaseRecord>("caseRecord");
     var filter = Builders<CaseRecord>.Filter.Eq(x => x.AmlId, amlId);
     var caseRecord = await caseRecords.Find(filter).FirstOrDefaultAsync();
 
@@ -214,7 +259,7 @@ api.MapPost("/caserecord/{caseRecordId}/update", async (
     IMongoDatabase database,
     HttpContext context) =>
 {
-    var caseRecords = database.GetCollection<CaseRecord>("caseRecords");
+    var caseRecords = database.GetCollection<CaseRecord>("caseRecord");
 
     // Build filter with ETag check for optimistic concurrency
     var filter = Builders<CaseRecord>.Filter.And(
@@ -275,7 +320,7 @@ api.MapPost("/caserecord/{caseRecordId}/selections/add", async (
     IMongoClient mongoClient,
     IMongoDatabase database, CancellationToken cancellationToken) =>
 {
-    var caseRecords = database.GetCollection<CaseRecord>("caseRecords");
+    var caseRecords = database.GetCollection<CaseRecord>("caseRecord");
     var selections = database.GetCollection<Selection>("selections");
 
     // Start a session for transaction
@@ -359,7 +404,7 @@ api.MapPost("/caserecord/{caseRecordId}/selections/remove", async (
     IMongoClient mongoClient,
     IMongoDatabase database, CancellationToken cancellationToken) =>
 {
-    var caseRecords = database.GetCollection<CaseRecord>("caseRecords");
+    var caseRecords = database.GetCollection<CaseRecord>("caseRecord");
     var selections = database.GetCollection<Selection>("selections");
 
     using var session = await mongoClient.StartSessionAsync(cancellationToken: cancellationToken);

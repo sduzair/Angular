@@ -14,9 +14,9 @@ export const CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE: CaseRecordState = {
   searchParams: {
     partyKeysSelection: ['3415674561', '1846597320'],
     accountNumbersSelection: [
-      { transit: '84255', account: '5582195', currency: 'CAD' },
-      { transit: '31980', account: '8692413', currency: 'CAD' },
-      { transit: '87594', account: '5647218', currency: 'CAD' },
+      { transit: '84255', account: '5582195' },
+      { transit: '31980', account: '8692413' },
+      { transit: '87594', account: '5647218' },
     ],
     sourceSystemsSelection: ['ABM', 'OLB'],
     productTypesSelection: [
@@ -33,10 +33,11 @@ export const CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE: CaseRecordState = {
   createdAt: new Date().toISOString(),
   createdBy: TEST_USER_ADMIN.username,
   status: 'Active',
-  etag: 0,
+  eTag: 0,
   lastUpdated: '1996-06-13',
   selections: SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE.map((txn) => ({
     ...txn,
+    eTag: 0,
     changeLogs: [],
     caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
   })),
@@ -110,5 +111,44 @@ export const SUBJECT_INFO_BY_PARTY_KEY_DEV_OR_TEST_ONLY_FIXTURE = [
     givenName: 'Laura',
     otherOrInitial: 'M',
     nameOfEntity: '',
+  },
+];
+
+export const ACCOUNT_INFO_DEV_OR_TEST_ONLY_FIXTURE = [
+  {
+    fiuNo: '010',
+    branch: '84255',
+    account: '5582195',
+    accountType: 'Personal',
+    accountTypeOther: null,
+    accountOpen: '2003/08/24',
+    accountClose: '',
+    accountStatus: 'Active',
+    accountCurrency: 'CAD',
+    accountHolders: [{ partyKey: '3415674561' }, { partyKey: '1846597320' }],
+  },
+  {
+    fiuNo: '010',
+    branch: '31980',
+    account: '8692413',
+    accountType: 'Personal',
+    accountTypeOther: null,
+    accountOpen: '2001/07/14',
+    accountClose: '',
+    accountStatus: 'Active',
+    accountCurrency: 'CAD',
+    accountHolders: [{ partyKey: '3415674561' }, { partyKey: '1846597320' }],
+  },
+  {
+    fiuNo: '010',
+    branch: '87594',
+    account: '5647218',
+    accountType: 'Personal',
+    accountTypeOther: null,
+    accountOpen: '2005/06/23',
+    accountClose: '',
+    accountStatus: 'Active',
+    accountCurrency: 'CAD',
+    accountHolders: [{ partyKey: '3415674561' }, { partyKey: '1846597320' }],
   },
 ];

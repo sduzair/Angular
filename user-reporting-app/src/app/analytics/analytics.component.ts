@@ -4,6 +4,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ErrorHandler,
   inject,
   ViewChild,
 } from '@angular/core';
@@ -12,7 +13,17 @@ import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatToolbar } from '@angular/material/toolbar';
-import { combineLatest, filter, map, shareReplay, take } from 'rxjs';
+import {
+  catchError,
+  combineLatest,
+  filter,
+  forkJoin,
+  map,
+  of,
+  shareReplay,
+  switchMap,
+  take,
+} from 'rxjs';
 import { CaseRecordStore } from '../aml/case-record.store';
 import { CircularComponent } from './circular/circular.component';
 import { MonthlyTxnVolumeComponent } from './monthly-txn-volume/monthly-txn-volume.component';
@@ -21,6 +32,7 @@ import { StrTransaction } from '../reporting-ui/reporting-ui-table/reporting-ui-
 import { TransactionDateDirective } from '../reporting-ui/edit-form/transaction-date.directive';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIcon } from '@angular/material/icon';
+import { TransactionSearchService } from '../transaction-search/transaction-search.service';
 
 @Component({
   selector: 'app-analytics',
@@ -211,6 +223,8 @@ import { MatIcon } from '@angular/material/icon';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AnalyticsComponent implements AfterViewInit {
+  private errorHandler = inject(ErrorHandler);
+  private searchService = inject(TransactionSearchService);
   private caseRecord = inject(CaseRecordStore);
   private destroyRef = inject(DestroyRef);
 
@@ -252,6 +266,27 @@ export class AnalyticsComponent implements AfterViewInit {
     map(({ searchParams: { accountNumbersSelection } }) => {
       return accountNumbersSelection;
     }),
+    switchMap((accountNumbersSelection) => {
+      return forkJoin(
+        accountNumbersSelection.map((item) =>
+          this.searchService.getAccountInfo(item.account),
+        ),
+      ).pipe(
+        catchError((error) => {
+          this.errorHandler.handleError(error);
+          return of();
+        }),
+      );
+    }),
+    map((responses) =>
+      responses.map(
+        ({ account, accountCurrency: currency, branch: transit }) => ({
+          account,
+          currency,
+          transit,
+        }),
+      ),
+    ),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 

@@ -48,19 +48,18 @@ import {
   getYear,
   isAfter,
   isBefore,
-  isValid,
   setMonth,
   setYear,
 } from 'date-fns';
-import { isEqual, isEqualWith } from 'lodash-es';
+import { isEqual, xorWith } from 'lodash-es';
 import {
   BehaviorSubject,
   catchError,
   combineLatestWith,
-  distinctUntilChanged,
-  EMPTY,
   finalize,
+  forkJoin,
   map,
+  of,
   shareReplay,
   startWith,
   Subject,
@@ -68,15 +67,24 @@ import {
   tap,
 } from 'rxjs';
 import { CaseRecordService } from '../aml/case-record.service';
+import { CaseRecordState, ReviewPeriod } from '../aml/case-record.store';
 import { setError } from '../form-helpers';
 import { SnackbarQueueService } from '../snackbar-queue.service';
-import { AccountNumberSelectableTableComponent } from './account-number-selectable-table/account-number-selectable-table.component';
-import { PartyKeySelectableTableComponent } from './party-key-selectable-table/party-key-selectable-table.component';
+import {
+  AccountNumberData,
+  AccountNumberSelectableTableComponent,
+} from './account-number-selectable-table/account-number-selectable-table.component';
+import {
+  PartyKeyData,
+  PartyKeySelectableTableComponent,
+} from './party-key-selectable-table/party-key-selectable-table.component';
 import { ProductTypeSelectableTableComponent } from './product-type-selectable-table/product-type-selectable-table.component';
 import { ReviewPeriodDateDirective } from './review-period-date.directive';
-import { SourceRefreshSelectableTableComponent } from './source-refresh-selectable-table/source-refresh-selectable-table.component';
 import {
-  AccountNumber,
+  SourceRefreshSelectableTableComponent,
+  SourceSysRefreshTimeData,
+} from './source-refresh-selectable-table/source-refresh-selectable-table.component';
+import {
   TransactionSearchResponse,
   TransactionSearchService,
 } from './transaction-search.service';
@@ -170,7 +178,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                   [disabled]="
                     isSourceRefreshTimeLoading ||
                     (isLoading$ | async) ||
-                    !searchParamsForm.controls.amlId.valid ||
+                    searchParamsForm.invalid ||
                     !searchParamsBefore ||
                     (formHasChanges$ | async) === false
                   ">
@@ -185,7 +193,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                 <div class="col-12 col-lg-6 filter-card">
                   <mat-card>
                     <mat-card-header>
-                      <mat-card-title>Parties</mat-card-title>
+                      <mat-card-title class="fs-5">Parties</mat-card-title>
                       <mat-card-subtitle>
                         <div
                           class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
@@ -197,7 +205,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                 )
                               ) {
                                 <mat-error>
-                                  Atleast one selection must exist
+                                  *Atleast one selection must exist
                                 </mat-error>
                               }
                             </div>
@@ -219,7 +227,9 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                 <div class="col-12 col-lg-6 filter-card">
                   <mat-card>
                     <mat-card-header>
-                      <mat-card-title>Accounts / Products</mat-card-title>
+                      <mat-card-title class="fs-5"
+                        >Accounts / Products</mat-card-title
+                      >
                       <mat-card-subtitle>
                         <div
                           class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
@@ -231,7 +241,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                 )
                               ) {
                                 <mat-error>
-                                  Atleast one selection must exist
+                                  *Atleast one selection must exist
                                 </mat-error>
                               }
                             </div>
@@ -253,7 +263,9 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                 <div class="col-12 col-lg-6 filter-card">
                   <mat-card>
                     <mat-card-header>
-                      <mat-card-title>Product Types</mat-card-title>
+                      <mat-card-title class="fs-5"
+                        >Product Types</mat-card-title
+                      >
                       <mat-card-subtitle>
                         <div
                           class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
@@ -265,7 +277,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                 )
                               ) {
                                 <mat-error>
-                                  Atleast one selection must exist
+                                  *Atleast one selection must exist
                                 </mat-error>
                               }
                             </div>
@@ -288,7 +300,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                     <mat-card-header>
                       <mat-card-title>
                         <mat-toolbar class="card-toolbar px-0">
-                          <span>Review Period</span>
+                          <span class="fs-5">Review Period(s)</span>
                           <div class="flex-fill"></div>
                           <button
                             type="button"
@@ -315,7 +327,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                 )
                               ) {
                                 <mat-error>
-                                  Review periods must not overlap
+                                  *Review periods must not overlap
                                 </mat-error>
                               }
                             </div>
@@ -329,7 +341,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           @for (
                             period of searchParamsForm.controls.reviewPeriods
                               .controls;
-                            track period;
+                            track $index;
                             let i = $index
                           ) {
                             <div [formGroupName]="i">
@@ -375,7 +387,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     period.controls.start.hasError('required')
                                   ) {
                                     <mat-error>
-                                      Start month is required
+                                      *Start month is required
                                     </mat-error>
                                   }
                                   @if (
@@ -384,7 +396,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     )
                                   ) {
                                     <mat-error>
-                                      Start month must be before end month
+                                      *Start month must be before end month
                                     </mat-error>
                                   }
                                 </mat-form-field>
@@ -425,7 +437,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     period.controls.end.hasError('required')
                                   ) {
                                     <mat-error>
-                                      End month is required
+                                      *End month is required
                                     </mat-error>
                                   }
                                 </mat-form-field>
@@ -465,7 +477,9 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
             <div class="col-12 col-xl-4 system-info">
               <mat-card>
                 <mat-card-header>
-                  <mat-card-title>System Information</mat-card-title>
+                  <mat-card-title class="fs-5"
+                    >System Information</mat-card-title
+                  >
                   <mat-card-subtitle>
                     <div
                       class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
@@ -477,7 +491,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                             )
                           ) {
                             <mat-error>
-                              Atleast one selection must exist
+                              *Atleast one selection must exist
                             </mat-error>
                           }
                         </div>
@@ -532,7 +546,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TransactionSearchComponent implements OnInit {
-  private snackBarQ = inject(SnackbarQueueService);
   private caseRecordService = inject(CaseRecordService);
   private searchService = inject(TransactionSearchService);
   private snackbarQ = inject(SnackbarQueueService);
@@ -542,32 +555,47 @@ export class TransactionSearchComponent implements OnInit {
 
   searchParamsForm = new FormGroup(
     {
-      amlId: new FormControl({ value: '', disabled: false }, [
-        Validators.required,
-        Validators.pattern('^[0-9]+$'),
-      ]),
+      amlId: new FormControl(
+        { value: '', disabled: false },
+        {
+          validators: [Validators.required, Validators.pattern('^[0-9]+$')],
+          nonNullable: true,
+        },
+      ),
       partyKeys: new FormControl(
-        { value: [] as { value: string }[], disabled: true },
-        [Validators.required, atleastOneSelectionValidator],
+        { value: [] as PartyKeyData[], disabled: true },
+        {
+          validators: [Validators.required, atleastOneSelectionValidator],
+          nonNullable: true,
+        },
       ),
       accountNumbers: new FormControl(
-        { value: [] as AccountNumber[], disabled: true },
-        [Validators.required, atleastOneSelectionValidator],
+        { value: [] as AccountNumberData[], disabled: true },
+        {
+          validators: [Validators.required, atleastOneSelectionValidator],
+          nonNullable: true,
+        },
       ),
       sourceSystems: new FormControl(
-        { value: [] as { value: string }[], disabled: true },
-        [Validators.required, atleastOneSelectionValidator],
+        { value: [] as SourceSysRefreshTimeData[], disabled: true },
+        {
+          validators: [Validators.required, atleastOneSelectionValidator],
+          nonNullable: true,
+        },
       ),
       productTypes: new FormControl(
         { value: [] as { value: string }[], disabled: true },
-        [Validators.required, atleastOneSelectionValidator],
+        {
+          validators: [Validators.required, atleastOneSelectionValidator],
+          nonNullable: true,
+        },
       ),
       reviewPeriods: new FormArray(
         [] as ReturnType<typeof this.createReviewPeriodGroup>[],
-        [overlappingReviewPeriodsValidator],
+        { validators: [overlappingReviewPeriodsValidator] },
       ),
-      caseRecordId: new FormControl(''),
-      etag: new FormControl(Number.NaN),
+      caseRecordId: new FormControl('', { nonNullable: true }),
+      eTag: new FormControl(Number.NaN, { nonNullable: true }),
     },
     {
       updateOn: 'change',
@@ -583,72 +611,63 @@ export class TransactionSearchComponent implements OnInit {
   private loadClick$ = new Subject<void>();
   loadCaseRecord$ = this.loadClick$.pipe(
     map(() => this.searchParamsForm.value.amlId!.trim()),
-    distinctUntilChanged(),
     tap(() => {
       this.isLoading$.next(true);
     }),
     switchMap((amlId) =>
       this.searchService.getAmlPartyAccountInfo(amlId!).pipe(
         combineLatestWith(this.caseRecordService.fetchCaseRecord(amlId)),
-        tap(
-          ([
-            { amlId },
+        tap(([{ amlId }, { caseRecordId, searchParams, eTag }]) => {
+          const {
+            reviewPeriodSelection,
+            partyKeysSelection,
+            accountNumbersSelection,
+            sourceSystemsSelection,
+            productTypesSelection,
+          } = searchParams ?? {};
+          this.searchParamsForm.enable();
+          this.searchParamsForm.controls.reviewPeriods.clear({
+            emitEvent: false,
+          });
+          (reviewPeriodSelection ?? []).forEach((period) => {
+            this.searchParamsForm.controls.reviewPeriods.push(
+              this.createReviewPeriodGroup({
+                start: period.start ?? null,
+                end: period.end ?? null,
+              }),
+            );
+          });
+          this.searchParamsForm.patchValue(
             {
+              amlId: amlId,
+              partyKeys: (partyKeysSelection ?? []).map((p) => ({
+                partyKey: p,
+              })),
+              accountNumbers: accountNumbersSelection ?? [],
+              sourceSystems: (sourceSystemsSelection ?? []).map((s) => ({
+                sourceSys: s,
+              })),
+              productTypes: (productTypesSelection ?? []).map((p) => ({
+                value: p,
+              })),
               caseRecordId,
-              searchParams: {
-                reviewPeriodSelection,
-                partyKeysSelection,
-                accountNumbersSelection,
-                sourceSystemsSelection,
-                productTypesSelection,
-              },
-              etag,
+              eTag,
             },
-          ]) => {
-            this.searchParamsForm.enable();
-            this.searchParamsForm.controls.reviewPeriods.clear({
-              emitEvent: false,
-            });
-            (reviewPeriodSelection ?? []).forEach((period) => {
-              this.searchParamsForm.controls.reviewPeriods.push(
-                this.createReviewPeriodGroup({
-                  start: period.start ?? null,
-                  end: period.end ?? null,
-                }),
-              );
-            });
-            this.searchParamsForm.patchValue(
-              {
-                amlId: amlId,
-                partyKeys: (partyKeysSelection ?? []).map((p) => ({
-                  value: p,
-                })),
-                accountNumbers: accountNumbersSelection ?? [],
-                sourceSystems: (sourceSystemsSelection ?? []).map((s) => ({
-                  value: s,
-                })),
-                productTypes: (productTypesSelection ?? []).map((p) => ({
-                  value: p,
-                })),
-                caseRecordId,
-                etag,
-              },
-              { emitEvent: false }, // prevents value changes emission on aml id which disables form
-            );
+            { emitEvent: false }, // prevents value changes emission on aml id which disables form
+          );
 
-            this.searchParamsBefore = structuredClone(
-              this.searchParamsForm.value,
-            );
-          },
-        ),
+          this.searchParamsBefore = structuredClone(
+            this.searchParamsForm.value,
+          );
+        }),
         catchError((err) => {
           this.errorHandler.handleError(err);
-          return EMPTY;
+          return of();
         }),
         finalize(() => this.isLoading$.next(false)),
       ),
     ),
-    shareReplay(1),
+    shareReplay({ bufferSize: 1, refCount: true }),
   );
 
   searchParamsBefore: typeof this.searchParamsForm.value | null = null;
@@ -657,23 +676,59 @@ export class TransactionSearchComponent implements OnInit {
     map(() => {
       if (!this.searchParamsBefore) return false;
 
-      return !isEqualWith(
-        this.searchParamsForm.value,
-        this.searchParamsBefore,
-        (val1, val2, indexOrKey) => {
-          if (indexOrKey === 'amlId') return true;
-          return undefined;
-        },
-      );
+      const current = this.searchParamsForm.value;
+      const before = this.searchParamsBefore;
+
+      const {
+        accountNumbers: currA = [],
+        partyKeys: currP = [],
+        productTypes: currPt = [],
+        reviewPeriods: currR = [],
+        sourceSystems: currS = [],
+        ...currentRest
+      } = current;
+      const {
+        accountNumbers: befA = [],
+        partyKeys: befP = [],
+        productTypes: befPt = [],
+        reviewPeriods: befR = [],
+        sourceSystems: befS = [],
+        ...beforeRest
+      } = before;
+
+      const arrayChanged =
+        xorWith(
+          [...currA, ...currP, ...currPt, ...currR, ...currS],
+          [...befA, ...befP, ...befPt, ...befR, ...befS],
+          isEqual,
+        ).length > 0;
+
+      const restChanged = !isEqual(currentRest, beforeRest);
+
+      return arrayChanged || restChanged;
     }),
     startWith(false),
   );
 
   partyKeysData$ = this.loadCaseRecord$.pipe(
-    map(([{ partyKeys }]) => {
-      return partyKeys.map((p) => ({ value: p.partyKey }));
+    switchMap(([{ partyKeys }]) => {
+      return forkJoin(
+        partyKeys.map((p) => this.searchService.getPartyInfo(p.partyKey)),
+      ).pipe(
+        catchError((error) => {
+          this.errorHandler.handleError(error);
+          return of();
+        }),
+      );
     }),
+    map((responses) =>
+      responses.map((res) => ({
+        partyKey: res.partyKey,
+        name: formatPartyName(res),
+      })),
+    ),
   );
+
   accountNumbersData$ = this.loadCaseRecord$.pipe(
     map(([{ partyKeys }]) => {
       // gets unique accounts
@@ -682,17 +737,37 @@ export class TransactionSearchComponent implements OnInit {
           partyKeys
             .flatMap((p) => p.accountModels)
             .map((accountModel) => {
-              return accountModel.accountTransit
-                ? `${accountModel.accountNumber.trim()} / ${accountModel.accountTransit.trim()}`
-                : `${accountModel.accountNumber.trim()}`;
+              return `${accountModel.accountTransit?.trim() ?? ''} $ ${accountModel.accountNumber.trim()}`;
             }),
         ),
       ).map((val) => {
-        const [account, transit] = val.split(/\s\/\s/);
+        const [transit, account] = val.split(/\s\$\s/);
         return { transit, account };
       });
     }),
+    switchMap((accountAndTransitArray) => {
+      // If no accounts, return empty array
+      if (accountAndTransitArray.length === 0) {
+        return of([]);
+      }
+
+      // Map each account to an HTTP request observable
+      const requests = accountAndTransitArray.map((account) =>
+        this.searchService
+          .getAccountInfo(account.account)
+          .pipe(map((res) => ({ ...account, ...res }))),
+      );
+
+      // Execute all requests in parallel and wait for all to complete
+      return forkJoin(requests).pipe(
+        catchError((error) => {
+          this.errorHandler.handleError(error);
+          return of();
+        }),
+      );
+    }),
   );
+
   isSourceRefreshTimeLoading = true;
   sourceRefreshTimeData$ = this.searchService.fetchSourceRefreshTime().pipe(
     finalize(() => {
@@ -745,17 +820,26 @@ export class TransactionSearchComponent implements OnInit {
       productTypes,
       reviewPeriods,
       sourceSystems,
-      etag,
+      eTag,
     } = this.searchParamsForm.value;
 
     this.caseRecordService
       .updateCaseRecord(caseRecordId!, {
-        accountNumbersSelection: accountNumbers ?? [],
-        partyKeysSelection: (partyKeys ?? []).map((item) => item.value),
-        productTypesSelection: (productTypes ?? []).map((item) => item.value),
-        reviewPeriodSelection: reviewPeriods ?? [],
-        sourceSystemsSelection: (sourceSystems ?? []).map((item) => item.value),
-        eTag: etag!,
+        searchParams: {
+          accountNumbersSelection: (accountNumbers ?? []).map(
+            ({ transit, account }) => ({
+              transit,
+              account,
+            }),
+          ),
+          partyKeysSelection: (partyKeys ?? []).map((item) => item.partyKey),
+          productTypesSelection: (productTypes ?? []).map((item) => item.value),
+          reviewPeriodSelection: (reviewPeriods ?? []) as ReviewPeriod[],
+          sourceSystemsSelection: (sourceSystems ?? []).map(
+            (item) => item.sourceSys,
+          ),
+        },
+        eTag: eTag!,
       })
       .pipe(
         finalize(() => this.isLoading$.next(false)),
@@ -763,7 +847,9 @@ export class TransactionSearchComponent implements OnInit {
       )
       // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
       .subscribe(() => {
-        this.snackBarQ.open('Updated search parameters');
+        this.snackbarQ.open('Search parameters updated.');
+        this.searchParamsBefore = structuredClone(this.searchParamsForm.value);
+        this.searchParamsForm.updateValueAndValidity();
       });
   }
 
@@ -778,22 +864,6 @@ export class TransactionSearchComponent implements OnInit {
       this.searchParamsForm.controls.reviewPeriods.length === 0
     );
   }
-
-  //               // Set form options for party key/s and account number/s
-
-  //               // Patch only after options are set
-  //             };,
-  //           ),
-  //           finalize(() => {
-  //             this.searchParamsLoadingStateSubject.next(false);
-  //           }),
-  //         ),
-  //       ),
-  //       takeUntilDestroyed(this.destroyRef),
-  //     )
-  //     // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
-  //     .subscribe();
-  // }
 
   // todo: implement loading state in view
   onSearch() {
@@ -817,11 +887,18 @@ export class TransactionSearchComponent implements OnInit {
 
     this.searchService
       .searchTransactions({
-        accountNumbersSelection: accountNumbers ?? [],
-        partyKeysSelection: partyKeys?.map((sel) => sel.value) ?? [],
-        productTypesSelection: productTypes?.map((sel) => sel.value) ?? [],
-        reviewPeriodSelection: reviewPeriods,
-        sourceSystemsSelection: sourceSystems?.map((sel) => sel.value) ?? [],
+        accountNumbersSelection: (accountNumbers ?? []).map(
+          ({ transit, account }) => ({
+            transit,
+            account,
+          }),
+        ),
+        partyKeysSelection: (partyKeys ?? []).map((item) => item.partyKey),
+        productTypesSelection: (productTypes ?? []).map((item) => item.value),
+        reviewPeriodSelection: (reviewPeriods ?? []) as ReviewPeriod[],
+        sourceSystemsSelection: (sourceSystems ?? []).map(
+          (item) => item.sourceSys,
+        ),
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
@@ -831,11 +908,22 @@ export class TransactionSearchComponent implements OnInit {
           {
             state: {
               searchParams: {
-                accountNumbers,
-                partyKeys,
-                productTypes,
-                reviewPeriods,
-                sourceSystems,
+                accountNumbersSelection: (accountNumbers ?? []).map(
+                  ({ transit, account }) => ({
+                    transit,
+                    account,
+                  }),
+                ),
+                partyKeysSelection: (partyKeys ?? []).map(
+                  (item) => item.partyKey,
+                ),
+                productTypesSelection: (productTypes ?? []).map(
+                  (item) => item.value,
+                ),
+                reviewPeriodSelection: (reviewPeriods ?? []) as ReviewPeriod[],
+                sourceSystemsSelection: (sourceSystems ?? []).map(
+                  (item) => item.sourceSys,
+                ),
               },
               searchResult,
             } satisfies RouteExtrasFromSearch,
@@ -845,16 +933,22 @@ export class TransactionSearchComponent implements OnInit {
   }
 
   createReviewPeriodGroup({
-    start = null,
-    end = null,
+    start = '',
+    end = '',
     disabled = false,
-  }: { start?: string | null; end?: string | null; disabled?: boolean } = {}) {
+  }: { start?: string; end?: string; disabled?: boolean } = {}) {
     return new FormGroup(
       {
-        start: new FormControl({ value: start, disabled }, Validators.required),
-        end: new FormControl({ value: end, disabled }, Validators.required),
+        start: new FormControl(
+          { value: start as string, disabled },
+          { validators: Validators.required, nonNullable: true },
+        ),
+        end: new FormControl(
+          { value: end as string, disabled },
+          { validators: Validators.required, nonNullable: true },
+        ),
       },
-      [this.startBeforeEndReviewPeriodValidator],
+      { validators: [this.startBeforeEndReviewPeriodValidator] },
     );
   }
 
@@ -865,14 +959,20 @@ export class TransactionSearchComponent implements OnInit {
     const startControl = (
       control as (typeof this.searchParamsForm.controls.reviewPeriods.controls)[number]
     ).controls.start;
-    const start = ReviewPeriodDateDirective.parse(startControl.value ?? '');
+
+    const start = startControl.value
+      ? ReviewPeriodDateDirective.parse(startControl.value)
+      : null;
 
     const endControl = (
       control as (typeof this.searchParamsForm.controls.reviewPeriods.controls)[number]
     ).controls.end;
-    const end = ReviewPeriodDateDirective.parse(endControl.value ?? '');
 
-    if (!isValid(start) || !isValid(end)) {
+    const end = endControl.value
+      ? ReviewPeriodDateDirective.parse(endControl.value)
+      : null;
+
+    if (!start || !end) {
       return null;
     }
 
@@ -912,16 +1012,19 @@ export class TransactionSearchComponent implements OnInit {
   ) {
     const ctrlValue = this.searchParamsForm.controls.reviewPeriods
       .at(index)
-      .get(controlName)?.value as unknown as Date;
+      .get(controlName)?.value as unknown as string;
+
+    let chosenDate: Date = normalizedYear;
+
+    if (ctrlValue) {
+      chosenDate = setYear(ctrlValue, getYear(normalizedYear));
+    }
 
     this.searchParamsForm.controls.reviewPeriods
       .at(index)
       .get(controlName)
-      ?.setValue(
-        ReviewPeriodDateDirective.format(
-          setYear(ctrlValue, getYear(normalizedYear)),
-        ),
-      );
+      ?.setValue(ReviewPeriodDateDirective.format(chosenDate));
+
     this.searchParamsForm.controls.reviewPeriods
       .at(index)
       .get(controlName)
@@ -938,16 +1041,18 @@ export class TransactionSearchComponent implements OnInit {
   ) {
     const ctrlValue = this.searchParamsForm.controls.reviewPeriods
       .at(index)
-      .get(controlName)?.value as unknown as Date;
+      .get(controlName)?.value as unknown as string;
+
+    let chosenDate: Date = normalizedMonth;
+
+    if (ctrlValue) {
+      chosenDate = setMonth(ctrlValue, getMonth(normalizedMonth));
+    }
 
     this.searchParamsForm.controls.reviewPeriods
       .at(index)
       .get(controlName)
-      ?.setValue(
-        ReviewPeriodDateDirective.format(
-          setMonth(ctrlValue, getMonth(normalizedMonth)),
-        ),
-      );
+      ?.setValue(ReviewPeriodDateDirective.format(chosenDate));
 
     this.searchParamsForm.controls.reviewPeriods
       .at(index)
@@ -991,14 +1096,18 @@ function overlappingReviewPeriodsValidator(
   const periodsArray =
     control as typeof TransactionSearchComponent.prototype.searchParamsForm.controls.reviewPeriods;
   const periods = periodsArray.controls
-    .map((period, index) => ({
-      index,
-
-      start: ReviewPeriodDateDirective.parse(period.controls.start.value ?? ''),
-
-      end: ReviewPeriodDateDirective.parse(period.controls.end.value ?? ''),
-    }))
-    .filter((p) => isValid(p.start) && isValid(p.end))
+    .map((period, index) => {
+      return {
+        index,
+        start: period.controls.start.value
+          ? ReviewPeriodDateDirective.parse(period.controls.start.value)
+          : null,
+        end: period.controls.end.value
+          ? ReviewPeriodDateDirective.parse(period.controls.end.value)
+          : null,
+      };
+    })
+    .filter(({ start, end }) => !!start && !!end)
     .map((p) => ({
       ...p,
       start: p.start,
@@ -1007,11 +1116,11 @@ function overlappingReviewPeriodsValidator(
 
   for (let i = 0; i < periods.length; i++) {
     for (let j = i + 1; j < periods.length; j++) {
-      const startFromReviewPeriod = periods[i].start;
-      const endFromReviewPeriod = periods[i].end;
+      const startFromReviewPeriod = periods[i].start!;
+      const endFromReviewPeriod = periods[i].end!;
 
-      const startToCheck = periods[j].start;
-      const endToCheck = periods[j].end;
+      const startToCheck = periods[j].start!;
+      const endToCheck = periods[j].end!;
 
       if (
         isBefore(startToCheck, startFromReviewPeriod) &&
@@ -1031,15 +1140,27 @@ function overlappingReviewPeriodsValidator(
 }
 
 export interface RouteExtrasFromSearch {
-  searchParams: {
-    accountNumbers: AccountNumber[] | null;
-    partyKeys: { value: string }[] | null;
-    productTypes: { value: string }[] | null;
-    reviewPeriods: Partial<{
-      start: string | null;
-      end: string | null;
-    }>[];
-    sourceSystems: { value: string }[] | null;
-  };
+  searchParams: CaseRecordState['searchParams'];
   searchResult: TransactionSearchResponse;
+}
+
+function formatPartyName(party: {
+  surname: string;
+  givenName: string;
+  otherOrInitial: string;
+  nameOfEntity: string;
+}): string {
+  // If entity name exists, use it (for organizations)
+  if (party.nameOfEntity?.trim()) {
+    return party.nameOfEntity.trim();
+  }
+
+  // Otherwise format individual name
+  const parts = [
+    party.givenName?.trim(),
+    party.otherOrInitial?.trim(),
+    party.surname?.trim(),
+  ].filter(Boolean); // Remove empty/null values
+
+  return parts.join(' ') || 'Unknown';
 }

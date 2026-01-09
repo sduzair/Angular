@@ -1,8 +1,19 @@
-import { inject, Injectable } from '@angular/core';
+import { ErrorHandler, inject, Injectable } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { combineLatest, map, Observable, shareReplay } from 'rxjs';
+import {
+  catchError,
+  combineLatest,
+  EMPTY,
+  forkJoin,
+  map,
+  Observable,
+  of,
+  shareReplay,
+  switchMap,
+} from 'rxjs';
 import { CaseRecordStore } from '../aml/case-record.store';
 import { TransactionDateDirective } from '../reporting-ui/edit-form/transaction-date.directive';
+import { TransactionSearchService } from '../transaction-search/transaction-search.service';
 import {
   CATEGORY_LABEL,
   getSubjectIdAndCategory,
@@ -17,7 +28,9 @@ import {
 
 @Injectable()
 export class AccountMethodsService {
+  private errorHandler = inject(ErrorHandler);
   private caseRecord = inject(CaseRecordStore);
+  private searchService = inject(TransactionSearchService);
 
   private selections$ = this.caseRecord.state$.pipe(
     map(({ selections }) => selections),
@@ -29,20 +42,41 @@ export class AccountMethodsService {
     takeUntilDestroyed(),
   );
 
-  private accountsSelection$ = this.caseRecord.state$.pipe(
+  private accountsInfo$ = this.caseRecord.state$.pipe(
     map(
       ({ searchParams: { accountNumbersSelection } }) =>
         accountNumbersSelection,
+    ),
+    switchMap((accountNumbersSelection) => {
+      return forkJoin(
+        accountNumbersSelection.map((item) =>
+          this.searchService.getAccountInfo(item.account),
+        ),
+      ).pipe(
+        catchError((error) => {
+          this.errorHandler.handleError(error);
+          return of();
+        }),
+      );
+    }),
+    map((responses) =>
+      responses.map(
+        ({ account, accountCurrency: currency, branch: transit }) => ({
+          account,
+          currency,
+          transit,
+        }),
+      ),
     ),
     takeUntilDestroyed(),
   );
 
   private accountMethods$ = combineLatest([
-    this.accountsSelection$,
+    this.accountsInfo$,
     this.partyKeysSelection$,
     this.selections$,
   ]).pipe(
-    map(([accountsSelection, partyKeysSelection, transactionSelections]) => {
+    map(([accountsInfo, partyKeysSelection, transactionSelections]) => {
       const focalSubjects = new Set(partyKeysSelection);
 
       const transactionsCredit = transactionSelections.filter(
@@ -58,7 +92,7 @@ export class AccountMethodsService {
         account: selectedAccount,
         currency: accountCurrency,
         transit,
-      } of accountsSelection) {
+      } of accountsInfo) {
         // CREDITS - funds received into this account
         const methodMapCredits: Partial<Record<MethodKey, MethodVal>> = {};
 

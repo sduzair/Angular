@@ -9,7 +9,6 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
 import { AbstractSelectableTableComponent } from '../abstract-selectable-table/abstract-selectable-table.component';
-import { SourceSysRefreshTime } from '../transaction-search.service';
 
 @Component({
   selector: 'app-source-refresh-selectable-table',
@@ -37,12 +36,12 @@ import { SourceSysRefreshTime } from '../transaction-search.service';
       </ng-container>
 
       <!-- System Column -->
-      <ng-container matColumnDef="system">
+      <ng-container matColumnDef="sourceSys">
         <th mat-header-cell *matHeaderCellDef>System</th>
         <td mat-cell *matCellDef="let element">
           @if (!isLoading) {
             <span>
-              {{ element.value }}
+              {{ element.sourceSys }}
             </span>
           }
           @if (isLoading) {
@@ -84,37 +83,48 @@ import { SourceSysRefreshTime } from '../transaction-search.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SourceRefreshSelectableTableComponent
-  extends AbstractSelectableTableComponent<SourceSysRefreshTime>
+  extends AbstractSelectableTableComponent<SourceSysRefreshTimeData>
   implements ControlValueAccessor
 {
   // initialize with placeholder
   get data() {
     return Array.from({ length: 20 }, () => ({
-      value: '',
+      sourceSys: '',
       refresh: '',
       isDisabled: false,
     }));
   }
 
   @Input({ required: true })
-  set data(value: SourceSysRefreshTime[]) {
+  set data(value: SourceSysRefreshTimeData[]) {
     this.dataSource.data = value;
   }
 
   protected override displayedColumns: (
-    | keyof SourceSysRefreshTime
+    | keyof SourceSysRefreshTimeData
     | (string & {})
-  )[] = ['select', 'system', 'refresh'];
+  )[] = ['select', 'sourceSys', 'refresh'];
+
+  protected override trackingProps: (keyof SourceSysRefreshTimeData)[] = [
+    'sourceSys',
+  ];
 
   protected override getSelectionComparator(): (
-    a: SourceSysRefreshTime,
-    b: SourceSysRefreshTime,
+    a: SourceSysRefreshTimeData,
+    b: SourceSysRefreshTimeData,
   ) => boolean {
-    return (a, b) => a.value === b.value;
+    return (a, b) => a.sourceSys == b.sourceSys;
   }
-  protected override isRowDisabledFn: (row: SourceSysRefreshTime) => boolean = (
-    row: SourceSysRefreshTime,
-  ): boolean => {
+
+  protected override isRowDisabledFn: (
+    row: SourceSysRefreshTimeData,
+  ) => boolean = (row: SourceSysRefreshTimeData): boolean => {
     return row.isDisabled || false;
   };
+}
+
+export interface SourceSysRefreshTimeData {
+  sourceSys: string;
+  refresh?: string | Date | null;
+  isDisabled?: boolean | null;
 }

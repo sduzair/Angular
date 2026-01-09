@@ -16,7 +16,7 @@ import { MatTableDataSource } from '@angular/material/table';
   template: '',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export abstract class AbstractSelectableTableComponent<T>
+export abstract class AbstractSelectableTableComponent<T extends object>
   implements ControlValueAccessor, OnInit
 {
   selection = new SelectionModel<T>(
@@ -44,16 +44,24 @@ export abstract class AbstractSelectableTableComponent<T>
   // Abstract method for custom comparison logic
   protected abstract getSelectionComparator(): (a: T, b: T) => boolean;
 
+  protected abstract trackingProps: (keyof T & (string & {}))[];
+
   // ControlValueAccessor implementation
   writeValue(value: T[]): void {
     this.selection.clear();
     if (value?.length) {
-      this.selection.select(...value);
+      const tPropMapper = trackingPropsMapper<T>(this.trackingProps);
+
+      this.selection.select(...value.map(tPropMapper));
     }
   }
 
   registerOnChange(fn: (value: T[]) => void): void {
-    this.onChange = fn;
+    this.onChange = (value: T[]) => {
+      const tPropMapper = trackingPropsMapper<T>(this.trackingProps);
+
+      fn(value.map(tPropMapper));
+    };
   }
 
   registerOnTouched(fn: () => void): void {
@@ -69,11 +77,6 @@ export abstract class AbstractSelectableTableComponent<T>
   ngOnInit() {
     // initialize table data
     this.dataSource.data = this.data;
-
-    // Always include 'select' as first column if not present
-    if (!this.displayedColumns.includes('select')) {
-      this.displayedColumns = ['select', ...this.displayedColumns];
-    }
 
     this.selection.changed
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -144,3 +147,18 @@ export abstract class AbstractSelectableTableComponent<T>
     );
   }
 }
+
+function trackingPropsMapper<T extends object>(trackingProps: string[]) {
+  return (item: T) =>
+    Object.fromEntries(
+      Object.entries(item).filter(([key, _val]) => trackingProps.includes(key)),
+    ) as T;
+}
+// function trackingPropsMapper<T extends object>(trackingProps: string[]) {
+//   return (item: T) =>
+//     Object.fromEntries(
+//       Object.entries(item).map(([key, val]) =>
+//         trackingProps.includes(key) ? [key, val] : [key, null],
+//       ),
+//     ) as T;
+// }

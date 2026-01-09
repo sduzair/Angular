@@ -14,6 +14,7 @@ mongoimport --uri "$URI" --db "$DB" --collection partyInfo          --file /seed
 mongoimport --uri "$URI" --db "$DB" --collection accountPartyInfo   --file /seed/accountPartyInfo.json   --jsonArray
 mongoimport --uri "$URI" --db "$DB" --collection formOptions        --file /seed/formOptions.json        --jsonArray
 mongoimport --uri "$URI" --db "$DB" --collection caseRecord         --file /seed/caseRecord.json         --jsonArray
+mongoimport --uri "$URI" --db "$DB" --collection accountInfo         --file /seed/accountInfo.json         --jsonArray
 
 mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofCashDeposit.json           --jsonArray
 mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofCashWithdrawal.json        --jsonArray

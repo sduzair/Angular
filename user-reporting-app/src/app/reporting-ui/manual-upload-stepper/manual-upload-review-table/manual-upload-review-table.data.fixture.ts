@@ -996,4 +996,5 @@ export const MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE =
     _hiddenAmlId: '999999',
     _hiddenStrTxnId: txn.flowOfFundsAmlTransactionId,
     changeLogs: [],
+    eTag: 0
   })) satisfies StrTransactionWithChangeLogs[];

@@ -4,7 +4,7 @@ import {
   StrTxnFlowOfFunds,
   WithETag,
 } from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
-import { AccountNumber } from '../transaction-search/transaction-search.service';
+import { AccountNumberSelection } from '../transaction-search/transaction-search.service';
 import {
   CaseRecordState,
   PendingChange,
@@ -86,22 +86,16 @@ export interface FetchCaseRecordRes {
   amlId: string;
   searchParams: {
     partyKeysSelection?: string[] | null;
-    accountNumbersSelection?: AccountNumber[] | null;
+    accountNumbersSelection?: AccountNumberSelection[] | null;
     sourceSystemsSelection?: string[] | null;
     productTypesSelection?: string[] | null;
     reviewPeriodSelection?: ReviewPeriod[] | null;
-  };
+  } | null;
   createdAt: string;
   createdBy: string;
   status: string;
-  etag: number;
+  eTag: number;
   lastUpdated: string;
-}
-
-export interface CreateCaseRecordResp {
-  amlId: string;
-  caseRecordId: string;
-  etag: number;
 }
 
 interface FetchSelectionsRes {
@@ -128,7 +122,15 @@ interface RemoveSelectionsRes {
   count: number;
 }
 
-type UpdateCaseRecordReq = WithETag<CaseRecordState['searchParams']>;
+type UpdateCaseRecordReq = WithETag<{
+  searchParams: {
+    partyKeysSelection: string[];
+    accountNumbersSelection: AccountNumberSelection[];
+    sourceSystemsSelection: string[];
+    productTypesSelection: string[];
+    reviewPeriodSelection: ReviewPeriod[];
+  };
+}>;
 
 type UpdateCaseRecordRes = FetchCaseRecordRes;
 
@@ -137,7 +139,7 @@ export interface SaveChangesReq {
 }
 
 export interface ResetSelectionsRequest {
-  pendingResets: { flowOfFundsAmlTransactionId: string; etag: number }[];
+  pendingResets: { flowOfFundsAmlTransactionId: string; eTag: number }[];
 }
 
 interface SaveChangesRes {

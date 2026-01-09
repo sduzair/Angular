@@ -4,6 +4,7 @@ import { map, timer } from 'rxjs';
 // import { SUBJECT_INFO_BY_PARTY_KEY_DEV_OR_TEST_ONLY_FIXTURE } from '../aml/case-record.state.fixture';
 import { ReviewPeriod } from '../aml/case-record.store';
 import { TableSelectionType } from '../transaction-view/transaction-view.component';
+import { SourceSysRefreshTimeData } from './source-refresh-selectable-table/source-refresh-selectable-table.component';
 // import { TRANSACTION_SEARCH_RES_DEV_ONLY } from './transaction-search.data.fixture';
 // import { ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE } from '../aml/case-record.state.fixture';
 
@@ -31,7 +32,7 @@ export class TransactionSearchService {
     //   }),
     // );
 
-    return this.http.post<GetPartyInfoRes>('/api/partyinfo', partyKey);
+    return this.http.get<GetPartyInfoRes>(`/api/aml/partyinfo/${partyKey}`);
   }
 
   static getProductInfo() {
@@ -80,10 +81,10 @@ export class TransactionSearchService {
         TransactionSearchService.getSourceSystemInfo().map(
           (src) =>
             ({
-              value: src,
+              sourceSys: src,
               refresh: new Date(),
               isDisabled: false,
-            }) as SourceSysRefreshTime,
+            }) as SourceSysRefreshTimeData,
         ),
       ),
     );
@@ -138,23 +139,41 @@ export class TransactionSearchService {
         }),
       );
   }
+
+  getAccountInfo(accountNo: string | number) {
+    // return timer(1000).pipe(
+    //   map(() => ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE),
+    // );
+    return this.http.get<GetAccountInfoRes>(
+      `/api/aml/accountinfo/${accountNo}`,
+    );
+  }
 }
 
-export interface SourceSysRefreshTime {
-  value: string;
-  refresh?: string | Date;
-  isDisabled: boolean;
+interface GetAccountInfoRes {
+  id: string;
+  fiuNo: string;
+  branch: string;
+  account: string;
+  accountType: string;
+  accountTypeOther: null;
+  accountOpen: string;
+  accountClose: string;
+  accountStatus: string;
+  accountCurrency: string;
+  accountHolders: {
+    partyKey: string;
+  }[];
 }
 
-export interface AccountNumber {
+export interface AccountNumberSelection {
   transit: string;
   account: string;
-  currency?: 'CAD' | 'USD' | (string & {});
 }
 
 interface TransactionSearchRequest {
   partyKeysSelection: string[];
-  accountNumbersSelection: AccountNumber[];
+  accountNumbersSelection: AccountNumberSelection[];
   sourceSystemsSelection: string[];
   productTypesSelection: string[];
   reviewPeriodSelection: ReviewPeriod[];
