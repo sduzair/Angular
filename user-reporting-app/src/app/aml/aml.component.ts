@@ -6,24 +6,26 @@ import {
   inject,
   OnInit,
 } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatChip } from '@angular/material/chips';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import {
   ActivatedRouteSnapshot,
   NavigationEnd,
   PRIMARY_OUTLET,
+  ResolveFn,
   Router,
   RouterModule,
   RouterOutlet,
 } from '@angular/router';
 import { filter, map, Observable, startWith } from 'rxjs';
 import { Breadcrumb } from '../app.routes';
-import { CaseRecordStore } from './case-record.store';
-import { MatSidenavModule } from '@angular/material/sidenav';
-import { MatButtonModule } from '@angular/material/button';
 import { ChatbotComponent } from '../chatbot/chatbot.component';
+import { NavTreeService } from '../nav-layout/nav-tree.service';
+import { CaseRecordStore } from './case-record.store';
 
 @Component({
   selector: 'app-aml',
@@ -122,7 +124,7 @@ export class AmlComponent implements OnInit {
   private readonly _router = inject(Router);
   lastUpdated$ = inject(CaseRecordStore).lastUpdated$;
 
-  savingStatus$ = inject(CaseRecordStore).isSaving$;
+  savingStatus$ = inject(CaseRecordStore).qIsSaving$;
 
   breadcrumbs$!: Observable<Breadcrumb[]>;
 
@@ -192,3 +194,17 @@ export class AmlComponent implements OnInit {
     return breadcrumbs;
   }
 }
+
+export const amlNavTreeResolver: ResolveFn<boolean> = (
+  route: ActivatedRouteSnapshot,
+) => {
+  const navTreeService = inject(NavTreeService);
+
+  const amlId = route.paramMap.get('amlId')!;
+
+  if (!navTreeService.hasAmlCase(amlId)) {
+    navTreeService.addAmlCase(amlId);
+  }
+
+  return true;
+};

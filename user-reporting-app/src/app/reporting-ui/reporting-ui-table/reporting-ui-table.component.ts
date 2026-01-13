@@ -44,7 +44,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
     CamelToTitlePipe,
   ],
   template: `
-    @if (savingEdits$ | async; as savingIds) {
+    @if (qSavingEdits$ | async; as savingIds) {
       <app-base-table
         #baseTable
         [data]="(selectionsComputed$ | async) ?? []"
@@ -228,16 +228,16 @@ export class ReportingUiTableComponent implements AfterViewInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   selectionsComputed$ = inject(CaseRecordStore).selectionsComputed$;
-  savingEdits$ = inject(CaseRecordStore).activeSaveIds$;
+  qSavingEdits$ = inject(CaseRecordStore).qActiveSaveIds$;
 
   async openManualUploadStepper() {
     const {
       ManualUploadStepperComponent,
-      MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT,
+      ADD_SELECTIONS_MANUAL_STEPPER_WIDTH_DEFAULT,
     } =
       await import('../manual-upload-stepper/manual-upload-stepper.component');
     this.dialog.open(ManualUploadStepperComponent, {
-      width: MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT,
+      width: ADD_SELECTIONS_MANUAL_STEPPER_WIDTH_DEFAULT,
       panelClass: 'upload-stepper-dialog',
     });
   }
@@ -467,7 +467,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
   filterFormHighlightSideEffect = (
     highlights: { txnId: string; newColor: string }[],
   ) => {
-    this.caseRecordStore.saveHighlightEdits(highlights);
+    this.caseRecordStore.qSaveHighlightEdits(highlights);
   };
 
   private recentlyOpenedRowsSubject = new BehaviorSubject([] as string[]);
@@ -475,9 +475,6 @@ export class ReportingUiTableComponent implements AfterViewInit {
 
   isEditDisabled(row: StrTransactionWithChangeLogs, savingIds: string[]) {
     return savingIds.includes(row.flowOfFundsAmlTransactionId);
-    // return this.savingEdits$.pipe(
-    //   map((ids) => ids.includes(row.flowOfFundsAmlTransactionId)),
-    // );
   }
 
   static getColorForValidationChip(error: _hiddenValidationType): string {
@@ -558,11 +555,11 @@ export class ReportingUiTableComponent implements AfterViewInit {
     const selectedIds = this.baseTable.selection.selected.map(
       (strTxn) => strTxn.flowOfFundsAmlTransactionId,
     );
-    this.caseRecordStore.resetSelections(selectedIds);
+    this.caseRecordStore.qResetSelections(selectedIds);
   }
 
   resetTxn(record: StrTransactionWithChangeLogs) {
-    this.caseRecordStore.resetSelections([record.flowOfFundsAmlTransactionId]);
+    this.caseRecordStore.qResetSelections([record.flowOfFundsAmlTransactionId]);
   }
 
   // template helpers
@@ -570,7 +567,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
   protected isActionHeaderDisabled$?: Observable<boolean>;
   ngAfterViewInit(): void {
     this.isActionHeaderDisabled$ = this.baseTable.hasSelections$.pipe(
-      combineLatestWith(this.caseRecordStore.isSaving$),
+      combineLatestWith(this.caseRecordStore.qIsSaving$),
       map(([hasSelections, isSaving]) => !hasSelections || isSaving),
     );
   }
@@ -587,12 +584,6 @@ export const selectionsComputedResolver: ResolveFn<
   Observable<StrTransactionWithChangeLogs[]>
 > = async () => {
   return inject(CaseRecordStore).selectionsComputed$;
-};
-
-export const activeSaveIdsResolver: ResolveFn<
-  Observable<string[]>
-> = async () => {
-  return inject(CaseRecordStore).activeSaveIds$;
 };
 
 export type _hiddenValidationType =

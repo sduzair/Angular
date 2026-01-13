@@ -220,7 +220,7 @@ describe('EditFormComponent', () => {
     };
   }
 
-  describe('navigate to edit form component for SINGLE_EDIT', () => {
+  describe('navigate to edit form component for SINGLE_SAVE', () => {
     it('should redirect from single edit form to login page when user not logged in', async () => {
       const { harness, authServiceSpy } = await setup();
       const router = TestBed.inject(Router);
@@ -573,7 +573,7 @@ describe('EditFormComponent', () => {
     });
   });
 
-  describe('navigate to edit form component for BULK_EDIT', () => {
+  describe('navigate to edit form component for BULK_SAVE', () => {
     it('should redirect from bulk edit form to login page when user not logged in', async () => {
       const { harness, authServiceSpy } = await setup();
       const router = TestBed.inject(Router);
@@ -662,7 +662,7 @@ describe('EditFormComponent', () => {
 
       // the form object structure includes one sa and ca
       await expectAsync(
-        verify(TRANSACTION_BULK_EDIT_FORM_SRUCTURE),
+        verify(TRANSACTION_BULK_SAVE_FORM_SRUCTURE),
       ).toBeResolved();
     });
 
@@ -750,7 +750,7 @@ describe('EditFormComponent', () => {
 
       await activateTabs(loader);
 
-      const errors = await verify(TRANSACTION_BULK_EDIT_FORM_SRUCTURE);
+      const errors = await verify(TRANSACTION_BULK_SAVE_FORM_SRUCTURE);
 
       expect(errors.length).toBe(0);
       if (errors.length > 0) {
@@ -890,7 +890,7 @@ describe('EditFormComponent', () => {
       await activateTabs(loader);
 
       const removeBtnTestIds = getButtonTestIds(
-        TRANSACTION_BULK_EDIT_FORM_SRUCTURE,
+        TRANSACTION_BULK_SAVE_FORM_SRUCTURE,
       );
 
       for (const btnTestId of removeBtnTestIds) {
@@ -1106,7 +1106,7 @@ describe('EditFormComponent', () => {
 
       await activateTabs(loader);
 
-      const errors = await verify(TRANSACTION_BULK_EDIT_FORM_SRUCTURE);
+      const errors = await verify(TRANSACTION_BULK_SAVE_FORM_SRUCTURE);
 
       expect(errors.length).toBe(0);
       if (errors.length > 0) {
@@ -1588,7 +1588,7 @@ const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
 };
 
 const CASE_RECORD_STATE_FIXTURE: CaseRecordState = {
-  searchResult: [],
+  searchResponse: [],
   caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
   amlId: '9999999',
   searchParams: {
@@ -1637,7 +1637,7 @@ const CASE_RECORD_STATE_FIXTURE: CaseRecordState = {
   lastUpdated: '1996-06-13',
 };
 
-const TRANSACTION_BULK_EDIT_FORM_SRUCTURE: StrTxnEditForm = {
+const TRANSACTION_BULK_SAVE_FORM_SRUCTURE: StrTxnEditForm = {
   wasTxnAttempted: null,
   wasTxnAttemptedReason: null,
   dateOfTxn: null,

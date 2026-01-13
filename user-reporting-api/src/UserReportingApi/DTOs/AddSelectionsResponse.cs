@@ -2,6 +2,7 @@ namespace UserReportingApi.DTOs;
 
 public record AddSelectionsResponse
 (
-    int CaseEtag,
-    int Count
+    int CaseETag,
+    int Count,
+    DateTime LastUpdated
 );

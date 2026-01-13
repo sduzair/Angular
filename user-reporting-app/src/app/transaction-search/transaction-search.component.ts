@@ -626,7 +626,7 @@ export class TransactionSearchComponent implements OnInit {
     }),
     switchMap((amlId) =>
       this.searchService.getAmlPartyAccountInfo(amlId!).pipe(
-        combineLatestWith(this.caseRecordService.fetchCaseRecord(amlId)),
+        combineLatestWith(this.caseRecordService.fetchCaseRecordByAmlId(amlId)),
         tap(([{ amlId }, { caseRecordId, searchParams, eTag }]) => {
           const {
             reviewPeriodSelection,
@@ -859,7 +859,7 @@ export class TransactionSearchComponent implements OnInit {
       )
       // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
       .subscribe(() => {
-        this.snackbarQ.open('Search parameters updated.');
+        this.snackbarQ.open('Saved changes to search parameters');
         this.searchParamsBefore = structuredClone(this.searchParamsForm.value);
         this.searchParamsForm.updateValueAndValidity();
       });
@@ -930,32 +930,33 @@ export class TransactionSearchComponent implements OnInit {
       )
       // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
       .subscribe((searchResult) => {
-        // this.router.navigate(
-        //   ['/aml', this.searchParamsForm.value.amlId!, 'transaction-view'],
-        //   {
-        //     state: {
-        //       searchParams: {
-        //         accountNumbersSelection: (accountNumbers ?? []).map(
-        //           ({ transit, account }) => ({
-        //             transit,
-        //             account,
-        //           }),
-        //         ),
-        //         partyKeysSelection: (partyKeys ?? []).map(
-        //           (item) => item.partyKey,
-        //         ),
-        //         productTypesSelection: (productTypes ?? []).map(
-        //           (item) => item.value,
-        //         ),
-        //         reviewPeriodSelection: (reviewPeriods ?? []) as ReviewPeriod[],
-        //         sourceSystemsSelection: (sourceSystems ?? []).map(
-        //           (item) => item.sourceSys,
-        //         ),
-        //       },
-        //       searchResult,
-        //     } satisfies RouteExtrasFromSearch,
-        //   },
-        // );
+        this.router.navigate(
+          ['/aml', this.searchParamsForm.value.amlId!, 'transaction-view'],
+          {
+            state: {
+              searchParams: {
+                accountNumbersSelection: (accountNumbers ?? []).map(
+                  ({ transit, account }) => ({
+                    transit,
+                    account,
+                  }),
+                ),
+                partyKeysSelection: (partyKeys ?? []).map(
+                  (item) => item.partyKey,
+                ),
+                productTypesSelection: (productTypes ?? []).map(
+                  (item) => item.value,
+                ),
+                reviewPeriodSelection: (reviewPeriods ?? []) as ReviewPeriod[],
+                sourceSystemsSelection: (sourceSystems ?? []).map(
+                  (item) => item.sourceSys,
+                ),
+              },
+              searchResult,
+              caseRecordId: this.searchParamsForm.value.caseRecordId!,
+            } satisfies RouteExtrasFromSearch,
+          },
+        );
       });
   }
 
@@ -1169,6 +1170,7 @@ function overlappingReviewPeriodsValidator(
 export interface RouteExtrasFromSearch {
   searchParams: CaseRecordState['searchParams'];
   searchResult: TransactionSearchResponse;
+  caseRecordId: string;
 }
 
 function formatPartyName(party: {

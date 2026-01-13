@@ -22,8 +22,13 @@ import {
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
+import {
+  FORM_OPTIONS_DETAILS_OF_DISPOSITION,
+  FORM_OPTIONS_TYPE_OF_FUNDS,
+} from '../../reporting-ui/edit-form/form-options.service';
 import { StrTransaction } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import { SnackbarQueueService } from '../../snackbar-queue.service';
+import { AccountNumberData } from '../../transaction-search/account-number-selectable-table/account-number-selectable-table.component';
 import {
   getTxnMethod,
   METHOD_ENUM,
@@ -33,7 +38,6 @@ import {
   formatNodeDataAsHtml,
   getNodeDataTextToCopy,
 } from './clipboardHelper';
-import { AccountNumberData } from '../../transaction-search/account-number-selectable-table/account-number-selectable-table.component';
 
 // Register only what you need
 echarts.use([
@@ -322,7 +326,7 @@ export function buildNodesAndAccountHolderLinks({
     accountHolders = [],
     typeOfFunds: saTypeOfFunds,
   } of transaction.startingActions) {
-    const typeOfFunds = saTypeOfFunds as TYPE_OF_FUNDS;
+    const typeOfFunds = saTypeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS;
 
     const isAccountInfoMissingSA = !saAccount && typeOfFunds !== 'Cash';
 
@@ -435,7 +439,8 @@ export function buildNodesAndAccountHolderLinks({
     accountHolders = [],
     detailsOfDispo: caDetailsOfDispo,
   } of transaction.completingActions) {
-    const detailsOfDispo = caDetailsOfDispo as DETAILS_OF_DISPOSITION;
+    const detailsOfDispo =
+      caDetailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION;
 
     const isAccountInfoMissingCA =
       !caAccount && detailsOfDispo !== 'Cash Withdrawal';
@@ -590,8 +595,9 @@ export function buildTransactionLinks({
           focalSubjects,
         );
 
-        const typeOfFunds = saTypeOfFunds as TYPE_OF_FUNDS;
-        const detailsOfDispo = caDetailsOfDispo as DETAILS_OF_DISPOSITION;
+        const typeOfFunds = saTypeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS;
+        const detailsOfDispo =
+          caDetailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION;
         const txnMethod =
           getTxnMethod(typeOfFunds, detailsOfDispo, methodOfTxn) ??
           METHOD_ENUM.Unknown;
@@ -979,20 +985,6 @@ interface Subject {
   otherOrInitial: string | null;
   nameOfEntity: string | null;
 }
-
-export type TYPE_OF_FUNDS =
-  | 'Funds withdrawal'
-  | 'Cash'
-  | 'Cheque'
-  | 'Domestic Funds Transfer'
-  | 'Email money transfer'
-  | 'International Funds Transfer';
-
-export type DETAILS_OF_DISPOSITION =
-  | 'Deposit to account'
-  | 'Cash Withdrawal'
-  | 'Issued Cheque'
-  | 'Outgoing email money transfer';
 
 export type Link = NonNullable<GraphSeriesOption['links']>[number] &
   LinkAccountHolderOrTransaction;

@@ -8,7 +8,7 @@ export const CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE =
   '33a41dcc-ab8e-4a9b-89ea-c6a2fec46356';
 
 export const CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE: CaseRecordState = {
-  searchResult: TRANSACTION_SEARCH_RES_DEV_ONLY,
+  searchResponse: TRANSACTION_SEARCH_RES_DEV_ONLY,
   caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
   amlId: String(AML_ID_DEV_OR_TEST_ONLY_FIXTURE),
   searchParams: {
@@ -70,32 +70,6 @@ export const ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE = {
     },
   ],
 };
-
-export const SUBJECT_INFO_BY_ACCOUNT_DEV_OR_TEST_ONLY_FIXTURE = [
-  {
-    accountTransit: '84255',
-    accountNumber: '5582195',
-    partyKeys: ['3415674561', '1846597320'],
-  },
-  {
-    accountTransit: '31980',
-    accountNumber: '8692413',
-    partyKeys: ['3415674561', '1846597320'],
-  },
-  {
-    accountTransit: '87594',
-    accountNumber: '5647218',
-    partyKeys: ['3415674561', '1846597320'],
-  },
-  {
-    accountNumber: '4242424242424242',
-    partyKeys: ['3415674561'],
-  },
-  {
-    accountNumber: '5555555555554444',
-    partyKeys: ['1846597320'],
-  },
-];
 
 export const SUBJECT_INFO_BY_PARTY_KEY_DEV_OR_TEST_ONLY_FIXTURE = [
   {

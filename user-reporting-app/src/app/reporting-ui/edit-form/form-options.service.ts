@@ -18,7 +18,7 @@ export class FormOptionsService {
   private fetchFormOptions() {
     // Simulating HTTP call with of()
     // return of(FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE).pipe(delay(2000));
-    return this.http.get<FormOptions>('/api/formoptions');
+    return this.http.get<FormOptions>('/api/aml/formoptions');
   }
 }
 
@@ -65,9 +65,35 @@ export interface FormOptions {
   };
   detailsOfDisposition: {
     'Deposit to account': string;
-    'Cash Withdrawal': string;
+    'Cash Withdrawal (account based)': string;
     'Issued Cheque': string;
     'Outgoing email money transfer': string;
     Other: string;
   };
 }
+
+export type FORM_OPTIONS_ACCOUNT_TYPE =
+  | 'Business'
+  | 'Casino'
+  | 'Personal'
+  | 'Other';
+
+export type FORM_OPTIONS_TYPE_OF_FUNDS =
+  | 'Funds withdrawal'
+  | 'Cash'
+  | 'Cheque'
+  | 'Domestic Funds Transfer'
+  | 'Email money transfer'
+  | 'International Funds Transfer';
+
+export type FORM_OPTIONS_DETAILS_OF_DISPOSITION =
+  | 'Deposit to account'
+  | 'Cash Withdrawal'
+  | 'Issued Cheque'
+  | 'Outgoing email money transfer';
+
+export type FORM_OPTIONS_METHOD_OF_TXN =
+  | 'ABM'
+  | 'In-Person'
+  | 'Online'
+  | 'Other';

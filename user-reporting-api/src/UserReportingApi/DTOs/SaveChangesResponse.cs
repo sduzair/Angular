@@ -4,5 +4,7 @@ public record SaveChangesResponse
 (
     string Message,
     int Requested,
-    int Succeeded
+    int Succeeded,
+    string UpdatedBy,
+    DateTime UpdatedAt
 );

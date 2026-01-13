@@ -123,7 +123,7 @@ export const TRANSACTION_SEARCH_RES_DEV_ONLY: TransactionSearchResponse = [
     ] as EmtSourceData[],
   },
   {
-    sourceId: 'Wires',
+    sourceId: 'Wire',
     status: 'completed',
     sourceData: [...inWireData] as WireSourceData[],
   },

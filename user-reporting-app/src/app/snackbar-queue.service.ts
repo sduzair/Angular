@@ -28,7 +28,7 @@ export class SnackbarQueueService {
     this.queue$.next({
       message,
       action,
-      config: { duration: 1000, ...config },
+      config: { duration: 4000, ...config },
     });
   }
 

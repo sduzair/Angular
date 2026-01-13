@@ -13,12 +13,13 @@ import { TableSelectionType } from './transaction-view.component';
 
 @Component({ template: '', changeDetection: ChangeDetectionStrategy.OnPush })
 export abstract class AbstractTransactionViewComponent {
-  readonly searchResult$ = inject(CaseRecordStore).state$.pipe(
-    map(({ searchResult }) => searchResult),
+  protected _caseRecordStore = inject(CaseRecordStore);
+  readonly searchResponse$ = this._caseRecordStore.state$.pipe(
+    map(({ searchResponse }) => searchResponse),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  readonly selections$ = inject(CaseRecordStore).state$.pipe(
+  readonly selections$ = this._caseRecordStore.state$.pipe(
     map(({ selections }) => {
       return selections.map(
         (txn) =>
@@ -30,7 +31,7 @@ export abstract class AbstractTransactionViewComponent {
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  searchFlowOfFundsSet$ = this.searchResult$.pipe(
+  searchFlowOfFundsSet$ = this.searchResponse$.pipe(
     map((search) => {
       return new Set(
         search
@@ -40,7 +41,7 @@ export abstract class AbstractTransactionViewComponent {
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
-  searchAbmSet$ = this.searchResult$.pipe(
+  searchAbmSet$ = this.searchResponse$.pipe(
     map((search) => {
       return new Set(
         search
@@ -51,7 +52,7 @@ export abstract class AbstractTransactionViewComponent {
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  searchOlbSet$ = this.searchResult$.pipe(
+  searchOlbSet$ = this.searchResponse$.pipe(
     map((search) => {
       return new Set(
         search
@@ -61,7 +62,7 @@ export abstract class AbstractTransactionViewComponent {
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
-  searchEmtSet$ = this.searchResult$.pipe(
+  searchEmtSet$ = this.searchResponse$.pipe(
     map((search) => {
       return new Set(
         search
@@ -71,11 +72,11 @@ export abstract class AbstractTransactionViewComponent {
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
-  searchWiresSet$ = this.searchResult$.pipe(
+  searchWiresSet$ = this.searchResponse$.pipe(
     map((search) => {
       return new Set(
         search
-          .find((source) => source.sourceId === 'Wires')
+          .find((source) => source.sourceId === 'Wire')
           ?.sourceData.map((txn) => txn.flowOfFundsAmlTransactionId),
       );
     }),
@@ -94,18 +95,18 @@ export abstract class AbstractTransactionViewComponent {
     return o1.flowOfFundsAmlTransactionId === o2.flowOfFundsAmlTransactionId;
   }
 
-  protected selectionsCurrent$ = this.selectionModel$.pipe(
+  protected _selectionsCurrent$ = this.selectionModel$.pipe(
     switchMap((selectionModel) =>
       selectionModel.changed.pipe(
         map(() => selectionModel.selected),
         startWith(selectionModel.selected),
       ),
     ),
+    debounceTime(200),
     shareReplay({ bufferSize: 1, refCount: true }), // Share among multiple subscribers
   );
 
-  fofSourceDataSelectionCount$ = this.selectionsCurrent$.pipe(
-    debounceTime(200),
+  fofSourceDataSelectionCount$ = this._selectionsCurrent$.pipe(
     combineLatestWith(this.searchFlowOfFundsSet$),
     map(
       ([selections, fofSet]) =>
@@ -114,8 +115,7 @@ export abstract class AbstractTransactionViewComponent {
     ),
   );
 
-  abmSourceDataSelectionCount$ = this.selectionsCurrent$.pipe(
-    debounceTime(200),
+  abmSourceDataSelectionCount$ = this._selectionsCurrent$.pipe(
     combineLatestWith(this.searchAbmSet$),
     map(
       ([selections, abmSet]) =>
@@ -124,8 +124,7 @@ export abstract class AbstractTransactionViewComponent {
     ),
   );
 
-  olbSourceDataSelectionCount$ = this.selectionsCurrent$.pipe(
-    debounceTime(200),
+  olbSourceDataSelectionCount$ = this._selectionsCurrent$.pipe(
     combineLatestWith(this.searchOlbSet$),
     map(
       ([selections, olbSet]) =>
@@ -134,8 +133,7 @@ export abstract class AbstractTransactionViewComponent {
     ),
   );
 
-  emtSourceDataSelectionCount$ = this.selectionsCurrent$.pipe(
-    debounceTime(200),
+  emtSourceDataSelectionCount$ = this._selectionsCurrent$.pipe(
     combineLatestWith(this.searchEmtSet$),
     map(
       ([selections, emtSet]) =>
@@ -144,8 +142,7 @@ export abstract class AbstractTransactionViewComponent {
     ),
   );
 
-  wiresSourceDataSelectionCount$ = this.selectionsCurrent$.pipe(
-    debounceTime(200),
+  wiresSourceDataSelectionCount$ = this._selectionsCurrent$.pipe(
     combineLatestWith(this.searchWiresSet$),
     map(
       ([selections, wiresSet]) =>

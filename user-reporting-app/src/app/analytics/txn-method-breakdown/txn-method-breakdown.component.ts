@@ -1,3 +1,4 @@
+import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -11,6 +12,9 @@ import {
   ViewChild,
 } from '@angular/core';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIcon } from '@angular/material/icon';
+import { MatSelectModule } from '@angular/material/select';
 import { PieChart } from 'echarts/charts';
 import {
   GraphicComponent,
@@ -25,15 +29,12 @@ import {
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { StrTransaction } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
-import {
-  DETAILS_OF_DISPOSITION,
-  TYPE_OF_FUNDS,
-} from '../circular/circular.component';
-import { CommonModule } from '@angular/common';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSelectModule } from '@angular/material/select';
-import { MatIcon } from '@angular/material/icon';
 import { formatCurrencyLocal } from '../circular/circular.component';
+import {
+  FORM_OPTIONS_DETAILS_OF_DISPOSITION,
+  FORM_OPTIONS_METHOD_OF_TXN,
+  FORM_OPTIONS_TYPE_OF_FUNDS,
+} from '../../reporting-ui/edit-form/form-options.service';
 
 echarts.use([
   PieChart,
@@ -421,8 +422,6 @@ interface MethodData {
 
 type ViewMode = 'credits' | 'debits';
 
-type METHOD_OF_TXN = 'ABM' | 'In-Person' | 'In-Person' | 'Online' | 'Other';
-
 interface ChartData {
   name: string;
   value: number;
@@ -451,14 +450,15 @@ export const METHOD_FRIENDLY_NAME = {
 };
 
 export function getTxnMethod(
-  typeOfFunds: TYPE_OF_FUNDS | (string & {}) | null,
-  detailsOfDispo: DETAILS_OF_DISPOSITION | (string & {}) | null,
+  typeOfFunds: FORM_OPTIONS_TYPE_OF_FUNDS | (string & {}) | null,
+  detailsOfDispo: FORM_OPTIONS_DETAILS_OF_DISPOSITION | (string & {}) | null,
   methodOfTxn: string | null,
 ) {
-  const typeOfFundsType = typeOfFunds as TYPE_OF_FUNDS | null;
-  const detailsOfDispoType = detailsOfDispo as DETAILS_OF_DISPOSITION | null;
+  const typeOfFundsType = typeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS | null;
+  const detailsOfDispoType =
+    detailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION | null;
   // note: method of txn may not be identical to txn method which is used for purposes of charting
-  const methodOfTxnType = methodOfTxn as METHOD_OF_TXN | null;
+  const methodOfTxnType = methodOfTxn as FORM_OPTIONS_METHOD_OF_TXN | null;
 
   let method;
 

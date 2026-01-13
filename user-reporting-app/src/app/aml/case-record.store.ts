@@ -1,6 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import {
-  DestroyRef,
   ErrorHandler,
   Injectable,
   InjectionToken,
@@ -13,6 +12,7 @@ import {
   EMPTY,
   Observable,
   Subject,
+  forkJoin,
   map,
   merge,
   of,
@@ -51,14 +51,17 @@ import {
   TransactionSearchResponse,
 } from '../transaction-search/transaction-search.service';
 import {
-  AddSelectionsReq,
-  CaseRecordService,
+  AddSelectionsRequest,
+  PendingChange,
+  RemoveSelectionsRequest,
   ResetSelectionsRequest,
-  SaveChangesReq,
-} from './case-record.service';
+  SaveChangesRequest,
+  SelectionsService,
+} from '../transaction-view/selections.service';
+import { CaseRecordService } from './case-record.service';
 
 export const DEFAULT_CASE_RECORD_STATE: CaseRecordState = {
-  searchResult: [],
+  searchResponse: [],
   caseRecordId: '',
   amlId: '',
   searchParams: {
@@ -85,8 +88,8 @@ export const CASE_RECORD_INITIAL_STATE = new InjectionToken<CaseRecordState>(
 
 @Injectable()
 export class CaseRecordStore implements OnDestroy {
-  private api = inject(CaseRecordService);
-  private destroyRef = inject(DestroyRef);
+  private selectionsService = inject(SelectionsService);
+  private caseRecordService = inject(CaseRecordService);
   private errorHandler = inject(ErrorHandler);
   private readonly initialState = inject(CASE_RECORD_INITIAL_STATE);
   private auth = inject(AuthService);
@@ -107,11 +110,11 @@ export class CaseRecordStore implements OnDestroy {
   );
 
   // --- SAVING STATUS ---
-  private _activeSaveIds$ = new BehaviorSubject<string[]>([]);
-  activeSaveIds$ = this._activeSaveIds$.asObservable();
-  isSaving$ = this.activeSaveIds$.pipe(map((txns) => txns.length > 0));
+  private _qActiveSaveIds$ = new BehaviorSubject<string[]>([]);
+  public qActiveSaveIds$ = this._qActiveSaveIds$.asObservable();
+  qIsSaving$ = this.qActiveSaveIds$.pipe(map((txns) => txns.length > 0));
 
-  private completedSaveIds$ = this.activeSaveIds$.pipe(
+  private completedSaveIds$ = this.qActiveSaveIds$.pipe(
     pairwise(),
     map(([prev, curr]) => {
       // IDs that were being saved but are now complete
@@ -130,36 +133,19 @@ export class CaseRecordStore implements OnDestroy {
   }
 
   private markSavesAsComplete(incomingSaves: string[]) {
-    const remaining = [...this._activeSaveIds$.value];
+    const remaining = [...this._qActiveSaveIds$.value];
     incomingSaves.forEach((id) => {
       const index = remaining.indexOf(id);
       if (index > -1) {
         remaining.splice(index, 1);
       }
     });
-    this._activeSaveIds$.next(remaining);
+    this._qActiveSaveIds$.next(remaining);
   }
 
   constructor() {
     // Subscribe immediately to ensure str transaction data accumulates from first emission
-    this.selectionsComputed$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        error: () => {
-          console.assert(
-            false,
-            'Assert errors are handled gracefully in pipeline',
-          );
-        },
-      });
-
-    // Activate the highlight saves pipeline
-    this.highlightEditsSave$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe();
-
-    // Start accepting pending changes for saving
-    this.updateQueue$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.selectionsComputed$.pipe(takeUntilDestroyed()).subscribe({
       error: () => {
         console.assert(
           false,
@@ -167,6 +153,31 @@ export class CaseRecordStore implements OnDestroy {
         );
       },
     });
+
+    // Activate the highlight saves pipeline
+    this.highlightEditsSave$.pipe(takeUntilDestroyed()).subscribe();
+
+    // Start accepting pending changes for saving
+    this.updateQueue$.pipe(takeUntilDestroyed()).subscribe({
+      error: () => {
+        console.assert(
+          false,
+          'Assert errors are handled gracefully in pipeline',
+        );
+      },
+    });
+
+    this.conflict$
+      .pipe(
+        switchMap(() => {
+          return forkJoin([
+            this.fetchCaseRecordByAmlId(this._state$.value.amlId),
+            this.fetchSelections(),
+          ]);
+        }),
+        takeUntilDestroyed(),
+      )
+      .subscribe();
   }
 
   ngOnDestroy(): void {
@@ -175,7 +186,7 @@ export class CaseRecordStore implements OnDestroy {
     // Complete all Subjects
     this._state$.complete();
     this.conflict$.complete();
-    this._activeSaveIds$.complete();
+    this._qActiveSaveIds$.complete();
     this._updateQueue$.complete();
     this.highlightEdits$.complete();
     this.resetHiglightsAccumulator$.complete();
@@ -186,7 +197,7 @@ export class CaseRecordStore implements OnDestroy {
     map(
       ({
         selections: currentSelections,
-        selectionsToChange = [],
+        selectionsWithPendingChanges: selectionsToChange = [],
         selectionsToAdd = [],
       }) => {
         if (selectionsToChange.length > 0)
@@ -196,7 +207,10 @@ export class CaseRecordStore implements OnDestroy {
           );
 
         if (selectionsToAdd.length > 0)
-          return addSelectionsHandler(currentSelections, selectionsToAdd);
+          return computeAddedSelectionsHandler(
+            currentSelections,
+            selectionsToAdd,
+          );
 
         return computeFullChangesHandler(currentSelections);
       },
@@ -209,57 +223,57 @@ export class CaseRecordStore implements OnDestroy {
         return acc;
       }
     }, [] as StrTransactionWithChangeLogs[]),
-    takeUntilDestroyed(this.destroyRef),
+    takeUntilDestroyed(),
     shareReplay({ bufferSize: 1, refCount: false }), // stream never dies in aml component scope
   );
 
   // --- EDIT QUEUE ---
   private _updateQueue$ = new Subject<
     | {
-        editType: 'SINGLE_EDIT';
+        editType: 'SINGLE_SAVE';
         flowOfFundsAmlTransactionId: string;
         editFormValue: EditFormValueType;
       }
     | {
-        editType: 'BULK_EDIT';
+        editType: 'BULK_SAVE';
         editFormValue: EditFormValueType;
         selectionIds: StrTransaction['flowOfFundsAmlTransactionId'][];
       }
     | { editType: 'HIGHLIGHT'; highlightsMap: Map<string, string> }
     | {
-        editType: 'MANUAL_UPLOAD';
-        manualTransactions: StrTransactionWithChangeLogs[];
+        editType: 'ADD_SELECTIONS_MANUAL';
+        manualSelections: StrTransactionWithChangeLogs[];
       }
     | {
-        editType: 'RESET_TXNS';
+        editType: 'RESET_SELECTIONS';
         selectionIds: StrTransaction['flowOfFundsAmlTransactionId'][];
       }
   >();
 
   private updateQueue$ = this._updateQueue$.asObservable().pipe(
     map((edit) => {
-      const existingSaveIds = this._activeSaveIds$.value;
+      const existingSaveIds = this._qActiveSaveIds$.value;
       let incomingSaves: string[] = [];
 
-      if (edit.editType === 'SINGLE_EDIT') {
+      if (edit.editType === 'SINGLE_SAVE') {
         incomingSaves = [edit.flowOfFundsAmlTransactionId];
       }
-      if (edit.editType === 'BULK_EDIT') {
+      if (edit.editType === 'BULK_SAVE') {
         incomingSaves = edit.selectionIds;
       }
       if (edit.editType === 'HIGHLIGHT') {
         incomingSaves = Array.from(edit.highlightsMap.keys());
       }
-      if (edit.editType === 'MANUAL_UPLOAD') {
-        incomingSaves = edit.manualTransactions.map(
+      if (edit.editType === 'ADD_SELECTIONS_MANUAL') {
+        incomingSaves = edit.manualSelections.map(
           (txn) => txn.flowOfFundsAmlTransactionId,
         );
       }
-      if (edit.editType === 'RESET_TXNS') {
+      if (edit.editType === 'RESET_SELECTIONS') {
         incomingSaves = edit.selectionIds;
       }
 
-      this._activeSaveIds$.next([...existingSaveIds, ...incomingSaves]);
+      this._qActiveSaveIds$.next([...existingSaveIds, ...incomingSaves]);
       return { edit, incomingSaves };
     }),
     concatMap(({ edit, incomingSaves }) => {
@@ -267,11 +281,11 @@ export class CaseRecordStore implements OnDestroy {
         withLatestFrom(this.selectionsComputed$),
         map(([edit, selectionsComputed]) => {
           const { editType } = edit;
-          const pendingChanges: SaveChangesReq['pendingChanges'] = [];
-          const newTransactions: StrTransactionWithChangeLogs[] = [];
-          const resetSelections: ResetSelectionsRequest['pendingResets'] = [];
+          const pendingChanges: SaveChangesRequest['pendingChanges'] = [];
+          const selectionsToAdd: StrTransactionWithChangeLogs[] = [];
+          const selectionsToReset: ResetSelectionsRequest['pendingResets'] = [];
 
-          if (editType === 'SINGLE_EDIT') {
+          if (editType === 'SINGLE_SAVE') {
             const { editFormValue, flowOfFundsAmlTransactionId } = edit;
             const changeLogs = ChangeLog.generateChangeLogs(
               selectionsComputed.find(
@@ -295,7 +309,7 @@ export class CaseRecordStore implements OnDestroy {
             });
           }
 
-          if (editType === 'BULK_EDIT') {
+          if (editType === 'BULK_SAVE') {
             const { selectionIds: selections, editFormValue } = edit;
             selections.forEach((selection) => {
               const transactionBefore = selectionsComputed.find(
@@ -353,12 +367,12 @@ export class CaseRecordStore implements OnDestroy {
             }
           }
 
-          if (editType === 'MANUAL_UPLOAD') {
-            const { manualTransactions } = edit;
-            newTransactions.push(...manualTransactions);
+          if (editType === 'ADD_SELECTIONS_MANUAL') {
+            const { manualSelections: manualTransactions } = edit;
+            selectionsToAdd.push(...manualTransactions);
           }
 
-          if (editType === 'RESET_TXNS') {
+          if (editType === 'RESET_SELECTIONS') {
             const { selectionIds: tableSelections } = edit;
             const tableSelectionsSet = new Set(tableSelections);
 
@@ -375,47 +389,40 @@ export class CaseRecordStore implements OnDestroy {
                 eTag,
               }));
 
-            resetSelections.push(...selectionsWithChanges);
+            selectionsToReset.push(...selectionsWithChanges);
           }
 
           return {
             editType,
             pendingChanges,
-            newTransactions,
-            resetSelections,
+            selectionsToAdd,
+            selectionsToReset,
           };
         }),
-        filter(({ pendingChanges, newTransactions, resetSelections }) => {
+        filter(({ pendingChanges, selectionsToAdd, selectionsToReset }) => {
           const hasChanges =
             pendingChanges.length > 0 ||
-            newTransactions.length > 0 ||
-            resetSelections.length > 0;
+            selectionsToAdd.length > 0 ||
+            selectionsToReset.length > 0;
+
           if (!hasChanges) {
             this.markSavesAsComplete(incomingSaves);
           }
           return hasChanges;
         }),
-        switchMap(({ pendingChanges, newTransactions, resetSelections }) => {
-          let payload: AddSelectionsReq | SaveChangesReq;
-
-          if (newTransactions.length > 0) {
-            const { eTag } = this._state$.value;
-            payload = {
-              selections: newTransactions,
-              caseETag: eTag,
-            };
-            return this.addSelections(payload);
+        switchMap(({ pendingChanges, selectionsToAdd, selectionsToReset }) => {
+          if (selectionsToAdd.length > 0) {
+            return this.addSelections(selectionsToAdd);
           }
 
           if (pendingChanges.length > 0) {
-            payload = {
+            return this.saveChanges({
               pendingChanges,
-            };
-            return this.editSelections(payload);
+            });
           }
 
-          if (resetSelections.length > 0) {
-            return this._resetSelections(resetSelections);
+          if (selectionsToReset.length > 0) {
+            return this._resetSelections(selectionsToReset);
           }
 
           throw new Error('Unknown edit type');
@@ -431,7 +438,7 @@ export class CaseRecordStore implements OnDestroy {
         }),
       );
     }),
-    takeUntilDestroyed(this.destroyRef),
+    takeUntilDestroyed(),
     share(),
   );
 
@@ -441,7 +448,7 @@ export class CaseRecordStore implements OnDestroy {
   >();
   private resetHiglightsAccumulator$ = new Subject<void>();
 
-  highlightEditsSave$ = merge(
+  private highlightEditsSave$ = merge(
     this.highlightEdits$.pipe(
       map((highlightEdits) => {
         return {
@@ -474,29 +481,14 @@ export class CaseRecordStore implements OnDestroy {
     tap((highlightsMap) =>
       this._updateQueue$.next({ editType: 'HIGHLIGHT', highlightsMap }),
     ),
-    takeUntilDestroyed(this.destroyRef),
+    takeUntilDestroyed(),
   );
 
   // --- PUBLIC ACTIONS ---
-  saveEditForm(
-    edit: ExtractSubjectType<typeof CaseRecordStore.prototype._updateQueue$>,
-  ) {
-    this._updateQueue$.next(edit);
-  }
-
-  saveHighlightEdits(
-    highlights: ExtractSubjectType<
-      typeof CaseRecordStore.prototype.highlightEdits$
-    >,
-  ) {
-    this.highlightEdits$.next(highlights);
-  }
-
-  saveManualTransactions(manualTransactions: StrTransactionWithChangeLogs[]) {
-    const manualTransactionsClone = structuredClone(manualTransactions);
-    this._updateQueue$.next({
-      editType: 'MANUAL_UPLOAD',
-      manualTransactions: manualTransactionsClone,
+  setSearchResult(searchResult: TransactionSearchResponse) {
+    this._state$.next({
+      ...this._state$.value,
+      searchResponse: searchResult,
     });
   }
 
@@ -508,16 +500,44 @@ export class CaseRecordStore implements OnDestroy {
     });
   }
 
-  resetSelections(selectionIds: string[]) {
+  setCaseRecordId(caseRecordId: string) {
+    this._state$.next({
+      ...this._state$.value,
+      caseRecordId,
+    });
+  }
+
+  qSaveEditForm(
+    edit: ExtractSubjectType<typeof CaseRecordStore.prototype._updateQueue$>,
+  ) {
+    this._updateQueue$.next(edit);
+  }
+
+  qSaveHighlightEdits(
+    highlights: ExtractSubjectType<
+      typeof CaseRecordStore.prototype.highlightEdits$
+    >,
+  ) {
+    this.highlightEdits$.next(highlights);
+  }
+
+  qAddManualSelections(manualTransactions: StrTransactionWithChangeLogs[]) {
     this._updateQueue$.next({
-      editType: 'RESET_TXNS',
+      editType: 'ADD_SELECTIONS_MANUAL',
+      manualSelections: manualTransactions,
+    });
+  }
+
+  qResetSelections(selectionIds: string[]) {
+    this._updateQueue$.next({
+      editType: 'RESET_SELECTIONS',
       selectionIds,
     });
   }
 
   // --- API PROXIES ---
   fetchCaseRecordByAmlId(amlId: string) {
-    return this.api.fetchCaseRecord(amlId).pipe(
+    return this.caseRecordService.fetchCaseRecordByAmlId(amlId).pipe(
       tap(
         ({
           caseRecordId,
@@ -555,54 +575,112 @@ export class CaseRecordStore implements OnDestroy {
           });
         },
       ),
-      // access case record state directly
-      map(() => undefined),
+      // access case record state from state
+      map(() => true),
     );
   }
 
   public fetchSelections() {
-    return this.api.fetchSelections(this._state$.value.caseRecordId).pipe(
-      tap(({ selections }) => {
-        this._state$.next({
-          ...this._state$.value,
-          selections: selections,
-        });
-      }),
-    );
+    return this.selectionsService
+      .fetchSelections(this._state$.value.caseRecordId)
+      .pipe(
+        tap((selections) => {
+          this._state$.next({
+            ...this._state$.value,
+            selections: selections,
+          });
+        }),
+      );
   }
 
-  private addSelections(payload: AddSelectionsReq) {
-    const { caseRecordId } = this._state$.value;
-    const payloadClone = structuredClone(payload);
-    return this.api.addSelections(caseRecordId, payloadClone).pipe(
-      tap(() => {
-        const { selections } = payloadClone;
-        this._state$.next({
-          ...this._state$.value,
-          selections: [...this._state$.value.selections, ...selections],
-          lastUpdated: new Date().toISOString().split('T')[0],
-        });
-      }),
-      catchError((error: HttpErrorResponse) => {
-        // Handle errors gracefully
-        this.errorHandler.handleError(error);
+  public addSelections(selections: AddSelectionsRequest['selections']) {
+    if (selections.length === 0) return of({ count: 0 });
 
-        if (error.status === 409) {
-          // note: no recovery from this state
-          this.conflict$.next();
-        }
+    const { caseRecordId, eTag: caseETag } = this._state$.value;
 
-        return of();
-      }),
-    );
+    const selectionsClone = structuredClone(selections);
+    return this.selectionsService
+      .addSelections(caseRecordId, { caseETag, selections: selectionsClone })
+      .pipe(
+        tap(({ caseETag: newCaseETag, lastUpdated }) => {
+          this._state$.next({
+            ...this._state$.value,
+            selections: [
+              ...this._state$.value.selections,
+              ...selectionsClone.map(
+                (sel) =>
+                  ({
+                    ...sel,
+                    eTag: 0,
+                    caseRecordId,
+                    changeLogs: [],
+                  }) satisfies StrTransactionWithChangeLogs,
+              ),
+            ],
+            selectionsToAdd: selectionsClone.map(
+              (sel) => sel.flowOfFundsAmlTransactionId,
+            ),
+            eTag: newCaseETag,
+            lastUpdated,
+          });
+        }),
+        catchError((error: HttpErrorResponse) => {
+          // Handle errors gracefully
+          this.errorHandler.handleError(error);
+
+          // Conflict triggers refresh of selections
+          if (error.status === 409) {
+            this.conflict$.next();
+          }
+
+          return EMPTY;
+        }),
+        // access selections directly from state
+        map(({ count }) => ({ count })),
+      );
   }
 
-  private editSelections(payload: SaveChangesReq) {
+  public removeSelections(selections: RemoveSelectionsRequest['selectionIds']) {
+    if (selections.length === 0) return of({ count: 0 });
+
+    const { caseRecordId, eTag: caseETag } = this._state$.value;
+
+    return this.selectionsService
+      .removeSelections(caseRecordId, { caseETag, selectionIds: selections })
+      .pipe(
+        tap(({ caseETag: newCaseETag, lastUpdated }) => {
+          this._state$.next({
+            ...this._state$.value,
+            selections: [
+              ...this._state$.value.selections.filter(
+                (sel) => !selections.includes(sel.flowOfFundsAmlTransactionId),
+              ),
+            ],
+            eTag: newCaseETag,
+            lastUpdated,
+          });
+        }),
+        catchError((error: HttpErrorResponse) => {
+          // Handle errors gracefully
+          this.errorHandler.handleError(error);
+
+          // Conflict triggers refresh of selections
+          if (error.status === 409) {
+            this.conflict$.next();
+          }
+
+          return EMPTY;
+        }),
+        map(({ count }) => ({ count })),
+      );
+  }
+
+  private saveChanges(payload: SaveChangesRequest) {
     const { caseRecordId } = this._state$.value;
 
     const payloadClone = structuredClone(payload);
-    return this.api.saveChanges(caseRecordId, payloadClone).pipe(
-      tap(() => {
+    return this.selectionsService.saveChanges(caseRecordId, payloadClone).pipe(
+      tap(({ updatedAt, updatedBy }) => {
         const { pendingChanges } = payloadClone;
 
         pendingChanges
@@ -610,6 +688,7 @@ export class CaseRecordStore implements OnDestroy {
           .forEach(
             ({
               flowOfFundsAmlTransactionId,
+              eTag,
               changeLogs: pendingChangeLogs,
             }) => {
               const txn = this._state$.value.selections.find(
@@ -621,9 +700,9 @@ export class CaseRecordStore implements OnDestroy {
               txn.changeLogs.push(
                 ...pendingChangeLogs.map((changeLog) => ({
                   ...changeLog,
-                  eTag: (txn.changeLogs.at(-1)?.eTag ?? 0) + 1,
-                  updatedBy: this.auth.currentUser()?.username!,
-                  updatedAt: new Date().toISOString(),
+                  eTag: eTag + 1,
+                  updatedBy,
+                  updatedAt,
                 })),
               );
             },
@@ -633,10 +712,9 @@ export class CaseRecordStore implements OnDestroy {
           ...this._state$.value,
           amlId: this._state$.value.amlId,
           selections: this._state$.value.selections,
-          selectionsToChange: pendingChanges.map(
+          selectionsWithPendingChanges: pendingChanges.map(
             ({ flowOfFundsAmlTransactionId }) => flowOfFundsAmlTransactionId,
           ),
-          lastUpdated: new Date().toISOString().split('T')[0],
         });
       }),
       catchError((error: HttpErrorResponse) => {
@@ -646,67 +724,54 @@ export class CaseRecordStore implements OnDestroy {
         // Conflict triggers refresh of selections
         if (error.status === 409) {
           this.conflict$.next();
-          return this.fetchSelections().pipe(switchMap(() => EMPTY));
         }
 
-        return of();
+        return EMPTY;
       }),
     );
   }
 
   private _resetSelections(
     pendingResets: ResetSelectionsRequest['pendingResets'],
-  ): Observable<void> {
+  ) {
     const { caseRecordId } = this._state$.value;
 
-    return this.api.resetSelections(caseRecordId, pendingResets).pipe(
-      tap(() => {
-        const selectionIdsSet = new Set(
-          pendingResets.map((item) => item.flowOfFundsAmlTransactionId),
-        );
+    return this.selectionsService
+      .resetSelections(caseRecordId, { pendingResets })
+      .pipe(
+        tap(() => {
+          const selectionIdsSet = new Set(
+            pendingResets.map((item) => item.flowOfFundsAmlTransactionId),
+          );
 
-        for (const selection of this._state$.value.selections) {
-          if (!selectionIdsSet.has(selection.flowOfFundsAmlTransactionId))
-            continue;
+          for (const selection of this._state$.value.selections) {
+            if (!selectionIdsSet.has(selection.flowOfFundsAmlTransactionId))
+              continue;
 
-          selection.eTag = 0;
-          selection.changeLogs = [];
-        }
+            selection.eTag = 0;
+            selection.changeLogs = [];
+          }
 
-        this._state$.next({
-          ...this._state$.value,
-          amlId: this._state$.value.amlId,
-          selections: this._state$.value.selections,
-          selectionsToChange: [...selectionIdsSet.values()],
-          lastUpdated: new Date().toISOString().split('T')[0],
-        });
-      }),
-      catchError((error: HttpErrorResponse) => {
-        // Handle errors gracefylly
-        this.errorHandler.handleError(error);
+          this._state$.next({
+            ...this._state$.value,
+            amlId: this._state$.value.amlId,
+            selections: this._state$.value.selections,
+            selectionsWithPendingChanges: [...selectionIdsSet.values()],
+          });
+        }),
+        catchError((error: HttpErrorResponse) => {
+          // Handle errors gracefylly
+          this.errorHandler.handleError(error);
 
-        // Conflict triggers refresh of selections
-        if (error.status === 409) {
-          this.conflict$.next();
-          return this.fetchSelections().pipe(switchMap(() => EMPTY));
-        }
+          // Conflict triggers refresh of selections
+          if (error.status === 409) {
+            this.conflict$.next();
+          }
 
-        return of();
-      }),
-    );
+          return EMPTY;
+        }),
+      );
   }
-
-  setSearchResult(searchResult: TransactionSearchResponse) {
-    this._state$.next({
-      ...this._state$.value,
-      searchResult,
-    });
-  }
-}
-
-export interface PendingChange {
-  flowOfFundsAmlTransactionId: string;
-  changeLogs: ChangeLog.ChangeLogType[];
 }
 
 export interface CaseRecordState {
@@ -727,10 +792,9 @@ export interface CaseRecordState {
 
   selections: StrTransactionWithChangeLogs[];
   // table partial update use
-  selectionsToChange?: PendingChange['flowOfFundsAmlTransactionId'][];
+  selectionsWithPendingChanges?: PendingChange['flowOfFundsAmlTransactionId'][];
   selectionsToAdd?: StrTransactionWithChangeLogs['flowOfFundsAmlTransactionId'][];
-
-  searchResult: TransactionSearchResponse;
+  searchResponse: TransactionSearchResponse;
 }
 
 // Hidden props prefixed with '_hidden' are ignored by the change logging service.
@@ -739,12 +803,13 @@ export type StrTransactionWithChangeLogs = StrTransaction & {
   caseRecordId: string;
   changeLogs: ChangeLogAudit[];
   _hiddenValidation?: _hiddenValidationType[];
-  [key: string]: unknown;
+  // [key: string]: unknown;
 };
 
 type ChangeLogAudit = WithETag<ChangeLog.ChangeLogType> & {
   updatedAt: string;
   updatedBy: string;
+  eTag: number;
 };
 
 export interface StrTransactionChangeLogs {
@@ -774,7 +839,9 @@ const computeFullChangesHandler = (
 
 const computePartialChangesHandler = (
   selections: StrTransactionWithChangeLogs[],
-  selectionsToRecompute: NonNullable<CaseRecordState['selectionsToChange']>,
+  selectionsToRecompute: NonNullable<
+    CaseRecordState['selectionsWithPendingChanges']
+  >,
 ) => {
   return (acc: StrTransactionWithChangeLogs[]) => {
     const recomputedSelections = selections
@@ -799,7 +866,7 @@ const computePartialChangesHandler = (
   };
 };
 
-const addSelectionsHandler = (
+const computeAddedSelectionsHandler = (
   strTransactions: StrTransactionWithChangeLogs[],
   addedSelections: NonNullable<CaseRecordState['selectionsToAdd']>,
 ) => {

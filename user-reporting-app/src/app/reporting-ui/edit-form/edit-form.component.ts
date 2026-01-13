@@ -3592,15 +3592,15 @@ export class EditFormComponent implements AfterViewChecked {
     ),
     map(([editType, auditVersion]) => {
       switch (editType.type) {
-        case 'SINGLE_EDIT':
+        case 'SINGLE_SAVE':
           return this.createEditForm({
             txn: editType.payload,
-            options: { editType: 'SINGLE_EDIT' },
+            options: { editType: 'SINGLE_SAVE' },
           });
 
-        case 'BULK_EDIT':
+        case 'BULK_SAVE':
           return this.createEditForm({
-            options: { editType: 'BULK_EDIT', disabled: true },
+            options: { editType: 'BULK_SAVE', disabled: true },
           });
 
         case 'AUDIT_REQUEST': {
@@ -3677,7 +3677,7 @@ export class EditFormComponent implements AfterViewChecked {
               if (indexOrKey === '_id') return true;
 
               if (
-                this.editType().type === 'BULK_EDIT' &&
+                this.editType().type === 'BULK_SAVE' &&
                 isDepProp(indexOrKey as ChangeLog.DepPropType)
               )
                 return true;
@@ -3718,18 +3718,18 @@ export class EditFormComponent implements AfterViewChecked {
     this.isSaved = true;
 
     const editType = this.editType();
-    if (editType.type === 'SINGLE_EDIT') {
-      this.caseRecordStore.saveEditForm({
-        editType: 'SINGLE_EDIT',
+    if (editType.type === 'SINGLE_SAVE') {
+      this.caseRecordStore.qSaveEditForm({
+        editType: 'SINGLE_SAVE',
         flowOfFundsAmlTransactionId:
           editType.payload.flowOfFundsAmlTransactionId,
         editFormValue: this.editForm!.getRawValue(),
       });
     }
 
-    if (editType.type === 'BULK_EDIT') {
-      this.caseRecordStore.saveEditForm({
-        editType: 'BULK_EDIT',
+    if (editType.type === 'BULK_SAVE') {
+      this.caseRecordStore.qSaveEditForm({
+        editType: 'BULK_SAVE',
         editFormValue: this.editForm!.value,
         selectionIds: editType.payload,
       });
@@ -3747,7 +3747,7 @@ export class EditFormComponent implements AfterViewChecked {
     options: { editType: EditType; disabled?: boolean };
   }) {
     const { editType, disabled = false } = options;
-    const createEmptyArrays = editType === 'BULK_EDIT';
+    const createEmptyArrays = editType === 'BULK_SAVE';
 
     const editForm = new FormGroup(
       {
@@ -3759,7 +3759,7 @@ export class EditFormComponent implements AfterViewChecked {
           value: ChangeLog.getToggleInitVal(
             'wasTxnAttempted',
             txn?.wasTxnAttempted,
-            editType === 'BULK_EDIT',
+            editType === 'BULK_SAVE',
           ),
           disabled,
         }),
@@ -3779,7 +3779,7 @@ export class EditFormComponent implements AfterViewChecked {
           value: ChangeLog.getToggleInitVal(
             'hasPostingDate',
             txn?.hasPostingDate,
-            editType === 'BULK_EDIT',
+            editType === 'BULK_SAVE',
           ),
           disabled,
         }),
@@ -3865,7 +3865,7 @@ export class EditFormComponent implements AfterViewChecked {
     options: { editType: EditType; disabled: boolean };
   }) {
     const { editType, disabled } = options;
-    const createEmptyArrays = editType === 'BULK_EDIT';
+    const createEmptyArrays = editType === 'BULK_SAVE';
 
     const sAction = action;
     if (sAction?.accountHolders)
@@ -3961,7 +3961,7 @@ export class EditFormComponent implements AfterViewChecked {
           value: ChangeLog.getToggleInitVal(
             'hasAccountHolders',
             action?.hasAccountHolders,
-            editType === 'BULK_EDIT',
+            editType === 'BULK_SAVE',
           ),
           disabled,
         }),
@@ -3984,7 +3984,7 @@ export class EditFormComponent implements AfterViewChecked {
           value: ChangeLog.getToggleInitVal(
             'wasSofInfoObtained',
             action?.wasSofInfoObtained,
-            editType === 'BULK_EDIT',
+            editType === 'BULK_SAVE',
           ),
           disabled,
         }),
@@ -4007,7 +4007,7 @@ export class EditFormComponent implements AfterViewChecked {
           value: ChangeLog.getToggleInitVal(
             'wasCondInfoObtained',
             action?.wasCondInfoObtained,
-            editType === 'BULK_EDIT',
+            editType === 'BULK_SAVE',
           ),
           disabled,
         }),
@@ -4053,7 +4053,7 @@ export class EditFormComponent implements AfterViewChecked {
     options: { editType: EditType; disabled: boolean };
   }) {
     const { editType, disabled } = options;
-    const createEmptyArrays = editType === 'BULK_EDIT';
+    const createEmptyArrays = editType === 'BULK_SAVE';
 
     const cAction = action;
     if (cAction?.accountHolders)
@@ -4164,7 +4164,7 @@ export class EditFormComponent implements AfterViewChecked {
           value: ChangeLog.getToggleInitVal(
             'wasAnyOtherSubInvolved',
             action?.wasAnyOtherSubInvolved,
-            editType === 'BULK_EDIT',
+            editType === 'BULK_SAVE',
           ),
           disabled,
         }),
@@ -4187,7 +4187,7 @@ export class EditFormComponent implements AfterViewChecked {
           value: ChangeLog.getToggleInitVal(
             'wasBenInfoObtained',
             action?.wasBenInfoObtained,
-            editType === 'BULK_EDIT',
+            editType === 'BULK_SAVE',
           ),
           disabled,
         }),
@@ -4892,10 +4892,10 @@ export class EditFormComponent implements AfterViewChecked {
 
   // template helpers
   protected get isSingleEdit() {
-    return this.editType().type === 'SINGLE_EDIT';
+    return this.editType().type === 'SINGLE_SAVE';
   }
   protected get isBulkEdit() {
-    return this.editType().type === 'BULK_EDIT';
+    return this.editType().type === 'BULK_SAVE';
   }
   protected get isAudit() {
     return this.editType().type === 'AUDIT_REQUEST';
@@ -4923,7 +4923,7 @@ export class EditFormComponent implements AfterViewChecked {
 
   protected get selectedTransactionsForBulkEditLength() {
     const editType = this.editType();
-    if (editType.type !== 'BULK_EDIT') {
+    if (editType.type !== 'BULK_SAVE') {
       return -1;
     }
     return editType.payload.length;
@@ -5105,7 +5105,7 @@ export const singleEditTypeResolver: ResolveFn<EditFormEditType> = (
       );
       if (!strTransaction) throw new Error('Transaction not found');
       return {
-        type: 'SINGLE_EDIT',
+        type: 'SINGLE_SAVE',
         payload: structuredClone(
           strTransaction,
         ) as StrTransactionWithChangeLogs,
@@ -5134,7 +5134,7 @@ export const bulkEditTypeResolver: ResolveFn<EditFormEditType> = (
         strTransactions.length === selectedTransactionsForBulkEdit.length,
       );
       return {
-        type: 'BULK_EDIT',
+        type: 'BULK_SAVE',
         payload: selectedTransactionsForBulkEdit,
       };
     }),
@@ -5207,11 +5207,11 @@ export type StrTxnEditForm = RecursiveOmit<
 
 export type EditFormEditType =
   | {
-      type: 'SINGLE_EDIT';
+      type: 'SINGLE_SAVE';
       payload: StrTransactionWithChangeLogs;
     }
   | {
-      type: 'BULK_EDIT';
+      type: 'BULK_SAVE';
       payload: StrTransaction['flowOfFundsAmlTransactionId'][];
     }
   | {

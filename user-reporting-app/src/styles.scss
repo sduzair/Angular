@@ -215,10 +215,16 @@ html {
   height: 900px;
 }
 
-:root {
-  @include mat.snack-bar-overrides(
-    (
-      button-color: var(--mat-sys-inverse-primary),
-    )
+.mat-mdc-snack-bar-label {
+  background-color: var(
+    --mat-snack-bar-container-color,
+    var(--mat-sys-inverse-surface)
+  );
+}
+
+.mat-mdc-snack-bar-label.mdc-snackbar__label {
+  border-radius: var(
+    --mat-snack-bar-container-shape,
+    var(--mat-sys-corner-extra-small)
   );
 }

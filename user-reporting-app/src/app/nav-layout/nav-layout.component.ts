@@ -27,14 +27,7 @@ import {
   RouterOutlet,
 } from '@angular/router';
 import { filter } from 'rxjs';
-
-interface NavNode {
-  name: string;
-  route?: string; // Optional: Parents might not have a route
-  children?: NavNode[];
-  matIcon: string;
-  id: string; // unique ID for tracking
-}
+import { NavTreeService } from './nav-tree.service';
 
 @Component({
   selector: 'app-nav-layout',
@@ -51,17 +44,13 @@ interface NavNode {
     MatTreeNodePadding,
   ],
   template: `
-    <!-- d-flex flex-column h-100: Full height flex container -->
     <mat-sidenav-container class="d-flex flex-column h-100 overflow-hidden">
-      <!-- w-auto: Width auto adapts to content (or set fixed width like style="width: 250px") -->
-      <!-- border-end: Bootstrap border utility -->
       <mat-sidenav
         mode="side"
         opened
         disableClose
         fixedInViewport
         class="app-nav border-end shadow-sm">
-        <!-- px-3: Horizontal padding -->
         <mat-toolbar class="px-3 mb-2 border-bottom">
           <span>Poacher UI</span>
         </mat-toolbar>
@@ -72,7 +61,6 @@ interface NavNode {
           [childrenAccessor]="childrenAccessor"
           [trackBy]="trackById"
           class="px-2">
-          <!-- PARENT NODE TEMPLATE -->
           <mat-tree-node
             *matTreeNodeDef="let node; when: hasChild"
             matTreeNodePadding
@@ -99,7 +87,6 @@ interface NavNode {
             </div>
           </mat-tree-node>
 
-          <!-- LEAF NODE TEMPLATE -->
           <mat-tree-node
             *matTreeNodeDef="let node"
             class="py-1"
@@ -109,7 +96,6 @@ interface NavNode {
               routerLinkActive="app-hover-bg-active"
               class="d-flex align-items-center w-100 p-1 rounded app-hover-bg text-decoration-none transition-base"
               style="cursor: pointer;">
-              <!-- use ms-4 to indent to align with parent text (skips toggle button (chevron_right) width) -->
               <mat-icon class="me-2">
                 {{ node.matIcon }}
               </mat-icon>
@@ -131,80 +117,27 @@ interface NavNode {
 export class NavLayoutComponent implements AfterViewInit {
   @ViewChild(MatTree) tree!: MatTree<NavNode>;
 
-  // Initial Data matching your Route Config
-  private data: NavNode[] = [
-    {
-      name: 'Transaction Search',
-      route: '/transactionsearch',
-      matIcon: 'search',
-      id: '/transactionsearch',
-    },
-    {
-      name: 'AML-12345',
-      matIcon: 'folder_shared',
-      id: 'AML-12345',
-      children: [
-        {
-          name: 'Transaction View',
-          route: '/aml/12345/transaction-view',
-          matIcon: 'compare_arrows',
-          id: '/aml/12345/transaction-view',
-        },
-        {
-          name: 'Reporting UI',
-          route: '/aml/12345/reporting-ui',
-          matIcon: 'table_chart',
-          id: '/aml/12345/reporting-ui',
-        },
-        {
-          name: 'Analytics',
-          route: '/aml/12345/analytics',
-          matIcon: 'analytics',
-          id: '/aml/12345/analytics',
-        },
-      ],
-    },
-  ];
+  private readonly navTreeService = inject(NavTreeService);
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
+
+  dataSource!: ArrayDataSource<NavNode>;
 
   childrenAccessor = (node: NavNode) => node.children ?? [];
-  dataSource = new ArrayDataSource<NavNode>(this.data);
   hasChild = (_: number, node: NavNode) => !!node.children?.length;
-  trackById: TrackByFunction<NavNode> = (_index: number, item: NavNode) => {
-    return item.id;
-  };
+  trackById: TrackByFunction<NavNode> = (_index: number, item: NavNode) =>
+    item.id;
 
-  // Example method to dynamically add an AML case
-  addAmlCase(amlId: string) {
-    const newNode: NavNode = {
-      name: `AML-${amlId}`,
-      matIcon: 'folder_shared',
-      id: `AML-${amlId}`,
-      children: [
-        {
-          name: 'Transaction View',
-          route: `/aml/${amlId}/transaction-view`,
-          matIcon: 'compare_arrows',
-          id: `/aml/${amlId}/transaction-view`,
-        },
-        {
-          name: 'Reporting Table',
-          route: `/aml/${amlId}/reporting-ui`,
-          matIcon: 'table_chart',
-          id: `/aml/${amlId}/reporting-ui`,
-        },
-      ],
-    };
-
-    this.data = [...this.data, newNode];
-    this.dataSource = new ArrayDataSource<NavNode>(this.data);
-
-    // Auto-expand the new node
-    queueMicrotask(() => this.tree.expand(newNode));
+  constructor() {
+    // Subscribe to tree data changes
+    this.navTreeService.treeData$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
+      .subscribe((data) => {
+        this.dataSource = new ArrayDataSource<NavNode>(data);
+      });
   }
 
-  // Manages the expansion state.
-  private readonly router = inject(Router);
-  private destroyRef = inject(DestroyRef);
   ngAfterViewInit() {
     queueMicrotask(() => this.expandActivePath());
 
@@ -223,22 +156,16 @@ export class NavLayoutComponent implements AfterViewInit {
     if (!this.tree) return;
 
     const currentUrl = this.router.url;
+    const data = this.navTreeService.currentTreeData;
 
-    // Traverse data to find nodes that should be open
-    this.data.forEach((node) => {
+    data.forEach((node) => {
       this.checkAndExpand(node, currentUrl);
     });
   }
 
-  /**
-   * Recursively checks this node or any descendant is active.
-   * If true, expands THIS node.
-   */
   private checkAndExpand(node: NavNode, url: string): boolean {
-    // 1. Check direct match (optional, usually leaf doesn't need expanding but parent does)
     const isDirectMatch = node.route && url.includes(node.route);
 
-    // 2. Check children
     let hasActiveChild = false;
     if (node.children?.length) {
       hasActiveChild = node.children.some((child) =>
@@ -253,4 +180,12 @@ export class NavLayoutComponent implements AfterViewInit {
 
     return isDirectMatch || false;
   }
+}
+
+export interface NavNode {
+  name: string;
+  route?: string; // Optional: Parents might not have a route
+  children?: NavNode[];
+  matIcon: string;
+  id: string; // unique ID for tracking
 }

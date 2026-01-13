@@ -382,9 +382,11 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
       map((arrayBuffer) => read(arrayBuffer)),
       map((wb) => {
         const ws: WorkSheet = wb.Sheets[wb.SheetNames[0]];
-        const customProps = wb.Custprops as typeof MANUAL_UPLOAD_FILE_VERSION;
+        const customProps =
+          wb.Custprops as typeof ADD_SELECTIONS_MANUAL_FILE_VERSION;
         if (
-          customProps.manualupload !== MANUAL_UPLOAD_FILE_VERSION.manualupload
+          customProps.manualupload !==
+          ADD_SELECTIONS_MANUAL_FILE_VERSION.manualupload
         ) {
           throw new Error('Unknown manual upload file');
         }
@@ -427,7 +429,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
   protected sessionDataService = inject(CaseRecordStore);
   onUpload(stepper: MatStepper) {
     this.stepperFormGroup.controls.readyForUpload.setValue(true);
-    this.sessionDataService.saveManualTransactions(this.parsedData);
+    this.sessionDataService.qAddManualSelections(this.parsedData);
     // After successful upload, move to next step
     this.sessionDataService
       .whenCompleted(this.parsedData.map((d) => d.flowOfFundsAmlTransactionId))
@@ -450,19 +452,25 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
   onStepChange(event: StepperSelectionEvent): void {
     switch (event.selectedIndex) {
       case 0: // Step 1: Upload
-        this.dialogRef.updateSize(MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT, '');
+        this.dialogRef.updateSize(
+          ADD_SELECTIONS_MANUAL_STEPPER_WIDTH_DEFAULT,
+          '',
+        );
         break;
       case 1: // Step 2: Preview data
         this.dialogRef.updateSize('920px', ''); // Wider for table
         break;
       case 2: // Step 3: Success
-        this.dialogRef.updateSize(MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT, '');
+        this.dialogRef.updateSize(
+          ADD_SELECTIONS_MANUAL_STEPPER_WIDTH_DEFAULT,
+          '',
+        );
         break;
     }
   }
 }
 
-export const MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT = '600px';
+export const ADD_SELECTIONS_MANUAL_STEPPER_WIDTH_DEFAULT = '600px';
 
 export type ColumnHeaderLabels =
   (typeof ReportingUiTableComponent.displayColumnHeaderMap)[keyof typeof ReportingUiTableComponent.displayColumnHeaderMap];
@@ -506,4 +514,4 @@ function readyForUploadValidator(): (
   };
 }
 
-const MANUAL_UPLOAD_FILE_VERSION = { manualupload: 'v0.1' } as const;
+const ADD_SELECTIONS_MANUAL_FILE_VERSION = { manualupload: 'v0.1' } as const;

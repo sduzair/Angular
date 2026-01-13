@@ -10,6 +10,7 @@ using MongoDB.Driver;
 using UserReportingApi.DTOs;
 using UserReportingApi.Entities;
 using UserReportingApi.DTOs.Json;
+using System.Text.Json.Serialization;
 
 namespace UserReportingApi.IntegrationTests;
 
@@ -60,7 +61,12 @@ public class UsersSessionsTests
         ]);
 
         // Act
-        var response = await _client.GetAsync("/api/transaction/search");
+        var response = await _client.PostAsJsonAsync("/api/transaction/search", new TransactionSearchRequest(
+            PartyKeysSelection: [],
+            AccountNumbersSelection: [],
+            ProductTypesSelection: [],
+            ReviewPeriodSelection: [],
+            SourceSystemsSelection: []));
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -85,7 +91,12 @@ public class UsersSessionsTests
     public async Task TransactionSearch_EmptyCollections_ReturnsEmptySourceData()
     {
         // Act
-        var response = await _client.GetAsync("/api/transaction/search");
+        var response = await _client.PostAsJsonAsync("/api/transaction/search", new TransactionSearchRequest(
+            PartyKeysSelection: [],
+            AccountNumbersSelection: [],
+            ProductTypesSelection: [],
+            ReviewPeriodSelection: [],
+            SourceSystemsSelection: []));
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -121,7 +132,7 @@ public class UsersSessionsTests
             LastUpdated = DateTime.UtcNow
         };
 
-        await _testDb.GetCollection<CaseRecord>("caseRecords").InsertOneAsync(caseRecord);
+        await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
 
         // Act
         var response = await _client.GetAsync($"/api/aml/{caseRecord.AmlId}/caserecord");
@@ -171,7 +182,7 @@ public class UsersSessionsTests
             LastUpdated = null
         };
 
-        await _testDb.GetCollection<CaseRecord>("caseRecords").InsertOneAsync(caseRecord);
+        await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
 
         var updateRequest = new UpdateCaseRecordRequest
         (
@@ -210,7 +221,7 @@ public class UsersSessionsTests
             LastUpdated = DateTime.UtcNow
         };
 
-        await _testDb.GetCollection<CaseRecord>("caseRecords").InsertOneAsync(caseRecord);
+        await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
 
         var OUTDATED_ETAG = 3;
         var updateRequest = new UpdateCaseRecordRequest(SearchParams: new SearchParams(), ETag: OUTDATED_ETAG);
@@ -294,7 +305,7 @@ public class UsersSessionsTests
             ETag = 2
         };
 
-        await _testDb.GetCollection<CaseRecord>("caseRecords").InsertOneAsync(caseRecord);
+        await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
 
         var request = new AddSelectionsRequest
         (
@@ -350,7 +361,7 @@ public class UsersSessionsTests
             ETag = 5
         };
 
-        await _testDb.GetCollection<CaseRecord>("caseRecords").InsertOneAsync(caseRecord);
+        await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
 
         var request = new AddSelectionsRequest
         (
@@ -385,7 +396,7 @@ public class UsersSessionsTests
             ETag = 1
         };
 
-        await _testDb.GetCollection<CaseRecord>("caseRecords").InsertOneAsync(caseRecord);
+        await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
 
         var selections = new[]
         {
@@ -408,7 +419,7 @@ public class UsersSessionsTests
         var request = new RemoveSelectionsRequest
         (
             CaseETag: 1,
-            Selections: ["txn-to-delete"]
+            SelectionIds: ["txn-to-delete"]
         );
 
         // Act
@@ -446,7 +457,7 @@ public class UsersSessionsTests
             ETag = 2
         };
 
-        await _testDb.GetCollection<CaseRecord>("caseRecords").InsertOneAsync(caseRecord);
+        await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
 
         var selections = new[] {
             new Selection
@@ -468,7 +479,7 @@ public class UsersSessionsTests
         var request = new RemoveSelectionsRequest
         (
             CaseETag: 1, // Wrong ETag
-            Selections: ["txn-to-delete"]
+            SelectionIds: ["txn-to-delete"]
         );
 
 
@@ -709,6 +720,69 @@ public class UsersSessionsTests
 
     #endregion
 
+    #region Account Info
+
+    [Fact]
+    public async Task GetAccountInfo_ExistingAccount_ReturnsOk_WithAccountInfo()
+    {
+        // Arrange
+        var doc = new AccountInfo
+        {
+            Id = "507f1f77bcf86cd799439011",
+            FiuNo = "FIU001",
+            Branch = "Main Branch",
+            Account = "ACC123456",
+            AccountType = "Checking",
+            AccountTypeOther = null,
+            AccountOpen = "2024-01-01",
+            AccountClose = "2026-12-31",
+            AccountStatus = "Active",
+            AccountCurrency = "CAD",
+            AccountHolders =
+            [
+                new AccountHolder { PartyKey = "PARTY001" }
+            ]
+        };
+
+        await _testDb
+            .GetCollection<AccountInfo>("accountInfo")
+            .InsertOneAsync(doc);
+
+        // Act
+        var response = await _client.GetAsync($"/api/aml/accountinfo/{doc.Account}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
+
+        var result = await response.Content.ReadFromJsonAsync<AccountInfo>(TestOptions);
+        result.Should().NotBeNull();
+        result!.Account.Should().Be(doc.Account);
+        result.FiuNo.Should().Be(doc.FiuNo);
+        result.AccountHolders.Should().HaveCount(1);
+        result.AccountHolders[0].PartyKey.Should().Be("PARTY001");
+    }
+
+    [Fact]
+    public async Task GetAccountInfo_InvalidAccount_ReturnsNotFound_WithMessage()
+    {
+        // Arrange
+        var invalidAccount = "DOES_NOT_EXIST";
+
+        // Act
+        var response = await _client.GetAsync($"/api/aml/accountinfo/{invalidAccount}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
+
+        var payload = await response.Content.ReadFromJsonAsync<NotFoundMessage>(TestOptions);
+        payload.Should().NotBeNull();
+        payload!.Message.Should().Be($"Account info not found for Account no: {invalidAccount}");
+    }
+
+    #endregion
+
     private static JsonSerializerOptions CreateTestOptions()
     {
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
@@ -732,3 +806,8 @@ public record TransactionSourceResponse(
     string SourceId,
     string Status,
     List<Dictionary<string, object>> SourceData);
+
+public record NotFoundMessage
+{
+    public string Message { get; set; } = null!;
+}

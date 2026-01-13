@@ -1,8 +1,8 @@
 import type { Routes } from '@angular/router';
-import { CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE } from './aml/case-record.state.fixture';
 import {
   CASE_RECORD_INITIAL_STATE,
   CaseRecordStore,
+  DEFAULT_CASE_RECORD_STATE,
 } from './aml/case-record.store';
 import { AccountMethodsService } from './analytics/account-methods.service';
 import { hasRoleGuard, isAuthenticatedGuard } from './auth.service';
@@ -19,6 +19,7 @@ import {
   searchResultResolver,
   TransactionViewComponent,
 } from './transaction-view/transaction-view.component';
+import { amlNavTreeResolver } from './aml/aml.component';
 
 export const routes: Routes = [
   {
@@ -51,12 +52,14 @@ export const routes: Routes = [
         path: 'aml/:amlId',
         loadComponent: () =>
           import('./aml/aml.component').then((m) => m.AmlComponent),
+        resolve: {
+          navTree: amlNavTreeResolver,
+        },
         providers: [
-          // { provide: CASE_RECORD_INITIAL_STATE, useValue: DEFAULT_SESSION_STATE },
           {
             provide: CASE_RECORD_INITIAL_STATE,
-            // useValue: DEFAULT_CASE_RECORD_STATE,
-            useValue: CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE,
+            useValue: DEFAULT_CASE_RECORD_STATE,
+            // useValue: CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE,
           },
           CaseRecordStore,
           AccountMethodsService,
@@ -77,7 +80,6 @@ export const routes: Routes = [
             },
             data: { reuse: true },
             title: () => 'Transaction View',
-            runGuardsAndResolvers: 'paramsOrQueryParamsChange',
           },
           {
             path: 'reporting-ui',

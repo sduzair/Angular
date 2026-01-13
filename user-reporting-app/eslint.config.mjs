@@ -86,7 +86,7 @@ export default defineConfig([
               ? // ...(process.env.NODE_ENV === 'production'
                 [
                   {
-                    group: ['**/*.fixture.ts'],
+                    group: ['**/*.fixture'],
                     message:
                       'Test fixtures can only be imported in .spec.ts files',
                   },
@@ -107,9 +107,9 @@ export default defineConfig([
     files: ['**/*.spec.ts', '**/*.fixture.ts'],
     plugins: { jasmine: jasmine },
     rules: {
-      'no-restricted-imports': 'off',
+      'no-restricted-imports': ['off'],
       ...jasmine.configs.recommended.rules,
-      'jasmine/no-unsafe-spy': 'off',
+      'jasmine/no-unsafe-spy': ['off'],
     },
   },
   {

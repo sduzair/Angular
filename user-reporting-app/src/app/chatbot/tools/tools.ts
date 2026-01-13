@@ -44,9 +44,15 @@ export const getPartyKeysByAccount = createTool({
   schema: s.object('Account number input', {
     accountNo: s.string('The account number of the account'),
   }),
-  handler: ({ accountNo }) => {
+  handler: ({ accountNo }): Promise<string[]> => {
     return firstValueFrom(
-      inject(TransactionSearchService).getAccountParyInfo(accountNo),
+      inject(TransactionSearchService)
+        .getAccountInfo(accountNo)
+        .pipe(
+          map(({ accountHolders }) =>
+            accountHolders.map(({ partyKey }) => partyKey),
+          ),
+        ),
     );
   },
 });

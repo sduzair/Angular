@@ -240,6 +240,20 @@ api.MapGet("/aml/accountinfo/{account}", async (
     return Results.Ok(accountInfo);
 });
 
+api.MapGet("/aml/formoptions", async (
+    IMongoDatabase database,
+    HttpContext context) =>
+{
+    var formOptionsCollection = database.GetCollection<FormOptions>("formOptions");
+    var filter = Builders<FormOptions>.Filter.Empty;
+    var formOptions = await formOptionsCollection.Find(filter).FirstOrDefaultAsync();
+
+    if (formOptions == null)
+        return Results.NotFound(new { message = $"Form options not found" });
+
+    return Results.Ok(formOptions);
+});
+
 api.MapGet("/aml/{amlId}/caserecord", async (
     string amlId,
     IMongoDatabase database,
@@ -376,8 +390,9 @@ api.MapPost("/caserecord/{caseRecordId}/selections/add", async (
                     s, caseFilter, update, options, cancellationToken: ct);
 
                 return new AddSelectionsResponse(
-                    updatedCase.ETag,
-                    selectionsToInsert.Count
+                    CaseETag: updatedCase.ETag,
+                    Count: selectionsToInsert.Count,
+                    LastUpdated: updatedCase.LastUpdated!.Value
                 );
             }, cancellationToken: cancellationToken);
 
@@ -434,7 +449,7 @@ api.MapPost("/caserecord/{caseRecordId}/selections/remove", async (
             // Remove selections within transaction
             var filter = Builders<Selection>.Filter.And(
                 Builders<Selection>.Filter.Eq(x => x.CaseRecordId, caseRecordId),
-                Builders<Selection>.Filter.In(x => x.FlowOfFundsAmlTransactionId, request.Selections)
+                Builders<Selection>.Filter.In(x => x.FlowOfFundsAmlTransactionId, request.SelectionIds)
             );
 
             var deleteResult = await selections.DeleteManyAsync(s, filter, cancellationToken: ct);
@@ -453,8 +468,9 @@ api.MapPost("/caserecord/{caseRecordId}/selections/remove", async (
                 s, caseFilter, update, options, cancellationToken: ct);
 
             return new RemoveSelectionsResponse(
-                updatedCase.ETag,
-                (int)deleteResult.DeletedCount
+                CaseETag: updatedCase.ETag,
+                Count: (int)deleteResult.DeletedCount,
+                LastUpdated: updatedCase.LastUpdated!.Value
             );
         },
         cancellationToken: cancellationToken);
@@ -535,17 +551,21 @@ api.MapPost("/caserecord/{caseRecordId}/selections/save", async (
     if (succeeded < requested)
     {
         return Results.Conflict(new SaveChangesResponse(
-            $"Partial save: {succeeded} of {requested} changes succeeded.",
-            requested,
-            succeeded
+            Message: $"Partial save: {succeeded} of {requested} changes succeeded.",
+            Requested: requested,
+            Succeeded: succeeded,
+            UpdatedBy: currentUser,
+            UpdatedAt: DateTime.UtcNow
         ));
     }
 
     return Results.Ok(new SaveChangesResponse
     (
-        $"Successfully saved {succeeded} of {requested} changes",
-        requested,
-        succeeded
+        Message: $"Successfully saved {succeeded} of {requested} changes",
+        Requested: requested,
+        Succeeded: succeeded,
+        UpdatedBy: currentUser,
+        UpdatedAt: DateTime.UtcNow
     ));
 });
 
@@ -598,6 +618,13 @@ api.MapPost("/caserecord/{caseRecordId}/selections/reset", async (
         requested,
         succeeded
     ));
+});
+
+// Handle unmatched API routes with 404
+app.Map("api/{**slug}", (string slug, HttpContext context) =>
+{
+    context.Response.StatusCode = StatusCodes.Status404NotFound;
+    return Task.CompletedTask;
 });
 
 app.MapFallbackToFile("index.html");
