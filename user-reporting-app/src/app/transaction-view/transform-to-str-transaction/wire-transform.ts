@@ -1,4 +1,4 @@
-import { catchError, forkJoin, map, Observable, of } from 'rxjs';
+import { forkJoin, map, Observable, of, switchMap } from 'rxjs';
 import { StrTransactionWithChangeLogs } from '../../aml/case-record.store';
 import {
   AccountHolder,
@@ -52,15 +52,6 @@ export function transformWireInToStrTransaction(
   // Add receiver account fetch (CIBC account)
   accountsToFetch.add(String(wireTxn.strCaAccount ?? ''));
 
-  // Fetch all party info in parallel
-  const partyInfoObservables: Record<
-    string,
-    Observable<GetPartyInfoRes | null>
-  > = {};
-  Array.from(partyKeysToFetch).forEach((key) => {
-    partyInfoObservables[key] = getPartyInfo(key);
-  });
-
   // Fetch all account info in parallel
   const accountInfoObservables: Record<
     string,
@@ -73,15 +64,32 @@ export function transformWireInToStrTransaction(
 
   // Combine all observables
   return forkJoin({
-    partiesInfo:
-      partyKeysToFetch.size > 0
-        ? forkJoin(partyInfoObservables)
-        : of({} as Record<string, GetPartyInfoRes | null>),
     accountsInfo:
       accountsToFetch.size > 0
         ? forkJoin(accountInfoObservables)
         : of({} as Record<string, GetAccountInfoRes | null>),
   }).pipe(
+    switchMap(({ accountsInfo }) => {
+      for (const acckey of Object.keys(accountsInfo)) {
+        accountsInfo[acckey]!.accountHolders.forEach((item) =>
+          partyKeysToFetch.add(item.partyKey),
+        );
+      }
+      // Fetch all party info in parallel
+      const partyInfoObservables: Record<
+        string,
+        Observable<GetPartyInfoRes | null>
+      > = {};
+      Array.from(partyKeysToFetch).forEach((key) => {
+        partyInfoObservables[key] = getPartyInfo(key);
+      });
+      return forkJoin({
+        partiesInfo:
+          partyKeysToFetch.size > 0
+            ? forkJoin(partyInfoObservables)
+            : of({} as Record<string, GetPartyInfoRes | null>),
+      }).pipe(map(({ partiesInfo }) => ({ partiesInfo, accountsInfo })));
+    }),
     map(({ partiesInfo, accountsInfo }) => {
       // Helper to map party info
       const mapPartyInfo = (partyKey: string | null): AccountHolder => {
@@ -181,6 +189,7 @@ export function transformWireInToStrTransaction(
         ...senderNameInfo,
         partyKey: null,
         wasConductedOnBehalf: false,
+        onBehalfOf: null,
       };
 
       startingActions.push({
@@ -263,7 +272,7 @@ export function transformWireInToStrTransaction(
         timeOfPosting: null,
         methodOfTxn: 'In-Person' satisfies FORM_OPTIONS_METHOD_OF_TXN,
         methodOfTxnOther: null,
-        reportingEntityTxnRefNo: wireTxn.flowOfFundsSourceTransactionId,
+        reportingEntityTxnRefNo: wireTxn.flowOfFundsAmlTransactionId,
         purposeOfTxn: wireTxn.strSaPurposeOfTransaction,
         reportingEntityLocationNo: wireTxn.strReportingEntity,
         startingActions,

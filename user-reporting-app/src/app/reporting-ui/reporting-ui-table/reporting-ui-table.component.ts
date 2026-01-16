@@ -64,6 +64,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
         [filterFormHighlightSideEffect]="filterFormHighlightSideEffect"
         [recentlyOpenRows$]="recentlyOpenedRows$"
         [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
+        [hasMasterToggle]="true"
         [sortedBy]="'dateOfTxn'">
         <button
           type="button"
@@ -91,7 +92,8 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
                   "
                   [indeterminate]="
                     baseTable.selection.hasValue() && !baseTable.isAllSelected()
-                  ">
+                  "
+                  [class.invisible]="!baseTable.selection.hasValue()">
                 </mat-checkbox>
               </div>
             }
@@ -150,6 +152,19 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
                   restart_alt
                 </mat-icon>
               </button>
+              <button
+                type="button"
+                [disabled]="isActionHeaderDisabled$ | async"
+                mat-icon-button
+                (click)="removeSelectedTxns()"
+                [matBadge]="baseTable.selection.selected.length"
+                [matBadgeHidden]="!baseTable.selection.hasValue()">
+                <mat-icon
+                  class="text-danger"
+                  [class.text-opacity-50]="isActionHeaderDisabled$ | async">
+                  delete_outline
+                </mat-icon>
+              </button>
             </div>
           </th>
           <td
@@ -182,6 +197,13 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
                 (click)="resetTxn(row)"
                 [disabled]="isEditDisabled(row, savingIds)">
                 <mat-icon class="text-danger">restart_alt</mat-icon>
+              </button>
+              <button
+                type="button"
+                mat-icon-button
+                (click)="removeTxn(row)"
+                [disabled]="isEditDisabled(row, savingIds)">
+                <mat-icon class="text-danger">delete_outline</mat-icon>
               </button>
             </div>
           </td>
@@ -560,6 +582,19 @@ export class ReportingUiTableComponent implements AfterViewInit {
 
   resetTxn(record: StrTransactionWithChangeLogs) {
     this.caseRecordStore.qResetSelections([record.flowOfFundsAmlTransactionId]);
+  }
+
+  removeSelectedTxns() {
+    const selectedIds = this.baseTable.selection.selected.map(
+      (strTxn) => strTxn.flowOfFundsAmlTransactionId,
+    );
+    this.caseRecordStore.qRemoveSelections(selectedIds);
+  }
+
+  removeTxn(record: StrTransactionWithChangeLogs) {
+    this.caseRecordStore.qRemoveSelections([
+      record.flowOfFundsAmlTransactionId,
+    ]);
   }
 
   // template helpers

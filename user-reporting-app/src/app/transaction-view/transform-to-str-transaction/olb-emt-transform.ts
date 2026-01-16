@@ -1,5 +1,11 @@
-import { catchError, forkJoin, map, Observable, of } from 'rxjs';
+import { forkJoin, map, Observable, of, switchMap } from 'rxjs';
 import { StrTransactionWithChangeLogs } from '../../aml/case-record.store';
+import {
+  FORM_OPTIONS_ACCOUNT_TYPE,
+  FORM_OPTIONS_DETAILS_OF_DISPOSITION,
+  FORM_OPTIONS_METHOD_OF_TXN,
+  FORM_OPTIONS_TYPE_OF_FUNDS,
+} from '../../reporting-ui/edit-form/form-options.service';
 import {
   AccountHolder,
   Beneficiary,
@@ -14,12 +20,6 @@ import {
   OlbSourceData,
   SEARCH_SOURCE_ID,
 } from '../../transaction-search/transaction-search.service';
-import {
-  FORM_OPTIONS_ACCOUNT_TYPE,
-  FORM_OPTIONS_DETAILS_OF_DISPOSITION,
-  FORM_OPTIONS_METHOD_OF_TXN,
-  FORM_OPTIONS_TYPE_OF_FUNDS,
-} from '../../reporting-ui/edit-form/form-options.service';
 
 /**
  * Transform OLB/EMT source transactions into StrTransactionWithChangeLogs format
@@ -93,15 +93,6 @@ export function transformOlbEmtToStrTransaction(
     }
   }
 
-  // Fetch all party info in parallel
-  const partyInfoObservables: Record<
-    string,
-    Observable<GetPartyInfoRes | null>
-  > = {};
-  Array.from(partyKeysToFetch).forEach((key) => {
-    partyInfoObservables[key] = getPartyInfo(key);
-  });
-
   // Fetch all account info in parallel
   const accountInfoObservables: Record<
     string,
@@ -114,15 +105,32 @@ export function transformOlbEmtToStrTransaction(
 
   // Combine all observables
   return forkJoin({
-    partiesInfo:
-      partyKeysToFetch.size > 0
-        ? forkJoin(partyInfoObservables)
-        : of({} as Record<string, GetPartyInfoRes | null>),
     accountsInfo:
       accountsToFetch.size > 0
         ? forkJoin(accountInfoObservables)
         : of({} as Record<string, GetAccountInfoRes | null>),
   }).pipe(
+    switchMap(({ accountsInfo }) => {
+      for (const acckey of Object.keys(accountsInfo)) {
+        accountsInfo[acckey]!.accountHolders.forEach((item) =>
+          partyKeysToFetch.add(item.partyKey),
+        );
+      }
+      // Fetch all party info in parallel
+      const partyInfoObservables: Record<
+        string,
+        Observable<GetPartyInfoRes | null>
+      > = {};
+      Array.from(partyKeysToFetch).forEach((key) => {
+        partyInfoObservables[key] = getPartyInfo(key);
+      });
+      return forkJoin({
+        partiesInfo:
+          partyKeysToFetch.size > 0
+            ? forkJoin(partyInfoObservables)
+            : of({} as Record<string, GetPartyInfoRes | null>),
+      }).pipe(map(({ partiesInfo }) => ({ partiesInfo, accountsInfo })));
+    }),
     map(({ partiesInfo, accountsInfo }) => {
       // Helper to map party info
       const mapPartyInfo = (partyKey: string | null): AccountHolder => {
@@ -211,7 +219,9 @@ export function transformOlbEmtToStrTransaction(
           conductors: [
             {
               ...emtSenderNameParsed,
+              partyKey: null,
               wasConductedOnBehalf: false,
+              onBehalfOf: [],
               npdTypeOfDevice: olbTxn.userDeviceType || null,
               npdTypeOfDeviceOther: null,
               npdDeviceIdNo: null,
@@ -272,6 +282,7 @@ export function transformOlbEmtToStrTransaction(
               otherOrInitial,
               nameOfEntity,
               wasConductedOnBehalf: false,
+              onBehalfOf: [],
               npdTypeOfDevice: olbTxn.userDeviceType || null,
               npdTypeOfDeviceOther: null,
               npdDeviceIdNo: null,
@@ -304,7 +315,7 @@ export function transformOlbEmtToStrTransaction(
             return {
               ...sub,
               wasConductedOnBehalf: false,
-              onBehalfOf: null,
+              onBehalfOf: [],
               npdTypeOfDevice: olbTxn.userDeviceType || null,
               npdTypeOfDeviceOther: null,
               npdDeviceIdNo: null,
@@ -458,7 +469,7 @@ export function transformOlbEmtToStrTransaction(
       const transformed: StrTransactionWithChangeLogs = {
         // Base StrTransaction fields
         sourceId: 'EMT' satisfies SEARCH_SOURCE_ID,
-        wasTxnAttempted: true,
+        wasTxnAttempted: false,
         wasTxnAttemptedReason: null,
         dateOfTxn: olbTxn.flowOfFundsTransactionDate,
         timeOfTxn: olbTxn.flowOfFundsTransactionTime,
@@ -467,9 +478,8 @@ export function transformOlbEmtToStrTransaction(
         timeOfPosting: null,
         methodOfTxn: 'Online' satisfies FORM_OPTIONS_METHOD_OF_TXN,
         methodOfTxnOther: null,
-        reportingEntityTxnRefNo:
-          emtTxn.fiRefCode || olbTxn.flowOfFundsSourceTransactionId,
-        purposeOfTxn: emtTxn.transferDetails || null,
+        reportingEntityTxnRefNo: olbTxn.flowOfFundsAmlTransactionId,
+        purposeOfTxn: null,
         reportingEntityLocationNo: olbTxn.strReportingEntity,
         startingActions,
         completingActions,

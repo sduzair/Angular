@@ -1,4 +1,4 @@
-import { catchError, forkJoin, map, Observable, of } from 'rxjs';
+import { catchError, forkJoin, map, Observable, of, switchMap } from 'rxjs';
 import { StrTransactionWithChangeLogs } from '../../aml/case-record.store';
 import {
   AccountHolder,
@@ -62,15 +62,6 @@ export function transformABMToStrTransaction(
     accountsToFetch.add(String(sourceTxn.strCaAccount));
   }
 
-  // Fetch all party info in parallel
-  const partyInfoObservables: Record<
-    string,
-    Observable<GetPartyInfoRes | null>
-  > = {};
-  Array.from(partyKeysToFetch).forEach((key) => {
-    partyInfoObservables[key] = getPartyInfo(key);
-  });
-
   // Fetch all account info in parallel
   const accountInfoObservables: Record<
     string,
@@ -83,15 +74,32 @@ export function transformABMToStrTransaction(
 
   // Combine all observables
   return forkJoin({
-    partiesInfo:
-      partyKeysToFetch.size > 0
-        ? forkJoin(partyInfoObservables)
-        : of({} as Record<string, GetPartyInfoRes | null>),
     accountsInfo:
       accountsToFetch.size > 0
         ? forkJoin(accountInfoObservables)
         : of({} as Record<string, GetAccountInfoRes | null>),
   }).pipe(
+    switchMap(({ accountsInfo }) => {
+      for (const acckey of Object.keys(accountsInfo)) {
+        accountsInfo[acckey]!.accountHolders.forEach((item) =>
+          partyKeysToFetch.add(item.partyKey),
+        );
+      }
+      // Fetch all party info in parallel
+      const partyInfoObservables: Record<
+        string,
+        Observable<GetPartyInfoRes | null>
+      > = {};
+      Array.from(partyKeysToFetch).forEach((key) => {
+        partyInfoObservables[key] = getPartyInfo(key);
+      });
+      return forkJoin({
+        partiesInfo:
+          partyKeysToFetch.size > 0
+            ? forkJoin(partyInfoObservables)
+            : of({} as Record<string, GetPartyInfoRes | null>),
+      }).pipe(map(({ partiesInfo }) => ({ partiesInfo, accountsInfo })));
+    }),
     map(({ partiesInfo, accountsInfo }) => {
       // Helper to map party info
       const mapPartyInfo = (
@@ -143,7 +151,7 @@ export function transformABMToStrTransaction(
         conductors.push({
           ...conductorInfo,
           wasConductedOnBehalf: false,
-          onBehalfOf: null,
+          onBehalfOf: [],
           npdTypeOfDevice: null,
           npdTypeOfDeviceOther: null,
           npdDeviceIdNo: null,
@@ -222,7 +230,7 @@ export function transformABMToStrTransaction(
       const transformed: StrTransactionWithChangeLogs = {
         // Base StrTransaction fields
         sourceId: sourceTxn.sourceId,
-        wasTxnAttempted: true,
+        wasTxnAttempted: false,
         wasTxnAttemptedReason: null,
         dateOfTxn: sourceTxn.flowOfFundsTransactionDate,
         timeOfTxn: sourceTxn.flowOfFundsTransactionTime,
@@ -231,7 +239,7 @@ export function transformABMToStrTransaction(
         timeOfPosting: null,
         methodOfTxn: 'ABM' satisfies FORM_OPTIONS_METHOD_OF_TXN,
         methodOfTxnOther: null,
-        reportingEntityTxnRefNo: sourceTxn.flowofFundsSourceTransactionId,
+        reportingEntityTxnRefNo: sourceTxn.flowOfFundsAmlTransactionId,
         purposeOfTxn: sourceTxn.strSaPurposeOfTransaction,
         reportingEntityLocationNo: sourceTxn.strReportingEntity,
         startingActions,

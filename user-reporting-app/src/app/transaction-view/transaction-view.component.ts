@@ -17,7 +17,7 @@ import {
   BehaviorSubject,
   catchError,
   combineLatestWith,
-  debounceTime,
+  finalize,
   forkJoin,
   map,
   Observable,
@@ -73,6 +73,16 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
           <div class="flex-fill"></div>
           <button
             type="button"
+            color="accent"
+            mat-raised-button
+            [disabled]="(selectionControlHasChanges$ | async) === false"
+            (click)="resetSelections()"
+            aria-label="Reset selections">
+            <mat-icon>refresh</mat-icon>
+            Reset
+          </button>
+          <button
+            type="button"
             color="primary"
             mat-flat-button
             [disabled]="
@@ -107,7 +117,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
           </ng-template>
           <app-fof-table
             [fofSourceData]="(fofSourceData$ | async) || []"
-            [selection]="selectionModel" />
+            [selectionCount]="(fofSourceDataSelectionCount$ | async) ?? 0"
+            [masterSelection]="selectionModel" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -118,7 +129,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
           </ng-template>
           <app-abm-table
             [abmSourceData]="(abmSourceData$ | async) || []"
-            [selection]="selectionModel" />
+            [selectionCount]="(abmSourceDataSelectionCount$ | async) ?? 0"
+            [masterSelection]="selectionModel" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -129,7 +141,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
           </ng-template>
           <app-olb-table
             [olbSourceData]="(olbSourceData$ | async) || []"
-            [selection]="selectionModel" />
+            [selectionCount]="(olbSourceDataSelectionCount$ | async) ?? 0"
+            [masterSelection]="selectionModel" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -140,7 +153,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
           </ng-template>
           <app-emt-table
             [emtSourceData]="(emtSourceData$ | async) || []"
-            [selection]="selectionModel"
+            [selectionCount]="(emtSourceDataSelectionCount$ | async) ?? 0"
+            [masterSelection]="selectionModel"
         /></mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -151,7 +165,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
           </ng-template>
           <app-wires-table
             [wiresSourceData]="(wiresSourceData$ | async) || []"
-            [selection]="selectionModel" />
+            [selectionCount]="(wiresSourceDataSelectionCount$ | async) ?? 0"
+            [masterSelection]="selectionModel" />
         </mat-tab>
       </mat-tab-group>
     }
@@ -193,18 +208,44 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     ),
   );
 
-  selectionControlHasChanges$ = this._selectionsCurrent$
-    .pipe(debounceTime(200))
+  selectionControlHasChanges$ = this._selectionsCurrent$.pipe(
+    combineLatestWith(this.selectionIdsLastSaved$),
+    map(
+      ([selections, selectionsLastSaved]) =>
+        selections.length !== selectionsLastSaved.size ||
+        !selections.every((sel) =>
+          selectionsLastSaved.has(sel.flowOfFundsAmlTransactionId),
+        ),
+    ),
+  );
+
+  private _resetSelections = new Subject<void>();
+  resetSelections() {
+    this._resetSelections.next();
+  }
+
+  _ = this._resetSelections
     .pipe(
-      combineLatestWith(this.selectionIdsLastSaved$, this.searchResponse$),
-      map(
-        ([selections, selectionsLastSaved, searchResponse]) =>
-          selections.length !== selectionsLastSaved.size ||
-          !selections.every((sel) =>
-            selectionsLastSaved.has(sel.flowOfFundsAmlTransactionId),
+      withLatestFrom(this.selectionModel$),
+      map(([_, selectionModel]) => {
+        selectionModel.clear();
+        return selectionModel;
+      }),
+      withLatestFrom(this.selectionIdsLastSaved$),
+      tap(([selectionModel, selectionIdsLastSaved]) => {
+        selectionModel.select(
+          ...Array.from(selectionIdsLastSaved).map(
+            (id) =>
+              ({ flowOfFundsAmlTransactionId: id }) satisfies {
+                flowOfFundsAmlTransactionId: string;
+              },
           ),
-      ),
-    );
+        );
+      }),
+      takeUntilDestroyed(),
+    )
+    // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
+    .subscribe();
 
   constructor() {
     super();
@@ -383,6 +424,13 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
                 });
               }),
             );
+        }),
+        finalize(() => {
+          this.saveProgress$.next({
+            ...this.saveProgress$.value,
+            completed: 0,
+            status: 'error',
+          });
         }),
       );
     }),

@@ -199,6 +199,7 @@ export class CaseRecordStore implements OnDestroy {
         selections: currentSelections,
         selectionsWithPendingChanges: selectionsToChange = [],
         selectionsToAdd = [],
+        selectionsToRemove = [],
       }) => {
         if (selectionsToChange.length > 0)
           return computePartialChangesHandler(
@@ -211,6 +212,17 @@ export class CaseRecordStore implements OnDestroy {
             currentSelections,
             selectionsToAdd,
           );
+
+        if (selectionsToRemove.length > 0) {
+          return (acc: StrTransactionWithChangeLogs[]) => {
+            return acc.filter(
+              (txn) =>
+                !selectionsToRemove.includes(txn.flowOfFundsAmlTransactionId),
+            );
+          };
+        }
+
+        if (currentSelections.length == 0) return () => [];
 
         return computeFullChangesHandler(currentSelections);
       },
@@ -246,6 +258,10 @@ export class CaseRecordStore implements OnDestroy {
       }
     | {
         editType: 'RESET_SELECTIONS';
+        selectionIds: StrTransaction['flowOfFundsAmlTransactionId'][];
+      }
+    | {
+        editType: 'REMOVE_SELECTIONS';
         selectionIds: StrTransaction['flowOfFundsAmlTransactionId'][];
       }
   >();
@@ -284,6 +300,8 @@ export class CaseRecordStore implements OnDestroy {
           const pendingChanges: SaveChangesRequest['pendingChanges'] = [];
           const selectionsToAdd: StrTransactionWithChangeLogs[] = [];
           const selectionsToReset: ResetSelectionsRequest['pendingResets'] = [];
+          const selectionsToRemove: RemoveSelectionsRequest['selectionIds'] =
+            [];
 
           if (editType === 'SINGLE_SAVE') {
             const { editFormValue, flowOfFundsAmlTransactionId } = edit;
@@ -384,12 +402,17 @@ export class CaseRecordStore implements OnDestroy {
                   ) && selection.changeLogs.length > 0
                 );
               })
-              .map(({ flowOfFundsAmlTransactionId, eTag }) => ({
+              .map(({ flowOfFundsAmlTransactionId, changeLogs }) => ({
                 flowOfFundsAmlTransactionId,
-                eTag,
+                eTag: changeLogs.at(-1)?.eTag ?? 0,
               }));
 
             selectionsToReset.push(...selectionsWithChanges);
+          }
+
+          if (editType === 'REMOVE_SELECTIONS') {
+            const { selectionIds: tableSelections } = edit;
+            selectionsToRemove.push(...tableSelections);
           }
 
           return {
@@ -397,36 +420,56 @@ export class CaseRecordStore implements OnDestroy {
             pendingChanges,
             selectionsToAdd,
             selectionsToReset,
+            selectionsToRemove,
           };
         }),
-        filter(({ pendingChanges, selectionsToAdd, selectionsToReset }) => {
-          const hasChanges =
-            pendingChanges.length > 0 ||
-            selectionsToAdd.length > 0 ||
-            selectionsToReset.length > 0;
+        filter(
+          ({
+            pendingChanges,
+            selectionsToAdd,
+            selectionsToReset,
+            selectionsToRemove,
+          }) => {
+            const hasChanges =
+              pendingChanges.length > 0 ||
+              selectionsToAdd.length > 0 ||
+              selectionsToReset.length > 0 ||
+              selectionsToRemove.length > 0;
 
-          if (!hasChanges) {
-            this.markSavesAsComplete(incomingSaves);
-          }
-          return hasChanges;
-        }),
-        switchMap(({ pendingChanges, selectionsToAdd, selectionsToReset }) => {
-          if (selectionsToAdd.length > 0) {
-            return this.addSelections(selectionsToAdd);
-          }
+            if (!hasChanges) {
+              this.markSavesAsComplete(incomingSaves);
+            }
+            return hasChanges;
+          },
+        ),
+        switchMap(
+          ({
+            pendingChanges,
+            selectionsToAdd,
+            selectionsToReset,
+            selectionsToRemove,
+          }) => {
+            if (selectionsToAdd.length > 0) {
+              return this.addSelections(selectionsToAdd);
+            }
 
-          if (pendingChanges.length > 0) {
-            return this.saveChanges({
-              pendingChanges,
-            });
-          }
+            if (pendingChanges.length > 0) {
+              return this.saveChanges({
+                pendingChanges,
+              });
+            }
 
-          if (selectionsToReset.length > 0) {
-            return this._resetSelections(selectionsToReset);
-          }
+            if (selectionsToReset.length > 0) {
+              return this._resetSelections(selectionsToReset);
+            }
 
-          throw new Error('Unknown edit type');
-        }),
+            if (selectionsToRemove.length > 0) {
+              return this.removeSelections(selectionsToRemove);
+            }
+
+            throw new Error('Unknown edit type');
+          },
+        ),
         finalize(() => this.markSavesAsComplete(incomingSaves)),
         // Outer catchError as safety net for possible change log generation errors
         catchError((error) => {
@@ -535,6 +578,12 @@ export class CaseRecordStore implements OnDestroy {
     });
   }
 
+  qRemoveSelections(selectionIds: string[]) {
+    this._updateQueue$.next({
+      editType: 'REMOVE_SELECTIONS',
+      selectionIds,
+    });
+  }
   // --- API PROXIES ---
   fetchCaseRecordByAmlId(amlId: string) {
     return this.caseRecordService.fetchCaseRecordByAmlId(amlId).pipe(
@@ -611,13 +660,13 @@ export class CaseRecordStore implements OnDestroy {
                 (sel) =>
                   ({
                     ...sel,
-                    eTag: 0,
                     caseRecordId,
                     changeLogs: [],
+                    eTag: 0,
                   }) satisfies StrTransactionWithChangeLogs,
               ),
             ],
-            selectionsToAdd: selectionsClone.map(
+            selectionsWithPendingChanges: selectionsClone.map(
               (sel) => sel.flowOfFundsAmlTransactionId,
             ),
             eTag: newCaseETag,
@@ -628,7 +677,7 @@ export class CaseRecordStore implements OnDestroy {
           // Handle errors gracefully
           this.errorHandler.handleError(error);
 
-          // Conflict triggers refresh of selections
+          // Conflict triggers refresh of local state
           if (error.status === 409) {
             this.conflict$.next();
           }
@@ -640,22 +689,26 @@ export class CaseRecordStore implements OnDestroy {
       );
   }
 
-  public removeSelections(selections: RemoveSelectionsRequest['selectionIds']) {
-    if (selections.length === 0) return of({ count: 0 });
+  public removeSelections(
+    selectionIds: RemoveSelectionsRequest['selectionIds'],
+  ) {
+    if (selectionIds.length === 0) return of({ count: 0 });
 
     const { caseRecordId, eTag: caseETag } = this._state$.value;
 
     return this.selectionsService
-      .removeSelections(caseRecordId, { caseETag, selectionIds: selections })
+      .removeSelections(caseRecordId, { caseETag, selectionIds: selectionIds })
       .pipe(
         tap(({ caseETag: newCaseETag, lastUpdated }) => {
           this._state$.next({
             ...this._state$.value,
             selections: [
               ...this._state$.value.selections.filter(
-                (sel) => !selections.includes(sel.flowOfFundsAmlTransactionId),
+                (sel) =>
+                  !selectionIds.includes(sel.flowOfFundsAmlTransactionId),
               ),
             ],
+            selectionsToRemove: selectionIds,
             eTag: newCaseETag,
             lastUpdated,
           });
@@ -664,7 +717,7 @@ export class CaseRecordStore implements OnDestroy {
           // Handle errors gracefully
           this.errorHandler.handleError(error);
 
-          // Conflict triggers refresh of selections
+          // Conflict triggers refresh of local state
           if (error.status === 409) {
             this.conflict$.next();
           }
@@ -697,6 +750,7 @@ export class CaseRecordStore implements OnDestroy {
                   flowOfFundsAmlTransactionId,
               )!;
 
+              txn.eTag = eTag + 1;
               txn.changeLogs.push(
                 ...pendingChangeLogs.map((changeLog) => ({
                   ...changeLog,
@@ -721,7 +775,7 @@ export class CaseRecordStore implements OnDestroy {
         // Handle errors gracefylly
         this.errorHandler.handleError(error);
 
-        // Conflict triggers refresh of selections
+        // Conflict triggers refresh of local state
         if (error.status === 409) {
           this.conflict$.next();
         }
@@ -763,7 +817,7 @@ export class CaseRecordStore implements OnDestroy {
           // Handle errors gracefylly
           this.errorHandler.handleError(error);
 
-          // Conflict triggers refresh of selections
+          // Conflict triggers refresh of local state
           if (error.status === 409) {
             this.conflict$.next();
           }
@@ -794,6 +848,7 @@ export interface CaseRecordState {
   // table partial update use
   selectionsWithPendingChanges?: PendingChange['flowOfFundsAmlTransactionId'][];
   selectionsToAdd?: StrTransactionWithChangeLogs['flowOfFundsAmlTransactionId'][];
+  selectionsToRemove?: StrTransactionWithChangeLogs['flowOfFundsAmlTransactionId'][];
   searchResponse: TransactionSearchResponse;
 }
 

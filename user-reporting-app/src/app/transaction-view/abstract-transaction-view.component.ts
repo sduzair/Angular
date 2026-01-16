@@ -106,49 +106,56 @@ export abstract class AbstractTransactionViewComponent {
     shareReplay({ bufferSize: 1, refCount: true }), // Share among multiple subscribers
   );
 
-  fofSourceDataSelectionCount$ = this._selectionsCurrent$.pipe(
+  fofSourceDataSelection$ = this._selectionsCurrent$.pipe(
     combineLatestWith(this.searchFlowOfFundsSet$),
-    map(
-      ([selections, fofSet]) =>
-        selections.filter((sel) => fofSet.has(sel.flowOfFundsAmlTransactionId))
-          .length,
+    map(([selections, fofSet]) =>
+      selections.filter((sel) => fofSet.has(sel.flowOfFundsAmlTransactionId)),
     ),
   );
 
-  abmSourceDataSelectionCount$ = this._selectionsCurrent$.pipe(
+  fofSourceDataSelectionCount$ = this.fofSourceDataSelection$.pipe(
+    map((selection) => selection.length),
+  );
+
+  abmSourceDataSelection$ = this._selectionsCurrent$.pipe(
     combineLatestWith(this.searchAbmSet$),
-    map(
-      ([selections, abmSet]) =>
-        selections.filter((sel) => abmSet.has(sel.flowOfFundsAmlTransactionId))
-          .length,
+    map(([selections, abmSet]) =>
+      selections.filter((sel) => abmSet.has(sel.flowOfFundsAmlTransactionId)),
     ),
   );
+  abmSourceDataSelectionCount$ = this.abmSourceDataSelection$.pipe(
+    map((selection) => selection.length),
+  );
 
-  olbSourceDataSelectionCount$ = this._selectionsCurrent$.pipe(
+  olbSourceDataSelection$ = this._selectionsCurrent$.pipe(
     combineLatestWith(this.searchOlbSet$),
-    map(
-      ([selections, olbSet]) =>
-        selections.filter((sel) => olbSet.has(sel.flowOfFundsAmlTransactionId))
-          .length,
+    map(([selections, olbSet]) =>
+      selections.filter((sel) => olbSet.has(sel.flowOfFundsAmlTransactionId)),
     ),
   );
+  olbSourceDataSelectionCount$ = this.olbSourceDataSelection$.pipe(
+    map((selection) => selection.length),
+  );
 
-  emtSourceDataSelectionCount$ = this._selectionsCurrent$.pipe(
+  emtSourceDataSelection$ = this._selectionsCurrent$.pipe(
     combineLatestWith(this.searchEmtSet$),
-    map(
-      ([selections, emtSet]) =>
-        selections.filter((sel) => emtSet.has(sel.flowOfFundsAmlTransactionId))
-          .length,
+    map(([selections, emtSet]) =>
+      selections.filter((sel) => emtSet.has(sel.flowOfFundsAmlTransactionId)),
     ),
   );
 
-  wiresSourceDataSelectionCount$ = this._selectionsCurrent$.pipe(
+  emtSourceDataSelectionCount$ = this.emtSourceDataSelection$.pipe(
+    map((selection) => selection.length),
+  );
+
+  wiresSourceDataSelection$ = this._selectionsCurrent$.pipe(
     combineLatestWith(this.searchWiresSet$),
-    map(
-      ([selections, wiresSet]) =>
-        selections.filter((sel) =>
-          wiresSet.has(sel.flowOfFundsAmlTransactionId),
-        ).length,
+    map(([selections, wiresSet]) =>
+      selections.filter((sel) => wiresSet.has(sel.flowOfFundsAmlTransactionId)),
     ),
+  );
+
+  wiresSourceDataSelectionCount$ = this.wiresSourceDataSelection$.pipe(
+    map((selection) => selection.length),
   );
 }

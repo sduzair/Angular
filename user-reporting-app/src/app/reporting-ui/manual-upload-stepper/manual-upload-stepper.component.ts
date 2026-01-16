@@ -52,7 +52,7 @@ import {
 } from '../reporting-ui-table/reporting-ui-table.component';
 import { ManualTransactionBuilder } from './manual-transaction-builder';
 import { ManualUploadReviewTableComponent } from './manual-upload-review-table/manual-upload-review-table.component';
-import { MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE } from './manual-upload-review-table/manual-upload-review-table.data.fixture';
+// import { MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE } from './manual-upload-review-table/manual-upload-review-table.data.fixture';
 
 @Component({
   selector: 'app-manual-upload-stepper',
@@ -152,7 +152,8 @@ import { MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE } from './
               stepperFormGroup.controls.step2ReviewTableValidationErrors
             "
             [editable]="stepperFormGroup.invalid"
-            label="Review Data">
+            label="Review Data"
+            class="review-data">
             <div class="py-4">
               <p>Preview of uploaded data:</p>
 
@@ -175,7 +176,7 @@ import { MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE } from './
                   !stepperFormGroup.controls.step2ReviewTableValidationErrors
                     .valid ||
                   stepperFormGroup.controls.readyForUpload.valid ||
-                  (sessionDataService.isSaving$ | async)
+                  (sessionDataService.qIsSaving$ | async)
                 ">
                 Upload
               </button>
@@ -219,8 +220,9 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
     readyForUpload: [false, readyForUploadValidator()],
   });
   selectedFile: File | null = null;
-  parsedData: StrTransactionWithChangeLogs[] =
-    MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE;
+  // parsedData: StrTransactionWithChangeLogs[] =
+  //   MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE;
+  parsedData: StrTransactionWithChangeLogs[] = [];
 
   private _isValidExcelFile = new BehaviorSubject<boolean | null>(null);
   isValidExcelFile$ = this._isValidExcelFile.asObservable();

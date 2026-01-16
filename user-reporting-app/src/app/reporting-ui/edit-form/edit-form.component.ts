@@ -143,11 +143,11 @@ import { ValidateOnParentChangesDirective } from './validate-on-parent-changes.d
             form="edit-form"
             [disabled]="
               (editFormHasChanges$ | async) === false ||
-              (caseRecordStore.isSaving$ | async)
+              (caseRecordStore.qIsSaving$ | async)
             "
             [matBadge]="selectedTransactionsForBulkEditLength"
             [matBadgeHidden]="!isBulkEdit">
-            @if (caseRecordStore.isSaving$ | async) {
+            @if (caseRecordStore.qIsSaving$ | async) {
               Saving...
             } @else {
               Save

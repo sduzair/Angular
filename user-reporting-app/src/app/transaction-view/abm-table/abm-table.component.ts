@@ -5,6 +5,8 @@ import {
   Component,
   Input,
   TrackByFunction,
+  ViewChild,
+  viewChild,
 } from '@angular/core';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
@@ -18,7 +20,7 @@ import { TableSelectionType } from '../transaction-view.component';
   imports: [BaseTableComponent, CommonModule, MatTableModule, MatCheckbox],
   template: `
     <app-base-table
-      #baseTable
+      #baseTableRef
       [data]="this.abmSourceData"
       [dataColumnsValues]="dataColumnsValues"
       [dataColumnsIgnoreValues]="dataColumnsIgnoreValues"
@@ -30,47 +32,43 @@ import { TableSelectionType } from '../transaction-view.component';
       [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
       [displayedColumnsTime]="displayedColumnsTime"
       [dataSourceTrackBy]="dataSourceTrackBy"
-      [selection]="selection"
+      [selection]="masterSelection!"
       [selectionKey]="'flowOfFundsAmlTransactionId'"
-      [hasMasterToggle]="false"
       [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'"
       [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
       [sortedBy]="'transactionDate'">
       <!-- Selection Model -->
       <ng-container
         matColumnDef="select"
-        [sticky]="baseTable.isStickyColumn('select')">
+        [sticky]="baseTableRef.isStickyColumn('select')">
         <th
           mat-header-cell
           *matHeaderCellDef
           class="px-0"
-          [class.sticky-cell]="baseTable.isStickyColumn('select')">
-          @if (baseTable.hasMasterToggle) {
-            <div>
-              <mat-checkbox
-                (change)="$event ? baseTable.toggleAllRows() : null"
-                [checked]="selection.hasValue() && baseTable.isAllSelected()"
-                [indeterminate]="
-                  selection.hasValue() && !baseTable.isAllSelected()
-                ">
-              </mat-checkbox>
-            </div>
-          }
+          [class.sticky-cell]="baseTableRef.isStickyColumn('select')">
+          <div>
+            <mat-checkbox
+              (change)="$event ? toggleAllRows() : null"
+              [checked]="hasValue() && isAllSelected()"
+              [indeterminate]="hasValue() && !isAllSelected()"
+              [class.invisible]="!hasValue()">
+            </mat-checkbox>
+          </div>
         </th>
         <td
           mat-cell
           *matCellDef="let row; let i = index"
           class="px-0"
-          [class.sticky-cell]="baseTable.isStickyColumn('select')"
+          [class.sticky-cell]="baseTableRef.isStickyColumn('select')"
           [ngStyle]="{
             backgroundColor:
-              row[baseTable.filterFormHighlightSelectFilterKey] || '',
+              row[baseTableRef.filterFormHighlightSelectFilterKey] || '',
           }">
           <div>
             <mat-checkbox
-              (click)="baseTable.onCheckBoxClickMultiToggle($event, row, i)"
-              (change)="$event ? baseTable.toggleRow(row) : null"
-              [checked]="selection.isSelected(row)">
+              (click)="baseTableRef.onCheckBoxClickMultiToggle($event, row, i)"
+              (change)="$event ? baseTableRef.toggleRow(row) : null"
+              [checked]="masterSelection!.isSelected(row)">
             </mat-checkbox>
           </div>
         </td>
@@ -477,8 +475,40 @@ export class AbmTableComponent<
   };
 
   @Input({ required: true })
-  selection!: SelectionModel<TSelection>;
+  masterSelection?: SelectionModel<TSelection>;
 
   @Input({ required: true })
   abmSourceData!: AbmSourceData[];
+
+  @Input({ required: true })
+  selectionCount!: number;
+
+  @ViewChild(BaseTableComponent, { static: true })
+  baseTable?: BaseTableComponent<object, '', '', never, never>;
+
+  hasValue() {
+    return this.selectionCount > 0;
+  }
+
+  isAllSelected() {
+    if (!this.baseTable || !this.masterSelection) return false;
+
+    return (
+      this.baseTable.dataSource.filteredData as unknown as TSelection[]
+    ).every((row) => !!this.masterSelection?.isSelected(row));
+  }
+
+  toggleAllRows(): void {
+    if (!this.baseTable || !this.masterSelection) return;
+
+    if (this.isAllSelected()) {
+      this.masterSelection.deselect(
+        ...(this.baseTable.dataSource.filteredData as unknown as TSelection[]),
+      );
+    } else {
+      this.masterSelection.select(
+        ...(this.baseTable.dataSource.filteredData as unknown as TSelection[]),
+      );
+    }
+  }
 }

@@ -26,9 +26,7 @@ export class SelectionsService {
       .get<FetchSelectionsResponse>(
         `${this.baseUrl}/${caseRecordId}/selections`,
       )
-      .pipe(
-        map((response) => response.selections),
-      );
+      .pipe(map((response) => response.selections));
   }
 
   /**
@@ -38,11 +36,10 @@ export class SelectionsService {
     caseRecordId: string,
     request: AddSelectionsRequest,
   ): Observable<AddSelectionsResponse> {
-    return this.http
-      .post<AddSelectionsResponse>(
-        `${this.baseUrl}/${caseRecordId}/selections/add`,
-        request,
-      )
+    return this.http.post<AddSelectionsResponse>(
+      `${this.baseUrl}/${caseRecordId}/selections/add`,
+      request,
+    );
   }
 
   /**
@@ -52,11 +49,10 @@ export class SelectionsService {
     caseRecordId: string,
     request: RemoveSelectionsRequest,
   ): Observable<RemoveSelectionsResponse> {
-    return this.http
-      .post<RemoveSelectionsResponse>(
-        `${this.baseUrl}/${caseRecordId}/selections/remove`,
-        request,
-      )
+    return this.http.post<RemoveSelectionsResponse>(
+      `${this.baseUrl}/${caseRecordId}/selections/remove`,
+      request,
+    );
   }
 
   /**
@@ -68,11 +64,10 @@ export class SelectionsService {
   ): Observable<SaveChangesResponse> {
     // return of(void 0).pipe(delay(150));
 
-    return this.http
-      .post<SaveChangesResponse>(
-        `${this.baseUrl}/${caseRecordId}/selections/save`,
-        request,
-      )
+    return this.http.post<SaveChangesResponse>(
+      `${this.baseUrl}/${caseRecordId}/selections/save`,
+      request,
+    );
   }
 
   /**
@@ -84,11 +79,10 @@ export class SelectionsService {
   ): Observable<ResetSelectionsResponse> {
     // return of(void 0).pipe(delay(150));
 
-    return this.http
-      .post<ResetSelectionsResponse>(
-        `${this.baseUrl}/${caseRecordId}/selections/reset`,
-        request,
-      )
+    return this.http.post<ResetSelectionsResponse>(
+      `${this.baseUrl}/${caseRecordId}/selections/reset`,
+      request,
+    );
   }
 }
 
