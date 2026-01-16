@@ -42,6 +42,7 @@ export interface FetchCaseRecordRes {
   } | null;
   createdAt: string;
   createdBy: string;
+  lastUpdatedBy?: string;
   status: string;
   eTag: number;
   lastUpdated: string;

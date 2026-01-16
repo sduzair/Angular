@@ -25,7 +25,7 @@ import { filter, map, Observable, startWith } from 'rxjs';
 import { Breadcrumb } from '../app.routes';
 import { ChatbotComponent } from '../chatbot/chatbot.component';
 import { NavTreeService } from '../nav-layout/nav-tree.service';
-import { CaseRecordStore } from './case-record.store';
+import { CaseRecordStore, ReviewPeriod } from './case-record.store';
 
 @Component({
   selector: 'app-aml',
@@ -45,9 +45,9 @@ import { CaseRecordStore } from './case-record.store';
     <div class="container-fluid px-0 overflow-y-auto overflow-x-hidden h-100">
       <div class="row row-cols-1 mx-0 sticky-top">
         <mat-toolbar class="col">
-          <mat-toolbar-row class="px-0 header-toolbar-row">
+          <mat-toolbar-row class="header-toolbar-row">
             <!-- BREADCRUMBS -->
-            <nav class="d-flex align-items-center fs-5" aria-label="breadcrumb">
+            <nav class="breadcrumbs" aria-label="breadcrumb">
               @for (
                 crumb of breadcrumbs$ | async;
                 track crumb.url + crumb.label
@@ -73,17 +73,45 @@ import { CaseRecordStore } from './case-record.store';
                 </div>
               }
             </nav>
-            <div class="flex-fill"></div>
-            <mat-chip selected="true" class="last-updated-chip">
+
+            <!-- Info chips -->
+            <div class="info-chips-container">
+              <!-- Last Updated By -->
+              @if (lastUpdatedBy$ | async; as updatedBy) {
+                <mat-chip color="accent" class="info-chip">
+                  <mat-icon>person</mat-icon>
+                  {{ updatedBy }}
+                </mat-chip>
+              }
+
+              <!-- Selections Count -->
+              <mat-chip color="accent" class="info-chip">
+                <mat-icon>checklist</mat-icon>
+                {{ selectedCount$ | async }} selected
+              </mat-chip>
+
+              <!-- Review Period(s) -->
+              @if (reviewPeriods$ | async; as periods) {
+                @for (period of periods; track period.start) {
+                  <mat-chip color="accent" class="info-chip">
+                    <mat-icon>date_range</mat-icon>
+                    {{ formatReviewPeriod(period) }}
+                  </mat-chip>
+                }
+              }
+            </div>
+
+            <mat-chip
+              color="accent"
+              selected="true"
+              class="last-updated-chip info-chip">
               @if (savingStatus$ | async) {
                 <mat-progress-spinner
                   diameter="20"
                   mode="indeterminate"
                   class="last-updated-chip-spinner"></mat-progress-spinner>
               } @else {
-                <mat-icon class="mat-accent last-updated-chip-spinner">
-                  update
-                </mat-icon>
+                <mat-icon class="last-updated-chip-spinner">update</mat-icon>
               }
               Last Updated:
               {{ lastUpdated$ | async | date: 'short' }}
@@ -121,10 +149,11 @@ import { CaseRecordStore } from './case-record.store';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AmlComponent implements OnInit {
+  private caseRecordStore = inject(CaseRecordStore);
   private readonly _router = inject(Router);
-  lastUpdated$ = inject(CaseRecordStore).lastUpdated$;
+  lastUpdated$ = this.caseRecordStore.lastUpdated$;
 
-  savingStatus$ = inject(CaseRecordStore).qIsSaving$;
+  savingStatus$ = this.caseRecordStore.qIsSaving$;
 
   breadcrumbs$!: Observable<Breadcrumb[]>;
 
@@ -192,6 +221,32 @@ export class AmlComponent implements OnInit {
     }
 
     return breadcrumbs;
+  }
+
+  selectedCount$ = this.caseRecordStore.state$.pipe(
+    map((state) => state.selections.length),
+  );
+
+  lastUpdatedBy$ = this.caseRecordStore.state$.pipe(
+    map((state) => state.lastUpdatedBy ?? state.createdBy),
+  );
+
+  reviewPeriods$ = this.caseRecordStore.state$.pipe(
+    map((state) => state.searchParams.reviewPeriodSelection),
+  );
+
+  formatReviewPeriod(period: ReviewPeriod): string {
+    const start = new Date(period.start).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+    const end = new Date(period.end).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+    return `${start} - ${end}`;
   }
 }
 

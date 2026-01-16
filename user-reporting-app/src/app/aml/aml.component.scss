@@ -7,11 +7,7 @@ mat-toolbar-row.header-toolbar-row {
   @include mat.chips-density(5);
 }
 
-.last-updated-chip .last-updated-chip-spinner {
-  min-width: 24px;
-}
-
-::ng-deep .last-updated-chip .mdc-evolution-chip__text-label {
+::ng-deep .info-chip .mdc-evolution-chip__text-label {
   display: inline-flex;
   align-items: center;
   gap: 0.5em;
@@ -31,4 +27,48 @@ mat-drawer {
 
 ::ng-deep mat-drawer .mat-drawer-inner-container {
   overflow: hidden;
+}
+
+.info-chips-container {
+  scrollbar-color: var(--mat-sys-outline-variant)
+    var(--mat-sys-surface-container-low);
+  scrollbar-width: none;
+}
+
+.header-toolbar-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.breadcrumbs {
+  flex: 0 1 auto;
+  display: flex;
+  flex-wrap: nowrap;
+}
+
+.info-chips-container {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+
+  overflow-x: auto;
+  overflow-y: hidden;
+
+  direction: rtl;
+  & > * {
+    direction: ltr;
+  }
+}
+
+.info-chips-container > .info-chip,
+.info-chips-container > mat-chip {
+  flex: 0 0 auto;
+}
+
+.last-updated-chip {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }

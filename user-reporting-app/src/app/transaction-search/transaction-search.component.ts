@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -97,7 +98,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
     _: FormGroupDirective | NgForm | null,
   ): boolean {
     // const isSubmitted = form?.submitted;
-    return !!control?.invalid;
+    return !!control?.invalid && control.touched;
   }
 }
 
@@ -147,11 +148,11 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
             <!-- Search Form Section -->
             <div class="col-12">
               <!-- AML ID Input -->
-              <mat-toolbar
-                class="row row-cols-auto flex-row align-items-baseline px-0">
-                <mat-form-field class="col ps-0">
+              <mat-toolbar class="row row-cols-auto flex-row px-0">
+                <mat-form-field class="col ps-0" subscriptSizing="dynamic">
                   <mat-label>AML ID</mat-label>
                   <input
+                    (enter)="onLoad()"
                     matInput
                     formControlName="amlId"
                     placeholder="Enter AML ID" />
@@ -177,6 +178,33 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                   Load
                 </button>
                 <div class="flex-fill"></div>
+                <div
+                  class="d-flex align-items-center gap-3 me-3 text-muted fs-6">
+                  @if (searchParamsForm.controls.lastUpdatedBy.value) {
+                    <span class="d-flex align-items-center gap-1">
+                      <mat-icon
+                        class="text-muted"
+                        style="font-size: 18px; height: 18px; width: 18px;">
+                        person
+                      </mat-icon>
+                      {{ searchParamsForm.controls.lastUpdatedBy.value }}
+                    </span>
+                  }
+
+                  @if (searchParamsForm.controls.lastUpdated.value) {
+                    <span class="d-flex align-items-center gap-1">
+                      <mat-icon
+                        class="text-muted"
+                        style="font-size: 18px; height: 18px; width: 18px;">
+                        schedule
+                      </mat-icon>
+                      {{
+                        searchParamsForm.controls.lastUpdated.value
+                          | date: 'short'
+                      }}
+                    </span>
+                  }
+                </div>
                 <button
                   type="button"
                   mat-raised-button
@@ -605,6 +633,8 @@ export class TransactionSearchComponent implements OnInit {
       ),
       caseRecordId: new FormControl('', { nonNullable: true }),
       eTag: new FormControl(Number.NaN, { nonNullable: true }),
+      lastUpdated: new FormControl('', { nonNullable: true }),
+      lastUpdatedBy: new FormControl('', { nonNullable: true }),
     },
     {
       updateOn: 'change',
@@ -614,6 +644,8 @@ export class TransactionSearchComponent implements OnInit {
   readonly maxDate = new Date();
 
   onLoad() {
+    if (!this.searchParamsForm.controls.amlId.valid) return;
+
     this.loadClick$.next();
   }
 
@@ -627,47 +659,61 @@ export class TransactionSearchComponent implements OnInit {
     switchMap((amlId) =>
       this.searchService.getAmlPartyAccountInfo(amlId!).pipe(
         combineLatestWith(this.caseRecordService.fetchCaseRecordByAmlId(amlId)),
-        tap(([{ amlId }, { caseRecordId, searchParams, eTag }]) => {
-          const {
-            reviewPeriodSelection,
-            partyKeysSelection,
-            accountNumbersSelection,
-            sourceSystemsSelection,
-            productTypesSelection,
-          } = searchParams ?? {};
-          this.searchParamsForm.enable();
-
-          (reviewPeriodSelection ?? []).forEach((period) => {
-            this.searchParamsForm.controls.reviewPeriods.push(
-              this.createReviewPeriodGroup({
-                start: period.start ?? null,
-                end: period.end ?? null,
-              }),
-            );
-          });
-          this.searchParamsForm.patchValue(
+        tap(
+          ([
+            { amlId },
             {
-              amlId: amlId,
-              partyKeys: (partyKeysSelection ?? []).map((p) => ({
-                partyKey: p,
-              })),
-              accountNumbers: accountNumbersSelection ?? [],
-              sourceSystems: (sourceSystemsSelection ?? []).map((s) => ({
-                sourceSys: s,
-              })),
-              productTypes: (productTypesSelection ?? []).map((p) => ({
-                value: p,
-              })),
               caseRecordId,
+              searchParams,
               eTag,
+              lastUpdated,
+              lastUpdatedBy,
+              createdBy,
             },
-            { emitEvent: false }, // prevents value changes emission on aml id which disables form
-          );
+          ]) => {
+            const {
+              reviewPeriodSelection,
+              partyKeysSelection,
+              accountNumbersSelection,
+              sourceSystemsSelection,
+              productTypesSelection,
+            } = searchParams ?? {};
+            this.searchParamsForm.enable();
 
-          this.searchParamsBefore = structuredClone(
-            this.searchParamsForm.value,
-          );
-        }),
+            (reviewPeriodSelection ?? []).forEach((period) => {
+              this.searchParamsForm.controls.reviewPeriods.push(
+                this.createReviewPeriodGroup({
+                  start: period.start ?? null,
+                  end: period.end ?? null,
+                }),
+              );
+            });
+            this.searchParamsForm.patchValue(
+              {
+                amlId: amlId,
+                partyKeys: (partyKeysSelection ?? []).map((p) => ({
+                  partyKey: p,
+                })),
+                accountNumbers: accountNumbersSelection ?? [],
+                sourceSystems: (sourceSystemsSelection ?? []).map((s) => ({
+                  sourceSys: s,
+                })),
+                productTypes: (productTypesSelection ?? []).map((p) => ({
+                  value: p,
+                })),
+                caseRecordId,
+                eTag,
+                lastUpdated,
+                lastUpdatedBy: lastUpdatedBy ?? createdBy,
+              },
+              { emitEvent: false }, // prevents value changes emission on aml id which disables form
+            );
+
+            this.searchParamsBefore = structuredClone(
+              this.searchParamsForm.value,
+            );
+          },
+        ),
         catchError((err) => {
           this.errorHandler.handleError(err);
           return of();
@@ -855,12 +901,29 @@ export class TransactionSearchComponent implements OnInit {
       })
       .pipe(
         finalize(() => this.isLoadingCaseRecord$.next(false)),
+        catchError((error: HttpErrorResponse) => {
+          // Handle errors gracefylly
+          this.errorHandler.handleError(error);
+
+          // Conflict triggers refresh of local state
+          if (error.status === 409) {
+            this.loadClick$.next();
+          }
+
+          return EMPTY;
+        }),
         takeUntilDestroyed(this.destroyRef),
       )
       // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
-      .subscribe(() => {
+      .subscribe(({ lastUpdated, lastUpdatedBy }) => {
         this.snackbarQ.open('Saved changes to search parameters');
         this.searchParamsBefore = structuredClone(this.searchParamsForm.value);
+        this.searchParamsForm.controls.lastUpdated.setValue(lastUpdated, {
+          emitEvent: false,
+        });
+        this.searchParamsForm.controls.lastUpdatedBy.setValue(lastUpdatedBy!, {
+          emitEvent: false,
+        });
         this.searchParamsForm.updateValueAndValidity();
       });
   }

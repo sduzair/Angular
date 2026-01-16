@@ -18,6 +18,7 @@ public class CaseRecord
     public DateTime CreatedAt { get; set; }
 
     public string CreatedBy { get; set; } = null!;
+    public string? LastUpdatedBy { get; set; } = null!;
 
     public string Status { get; set; } = null!;
 

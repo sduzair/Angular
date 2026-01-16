@@ -97,24 +97,24 @@ mat-drawer-container {
 }
 
 mat-chip-set.mat-mdc-chip-set.mdc-evolution-chip-set.filter-chips {
+  @include mat.chips-density(-1);
+  @include mat.chips-overrides(
+    (
+      container-shape-radius: 24px,
+      hover-state-layer-opacity: 0,
+    )
+  );
   overflow-y: hidden;
   scrollbar-width: thin;
   flex: 1 1 auto;
 }
 
+::ng-deep mat-tab-group mat-chip .mdc-evolution-chip__action--presentational {
+  cursor: unset;
+}
+
 ::ng-deep mat-chip-set.filter-chips .mdc-evolution-chip-set__chips {
   flex-flow: row;
-}
-
-/* last update chip styling */
-.last-updated-chip .last-updated-chip-spinner {
-  min-width: 24px;
-}
-
-::ng-deep .last-updated-chip .mdc-evolution-chip__text-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5em;
 }
 
 ::ng-deep .filter-chips .mdc-evolution-chip__text-label {

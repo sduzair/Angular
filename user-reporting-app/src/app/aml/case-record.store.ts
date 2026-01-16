@@ -840,6 +840,7 @@ export interface CaseRecordState {
   };
   createdAt: string;
   createdBy: string;
+  lastUpdatedBy?: string;
   status: string;
   eTag: number;
   lastUpdated?: string;

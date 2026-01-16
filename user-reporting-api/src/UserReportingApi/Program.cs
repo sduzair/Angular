@@ -285,9 +285,11 @@ api.MapPost("/caserecord/{caseRecordId}/update", async (
         Builders<CaseRecord>.Filter.Eq(x => x.ETag, request.ETag)
     );
 
+    var currentUser = context.User.Identity?.Name ?? "System";
     var update = Builders<CaseRecord>.Update
         .Set(x => x.SearchParams, request.SearchParams)
         .Set(x => x.LastUpdated, DateTime.UtcNow)
+        .Set(x => x.LastUpdatedBy, currentUser)
         .Inc(x => x.ETag, 1);
 
     var options = new FindOneAndUpdateOptions<CaseRecord>
@@ -336,7 +338,7 @@ api.MapPost("/caserecord/{caseRecordId}/selections/add", async (
     string caseRecordId,
     AddSelectionsRequest request,
     IMongoClient mongoClient,
-    IMongoDatabase database, CancellationToken cancellationToken) =>
+    IMongoDatabase database, HttpContext context, CancellationToken cancellationToken) =>
 {
     var caseRecords = database.GetCollection<CaseRecord>("caseRecord");
     var selections = database.GetCollection<Selection>("selections");
@@ -376,9 +378,12 @@ api.MapPost("/caserecord/{caseRecordId}/selections/add", async (
                     await selections.InsertManyAsync(s, selectionsToInsert, cancellationToken: ct);
                 }
 
+                var currentUser = context.User.Identity?.Name ?? "System";
+
                 // Update case record ETag within transaction
                 var update = Builders<CaseRecord>.Update
                     .Inc(x => x.ETag, 1)
+                    .Set(x => x.LastUpdatedBy, currentUser)
                     .Set(x => x.LastUpdated, DateTime.UtcNow);
 
                 var options = new FindOneAndUpdateOptions<CaseRecord>
@@ -421,7 +426,7 @@ api.MapPost("/caserecord/{caseRecordId}/selections/remove", async (
     string caseRecordId,
     RemoveSelectionsRequest request,
     IMongoClient mongoClient,
-    IMongoDatabase database, CancellationToken cancellationToken) =>
+    IMongoDatabase database, HttpContext context, CancellationToken cancellationToken) =>
 {
     var caseRecords = database.GetCollection<CaseRecord>("caseRecord");
     var selections = database.GetCollection<Selection>("selections");
@@ -454,9 +459,12 @@ api.MapPost("/caserecord/{caseRecordId}/selections/remove", async (
 
             var deleteResult = await selections.DeleteManyAsync(s, filter, cancellationToken: ct);
 
+            var currentUser = context.User.Identity?.Name ?? "System";
+
             // Update case record ETag within transaction
             var update = Builders<CaseRecord>.Update
                 .Inc(x => x.ETag, 1)
+                .Set(x => x.LastUpdatedBy, currentUser)
                 .Set(x => x.LastUpdated, DateTime.UtcNow);
 
             var options = new FindOneAndUpdateOptions<CaseRecord>
