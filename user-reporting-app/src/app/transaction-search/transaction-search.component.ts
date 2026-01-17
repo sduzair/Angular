@@ -42,7 +42,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
-import { MatToolbar } from '@angular/material/toolbar';
+import { MatToolbar, MatToolbarModule } from '@angular/material/toolbar';
 import { Router } from '@angular/router';
 import {
   getMonth,
@@ -92,16 +92,6 @@ import {
   TransactionSearchService,
 } from './transaction-search.service';
 
-export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
-  isErrorState(
-    control: FormControl | null,
-    _: FormGroupDirective | NgForm | null,
-  ): boolean {
-    // const isSubmitted = form?.submitted;
-    return !!control?.invalid && control.touched;
-  }
-}
-
 @Component({
   selector: 'app-transaction-search',
   imports: [
@@ -117,7 +107,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
     MatListModule,
     MatCardModule,
     MatIcon,
-    MatToolbar,
+    MatToolbarModule,
     SourceRefreshSelectableTableComponent,
     ProductTypeSelectableTableComponent,
     AccountNumberSelectableTableComponent,
@@ -125,7 +115,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
   ],
   template: `
     <div class="transaction-search container px-0 my-1">
-      <div class="row row-cols-1 mx-0">
+      <div class="row row-cols-1">
         <mat-toolbar class="col mb-3">
           <span>Transaction Search</span>
           <div class="flex-fill"></div>
@@ -144,84 +134,88 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
         </mat-toolbar>
 
         <form [formGroup]="searchParamsForm" class="search-form col">
-          <div class="row g-3">
+          <div class="row">
             <!-- Search Form Section -->
-            <div class="col-12">
+            <mat-toolbar-row class="col-12 flex-row mb-3 gap-3">
               <!-- AML ID Input -->
-              <mat-toolbar class="row row-cols-auto flex-row px-0">
-                <mat-form-field class="col ps-0" subscriptSizing="dynamic">
-                  <mat-label>AML ID</mat-label>
-                  <input
-                    (enter)="onLoad()"
-                    matInput
-                    formControlName="amlId"
-                    placeholder="Enter AML ID" />
-                  <mat-icon matSuffix>search</mat-icon>
-                  @if (searchParamsForm.controls.amlId.hasError('required')) {
-                    <mat-error> AML ID is required </mat-error>
-                  }
-                  @if (searchParamsForm.controls.amlId.hasError('pattern')) {
-                    <mat-error> AML ID must be numbers only </mat-error>
-                  }
-                </mat-form-field>
-                <button
-                  type="button"
-                  mat-raised-button
-                  class="col search-btn"
-                  (click)="onLoad()"
-                  [disabled]="
-                    isSourceRefreshTimeLoading ||
-                    (isLoadingCaseRecord$ | async) ||
-                    !searchParamsForm.controls.amlId.valid ||
-                    (isLoadingSearch$ | async) === 'loading'
-                  ">
-                  Load
-                </button>
-                <div class="flex-fill"></div>
-                <div
-                  class="d-flex align-items-center gap-3 me-3 text-muted fs-6">
-                  @if (searchParamsForm.controls.lastUpdatedBy.value) {
-                    <span class="d-flex align-items-center gap-1">
-                      <mat-icon
-                        class="text-muted"
-                        style="font-size: 18px; height: 18px; width: 18px;">
-                        person
-                      </mat-icon>
-                      {{ searchParamsForm.controls.lastUpdatedBy.value }}
-                    </span>
-                  }
+              <mat-form-field subscriptSizing="dynamic">
+                <mat-label>AML ID</mat-label>
+                <input
+                  (keyup.enter)="onLoad()"
+                  matInput
+                  formControlName="amlId"
+                  placeholder="Enter AML ID" />
+                <mat-icon matSuffix>search</mat-icon>
+                @if (searchParamsForm.controls.amlId.hasError('required')) {
+                  <mat-error> AML ID is required </mat-error>
+                }
+                @if (searchParamsForm.controls.amlId.hasError('pattern')) {
+                  <mat-error> AML ID must be numbers only </mat-error>
+                }
+              </mat-form-field>
+              <button
+                type="button"
+                mat-raised-button
+                class="search-btn"
+                (click)="onLoad()"
+                [disabled]="
+                  isSourceRefreshTimeLoading ||
+                  (isLoadingCaseRecord$ | async) ||
+                  !searchParamsForm.controls.amlId.valid ||
+                  (isLoadingSearch$ | async) === 'loading'
+                ">
+                Load
+              </button>
+              <div class="flex-fill"></div>
+              <button
+                type="button"
+                mat-raised-button
+                class="search-btn"
+                (click)="onSave()"
+                [disabled]="
+                  isSourceRefreshTimeLoading ||
+                  (isLoadingCaseRecord$ | async) ||
+                  searchParamsForm.invalid ||
+                  !searchParamsBefore ||
+                  (formHasChanges$ | async) === false ||
+                  (isLoadingSearch$ | async) === 'loading'
+                ">
+                Save
+              </button>
+            </mat-toolbar-row>
+            <mat-toolbar-row class="col-12 flex-row mb-2 updated-by-row">
+              <div class="flex-fill"></div>
+              <div class="d-flex align-items-center gap-3 text-muted fs-6">
+                @let lastUpdatedBy =
+                  searchParamsForm.controls.lastUpdatedBy.value;
+                <span
+                  class="d-flex align-items-center gap-1"
+                  [class.invisible]="!lastUpdatedBy">
+                  <span class="fw-medium text-secondary">Updated By:</span>
+                  <mat-icon
+                    color="accent"
+                    style="font-size: 18px; height: 18px; width: 18px;">
+                    person
+                  </mat-icon>
+                  <span class="text-dark">{{ lastUpdatedBy }}</span>
+                </span>
 
-                  @if (searchParamsForm.controls.lastUpdated.value) {
-                    <span class="d-flex align-items-center gap-1">
-                      <mat-icon
-                        class="text-muted"
-                        style="font-size: 18px; height: 18px; width: 18px;">
-                        schedule
-                      </mat-icon>
-                      {{
-                        searchParamsForm.controls.lastUpdated.value
-                          | date: 'short'
-                      }}
-                    </span>
-                  }
-                </div>
-                <button
-                  type="button"
-                  mat-raised-button
-                  class="col search-btn"
-                  (click)="onSave()"
-                  [disabled]="
-                    isSourceRefreshTimeLoading ||
-                    (isLoadingCaseRecord$ | async) ||
-                    searchParamsForm.invalid ||
-                    !searchParamsBefore ||
-                    (formHasChanges$ | async) === false ||
-                    (isLoadingSearch$ | async) === 'loading'
-                  ">
-                  Save
-                </button>
-              </mat-toolbar>
-            </div>
+                @let lastUpdated = searchParamsForm.controls.lastUpdated.value;
+                <span
+                  class="d-flex align-items-center gap-1"
+                  [class.invisible]="!lastUpdated">
+                  <span class="fw-medium text-secondary"> Last Updated: </span>
+                  <mat-icon
+                    color="accent"
+                    style="font-size: 18px; height: 18px; width: 18px;">
+                    schedule
+                  </mat-icon>
+                  <span class="text-dark">
+                    {{ lastUpdated | date: 'short' }}
+                  </span>
+                </span>
+              </div>
+            </mat-toolbar-row>
             <div class="col-12 col-xl-8">
               <!-- Filter Sections -->
               <div class="row g-3">
@@ -571,7 +565,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
         },
       } as MatDateFormats,
     },
-    { provide: ErrorStateMatcher, useClass: PreemptiveErrorStateMatcher },
     {
       provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
       useValue: {

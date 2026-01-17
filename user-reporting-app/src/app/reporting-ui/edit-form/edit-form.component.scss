@@ -139,3 +139,18 @@ mat-card.transaction-details-card {
     )
   );
 }
+
+mat-toolbar {
+  @include mat.chips-density(5);
+}
+
+mat-chip.selected-chip {
+  --mat-chip-with-icon-icon-size: 1.5rem;
+  --mat-chip-label-text-size: 1.1rem;
+}
+
+::ng-deep .selected-chip .mdc-evolution-chip__text-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}

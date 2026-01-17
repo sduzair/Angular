@@ -13,7 +13,9 @@ import {
   FormArray,
   FormControl,
   FormGroup,
+  FormGroupDirective,
   isFormGroup,
+  NgForm,
   ReactiveFormsModule,
   ValidationErrors,
   ValidatorFn,
@@ -61,7 +63,6 @@ import {
 import * as ChangeLog from '../../change-logging/change-log';
 import { setError } from '../../form-helpers';
 import { SnackbarQueueService } from '../../snackbar-queue.service';
-import { PreemptiveErrorStateMatcher } from '../../transaction-search/transaction-search.component';
 import {
   AccountHolder,
   Beneficiary,
@@ -91,6 +92,16 @@ import { TransactionDateDirective } from './transaction-date.directive';
 import { TransactionDetailsPanelComponent } from './transaction-details-panel/transaction-details-panel.component';
 import { TransactionTimeDirective } from './transaction-time.directive';
 import { ValidateOnParentChangesDirective } from './validate-on-parent-changes.directive';
+
+export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
+  isErrorState(
+    control: FormControl | null,
+    _: FormGroupDirective | NgForm | null,
+  ): boolean {
+    // const isSubmitted = form?.submitted;
+    return !!control?.invalid;
+  }
+}
 
 @Component({
   selector: 'app-edit-form',
@@ -124,6 +135,7 @@ import { ValidateOnParentChangesDirective } from './validate-on-parent-changes.d
     ValidateOnParentChangesDirective,
   ],
   template: `
+    @let editForm = editForm$ | async;
     <div class="container px-0 mb-5">
       <mat-toolbar class="justify-content-end px-0">
         <button
@@ -133,7 +145,56 @@ import { ValidateOnParentChangesDirective } from './validate-on-parent-changes.d
           aria-label="Go back">
           <mat-icon>arrow_back</mat-icon>
         </button>
+
+        @let editType = editType$ | async;
+
+        @if (editType && editType.type === 'BULK_SAVE') {
+          <div class="d-flex align-items-center gap-2 ms-3">
+            <mat-chip
+              color="accent"
+              class="d-flex align-items-center selected-chip">
+              <mat-icon>checklist</mat-icon>
+              <span class="fw-bold">{{ editType.payload.length }}</span>
+              <span class="text-muted">
+                transaction(s) selected for bulk edit
+              </span>
+            </mat-chip>
+          </div>
+        }
+
         <div class="flex-fill"></div>
+
+        @if (isSingleEdit || isAudit) {
+          <div class="d-flex align-items-center gap-3 text-muted fs-6">
+            @let lastUpdatedBy = editForm?.value?.updatedBy ?? '';
+            <span
+              class="d-flex align-items-center gap-1"
+              [class.invisible]="!lastUpdatedBy">
+              <span class="fw-medium text-secondary">Updated By:</span>
+              <mat-icon
+                color="accent"
+                style="font-size: 18px; height: 18px; width: 18px;">
+                person
+              </mat-icon>
+              <span class="text-dark">{{ lastUpdatedBy }}</span>
+            </span>
+
+            @let lastUpdated = editForm?.value?.updatedAt ?? '';
+            <span
+              class="d-flex align-items-center gap-1"
+              [class.invisible]="!lastUpdated">
+              <span class="fw-medium text-secondary"> Last Updated: </span>
+              <mat-icon
+                color="accent"
+                style="font-size: 18px; height: 18px; width: 18px;">
+                schedule
+              </mat-icon>
+              <span class="text-dark">
+                {{ lastUpdated | date: 'short' }}
+              </span>
+            </span>
+          </div>
+        }
 
         @if (!isAudit) {
           <button
@@ -174,14 +235,14 @@ import { ValidateOnParentChangesDirective } from './validate-on-parent-changes.d
       </mat-toolbar>
 
       @if (isSingleEdit || isAudit) {
-        @if (editType$ | async; as editType) {
+        @if (editType) {
           <app-transaction-details-panel
             [singleStrTransaction]="$any(editType.payload)" />
         }
       }
     </div>
     <div class="container form-field-density px-0">
-      @if (editForm$ | async; as editForm) {
+      @if (editForm) {
         <form
           [formGroup]="editForm"
           (ngSubmit)="onSave()"
@@ -3621,7 +3682,7 @@ export class EditFormComponent implements AfterViewChecked {
   );
 
   private editForm: EditFormType | null = null;
-  private editFormValueBefore: EditFormValueType | null = null;
+  private = null;
   _ = this.editForm$
     .pipe(takeUntilDestroyed())
     // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
@@ -3659,8 +3720,10 @@ export class EditFormComponent implements AfterViewChecked {
 
   protected readonly editFormHasChanges$ = this.editForm$.pipe(
     switchMap((form) => {
-      // Store initial value when form changes
-      this.editFormValueBefore = structuredClone(form?.getRawValue() ?? null);
+      // Store initial value to detect form changes
+      const editFormValueBefore: EditFormValueType | null = structuredClone(
+        form?.getRawValue() ?? null,
+      );
 
       return form.valueChanges.pipe(
         startWith(form.getRawValue()),
@@ -3668,7 +3731,7 @@ export class EditFormComponent implements AfterViewChecked {
           const editFormVal = form.getRawValue()!;
           return !isEqualWith(
             editFormVal,
-            this.editFormValueBefore,
+            editFormValueBefore,
             (val1, val2, indexOrKey) => {
               const isEmpty = (val: unknown) => val == null || val === '';
 
@@ -3847,6 +3910,8 @@ export class EditFormComponent implements AfterViewChecked {
               : []),
         ),
         highlightColor: new FormControl(txn?.highlightColor ?? ''),
+        updatedBy: new FormControl(txn?.changeLogs.at(-1)?.updatedBy ?? ''),
+        updatedAt: new FormControl(txn?.changeLogs.at(-1)?.updatedAt ?? ''),
       },
       { updateOn: 'change' },
     ) satisfies FormGroup<TypedForm<WithETag<StrTxnEditForm>>>;
@@ -5203,7 +5268,10 @@ export type StrTxnEditForm = RecursiveOmit<
   | '_hiddenSaAmount'
   | '_hiddenFirstName'
   | 'sourceId'
->;
+> & {
+  updatedAt: string | null;
+  updatedBy: string | null;
+};
 
 export type EditFormEditType =
   | {

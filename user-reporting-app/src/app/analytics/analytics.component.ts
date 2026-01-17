@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { MatChipsModule } from '@angular/material/chips';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatToolbar } from '@angular/material/toolbar';
@@ -25,14 +26,12 @@ import {
   take,
 } from 'rxjs';
 import { CaseRecordStore } from '../aml/case-record.store';
+import { TransactionDateDirective } from '../reporting-ui/edit-form/transaction-date.directive';
+import { StrTransaction } from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
+import { TransactionSearchService } from '../transaction-search/transaction-search.service';
 import { CircularComponent } from './circular/circular.component';
 import { MonthlyTxnVolumeComponent } from './monthly-txn-volume/monthly-txn-volume.component';
 import { TxnMethodBreakdownComponent } from './txn-method-breakdown/txn-method-breakdown.component';
-import { StrTransaction } from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
-import { TransactionDateDirective } from '../reporting-ui/edit-form/transaction-date.directive';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatIcon } from '@angular/material/icon';
-import { TransactionSearchService } from '../transaction-search/transaction-search.service';
 
 @Component({
   selector: 'app-analytics',
@@ -48,37 +47,15 @@ import { TransactionSearchService } from '../transaction-search/transaction-sear
     MatOption,
     ReactiveFormsModule,
     MatChipsModule,
-    MatIcon,
   ],
   template: `
     <div class="row g-2">
       <mat-toolbar class="col-12 mt-1">
         <div class="d-flex w-100 align-items-center gap-3">
-          <!-- Period Display -->
-          <div class="d-flex align-items-center gap-2 fs-5">
-            <mat-icon>date_range</mat-icon>
-            <span class="small">Period:</span>
-            <mat-chip-set class="txn-period-chips d-flex align-items-center">
-              @if (filterForm.value.periodStart) {
-                <mat-chip>
-                  {{ formatMonthYear(filterForm.value.periodStart) }}
-                </mat-chip>
-              }
-              @if (filterForm.value.periodStart && filterForm.value.periodEnd) {
-                <span class="mx-1 fst-italic small">to</span>
-              }
-              @if (filterForm.value.periodEnd) {
-                <mat-chip>
-                  {{ formatMonthYear(filterForm.value.periodEnd) }}
-                </mat-chip>
-              }
-            </mat-chip-set>
-          </div>
-
           <!-- Risk Metrics Display -->
           @if (riskMetrics$ | async; as metrics) {
             <div
-              class="d-flex align-items-center gap-2 border-start ps-3 overflow-x-auto fs-5 risk-display">
+              class="d-flex align-items-center gap-2 overflow-x-auto fs-5 risk-display">
               <!-- <mat-icon
                 [class.text-danger]="metrics.riskLevel === 'HIGH'"
                 [class.text-warning]="metrics.riskLevel === 'MEDIUM'"
@@ -113,6 +90,8 @@ import { TransactionSearchService } from '../transaction-search/transaction-sear
                   </strong>
                 </div>
 
+                <span class="vr"></span>
+
                 <div>
                   <span class="text-muted">Velocity:</span>
                   <strong [class.text-danger]="metrics.velocityRatio > 50000">
@@ -122,6 +101,8 @@ import { TransactionSearchService } from '../transaction-search/transaction-sear
                     }}/d
                   </strong>
                 </div>
+
+                <span class="vr"></span>
 
                 <div>
                   <span class="text-muted">Structure:</span>
@@ -181,11 +162,17 @@ import { TransactionSearchService } from '../transaction-search/transaction-sear
                   account of accountsSelection$ | async;
                   track account.account
                 ) {
-                  <mat-option [value]="account.account">
-                    {{ account.transit }}-{{ account.account }} ({{
-                      account.currency
-                    }})
-                  </mat-option>
+                  @if (account.transit) {
+                    <mat-option [value]="account.account">
+                      {{ account.transit }}-{{ account.account }} ({{
+                        account.currency
+                      }})
+                    </mat-option>
+                  } @else {
+                    <mat-option [value]="account.account">
+                      {{ account.account }} ({{ account.currency }})
+                    </mat-option>
+                  }
                 }
               </mat-select>
             </mat-form-field>

@@ -84,3 +84,7 @@ mat-toolbar.card-toolbar .mdc-button {
   display: inline-block; /* show skeleton when loading */
   visibility: visible;
 }
+
+.updated-by-row {
+  --mat-toolbar-standard-height: auto;
+}
