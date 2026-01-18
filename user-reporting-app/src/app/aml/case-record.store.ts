@@ -862,7 +862,7 @@ export type StrTransactionWithChangeLogs = StrTransaction & {
   // [key: string]: unknown;
 };
 
-type ChangeLogAudit = WithETag<ChangeLog.ChangeLogType> & {
+export type ChangeLogAudit = WithETag<ChangeLog.ChangeLogType> & {
   updatedAt: string;
   updatedBy: string;
   eTag: number;

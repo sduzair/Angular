@@ -92,8 +92,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
                   "
                   [indeterminate]="
                     baseTable.selection.hasValue() && !baseTable.isAllSelected()
-                  "
-                  [class.invisible]="!baseTable.selection.hasValue()">
+                  ">
                 </mat-checkbox>
               </div>
             }

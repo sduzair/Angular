@@ -16,18 +16,13 @@ import {
   FormControl,
   FormGroup,
   FormGroupDirective,
-  NgForm,
   ReactiveFormsModule,
   ValidationErrors,
   Validators,
 } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-import {
-  ErrorStateMatcher,
-  MAT_DATE_FORMATS,
-  MatDateFormats,
-} from '@angular/material/core';
+import { MAT_DATE_FORMATS, MatDateFormats } from '@angular/material/core';
 import {
   MatDatepicker,
   MatDatepickerModule,
@@ -42,7 +37,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
-import { MatToolbar, MatToolbarModule } from '@angular/material/toolbar';
+import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router } from '@angular/router';
 import {
   getMonth,
@@ -91,6 +86,8 @@ import {
   TransactionSearchResponse,
   TransactionSearchService,
 } from './transaction-search.service';
+
+const AMLID_TEST = '99999999';
 
 @Component({
   selector: 'app-transaction-search',
@@ -185,29 +182,30 @@ import {
             </mat-toolbar-row>
             <mat-toolbar-row class="col-12 flex-row mb-2 updated-by-row">
               <div class="flex-fill"></div>
-              <div class="d-flex align-items-center gap-3 text-muted fs-6">
-                @let lastUpdatedBy =
-                  searchParamsForm.controls.lastUpdatedBy.value;
-                <span
-                  class="d-flex align-items-center gap-1"
-                  [class.invisible]="!lastUpdatedBy">
+              @let lastUpdatedBy =
+                searchParamsForm.controls.lastUpdatedBy.value;
+              @let lastUpdated = searchParamsForm.controls.lastUpdated.value;
+
+              <div
+                class="d-flex align-items-center gap-3 text-muted fs-6"
+                [class.invisible]="!lastUpdatedBy || !lastUpdated">
+                <span class="d-flex align-items-center gap-1">
                   <span class="fw-medium text-secondary">Updated By:</span>
                   <mat-icon
                     color="accent"
-                    style="font-size: 18px; height: 18px; width: 18px;">
+                    style="font-size: 20px; height: 20px; width: 20px;">
                     person
                   </mat-icon>
                   <span class="text-dark">{{ lastUpdatedBy }}</span>
                 </span>
 
-                @let lastUpdated = searchParamsForm.controls.lastUpdated.value;
-                <span
-                  class="d-flex align-items-center gap-1"
-                  [class.invisible]="!lastUpdated">
+                <span class="vr"></span>
+
+                <span class="d-flex align-items-center gap-1">
                   <span class="fw-medium text-secondary"> Last Updated: </span>
                   <mat-icon
                     color="accent"
-                    style="font-size: 18px; height: 18px; width: 18px;">
+                    style="font-size: 20px; height: 20px; width: 20px;">
                     schedule
                   </mat-icon>
                   <span class="text-dark">
@@ -586,7 +584,7 @@ export class TransactionSearchComponent implements OnInit {
   searchParamsForm = new FormGroup(
     {
       amlId: new FormControl(
-        { value: '', disabled: false },
+        { value: AMLID_TEST, disabled: false },
         {
           validators: [Validators.required, Validators.pattern('^[0-9]+$')],
           nonNullable: true,

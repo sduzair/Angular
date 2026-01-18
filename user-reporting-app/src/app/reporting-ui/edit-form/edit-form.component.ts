@@ -55,9 +55,11 @@ import {
   startWith,
   switchMap,
   tap,
+  withLatestFrom,
 } from 'rxjs/operators';
 import {
   CaseRecordStore,
+  ChangeLogAudit,
   StrTransactionWithChangeLogs,
 } from '../../aml/case-record.store';
 import * as ChangeLog from '../../change-logging/change-log';
@@ -137,7 +139,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
   template: `
     @let editForm = editForm$ | async;
     <div class="container px-0 mb-5">
-      <mat-toolbar class="justify-content-end px-0">
+      <mat-toolbar class="justify-content-end px-0 gap-4">
         <button
           type="button"
           mat-icon-button
@@ -164,35 +166,38 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
 
         <div class="flex-fill"></div>
 
-        @if (isSingleEdit || isAudit) {
-          <div class="d-flex align-items-center gap-3 text-muted fs-6">
-            @let lastUpdatedBy = editForm?.value?.updatedBy ?? '';
-            <span
-              class="d-flex align-items-center gap-1"
-              [class.invisible]="!lastUpdatedBy">
+        @if (isAudit) {
+          @let auditLastUpdatedBy = (auditLastUpdatedBy$ | async) ?? '';
+          @let auditLastUpdated = (auditLastUpdated$ | async) ?? '';
+
+          <div
+            class="d-flex align-items-center gap-3 text-muted fs-6"
+            [class.invisible]="!auditLastUpdatedBy || !auditLastUpdated">
+            <span class="d-flex align-items-center gap-1">
               <span class="fw-medium text-secondary">Updated By:</span>
               <mat-icon
                 color="accent"
-                style="font-size: 18px; height: 18px; width: 18px;">
+                style="font-size: 20px; height: 20px; width: 20px;">
                 person
               </mat-icon>
-              <span class="text-dark">{{ lastUpdatedBy }}</span>
+              <span class="text-dark">{{ auditLastUpdatedBy }}</span>
             </span>
 
-            @let lastUpdated = editForm?.value?.updatedAt ?? '';
-            <span
-              class="d-flex align-items-center gap-1"
-              [class.invisible]="!lastUpdated">
+            <span class="vr"></span>
+
+            <span class="d-flex align-items-center gap-1">
               <span class="fw-medium text-secondary"> Last Updated: </span>
               <mat-icon
                 color="accent"
-                style="font-size: 18px; height: 18px; width: 18px;">
+                style="font-size: 20px; height: 20px; width: 20px;">
                 schedule
               </mat-icon>
               <span class="text-dark">
-                {{ lastUpdated | date: 'short' }}
+                {{ auditLastUpdated | date: 'short' }}
               </span>
             </span>
+
+            <span class="vr"></span>
           </div>
         }
 
@@ -217,7 +222,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
         }
 
         @if (isAudit) {
-          <mat-form-field>
+          <mat-form-field class="audit-form-btn" subscriptSizing="dynamic">
             <mat-select
               placeholder="Version"
               [formControl]="auditVersionControl">
@@ -3682,7 +3687,7 @@ export class EditFormComponent implements AfterViewChecked {
   );
 
   private editForm: EditFormType | null = null;
-  private = null;
+
   _ = this.editForm$
     .pipe(takeUntilDestroyed())
     // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
@@ -3697,25 +3702,71 @@ export class EditFormComponent implements AfterViewChecked {
         (log) => log.path !== '/highlightColor',
       ),
     ),
-    tap((changes) =>
-      this.auditVersionControl.setValue(changes.at(-1)?.eTag ?? 0),
-    ),
+    tap((changes) => {
+      this.auditVersionControl.setValue(changes.at(-1)?.eTag ?? 0);
+    }),
     map((changes) => {
-      const verMap = new Map([[0, 0]]);
+      const verMap = new Map<number, ChangeLogAudit>([
+        [
+          0,
+          {
+            eTag: 0,
+            op: 'test',
+            path: '',
+            updatedAt: '',
+            updatedBy: '',
+            value: null,
+          },
+        ],
+      ]);
 
       changes.forEach((log) => {
-        if (Array.from(verMap.values()).includes(log.eTag!)) return verMap;
+        if (Array.from(verMap.values()).find((val) => val.eTag === log.eTag!))
+          return;
 
         let lastLabelIndex = [...verMap].at(-1)![0];
-        return verMap.set(++lastLabelIndex, log.eTag!);
+        verMap.set(++lastLabelIndex, log);
+        return;
       });
 
-      return Array.from(verMap.entries()).map(([key, val]) => ({
-        label: `v${String(key)}`,
-        value: val,
-      }));
+      return Array.from(verMap.entries()).map(
+        ([key, { updatedAt, updatedBy }]) => ({
+          label: `v${String(key)}`,
+          value: key,
+          updatedAt,
+          updatedBy,
+        }),
+      );
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  private readonly auditInfo$ = this.auditVersionControl.valueChanges.pipe(
+    startWith(this.auditVersionControl.value),
+    withLatestFrom(this.auditVersionOptions$),
+    map(([ver, options]) => {
+      if (Number.isNaN(ver)) {
+        const option = options.at(-1);
+        return {
+          updatedAt: option?.updatedAt,
+          updatedBy: option?.updatedBy,
+        };
+      }
+
+      const option = options.find((opt) => opt.value === ver);
+      return {
+        updatedAt: option?.updatedAt,
+        updatedBy: option?.updatedBy,
+      };
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  protected auditLastUpdated$ = this.auditInfo$.pipe(
+    map((info) => info.updatedAt),
+  );
+  protected auditLastUpdatedBy$ = this.auditInfo$.pipe(
+    map((info) => info.updatedBy),
   );
 
   protected readonly editFormHasChanges$ = this.editForm$.pipe(
@@ -4967,7 +5018,7 @@ export class EditFormComponent implements AfterViewChecked {
   }
   protected get showTransactionDetailsErrorIcon() {
     if (this.isBulkEdit) return !this.editForm!.valid && this.editForm!.dirty;
-    return !this.editForm!.valid;
+    return !this.editForm!.disabled && !this.editForm!.valid;
   }
   protected get showStartingActionsErrorIcon() {
     if (this.isBulkEdit)
@@ -4975,7 +5026,10 @@ export class EditFormComponent implements AfterViewChecked {
         !this.editForm!.controls.startingActions.valid &&
         this.editForm!.controls.startingActions.dirty
       );
-    return !this.editForm!.controls.startingActions.valid;
+    return (
+      !this.editForm!.controls.startingActions.disabled &&
+      !this.editForm!.controls.startingActions.valid
+    );
   }
   protected get showCompletingActionsErrorIcon() {
     if (this.isBulkEdit)
@@ -4983,7 +5037,10 @@ export class EditFormComponent implements AfterViewChecked {
         !this.editForm!.controls.completingActions.valid &&
         this.editForm!.controls.completingActions.dirty
       );
-    return !this.editForm!.controls.completingActions.valid;
+    return (
+      !this.editForm!.controls.completingActions.disabled &&
+      !this.editForm!.controls.completingActions.valid
+    );
   }
 
   protected get selectedTransactionsForBulkEditLength() {
