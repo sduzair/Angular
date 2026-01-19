@@ -587,6 +587,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
     const selectedIds = this.baseTable.selection.selected.map(
       (strTxn) => strTxn.flowOfFundsAmlTransactionId,
     );
+    this.baseTable.selection.clear();
     this.caseRecordStore.qRemoveSelections(selectedIds);
   }
 

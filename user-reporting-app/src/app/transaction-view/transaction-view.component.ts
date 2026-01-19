@@ -16,12 +16,16 @@ import {
 import {
   BehaviorSubject,
   catchError,
+  combineLatest,
   combineLatestWith,
+  debounceTime,
   finalize,
   forkJoin,
   map,
+  merge,
   Observable,
   of,
+  shareReplay,
   Subject,
   switchMap,
   tap,
@@ -44,6 +48,7 @@ import { AbmTableComponent } from './abm-table/abm-table.component';
 import { AbstractTransactionViewComponent } from './abstract-transaction-view.component';
 import { EmtTableComponent } from './emt-table/emt-table.component';
 import { FofTableComponent } from './fof-table/fof-table.component';
+import { LocalHighlightsService } from './local-highlights.service';
 import { OlbTableComponent } from './olb-table/olb-table.component';
 import { transformABMToStrTransaction } from './transform-to-str-transaction/abm-transform';
 import { transformOlbEmtToStrTransaction } from './transform-to-str-transaction/olb-emt-transform';
@@ -118,7 +123,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
           <app-fof-table
             [fofSourceData]="(fofSourceData$ | async) || []"
             [selectionCount]="(fofSourceDataSelectionCount$ | async) ?? 0"
-            [masterSelection]="selectionModel" />
+            [masterSelection]="selectionModel"
+            (highlightChange)="onHighlightChange()" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -130,7 +136,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
           <app-abm-table
             [abmSourceData]="(abmSourceData$ | async) || []"
             [selectionCount]="(abmSourceDataSelectionCount$ | async) ?? 0"
-            [masterSelection]="selectionModel" />
+            [masterSelection]="selectionModel"
+            (highlightChange)="onHighlightChange()" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -142,7 +149,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
           <app-olb-table
             [olbSourceData]="(olbSourceData$ | async) || []"
             [selectionCount]="(olbSourceDataSelectionCount$ | async) ?? 0"
-            [masterSelection]="selectionModel" />
+            [masterSelection]="selectionModel"
+            (highlightChange)="onHighlightChange()" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -155,7 +163,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [emtSourceData]="(emtSourceData$ | async) || []"
             [selectionCount]="(emtSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
-        /></mat-tab>
+            (highlightChange)="onHighlightChange()" />
+        </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
             Wires
@@ -166,7 +175,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
           <app-wires-table
             [wiresSourceData]="(wiresSourceData$ | async) || []"
             [selectionCount]="(wiresSourceDataSelectionCount$ | async) ?? 0"
-            [masterSelection]="selectionModel" />
+            [masterSelection]="selectionModel"
+            (highlightChange)="onHighlightChange()" />
         </mat-tab>
       </mat-tab-group>
     }
@@ -178,27 +188,92 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
   private snackBar = inject(SnackbarQueueService);
   protected qIsSaving$ = this._caseRecordStore.qIsSaving$;
 
-  fofSourceData$ = this.searchResponse$.pipe(
-    map(
-      (search) =>
-        search.find((res) => res.sourceId === 'FlowOfFunds')?.sourceData!,
+  private highlightsService = inject(LocalHighlightsService);
+  private refreshHighlights$ = new Subject<void>();
+  protected onHighlightChange() {
+    this.refreshHighlights$.next();
+  }
+
+  private highlights$ = merge(
+    this._caseRecordStore.state$,
+    this.refreshHighlights$.pipe(
+      debounceTime(300),
+      withLatestFrom(this._caseRecordStore.state$),
+      map(([_, state]) => state),
+    ),
+  ).pipe(
+    switchMap(({ caseRecordId }) => {
+      return this.highlightsService.getHighlights(caseRecordId);
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  fofSourceData$ = combineLatest([this.searchResponse$, this.highlights$]).pipe(
+    map(([search, higlightsMap]) =>
+      search
+        .find((res) => res.sourceId === 'FlowOfFunds')
+        ?.sourceData!.map((row) => ({
+          ...row,
+          _uiPropHighlightColor: higlightsMap.get(
+            row.flowOfFundsAmlTransactionId,
+          ),
+        })),
     ),
   );
 
-  abmSourceData$ = this.searchResponse$.pipe(
-    map((search) => search.find((res) => res.sourceId === 'ABM')?.sourceData!),
+  abmSourceData$ = combineLatest([this.searchResponse$, this.highlights$]).pipe(
+    map(([search, higlightsMap]) =>
+      search
+        .find((res) => res.sourceId === 'ABM')
+        ?.sourceData!.map((row) => ({
+          ...row,
+          _uiPropHighlightColor: higlightsMap.get(
+            row.flowOfFundsAmlTransactionId,
+          ),
+        })),
+    ),
   );
 
-  olbSourceData$ = this.searchResponse$.pipe(
-    map((search) => search.find((res) => res.sourceId === 'OLB')?.sourceData!),
+  olbSourceData$ = combineLatest([this.searchResponse$, this.highlights$]).pipe(
+    map(([search, higlightsMap]) =>
+      search
+        .find((res) => res.sourceId === 'OLB')
+        ?.sourceData!.map((row) => ({
+          ...row,
+          _uiPropHighlightColor: higlightsMap.get(
+            row.flowOfFundsAmlTransactionId,
+          ),
+        })),
+    ),
   );
 
-  emtSourceData$ = this.searchResponse$.pipe(
-    map((search) => search.find((res) => res.sourceId === 'EMT')?.sourceData!),
+  emtSourceData$ = combineLatest([this.searchResponse$, this.highlights$]).pipe(
+    map(([search, higlightsMap]) =>
+      search
+        .find((res) => res.sourceId === 'EMT')
+        ?.sourceData!.map((row) => ({
+          ...row,
+          _uiPropHighlightColor: higlightsMap.get(
+            row.flowOfFundsAmlTransactionId,
+          ),
+        })),
+    ),
   );
 
-  wiresSourceData$ = this.searchResponse$.pipe(
-    map((search) => search.find((res) => res.sourceId === 'Wire')?.sourceData!),
+  wiresSourceData$ = combineLatest([
+    this.searchResponse$,
+    this.highlights$,
+  ]).pipe(
+    map(([search, higlightsMap]) =>
+      search
+        .find((res) => res.sourceId === 'Wire')
+        ?.sourceData!.map((row) => ({
+          ...row,
+          _uiPropHighlightColor: higlightsMap.get(
+            row.flowOfFundsAmlTransactionId,
+          ),
+        })),
+    ),
   );
 
   private selectionIdsLastSaved$ = this.selections$.pipe(

@@ -727,7 +727,7 @@ export function getSubjectIdAndCategory(
 
   if (isFocal && isPerson) {
     category = NODE_ENUM.FocalPersonSubject;
-    name = `${subject.givenName} ${subject.otherOrInitial} ${subject.surname}`;
+    name = `${subject.givenName} ${subject.otherOrInitial ? subject.otherOrInitial + ' ' : ''}${subject.surname}`;
   }
 
   if (isFocal && isEntity) {
@@ -737,7 +737,7 @@ export function getSubjectIdAndCategory(
 
   if (!isFocal && isClient && isPerson) {
     category = NODE_ENUM.CibcPersonSubject;
-    name = `${subject.givenName} ${subject.otherOrInitial} ${subject.surname}`;
+    name = `${subject.givenName} ${subject.otherOrInitial ? subject.otherOrInitial + ' ' : ''}${subject.surname}`;
   }
 
   if (!isFocal && isClient && isEntity) {

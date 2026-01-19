@@ -201,23 +201,34 @@ export class CaseRecordStore implements OnDestroy {
         selectionsToAdd = [],
         selectionsToRemove = [],
       }) => {
-        if (selectionsToChange.length > 0)
+        if (selectionsToChange.length > 0) {
+          const _cloneSelections = structuredClone(selectionsToChange);
+          // eslint-disable-next-line no-param-reassign
+          selectionsToChange.length = 0;
           return computePartialChangesHandler(
             currentSelections,
-            selectionsToChange,
+            _cloneSelections,
           );
+        }
 
-        if (selectionsToAdd.length > 0)
+        if (selectionsToAdd.length > 0) {
+          const _cloneSelections = structuredClone(selectionsToAdd);
+          // eslint-disable-next-line no-param-reassign
+          selectionsToAdd.length = 0;
           return computeAddedSelectionsHandler(
             currentSelections,
-            selectionsToAdd,
+            _cloneSelections,
           );
+        }
 
         if (selectionsToRemove.length > 0) {
+          const _cloneSelections = structuredClone(selectionsToRemove);
+          // eslint-disable-next-line no-param-reassign
+          selectionsToRemove.length = 0;
           return (acc: StrTransactionWithChangeLogs[]) => {
             return acc.filter(
               (txn) =>
-                !selectionsToRemove.includes(txn.flowOfFundsAmlTransactionId),
+                !_cloneSelections.includes(txn.flowOfFundsAmlTransactionId),
             );
           };
         }

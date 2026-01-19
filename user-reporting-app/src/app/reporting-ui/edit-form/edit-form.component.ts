@@ -139,7 +139,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
   template: `
     @let editForm = editForm$ | async;
     <div class="container px-0 mb-5">
-      <mat-toolbar class="justify-content-end px-0 gap-4">
+      <mat-toolbar class="justify-content-end px-0 gap-4 toolbar">
         <button
           type="button"
           mat-icon-button
@@ -151,7 +151,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
         @let editType = editType$ | async;
 
         @if (editType && editType.type === 'BULK_SAVE') {
-          <div class="d-flex align-items-center gap-2 ms-3">
+          <div class="d-flex align-items-center gap-2">
             <mat-chip
               color="accent"
               class="d-flex align-items-center selected-chip">
@@ -3961,8 +3961,12 @@ export class EditFormComponent implements AfterViewChecked {
               : []),
         ),
         highlightColor: new FormControl(txn?.highlightColor ?? ''),
-        updatedBy: new FormControl(txn?.changeLogs.at(-1)?.updatedBy ?? ''),
-        updatedAt: new FormControl(txn?.changeLogs.at(-1)?.updatedAt ?? ''),
+        _hiddenUpdatedBy: new FormControl(
+          txn?.changeLogs.at(-1)?.updatedBy ?? '',
+        ),
+        _hiddenUpdatedAt: new FormControl(
+          txn?.changeLogs.at(-1)?.updatedAt ?? '',
+        ),
       },
       { updateOn: 'change' },
     ) satisfies FormGroup<TypedForm<WithETag<StrTxnEditForm>>>;
@@ -5326,8 +5330,8 @@ export type StrTxnEditForm = RecursiveOmit<
   | '_hiddenFirstName'
   | 'sourceId'
 > & {
-  updatedAt: string | null;
-  updatedBy: string | null;
+  _hiddenUpdatedAt: string | null;
+  _hiddenUpdatedBy: string | null;
 };
 
 export type EditFormEditType =

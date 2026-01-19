@@ -3,7 +3,10 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  EventEmitter,
+  inject,
   Input,
+  Output,
   TrackByFunction,
   ViewChild,
 } from '@angular/core';
@@ -13,6 +16,9 @@ import { IFilterForm } from '../../base-table/abstract-base-table';
 import { BaseTableComponent } from '../../base-table/base-table.component';
 import { WireSourceData } from '../../transaction-search/transaction-search.service';
 import { TableSelectionType } from '../transaction-view.component';
+import { map, take } from 'rxjs';
+import { CaseRecordStore } from '../../aml/case-record.store';
+import { LocalHighlightsService } from '../local-highlights.service';
 
 @Component({
   selector: 'app-wires-table',
@@ -358,4 +364,32 @@ export class WiresTableComponent<
       );
     }
   }
+
+  caseRecordId = '';
+  constructor() {
+    inject(CaseRecordStore)
+      .state$.pipe(
+        map(({ caseRecordId }) => caseRecordId),
+        take(1),
+      )
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
+      .subscribe((caseRecordId) => {
+        this.caseRecordId = caseRecordId;
+      });
+  }
+
+  private highlightsService = inject(LocalHighlightsService);
+  @Output() readonly highlightChange = new EventEmitter<void>();
+
+  filterFormHighlightSideEffect = (
+    highlights: { txnId: string; newColor: string }[],
+  ) => {
+    this.highlightsService
+      .saveHighlights(this.caseRecordId, highlights)
+      .pipe(take(1))
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
+      .subscribe(() => {
+        this.highlightChange.emit();
+      });
+  };
 }

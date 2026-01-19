@@ -3,10 +3,12 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  EventEmitter,
+  inject,
   Input,
+  Output,
   TrackByFunction,
   ViewChild,
-  viewChild,
 } from '@angular/core';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
@@ -14,6 +16,9 @@ import { IFilterForm } from '../../base-table/abstract-base-table';
 import { BaseTableComponent } from '../../base-table/base-table.component';
 import { AbmSourceData } from '../../transaction-search/transaction-search.service';
 import { TableSelectionType } from '../transaction-view.component';
+import { CaseRecordStore } from '../../aml/case-record.store';
+import { map, take } from 'rxjs';
+import { LocalHighlightsService } from '../local-highlights.service';
 
 @Component({
   selector: 'app-abm-table',
@@ -35,6 +40,7 @@ import { TableSelectionType } from '../transaction-view.component';
       [selection]="masterSelection!"
       [selectionKey]="'flowOfFundsAmlTransactionId'"
       [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'"
+      [filterFormHighlightSideEffect]="filterFormHighlightSideEffect"
       [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
       [sortedBy]="'transactionDate'">
       <!-- Selection Model -->
@@ -511,4 +517,32 @@ export class AbmTableComponent<
       );
     }
   }
+
+  caseRecordId = '';
+  constructor() {
+    inject(CaseRecordStore)
+      .state$.pipe(
+        map(({ caseRecordId }) => caseRecordId),
+        take(1),
+      )
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
+      .subscribe((caseRecordId) => {
+        this.caseRecordId = caseRecordId;
+      });
+  }
+
+  private highlightsService = inject(LocalHighlightsService);
+  @Output() readonly highlightChange = new EventEmitter<void>();
+
+  filterFormHighlightSideEffect = (
+    highlights: { txnId: string; newColor: string }[],
+  ) => {
+    this.highlightsService
+      .saveHighlights(this.caseRecordId, highlights)
+      .pipe(take(1))
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
+      .subscribe(() => {
+        this.highlightChange.emit();
+      });
+  };
 }
