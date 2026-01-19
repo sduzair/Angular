@@ -97,6 +97,11 @@ export default defineConfig([
               message:
                 'Please interface with this library code using change log module',
             },
+            {
+              group: ['**/echarts/*'],
+              message:
+                'import charts only in lazily loaded analytics component',
+            },
           ],
         },
       ],
@@ -110,6 +115,12 @@ export default defineConfig([
       'no-restricted-imports': ['off'],
       ...jasmine.configs.recommended.rules,
       'jasmine/no-unsafe-spy': ['off'],
+    },
+  },
+  {
+    files: ['**/analytics/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['off'],
     },
   },
   {

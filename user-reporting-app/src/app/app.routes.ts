@@ -1,4 +1,7 @@
 import type { Routes } from '@angular/router';
+import { provideHashbrown } from '@hashbrownai/angular';
+import { provideMarkdown } from 'ngx-markdown';
+import { amlNavTreeResolver } from './aml/aml.component';
 import {
   CASE_RECORD_INITIAL_STATE,
   CaseRecordStore,
@@ -19,7 +22,6 @@ import {
   searchResultResolver,
   TransactionViewComponent,
 } from './transaction-view/transaction-view.component';
-import { amlNavTreeResolver } from './aml/aml.component';
 
 export const routes: Routes = [
   {
@@ -63,6 +65,16 @@ export const routes: Routes = [
           },
           CaseRecordStore,
           AccountMethodsService,
+          provideHashbrown({
+            baseUrl: '/api/chat',
+            middleware: [
+              (req) => {
+                console.info('[Hashbrown Request]', req);
+                return req;
+              },
+            ],
+          }),
+          provideMarkdown(),
         ],
         data: { reuse: true },
         title: (route) => `AML - ${route.params['amlId']}`,

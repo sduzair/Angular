@@ -22,22 +22,25 @@ import {
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
-import {
-  FORM_OPTIONS_DETAILS_OF_DISPOSITION,
-  FORM_OPTIONS_TYPE_OF_FUNDS,
-} from '../../reporting-ui/edit-form/form-options.service';
 import { StrTransaction } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import { SnackbarQueueService } from '../../snackbar-queue.service';
 import { AccountNumberData } from '../../transaction-search/account-number-selectable-table/account-number-selectable-table.component';
-import {
-  getTxnMethod,
-  METHOD_ENUM,
-} from '../txn-method-breakdown/txn-method-breakdown.component';
 import {
   extractNodeDisplayData,
   formatNodeDataAsHtml,
   getNodeDataTextToCopy,
 } from './clipboardHelper';
+import {
+  FORM_OPTIONS_TYPE_OF_FUNDS,
+  FORM_OPTIONS_DETAILS_OF_DISPOSITION,
+} from '../../reporting-ui/edit-form/form-options.service';
+import {
+  NODE_ENUM,
+  generateUnknownNodeKey,
+  getSubjectIdAndCategory,
+  getTxnMethod,
+  METHOD_ENUM,
+} from '../account-methods.service';
 
 // Register only what you need
 echarts.use([
@@ -688,81 +691,6 @@ export function buildTransactionLinks({
   }
 }
 
-export function getSubjectIdAndCategory(
-  subject: Subject | undefined,
-  focalSubjects: Set<string>,
-) {
-  let category = NODE_ENUM.UnknownNode as number;
-  let name = 'Unknown Subject';
-  let isFocal = false;
-
-  if (!subject) {
-    return {
-      subjectId: generateUnknownNodeKey(),
-      category,
-      name,
-      isFocal,
-    };
-  }
-
-  if (
-    !subject.partyKey &&
-    !subject.givenName &&
-    !subject.otherOrInitial &&
-    !subject.surname &&
-    !subject.nameOfEntity
-  ) {
-    return {
-      subjectId: generateUnknownNodeKey(),
-      category,
-      name,
-      isFocal,
-    };
-  }
-
-  const isClient = !!subject.partyKey;
-  const isPerson = !!subject.surname && !!subject.givenName;
-  const isEntity = !!subject.nameOfEntity;
-  isFocal = !!subject.partyKey && focalSubjects.has(subject.partyKey);
-
-  if (isFocal && isPerson) {
-    category = NODE_ENUM.FocalPersonSubject;
-    name = `${subject.givenName} ${subject.otherOrInitial ? subject.otherOrInitial + ' ' : ''}${subject.surname}`;
-  }
-
-  if (isFocal && isEntity) {
-    category = NODE_ENUM.FocalEntitySubject;
-    name = `${subject.nameOfEntity}`;
-  }
-
-  if (!isFocal && isClient && isPerson) {
-    category = NODE_ENUM.CibcPersonSubject;
-    name = `${subject.givenName} ${subject.otherOrInitial ? subject.otherOrInitial + ' ' : ''}${subject.surname}`;
-  }
-
-  if (!isFocal && isClient && isEntity) {
-    category = NODE_ENUM.CibcEntitySubject;
-    name = `${subject.nameOfEntity}`;
-  }
-
-  if (!isFocal && !isClient && isPerson) {
-    category = NODE_ENUM.PersonSubject;
-    name = `${subject.givenName} ${subject.otherOrInitial ? subject.otherOrInitial + ' ' : ''}${subject.surname}`;
-  }
-
-  if (!isFocal && !isClient && isEntity) {
-    category = NODE_ENUM.EntitySubject;
-    name = `${subject.nameOfEntity}`;
-  }
-
-  return {
-    subjectId: `SUBJECT-${subject.partyKey ?? ''}-${subject.surname ?? ''}-${subject.givenName ?? ''}-${subject.otherOrInitial ?? ''}-${subject.nameOfEntity ?? ''}`,
-    category,
-    name,
-    isFocal,
-  };
-}
-
 function isFocalClient(node: GraphNode) {
   return (
     node.category == NODE_ENUM.FocalPersonSubject ||
@@ -945,45 +873,11 @@ const NODES = [
   { name: 'Focal Account', itemStyle: { color: '#ff2f65' } }, // 9 - Deep amber
 ];
 
-export const NODE_ENUM = {
-  CibcPersonSubject: 0,
-  CibcEntitySubject: 1,
-  Account: 2,
-  PersonSubject: 3,
-  EntitySubject: 4,
-  AttemptedTxn: 5,
-  UnknownNode: 6,
-  FocalPersonSubject: 7,
-  FocalEntitySubject: 8,
-  FocalAccount: 9,
-} as const;
-
 export function getNodeName(num: number) {
   const index = (Object.values(NODE_ENUM) as number[]).findIndex(
     (val) => val === num,
   );
   return NODES[index].name;
-}
-
-function generateUnknownNodeKey() {
-  return `UNKNOWN-${crypto.randomUUID()}`;
-}
-
-export const CATEGORY_LABEL: Record<number, string> = {
-  7: 'an individual',
-  8: 'a business/entity',
-  3: 'an individual',
-  4: 'a business/entity',
-  0: 'an individual',
-  1: 'a business/entity',
-};
-
-interface Subject {
-  partyKey: string | null;
-  surname: string | null;
-  givenName: string | null;
-  otherOrInitial: string | null;
-  nameOfEntity: string | null;
 }
 
 export type Link = NonNullable<GraphSeriesOption['links']>[number] &

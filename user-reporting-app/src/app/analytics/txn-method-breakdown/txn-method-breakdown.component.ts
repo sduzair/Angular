@@ -35,6 +35,7 @@ import {
   FORM_OPTIONS_METHOD_OF_TXN,
   FORM_OPTIONS_TYPE_OF_FUNDS,
 } from '../../reporting-ui/edit-form/form-options.service';
+import { getTxnMethod, METHOD_FRIENDLY_NAME } from '../account-methods.service';
 
 echarts.use([
   PieChart,
@@ -429,69 +430,4 @@ interface ChartData {
   avgValue: number;
   credits: number;
   debits: number;
-}
-
-export const METHOD_ENUM = {
-  Unknown: 0,
-  ABM: 1,
-  Cheque: 2,
-  OLB: 3,
-  EMT: 4,
-  Wires: 5,
-} as const;
-
-export const METHOD_FRIENDLY_NAME = {
-  0: 'Unknown' as const,
-  1: 'ABM Cash' as const,
-  2: 'Cheque' as const,
-  3: 'Online Banking' as const,
-  4: 'Email Transfer (EMT)' as const,
-  5: 'Wire Transfer' as const,
-};
-
-export function getTxnMethod(
-  typeOfFunds: FORM_OPTIONS_TYPE_OF_FUNDS | (string & {}) | null,
-  detailsOfDispo: FORM_OPTIONS_DETAILS_OF_DISPOSITION | (string & {}) | null,
-  methodOfTxn: string | null,
-) {
-  const typeOfFundsType = typeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS | null;
-  const detailsOfDispoType =
-    detailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION | null;
-  // note: method of txn may not be identical to txn method which is used for purposes of charting
-  const methodOfTxnType = methodOfTxn as FORM_OPTIONS_METHOD_OF_TXN | null;
-
-  let method;
-
-  if (typeOfFundsType === 'Cash' && detailsOfDispoType === 'Deposit to account')
-    method = METHOD_ENUM.ABM;
-
-  if (
-    typeOfFundsType === 'Funds withdrawal' &&
-    detailsOfDispoType === 'Cash Withdrawal'
-  )
-    method = METHOD_ENUM.ABM;
-
-  if (
-    typeOfFundsType === 'Cheque' &&
-    detailsOfDispoType === 'Deposit to account'
-  )
-    method = METHOD_ENUM.Cheque;
-
-  if (typeOfFundsType === 'Cheque' && detailsOfDispoType === 'Issued Cheque')
-    method = METHOD_ENUM.Cheque;
-
-  if (methodOfTxnType === 'Online') method = METHOD_ENUM.OLB;
-
-  if (typeOfFundsType === 'Email money transfer') method = METHOD_ENUM.EMT;
-
-  if (
-    typeOfFundsType === 'Funds withdrawal' &&
-    detailsOfDispoType === 'Outgoing email money transfer'
-  )
-    method = METHOD_ENUM.EMT;
-
-  if (typeOfFundsType === 'International Funds Transfer')
-    method = METHOD_ENUM.Wires;
-
-  return method;
 }

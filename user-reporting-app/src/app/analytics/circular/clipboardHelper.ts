@@ -1,10 +1,9 @@
-import { METHOD_FRIENDLY_NAME } from '../txn-method-breakdown/txn-method-breakdown.component';
+import { METHOD_FRIENDLY_NAME, NODE_ENUM } from '../account-methods.service';
 import {
   formatCurrencyLocal,
   getNodeName,
   GraphNode,
   MethodAmount,
-  NODE_ENUM,
 } from './circular.component';
 
 /**

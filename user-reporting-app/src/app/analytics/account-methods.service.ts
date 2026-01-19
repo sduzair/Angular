@@ -3,7 +3,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   catchError,
   combineLatest,
-  EMPTY,
   forkJoin,
   map,
   Observable,
@@ -14,17 +13,12 @@ import {
 import { CaseRecordStore } from '../aml/case-record.store';
 import { TransactionDateDirective } from '../reporting-ui/edit-form/transaction-date.directive';
 import { TransactionSearchService } from '../transaction-search/transaction-search.service';
-import {
-  CATEGORY_LABEL,
-  getSubjectIdAndCategory,
-  NODE_ENUM,
-} from './circular/circular.component';
 import { fiuMap } from './fiu';
 import {
-  getTxnMethod,
-  METHOD_ENUM,
-  METHOD_FRIENDLY_NAME,
-} from './txn-method-breakdown/txn-method-breakdown.component';
+  FORM_OPTIONS_DETAILS_OF_DISPOSITION,
+  FORM_OPTIONS_METHOD_OF_TXN,
+  FORM_OPTIONS_TYPE_OF_FUNDS,
+} from '../reporting-ui/edit-form/form-options.service';
 
 @Injectable()
 export class AccountMethodsService {
@@ -435,3 +429,177 @@ function addSubject({
 // https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address
 const EMAIL_RE =
   /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
+export const METHOD_ENUM = {
+  Unknown: 0,
+  ABM: 1,
+  Cheque: 2,
+  OLB: 3,
+  EMT: 4,
+  Wires: 5,
+} as const;
+
+export const METHOD_FRIENDLY_NAME = {
+  0: 'Unknown' as const,
+  1: 'ABM Cash' as const,
+  2: 'Cheque' as const,
+  3: 'Online Banking' as const,
+  4: 'Email Transfer (EMT)' as const,
+  5: 'Wire Transfer' as const,
+};
+
+export function getTxnMethod(
+  typeOfFunds: FORM_OPTIONS_TYPE_OF_FUNDS | (string & {}) | null,
+  detailsOfDispo: FORM_OPTIONS_DETAILS_OF_DISPOSITION | (string & {}) | null,
+  methodOfTxn: string | null,
+) {
+  const typeOfFundsType = typeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS | null;
+  const detailsOfDispoType =
+    detailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION | null;
+  // note: method of txn may not be identical to txn method which is used for purposes of charting
+  const methodOfTxnType = methodOfTxn as FORM_OPTIONS_METHOD_OF_TXN | null;
+
+  let method;
+
+  if (typeOfFundsType === 'Cash' && detailsOfDispoType === 'Deposit to account')
+    method = METHOD_ENUM.ABM;
+
+  if (
+    typeOfFundsType === 'Funds withdrawal' &&
+    detailsOfDispoType === 'Cash Withdrawal'
+  )
+    method = METHOD_ENUM.ABM;
+
+  if (
+    typeOfFundsType === 'Cheque' &&
+    detailsOfDispoType === 'Deposit to account'
+  )
+    method = METHOD_ENUM.Cheque;
+
+  if (typeOfFundsType === 'Cheque' && detailsOfDispoType === 'Issued Cheque')
+    method = METHOD_ENUM.Cheque;
+
+  if (methodOfTxnType === 'Online') method = METHOD_ENUM.OLB;
+
+  if (typeOfFundsType === 'Email money transfer') method = METHOD_ENUM.EMT;
+
+  if (
+    typeOfFundsType === 'Funds withdrawal' &&
+    detailsOfDispoType === 'Outgoing email money transfer'
+  )
+    method = METHOD_ENUM.EMT;
+
+  if (typeOfFundsType === 'International Funds Transfer')
+    method = METHOD_ENUM.Wires;
+
+  return method;
+}
+
+export const NODE_ENUM = {
+  CibcPersonSubject: 0,
+  CibcEntitySubject: 1,
+  Account: 2,
+  PersonSubject: 3,
+  EntitySubject: 4,
+  AttemptedTxn: 5,
+  UnknownNode: 6,
+  FocalPersonSubject: 7,
+  FocalEntitySubject: 8,
+  FocalAccount: 9,
+} as const;
+
+export const CATEGORY_LABEL: Record<number, string> = {
+  7: 'an individual',
+  8: 'a business/entity',
+  3: 'an individual',
+  4: 'a business/entity',
+  0: 'an individual',
+  1: 'a business/entity',
+};
+
+export function getSubjectIdAndCategory(
+  subject: Subject | undefined,
+  focalSubjects: Set<string>,
+) {
+  let category = NODE_ENUM.UnknownNode as number;
+  let name = 'Unknown Subject';
+  let isFocal = false;
+
+  if (!subject) {
+    return {
+      subjectId: generateUnknownNodeKey(),
+      category,
+      name,
+      isFocal,
+    };
+  }
+
+  if (
+    !subject.partyKey &&
+    !subject.givenName &&
+    !subject.otherOrInitial &&
+    !subject.surname &&
+    !subject.nameOfEntity
+  ) {
+    return {
+      subjectId: generateUnknownNodeKey(),
+      category,
+      name,
+      isFocal,
+    };
+  }
+
+  const isClient = !!subject.partyKey;
+  const isPerson = !!subject.surname && !!subject.givenName;
+  const isEntity = !!subject.nameOfEntity;
+  isFocal = !!subject.partyKey && focalSubjects.has(subject.partyKey);
+
+  if (isFocal && isPerson) {
+    category = NODE_ENUM.FocalPersonSubject;
+    name = `${subject.givenName} ${subject.otherOrInitial ? subject.otherOrInitial + ' ' : ''}${subject.surname}`;
+  }
+
+  if (isFocal && isEntity) {
+    category = NODE_ENUM.FocalEntitySubject;
+    name = `${subject.nameOfEntity}`;
+  }
+
+  if (!isFocal && isClient && isPerson) {
+    category = NODE_ENUM.CibcPersonSubject;
+    name = `${subject.givenName} ${subject.otherOrInitial ? subject.otherOrInitial + ' ' : ''}${subject.surname}`;
+  }
+
+  if (!isFocal && isClient && isEntity) {
+    category = NODE_ENUM.CibcEntitySubject;
+    name = `${subject.nameOfEntity}`;
+  }
+
+  if (!isFocal && !isClient && isPerson) {
+    category = NODE_ENUM.PersonSubject;
+    name = `${subject.givenName} ${subject.otherOrInitial ? subject.otherOrInitial + ' ' : ''}${subject.surname}`;
+  }
+
+  if (!isFocal && !isClient && isEntity) {
+    category = NODE_ENUM.EntitySubject;
+    name = `${subject.nameOfEntity}`;
+  }
+
+  return {
+    subjectId: `SUBJECT-${subject.partyKey ?? ''}-${subject.surname ?? ''}-${subject.givenName ?? ''}-${subject.otherOrInitial ?? ''}-${subject.nameOfEntity ?? ''}`,
+    category,
+    name,
+    isFocal,
+  };
+}
+
+export function generateUnknownNodeKey() {
+  return `UNKNOWN-${crypto.randomUUID()}`;
+}
+
+export interface Subject {
+  partyKey: string | null;
+  surname: string | null;
+  givenName: string | null;
+  otherOrInitial: string | null;
+  nameOfEntity: string | null;
+}
