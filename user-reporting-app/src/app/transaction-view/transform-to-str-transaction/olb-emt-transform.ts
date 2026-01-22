@@ -331,7 +331,7 @@ export function transformOlbEmtToStrTransaction(
 
         startingActions.push({
           directionOfSA: 'Out',
-          typeOfFunds: 'Funds Withdrawal' as FORM_OPTIONS_TYPE_OF_FUNDS,
+          typeOfFunds: 'Funds Withdrawal' satisfies FORM_OPTIONS_TYPE_OF_FUNDS,
           typeOfFundsOther: null,
           amount: olbTxn.strSaAmount,
           currency: olbTxn.strSaCurrency,

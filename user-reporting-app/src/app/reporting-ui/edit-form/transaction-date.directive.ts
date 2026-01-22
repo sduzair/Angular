@@ -3,7 +3,11 @@ import { ControlValueAccessor, NgControl } from '@angular/forms';
 import { MatDatepickerInput } from '@angular/material/datepicker';
 import { format, isValid, parse } from 'date-fns';
 
-const TRANSACTION_DATE_INPUT_FORMATS = ['yyyy/MM/dd', 'MM/dd/yyyy'] as const;
+const TRANSACTION_DATE_INPUT_FORMATS = [
+  'yyyy/MM/dd',
+  'MM/dd/yyyy',
+  'yyyy-MM-dd',
+] as const;
 const TRANSACTION_DATE_OUTPUT_FORMAT = 'yyyy/MM/dd';
 
 @Directive({

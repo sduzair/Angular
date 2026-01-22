@@ -21,7 +21,7 @@ export const MANUAL_TRANSACTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransaction[] = [
       {
         _id: 'bbbe4d9f-2b36-4bbc-bb15-e8d8f27294d8',
         directionOfSA: 'Out',
-        typeOfFunds: 'Funds withdrawal',
+        typeOfFunds: 'Funds Withdrawal',
         typeOfFundsOther: null,
         amount: 2300,
         currency: 'CAD',
@@ -161,7 +161,7 @@ export const MANUAL_TRANSACTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransaction[] = [
       {
         _id: '77da0fc9-a04f-43ee-8b69-85833941e717',
         directionOfSA: 'Out',
-        typeOfFunds: 'Funds withdrawal',
+        typeOfFunds: 'Funds Withdrawal',
         typeOfFundsOther: null,
         amount: 11700,
         currency: 'CAD',
@@ -301,7 +301,7 @@ export const MANUAL_TRANSACTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransaction[] = [
       {
         _id: '6938792a-83fb-4a96-b44d-ac7b5668b541',
         directionOfSA: 'Out',
-        typeOfFunds: 'Funds withdrawal',
+        typeOfFunds: 'Funds Withdrawal',
         typeOfFundsOther: null,
         amount: 3120,
         currency: 'CAD',
@@ -442,7 +442,7 @@ export const MANUAL_TRANSACTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransaction[] = [
       {
         _id: 'f26c5032-81e4-4641-9ce0-24077181f8c6',
         directionOfSA: 'Out',
-        typeOfFunds: 'Funds withdrawal',
+        typeOfFunds: 'Funds Withdrawal',
         typeOfFundsOther: null,
         amount: 2480,
         currency: 'CAD',
@@ -583,7 +583,7 @@ export const MANUAL_TRANSACTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransaction[] = [
       {
         _id: 'f9350d9a-5e5d-488d-842f-e8ba3868d2bf',
         directionOfSA: 'Out',
-        typeOfFunds: 'Funds withdrawal',
+        typeOfFunds: 'Funds Withdrawal',
         typeOfFundsOther: null,
         amount: 2370,
         currency: 'CAD',

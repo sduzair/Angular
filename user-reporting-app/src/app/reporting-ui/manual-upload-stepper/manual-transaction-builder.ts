@@ -1,9 +1,5 @@
-import { isValid } from 'date-fns/isValid';
 import { ulid } from 'ulid';
-import {
-  StrTransactionWithChangeLogs,
-  setRowValidationInfo,
-} from '../../aml/case-record.store';
+import { StrTransactionWithChangeLogs } from '../../aml/case-record.store';
 import {
   EditFormComponent,
   InvalidFormOptionsErrorKeys,
@@ -25,9 +21,6 @@ import { type ColumnHeaderLabels } from './manual-upload-stepper.component';
 import { catchError, forkJoin, map, Observable, of } from 'rxjs';
 import { GetPartyInfoRes } from '../../transaction-search/transaction-search.service';
 
-/**
- * - Does not accept 010 account info
- */
 export class ManualTransactionBuilder {
   private transaction: Partial<StrTransactionWithChangeLogs> = {};
   private validationErrors: _hiddenValidationType[] = [];
@@ -267,7 +260,8 @@ export class ManualTransactionBuilder {
   // Helper methods
   private parseNumber(val: string | null | undefined): number | null {
     if (!val || val.trim() === '') return null;
-    const parsed = Number.parseFloat(val);
+
+    const parsed = Number(val.trim());
     return Number.isNaN(parsed) ? null : parsed;
   }
 
@@ -330,7 +324,7 @@ export class ManualTransactionBuilder {
       return null;
     }
 
-    return this.value[field] as string;
+    return parsedTime;
   }
 
   private buildConductor(

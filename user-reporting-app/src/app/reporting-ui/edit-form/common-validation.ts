@@ -6,7 +6,10 @@ import {
   StartingAction,
 } from '../reporting-ui-table/reporting-ui-table.component';
 import { RecursiveOmit, TypedForm } from './edit-form.component';
-import { FORM_OPTIONS_TYPE_OF_FUNDS } from './form-options.service';
+import {
+  FORM_OPTIONS_DETAILS_OF_DISPOSITION,
+  FORM_OPTIONS_TYPE_OF_FUNDS,
+} from './form-options.service';
 
 export const hasPersonName = (cond: AccountHolder) =>
   !!cond.givenName && !!cond.surname && (true || !!cond.otherOrInitial);
@@ -36,18 +39,22 @@ export function hasMissingAccountInfo(
     >
   >['value'],
 ) {
-  if (action.fiuNo !== '010') return false;
+  const isDepositToAccount =
+    'detailsOfDispo' in action &&
+    (action.detailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION) ===
+      'Deposit to account';
 
   // todo: check for account holder
   if (
-    !action.branch ||
-    !action.account ||
-    !action.accountType ||
-    (action.accountType === 'Other' && !action.accountTypeOther) ||
-    !action.accountCurrency ||
-    !action.accountStatus ||
-    !action.accountOpen ||
-    (action.accountStatus === 'Closed' && !action.accountClose)
+    (isDepositToAccount || action.fiuNo === '010') &&
+    (!action.branch ||
+      !action.account ||
+      !action.accountType ||
+      (action.accountType === 'Other' && !action.accountTypeOther) ||
+      !action.accountCurrency ||
+      !action.accountStatus ||
+      !action.accountOpen ||
+      (action.accountStatus === 'Closed' && !action.accountClose))
   )
     return true;
 

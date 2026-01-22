@@ -6,10 +6,7 @@ import {
 import { ErrorHandler } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
-import {
-  AppErrorHandlerService,
-  errorInterceptor,
-} from '../app-error-handler.service';
+import { AppErrorHandlerService } from '../app-error-handler.service';
 import { CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE } from './case-record.state.fixture';
 import { CaseRecordState, CaseRecordStore } from './case-record.store';
 
@@ -27,7 +24,7 @@ describe('SessionDataService', () => {
     TestBed.configureTestingModule({
       providers: [
         CaseRecordStore,
-        provideHttpClient(withInterceptors([errorInterceptor])),
+        provideHttpClient(),
         provideHttpClientTesting(),
         { provide: ErrorHandler, useValue: errorHandlerSpy },
       ],

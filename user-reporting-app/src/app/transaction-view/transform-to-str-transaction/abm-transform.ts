@@ -2,6 +2,7 @@ import { forkJoin, map, Observable, of, switchMap } from 'rxjs';
 import { StrTransactionWithChangeLogs } from '../../aml/case-record.store';
 import {
   FORM_OPTIONS_DETAILS_OF_DISPOSITION,
+  FORM_OPTIONS_DIRECTION,
   FORM_OPTIONS_METHOD_OF_TXN,
   FORM_OPTIONS_TYPE_OF_FUNDS,
 } from '../../reporting-ui/edit-form/form-options.service';
@@ -133,6 +134,8 @@ export function transformABMToStrTransaction(
         };
       };
 
+      const dispositionType =
+        sourceTxn.strCaDispositionType as FORM_OPTIONS_DETAILS_OF_DISPOSITION;
       // Build starting actions
       const startingActions: StartingAction[] = [];
 
@@ -167,7 +170,7 @@ export function transformABMToStrTransaction(
 
       startingActions.push({
         directionOfSA: sourceTxn.strSaDirection,
-        typeOfFunds: 'Cash' satisfies FORM_OPTIONS_TYPE_OF_FUNDS,
+        typeOfFunds: sourceTxn.strSaFundsType,
         typeOfFundsOther: null,
         amount: sourceTxn.strSaAmount,
         currency: sourceTxn.strSaCurrency,
@@ -183,12 +186,11 @@ export function transformABMToStrTransaction(
         howFundsObtained: null,
         accountCurrency: sourceTxn.strSaAccountCurrency,
         hasAccountHolders: saAccountHolders.length > 0,
-        accountHolders:
-          saAccountHolders.length > 0 ? saAccountHolders : undefined,
+        accountHolders: saAccountHolders,
         wasSofInfoObtained: false,
         sourceOfFunds: undefined,
         wasCondInfoObtained: conductors.length > 0,
-        conductors: conductors.length > 0 ? conductors : undefined,
+        conductors: conductors,
       });
 
       // Build completing actions
@@ -196,17 +198,16 @@ export function transformABMToStrTransaction(
 
       const caAccountInfo = accountsInfo[sourceTxn.strCaAccount!];
 
-      const accountHolders: AccountHolder[] = [];
+      const caAccountHolders: AccountHolder[] = [];
       if (sourceTxn.strCaAccountHolderCifId) {
         const holderKeys = sourceTxn.strCaAccountHolderCifId.split(/[;:]/);
         holderKeys.forEach((key) => {
-          accountHolders.push(mapPartyInfo(key.trim()));
+          caAccountHolders.push(mapPartyInfo(key.trim()));
         });
       }
 
       completingActions.push({
-        detailsOfDispo:
-          'Deposit to account' satisfies FORM_OPTIONS_DETAILS_OF_DISPOSITION,
+        detailsOfDispo: sourceTxn.strCaDispositionType,
         detailsOfDispoOther: null,
         amount: sourceTxn.strCaAmount,
         currency: sourceTxn.strCaCurrency,
@@ -222,11 +223,14 @@ export function transformABMToStrTransaction(
         accountClose: caAccountInfo?.accountClose || null,
         accountStatus: caAccountInfo?.accountStatus ?? '',
         hasAccountHolders: true,
-        accountHolders: accountHolders,
+        accountHolders: caAccountHolders,
         wasAnyOtherSubInvolved: false,
         involvedIn: [],
         wasBenInfoObtained: true,
-        beneficiaries: accountHolders,
+        beneficiaries:
+          dispositionType === 'Cash Withdrawal (account based)'
+            ? conductors
+            : caAccountHolders,
       });
 
       const { flowOfFundsTransactionDesc } = fofTxn;

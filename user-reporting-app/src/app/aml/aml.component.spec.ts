@@ -6,6 +6,7 @@ import {
   CaseRecordStore,
 } from './case-record.store';
 import { CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE } from './case-record.state.fixture';
+import { provideHashbrown } from '@hashbrownai/angular';
 
 describe('AmlComponent', () => {
   let component: AmlComponent;
@@ -20,6 +21,7 @@ describe('AmlComponent', () => {
           useValue: CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE,
         },
         CaseRecordStore,
+        provideHashbrown({}),
       ],
     }).compileComponents();
 

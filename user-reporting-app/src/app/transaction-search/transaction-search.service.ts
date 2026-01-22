@@ -817,7 +817,7 @@ export interface OTCSourceData {
   transactionExecutionLocalTimestamp: string;
   transactionId: string;
   transactionTime: string;
-  sourceId: string
+  sourceId: string;
 }
 
 export type SourceData =

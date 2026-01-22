@@ -112,7 +112,7 @@ const AMLID_TEST = '99999999';
   ],
   template: `
     <div
-      class="transaction-search container h-100 my-1 overflow-x-hidden overflow-y-scroll px-0 my-1">
+      class="transaction-search container h-100 my-1 overflow-x-hidden overflow-y-auto px-0 my-1">
       <div class="row row-cols-1 gap-3 px-3 pb-3">
         <mat-toolbar class="col">
           <span>Transaction Search</span>
@@ -132,9 +132,9 @@ const AMLID_TEST = '99999999';
         </mat-toolbar>
 
         <form [formGroup]="searchParamsForm" class="search-form col">
-          <div class="row gap-3">
+          <div class="row">
             <!-- Search Form Section -->
-            <mat-toolbar-row class="col-12 flex-row gap-3">
+            <mat-toolbar-row class="col-12 flex-row gap-3 mb-3">
               <!-- AML ID Input -->
               <mat-form-field subscriptSizing="dynamic">
                 <mat-label>AML ID</mat-label>
@@ -215,7 +215,7 @@ const AMLID_TEST = '99999999';
                 </span>
               </div>
             </mat-toolbar-row>
-            <div class="col-12 col-xl-8">
+            <div class="col-12 col-xl-8 mb-3">
               <!-- Filter Sections -->
               <div class="row g-3">
                 <!-- Parties Filter -->
@@ -503,7 +503,7 @@ const AMLID_TEST = '99999999';
             </div>
 
             <!-- System Information Section -->
-            <div class="col-12 col-xl-4 system-info">
+            <div class="col-12 col-xl-4 mb-3 system-info">
               <mat-card>
                 <mat-card-header>
                   <mat-card-title class="fs-5"

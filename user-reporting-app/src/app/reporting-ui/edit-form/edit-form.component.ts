@@ -5375,8 +5375,8 @@ export type StrTxnEditForm = RecursiveOmit<
   | '_hiddenFirstName'
   | 'sourceId'
 > & {
-  _hiddenUpdatedAt: string | null;
-  _hiddenUpdatedBy: string | null;
+  _hiddenUpdatedAt?: string | null;
+  _hiddenUpdatedBy?: string | null;
 };
 
 export type EditFormEditType =

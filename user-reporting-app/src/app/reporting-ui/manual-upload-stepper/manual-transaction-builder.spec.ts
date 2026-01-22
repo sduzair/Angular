@@ -1,60 +1,40 @@
-import { FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE } from '../edit-form/form-options.fixture';
-import { of } from 'rxjs';
-import { ManualTransactionBuilder } from './manual-transaction-builder';
-import { FormOptions } from '../edit-form/form-options.service';
-import {
-  EditFormComponent,
-  InvalidFormOptionsErrors,
-} from '../edit-form/edit-form.component';
-import { TransactionDateDirective } from '../edit-form/transaction-date.directive';
-import { TransactionTimeDirective } from '../edit-form/transaction-time.directive';
+import { of, throwError } from 'rxjs';
 import { GetPartyInfoRes } from '../../transaction-search/transaction-search.service';
+import { FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE } from '../edit-form/form-options.fixture';
+import { ManualTransactionBuilder } from './manual-transaction-builder';
 import { ColumnHeaderLabels } from './manual-upload-stepper.component';
 
 describe('ManualTransactionBuilder', () => {
-  let mockFormOptions: FormOptions;
   let mockGetPartyInfo: jasmine.Spy;
-  let baseRowData: Record<ColumnHeaderLabels, string | null>;
+  let baseValue: Record<ColumnHeaderLabels, string | null>;
 
   beforeEach(() => {
-    // Mock FormOptions
-    mockFormOptions = FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE;
+    mockGetPartyInfo = jasmine.createSpy('getPartyInfo');
 
-    // Mock getPartyInfo function
-    mockGetPartyInfo = jasmine.createSpy('getPartyInfo').and.returnValue(
-      of({
-        partyKey: 'P12345',
-        surname: 'Doe',
-        givenName: 'John',
-        otherOrInitial: 'M',
-        nameOfEntity: '',
-      } satisfies GetPartyInfoRes),
-    );
-
-    // Base row data with all fields null
-    baseRowData = {
-      'AML Id': null,
-      'Txn Date': null,
-      'Txn Time': null,
+    baseValue = {
+      'AML Id': '123',
+      'Txn Date': '2025-01-15',
+      'Txn Time': '14:30',
       'Post Date': null,
       'Post Time': null,
-      'Reporting Entity': null,
-      'Method of Txn': null,
-      Direction: null,
-      'Funds Type': null,
-      'Debit Amount': null,
-      'Debit Currency': null,
-      'Debit FIU': null,
-      'Debit Branch': null,
-      'Debit Account': null,
-      'Debit Account Type': null,
-      'Credit Amount': null,
-      'Credit Currency': null,
-      'Credit FIU': null,
-      'Credit Branch': null,
-      'Credit Account': null,
-      'Credit Account Type': null,
-      'Disposition Details': null,
+      'Reporting Entity': 'Entity001',
+      'Method of Txn': 'Online',
+      'Transaction Description': 'Test transaction',
+      Direction: 'In',
+      'Funds Type': 'Cash',
+      'Debit Amount': '1000',
+      'Debit Currency': 'CAD',
+      'Debit FIU': 'FIU001',
+      'Debit Branch': 'Branch001',
+      'Debit Account': 'ACC123',
+      'Debit Account Type': 'Personal',
+      'Disposition Details': 'Deposit to account',
+      'Credit Amount': '1000',
+      'Credit Currency': 'CAD',
+      'Credit FIU': 'FIU002',
+      'Credit Branch': 'Branch002',
+      'Credit Account': 'ACC456',
+      'Credit Account Type': 'Business',
       'Conductor Party Key': null,
       'Conductor Surname': null,
       'Conductor Given Name': null,
@@ -66,561 +46,749 @@ describe('ManualTransactionBuilder', () => {
       'Beneficiary Other Name': null,
       'Beneficiary Entity Name': null,
     } as Record<ColumnHeaderLabels, string | null>;
-
-    // Spy on static methods
-    spyOn(EditFormComponent, 'validateFormOptions').and.returnValue(
-      {} as InvalidFormOptionsErrors,
-    );
-    spyOn(TransactionDateDirective, 'parse').and.returnValue(
-      new Date('2025-01-15'),
-    );
-    spyOn(TransactionTimeDirective, 'parseAndFormatTime').and.returnValue(
-      '14:30:00',
-    );
   });
 
-  describe('Constructor', () => {
+  describe('constructor', () => {
     it('should initialize with empty transaction and validation errors', () => {
       const builder = new ManualTransactionBuilder(
-        baseRowData,
-        mockFormOptions,
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
         mockGetPartyInfo,
       );
 
       expect(builder).toBeTruthy();
-      expect(builder.flowOfFundsAmlTransactionId).toMatch(/^MTXN-/);
+      expect(builder['transaction']).toEqual({});
+      expect(builder['validationErrors']).toEqual([]);
+    });
+
+    it('should generate unique flowOfFundsAmlTransactionId starting with MTXN-', () => {
+      const builder1 = new ManualTransactionBuilder(
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+        mockGetPartyInfo,
+      );
+      const builder2 = new ManualTransactionBuilder(
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+        mockGetPartyInfo,
+      );
+
+      expect(builder1.flowOfFundsAmlTransactionId).toMatch(/^MTXN-/);
+      expect(builder2.flowOfFundsAmlTransactionId).toMatch(/^MTXN-/);
+      expect(builder1.flowOfFundsAmlTransactionId).not.toBe(
+        builder2.flowOfFundsAmlTransactionId,
+      );
     });
   });
 
-  describe('withMetadata()', () => {
-    it('should set changeLogs and sourceId', () => {
+  describe('trimValues', () => {
+    it('should trim all string values in the value record', () => {
+      const valueWithSpaces = {
+        ...baseValue,
+        'Transaction Description': '  Test transaction  ',
+        'Debit FIU': '  FIU001  ',
+      };
+
       const builder = new ManualTransactionBuilder(
-        baseRowData,
-        mockFormOptions,
+        valueWithSpaces,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
         mockGetPartyInfo,
       );
+      builder.trimValues();
 
-      builder.withMetadata();
+      expect(builder['value']['Transaction Description']).toBe(
+        'Test transaction',
+      );
 
-      builder.build().subscribe((transaction) => {
-        expect(transaction.changeLogs).toEqual([]);
-        expect(transaction.sourceId).toBe('Manual');
-      });
+      expect(builder['value']['Debit FIU']).toBe('FIU001');
     });
 
-    it('should return this for method chaining', () => {
+    it('should handle null values without error', () => {
       const builder = new ManualTransactionBuilder(
-        baseRowData,
-        mockFormOptions,
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
         mockGetPartyInfo,
       );
+      builder.trimValues();
 
+      expect(builder['value']['Post Date']).toBeNull();
+    });
+
+    it('should return this for chaining', () => {
+      const builder = new ManualTransactionBuilder(
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+        mockGetPartyInfo,
+      );
+      const result = builder.trimValues();
+
+      expect(result).toBe(builder);
+    });
+  });
+
+  describe('withMetadata', () => {
+    it('should set empty changeLogs and Manual sourceId', () => {
+      const builder = new ManualTransactionBuilder(
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+        mockGetPartyInfo,
+      );
+      builder.withMetadata();
+
+      expect(builder['transaction'].changeLogs).toEqual([]);
+      expect(builder['transaction'].sourceId).toBe('Manual');
+    });
+
+    it('should return this for chaining - metadata', () => {
+      const builder = new ManualTransactionBuilder(
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+        mockGetPartyInfo,
+      );
       const result = builder.withMetadata();
 
       expect(result).toBe(builder);
     });
   });
 
-  describe('withBasicInfo()', () => {
-    it('should set basic transaction fields', () => {
-      const rowData = {
-        ...baseRowData,
-        'Txn Date': '2025-01-15',
-        'Txn Time': '14:30',
-        'Reporting Entity': 'RE-001',
-        'Method of Txn': 'Wire Transfer',
-      };
-
+  describe('withBasicInfo', () => {
+    it('should populate basic transaction info with valid data', () => {
       const builder = new ManualTransactionBuilder(
-        rowData,
-        mockFormOptions,
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
         mockGetPartyInfo,
       );
-
       builder.withBasicInfo();
 
-      builder.build().subscribe((transaction) => {
-        expect(transaction.dateOfTxn).toBe('2025-01-15');
-        expect(transaction.timeOfTxn).toBe('14:30');
-        expect(transaction.reportingEntityLocationNo).toBe('RE-001');
-        expect(transaction.methodOfTxn).toBe('Wire Transfer');
-      });
+      expect(builder['transaction'].wasTxnAttempted).toBeNull();
+      expect(builder['transaction'].wasTxnAttemptedReason).toBeNull();
+      expect(builder['transaction'].dateOfTxn).toBe('2025-01-15');
+      expect(builder['transaction'].timeOfTxn).toBe('14:30:00');
+      expect(builder['transaction'].hasPostingDate).toBeNull();
+      expect(builder['transaction'].dateOfPosting).toBeNull();
+      expect(builder['transaction'].timeOfPosting).toBeNull();
+      expect(builder['transaction'].reportingEntityTxnRefNo).toMatch(/^MTXN-/);
+      expect(builder['transaction'].purposeOfTxn).toBeNull();
+      expect(builder['transaction'].reportingEntityLocationNo).toBe(
+        'Entity001',
+      );
+
+      expect(builder['transaction'].methodOfTxn).toBe('Online');
+      expect(builder['transaction'].methodOfTxnOther).toBeNull();
     });
 
-    it('should set hasPostingDate to true when Post Date has value', () => {
-      const rowData = {
-        ...baseRowData,
+    it('should handle posting date and time when provided', () => {
+      const valueWithPosting = {
+        ...baseValue,
         'Post Date': '2025-01-16',
+        'Post Time': '10:00',
       };
-
       const builder = new ManualTransactionBuilder(
-        rowData,
-        mockFormOptions,
+        valueWithPosting,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
         mockGetPartyInfo,
       );
-
       builder.withBasicInfo();
 
-      builder.build().subscribe((transaction) => {
-        expect(transaction.hasPostingDate).toBe(true);
-      });
+      expect(builder['transaction'].hasPostingDate).toBe(true);
+      expect(builder['transaction'].dateOfPosting).toBe('2025-01-16');
+      expect(builder['transaction'].timeOfPosting).toBe('10:00:00');
     });
 
-    it('should set methodOfTxnOther when method is unknown', () => {
-      (EditFormComponent.validateFormOptions as jasmine.Spy).and.returnValue(
-        null,
-      );
-
-      const rowData = {
-        ...baseRowData,
-        'Method of Txn': 'Unknown Method',
+    it('should handle unknown methodOfTxn as Other', () => {
+      const valueWithUnknownMethod = {
+        ...baseValue,
+        'Method of Txn': 'UnknownMethod',
       };
-
       const builder = new ManualTransactionBuilder(
-        rowData,
-        mockFormOptions,
+        valueWithUnknownMethod,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
         mockGetPartyInfo,
       );
 
       builder.withBasicInfo();
 
-      builder.build().subscribe((transaction) => {
-        expect(transaction.methodOfTxn).toBeNull();
-        expect(transaction.methodOfTxnOther).toBe('Unknown Method');
-      });
+      expect(builder['transaction'].methodOfTxn).toBeNull();
+      expect(builder['transaction'].methodOfTxnOther).toBe('UnknownMethod');
+      expect(builder['validationErrors']).toContain('invalidMethodOfTxn');
+    });
+
+    it('should return this for chaining - basic info', () => {
+      const builder = new ManualTransactionBuilder(
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+        mockGetPartyInfo,
+      );
+      const result = builder.withBasicInfo();
+
+      expect(result).toBe(builder);
     });
   });
 
-  describe('withFlowOfFundsInfo()', () => {
-    it('should set flow of funds fields', () => {
-      const rowData = {
-        ...baseRowData,
-        'AML Id': '12345',
-      };
-
+  describe('withFlowOfFundsInfo', () => {
+    it('should populate flow of funds information', () => {
       const builder = new ManualTransactionBuilder(
-        rowData,
-        mockFormOptions,
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
         mockGetPartyInfo,
       );
-
       builder.withFlowOfFundsInfo();
 
-      builder.build().subscribe((transaction) => {
-        expect(transaction.flowOfFundsAmlId).toBe(12345);
-        expect(transaction.flowOfFundsSource).toBe('Manual');
-        expect(transaction.flowOfFundsTransactionDesc).toBe('');
-      });
+      const txn = builder['transaction'];
+
+      expect(txn.flowOfFundsAccountCurrency).toBeNull();
+      expect(txn.flowOfFundsAmlId).toBe(123);
+      expect(txn.flowOfFundsAmlTransactionId).toMatch(/^MTXN-/);
+      expect(txn.flowOfFundsCasePartyKey).toBeNull();
+      expect(txn.flowOfFundsSource).toBe('Manual');
+      expect(txn.flowOfFundsTransactionDesc).toBe('Test transaction');
+    });
+
+    it('should handle missing AML ID', () => {
+      const valueWithoutAmlId = {
+        ...baseValue,
+        'AML Id': null,
+      };
+      const builder = new ManualTransactionBuilder(
+        valueWithoutAmlId,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+        mockGetPartyInfo,
+      );
+      builder.withFlowOfFundsInfo();
+
+      expect(builder['transaction'].flowOfFundsAmlId).toBe(0);
+    });
+
+    it('should return this for chaining - fof info', () => {
+      const builder = new ManualTransactionBuilder(
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+        mockGetPartyInfo,
+      );
+      const result = builder.withFlowOfFundsInfo();
+
+      expect(result).toBe(builder);
     });
   });
 
-  describe('withStartingAction()', () => {
-    it('should create starting action with valid fields', () => {
-      const rowData = {
-        ...baseRowData,
-        Direction: 'Incoming',
-        'Funds Type': 'Cash',
-        'Debit Amount': '1000.50',
-        'Debit Currency': 'CAD',
-        'Debit FIU': '002',
-        'Debit Branch': '12345',
-        'Debit Account': '987654321',
-        'Debit Account Type': 'Savings',
+  describe('withStartingAction', () => {
+    it('should create starting action with valid data', () => {
+      const builder = new ManualTransactionBuilder(
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+        mockGetPartyInfo,
+      );
+      builder.withStartingAction();
+
+      const startingAction = builder['transaction'].startingActions![0];
+
+      expect(startingAction._id).toBeTruthy();
+      expect(startingAction.directionOfSA).toBe('In');
+      expect(startingAction.typeOfFunds).toBe('Cash');
+      expect(startingAction.typeOfFundsOther).toBeNull();
+      expect(startingAction.amount).toBe(1000);
+      expect(startingAction.currency).toBe('CAD');
+      expect(startingAction.fiuNo).toBe('FIU001');
+      expect(startingAction.branch).toBe('Branch001');
+      expect(startingAction.account).toBe('ACC123');
+      expect(startingAction.accountType).toBe('Personal');
+      expect(startingAction.accountTypeOther).toBeNull();
+      expect(startingAction.conductors).toEqual([]);
+    });
+
+    it('should handle unknown field values as Other', () => {
+      const valueWithUnknownFields = {
+        ...baseValue,
+        Direction: 'UnknownDirection',
+        'Funds Type': 'UnknownFunds',
+        'Debit Currency': 'XXX',
+        'Debit Account Type': 'UnknownType',
       };
 
       const builder = new ManualTransactionBuilder(
-        rowData,
-        mockFormOptions,
+        valueWithUnknownFields,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
         mockGetPartyInfo,
       );
 
       builder.withStartingAction();
 
-      builder.build().subscribe((transaction) => {
-        const sa = transaction.startingActions![0];
+      const startingAction = builder['transaction'].startingActions![0];
 
-        expect(sa.directionOfSA).toBe('Incoming');
-        expect(sa.typeOfFunds).toBe('Cash');
-        expect(sa.amount).toBe(1000.5);
-        expect(sa.currency).toBe('CAD');
-        expect(sa.fiuNo).toBe('002');
-        expect(sa.branch).toBe('12345');
-        expect(sa.account).toBe('987654321');
-        expect(sa.accountType).toBe('Savings');
-      });
+      expect(startingAction.directionOfSA).toBeNull();
+      expect(startingAction.typeOfFunds).toBeNull();
+      expect(startingAction.typeOfFundsOther).toBe('UnknownFunds');
+      expect(startingAction.currency).toBeNull();
+      expect(startingAction.accountType).toBeNull();
+      expect(startingAction.accountTypeOther).toBe('UnknownType');
     });
 
-    it('should add bankInfoMissing validation error for FIU 010 - starting action', () => {
-      const rowData = {
-        ...baseRowData,
-        'Debit FIU': '010',
-      };
-
+    it('should return this for chaining - starting action', () => {
       const builder = new ManualTransactionBuilder(
-        rowData,
-        mockFormOptions,
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
         mockGetPartyInfo,
       );
+      const result = builder.withStartingAction();
 
-      builder.withStartingAction().withRowValidation().withValidationErrors();
-
-      builder.build().subscribe((transaction) => {
-        expect(transaction._hiddenValidation).toContain('bankInfoMissing');
-      });
+      expect(result).toBe(builder);
     });
 
-    it('should set typeOfFundsOther when type is unknown', () => {
-      (EditFormComponent.validateFormOptions as jasmine.Spy).and.callFake(
-        (value: string, options: unknown, key: string) => {
-          if (key === 'typeOfFunds') return null;
-          return {};
-        },
-      );
-
-      const rowData = {
-        ...baseRowData,
-        'Funds Type': 'Custom Type',
-      };
-
+    it('should create arrays - starting action', () => {
       const builder = new ManualTransactionBuilder(
-        rowData,
-        mockFormOptions,
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
         mockGetPartyInfo,
       );
+      const result = builder.withStartingAction();
 
-      builder.withStartingAction();
+      expect(
+        Array.isArray(
+          result['transaction'].startingActions![0]!.accountHolders,
+        ),
+      ).toBeTrue();
 
-      builder.build().subscribe((transaction) => {
-        const sa = transaction.startingActions![0];
+      expect(
+        Array.isArray(result['transaction'].startingActions![0]!.sourceOfFunds),
+      ).toBeTrue();
 
-        expect(sa.typeOfFunds).toBeNull();
-        expect(sa.typeOfFundsOther).toBe('Custom Type');
-      });
+      expect(
+        Array.isArray(result['transaction'].startingActions![0]!.conductors),
+      ).toBeTrue();
     });
   });
 
-  describe('withCompletingAction()', () => {
-    it('should create completing action with valid fields', () => {
-      const rowData = {
-        ...baseRowData,
-        'Disposition Details': 'Deposited',
-        'Credit Amount': '2500.75',
-        'Credit Currency': 'USD',
-        'Credit FIU': '003',
-        'Credit Branch': '54321',
-        'Credit Account': '123456789',
-        'Credit Account Type': 'Checking',
+  describe('withCompletingAction', () => {
+    it('should create completing action with valid data', () => {
+      const builder = new ManualTransactionBuilder(
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+        mockGetPartyInfo,
+      );
+      builder.withCompletingAction();
+
+      const completingAction = builder['transaction'].completingActions![0];
+
+      expect(completingAction._id).toBeTruthy();
+      expect(completingAction.detailsOfDispo).toBe('Deposit to account');
+      expect(completingAction.detailsOfDispoOther).toBeNull();
+      expect(completingAction.amount).toBe(1000);
+      expect(completingAction.currency).toBe('CAD');
+      expect(completingAction.fiuNo).toBe('FIU002');
+      expect(completingAction.branch).toBe('Branch002');
+      expect(completingAction.account).toBe('ACC456');
+      expect(completingAction.accountType).toBe('Business');
+      expect(completingAction.accountTypeOther).toBeNull();
+      expect(completingAction.beneficiaries).toEqual([]);
+    });
+
+    it('should handle unknown disposition details as Other', () => {
+      const valueWithUnknownDispo = {
+        ...baseValue,
+        'Disposition Details': 'UnknownDisposition',
       };
 
       const builder = new ManualTransactionBuilder(
-        rowData,
-        mockFormOptions,
+        valueWithUnknownDispo,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
         mockGetPartyInfo,
       );
 
       builder.withCompletingAction();
 
-      builder.build().subscribe((transaction) => {
-        const ca = transaction.completingActions![0];
+      const completingAction = builder['transaction'].completingActions![0];
 
-        expect(ca.detailsOfDispo).toBe('Deposited');
-        expect(ca.amount).toBe(2500.75);
-        expect(ca.currency).toBe('USD');
-        expect(ca.fiuNo).toBe('003');
-        expect(ca.branch).toBe('54321');
-        expect(ca.account).toBe('123456789');
-        expect(ca.accountType).toBe('Checking');
-      });
+      expect(completingAction.detailsOfDispo).toBeNull();
+      expect(completingAction.detailsOfDispoOther).toBe('UnknownDisposition');
     });
 
-    it('should add bankInfoMissing validation error for FIU 010 - completing action', () => {
-      const rowData = {
-        ...baseRowData,
-        'Credit FIU': '010',
-      };
-
+    it('should return this for chaining - completing action', () => {
       const builder = new ManualTransactionBuilder(
-        rowData,
-        mockFormOptions,
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
         mockGetPartyInfo,
       );
+      const result = builder.withCompletingAction();
 
-      builder.withCompletingAction().withRowValidation().withValidationErrors();
+      expect(result).toBe(builder);
+    });
 
-      builder.build().subscribe((transaction) => {
-        expect(transaction._hiddenValidation).toContain('bankInfoMissing');
-      });
+    it('should create arrays - completing action', () => {
+      const builder = new ManualTransactionBuilder(
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+        mockGetPartyInfo,
+      );
+      const result = builder.withCompletingAction();
+
+      expect(
+        Array.isArray(
+          result['transaction'].completingActions![0]!.accountHolders,
+        ),
+      ).toBeTrue();
+
+      expect(
+        Array.isArray(result['transaction'].completingActions![0]!.involvedIn),
+      ).toBeTrue();
+
+      expect(
+        Array.isArray(
+          result['transaction'].completingActions![0]!.beneficiaries,
+        ),
+      ).toBeTrue();
     });
   });
 
-  describe('build() with observables', () => {
-    it('should fetch conductor info when party key is provided', (done) => {
-      const rowData = {
-        ...baseRowData,
-        'Conductor Party Key': 'P12345',
-      };
-
+  describe('withValidationErrors', () => {
+    it('should add validation errors to transaction', () => {
       const builder = new ManualTransactionBuilder(
-        rowData,
-        mockFormOptions,
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
         mockGetPartyInfo,
       );
+      builder['validationErrors'] = ['invalidDate', 'invalidTime'];
+      builder.withValidationErrors();
 
-      builder.withStartingAction();
-
-      builder.build().subscribe((transaction) => {
-        expect(mockGetPartyInfo).toHaveBeenCalledWith('P12345');
-        expect(transaction.startingActions![0].conductors).toHaveSize(1);
-        expect(transaction.startingActions![0].conductors![0].surname).toBe(
-          'Doe',
-        );
-
-        expect(transaction.startingActions![0].wasCondInfoObtained).toBe(true);
-        done();
-      });
+      expect(builder['transaction']._hiddenValidation).toContain('invalidDate');
+      expect(builder['transaction']._hiddenValidation).toContain('invalidTime');
     });
 
-    it('should create conductor from manual fields when party key is not provided', (done) => {
-      const rowData = {
-        ...baseRowData,
-        'Conductor Surname': 'Smith',
-        'Conductor Given Name': 'Jane',
-        'Conductor Other Name': 'A',
-      };
-
+    it('should initialize _hiddenValidation array if undefined', () => {
       const builder = new ManualTransactionBuilder(
-        rowData,
-        mockFormOptions,
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
         mockGetPartyInfo,
       );
+      builder['validationErrors'] = ['invalidDate'];
+      builder.withValidationErrors();
 
-      builder.withStartingAction();
-
-      builder.build().subscribe((transaction) => {
-        expect(mockGetPartyInfo).not.toHaveBeenCalled();
-        expect(transaction.startingActions![0].conductors).toHaveSize(1);
-        expect(transaction.startingActions![0].conductors![0].surname).toBe(
-          'Smith',
-        );
-
-        expect(transaction.startingActions![0].conductors![0].givenName).toBe(
-          'Jane',
-        );
-        done();
-      });
+      expect(builder['transaction']._hiddenValidation).toBeDefined();
+      expect(builder['transaction']._hiddenValidation).toEqual(['invalidDate']);
     });
 
-    it('should fetch beneficiary info when party key is provided', (done) => {
-      const rowData = {
-        ...baseRowData,
-        'Beneficiary Party Key': 'P67890',
-      };
-
+    it('should return this for chaining - validation errors', () => {
       const builder = new ManualTransactionBuilder(
-        rowData,
-        mockFormOptions,
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
         mockGetPartyInfo,
       );
+      const result = builder.withValidationErrors();
 
-      builder.withCompletingAction();
-
-      builder.build().subscribe((transaction) => {
-        expect(mockGetPartyInfo).toHaveBeenCalledWith('P67890');
-        expect(transaction.completingActions![0].beneficiaries).toHaveSize(1);
-        expect(transaction.completingActions![0].wasBenInfoObtained).toBe(true);
-        done();
-      });
-    });
-
-    it('should handle both conductor and beneficiary with forkJoin', (done) => {
-      const rowData = {
-        ...baseRowData,
-        'Conductor Party Key': 'P12345',
-        'Beneficiary Party Key': 'P67890',
-      };
-
-      const builder = new ManualTransactionBuilder(
-        rowData,
-        mockFormOptions,
-        mockGetPartyInfo,
-      );
-
-      builder.withStartingAction().withCompletingAction();
-
-      builder.build().subscribe((transaction) => {
-        expect(mockGetPartyInfo).toHaveBeenCalledTimes(2);
-        expect(transaction.startingActions![0].conductors).toHaveSize(1);
-        expect(transaction.completingActions![0].beneficiaries).toHaveSize(1);
-        done();
-      });
-    });
-
-    it('should set null values when no conductor or beneficiary data provided', (done) => {
-      const builder = new ManualTransactionBuilder(
-        baseRowData,
-        mockFormOptions,
-        mockGetPartyInfo,
-      );
-
-      builder.withStartingAction().withCompletingAction();
-
-      builder.build().subscribe((transaction) => {
-        expect(transaction.startingActions![0].conductors).toEqual([]);
-        expect(transaction.startingActions![0].wasCondInfoObtained).toBeNull();
-        expect(transaction.completingActions![0].beneficiaries).toEqual([]);
-        expect(transaction.completingActions![0].wasBenInfoObtained).toBeNull();
-        done();
-      });
+      expect(result).toBe(builder);
     });
   });
 
-  describe('Helper Methods', () => {
-    describe('parseNumber()', () => {
-      it('should parse valid number strings', () => {
-        const builder = new ManualTransactionBuilder(
-          baseRowData,
-          mockFormOptions,
-          mockGetPartyInfo,
-        );
+  describe('build', () => {
+    it('should build complete transaction with conductor and beneficiary from party keys', (done) => {
+      const mockConductorParty: GetPartyInfoRes = {
+        partyKey: 'PARTY001',
+        surname: 'Doe',
+        givenName: 'John',
+        otherOrInitial: 'M',
+        nameOfEntity: '',
+      };
 
-        const rowData = {
-          ...baseRowData,
-          'Debit Amount': '1234.56',
-        };
+      const mockBeneficiaryParty: GetPartyInfoRes = {
+        partyKey: 'PARTY002',
+        surname: 'Smith',
+        givenName: 'Jane',
+        otherOrInitial: '',
+        nameOfEntity: '',
+      };
 
-        const builderWithData = new ManualTransactionBuilder(
-          rowData,
-          mockFormOptions,
-          mockGetPartyInfo,
-        );
+      mockGetPartyInfo.and.returnValues(
+        of(mockConductorParty),
+        of(mockBeneficiaryParty),
+      );
 
-        builderWithData.withStartingAction();
+      const valueWithPartyKeys = {
+        ...baseValue,
+        'Conductor Party Key': 'PARTY001',
+        'Beneficiary Party Key': 'PARTY002',
+      };
 
-        builderWithData.build().subscribe((transaction) => {
-          expect(transaction.startingActions![0].amount).toBe(1234.56);
+      const builder = new ManualTransactionBuilder(
+        valueWithPartyKeys,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+        mockGetPartyInfo,
+      );
+
+      builder
+        .withMetadata()
+        .withBasicInfo()
+        .withStartingAction()
+        .withCompletingAction()
+        .build()
+        .subscribe((transaction) => {
+          expect(transaction.startingActions![0].wasCondInfoObtained).toBe(
+            true,
+          );
+
+          expect(transaction.startingActions![0].conductors!.length).toBe(1);
+          expect(transaction.startingActions![0].conductors![0].partyKey).toBe(
+            'PARTY001',
+          );
+
+          expect(transaction.completingActions![0].wasBenInfoObtained).toBe(
+            true,
+          );
+
+          expect(transaction.completingActions![0].beneficiaries!.length).toBe(
+            1,
+          );
+
+          expect(
+            transaction.completingActions![0].beneficiaries![0].partyKey,
+          ).toBe('PARTY002');
+
+          done();
         });
-      });
-
-      it('should return null for empty strings', () => {
-        const rowData = {
-          ...baseRowData,
-          'Debit Amount': '',
-        };
-
-        const builder = new ManualTransactionBuilder(
-          rowData,
-          mockFormOptions,
-          mockGetPartyInfo,
-        );
-
-        builder.withStartingAction();
-
-        builder.build().subscribe((transaction) => {
-          expect(transaction.startingActions![0].amount).toBeNull();
-        });
-      });
-
-      it('should return null for invalid number strings', () => {
-        const rowData = {
-          ...baseRowData,
-          'Debit Amount': 'not-a-number',
-        };
-
-        const builder = new ManualTransactionBuilder(
-          rowData,
-          mockFormOptions,
-          mockGetPartyInfo,
-        );
-
-        builder.withStartingAction();
-
-        builder.build().subscribe((transaction) => {
-          expect(transaction.startingActions![0].amount).toBeNull();
-        });
-      });
     });
 
-    describe('Date and Time Validation', () => {
-      it('should add invalidDate error for invalid dates', () => {
-        (TransactionDateDirective.parse as jasmine.Spy).and.returnValue(
-          new Date('invalid'),
-        );
+    it('should build transaction with manual party names when no party keys', (done) => {
+      const valueWithNames = {
+        ...baseValue,
+        'Conductor Surname': 'Doe',
+        'Conductor Given Name': 'John',
+        'Beneficiary Entity Name': 'Acme Corp',
+      };
 
-        const rowData = {
-          ...baseRowData,
-          'Txn Date': 'invalid-date',
-        };
+      const builder = new ManualTransactionBuilder(
+        valueWithNames,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+        mockGetPartyInfo,
+      );
 
-        const builder = new ManualTransactionBuilder(
-          rowData,
-          mockFormOptions,
-          mockGetPartyInfo,
-        );
+      builder
+        .withMetadata()
+        .withStartingAction()
+        .withCompletingAction()
+        .build()
+        .subscribe((transaction) => {
+          const conductor = transaction.startingActions![0].conductors![0];
 
-        builder.withBasicInfo().withRowValidation().withValidationErrors();
+          expect(conductor.surname).toBe('Doe');
+          expect(conductor.givenName).toBe('John');
+          expect(conductor.partyKey).toBeNull();
 
-        builder.build().subscribe((transaction) => {
-          expect(transaction._hiddenValidation).toContain('invalidDate');
+          const beneficiary =
+            transaction.completingActions![0].beneficiaries![0];
+
+          expect(beneficiary.nameOfEntity).toBe('Acme Corp');
+          expect(beneficiary.partyKey).toBeNull();
+
+          done();
         });
-      });
+    });
 
-      it('should add invalidTime error for invalid times', () => {
-        (
-          TransactionTimeDirective.parseAndFormatTime as jasmine.Spy
-        ).and.returnValue(null);
+    it('should handle missing conductor and beneficiary', (done) => {
+      const builder = new ManualTransactionBuilder(
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+        mockGetPartyInfo,
+      );
 
-        const rowData = {
-          ...baseRowData,
-          'Txn Time': 'invalid-time',
-        };
+      builder
+        .withStartingAction()
+        .withCompletingAction()
+        .build()
+        .subscribe((transaction) => {
+          expect(
+            transaction.startingActions![0].wasCondInfoObtained,
+          ).toBeNull();
 
-        const builder = new ManualTransactionBuilder(
-          rowData,
-          mockFormOptions,
-          mockGetPartyInfo,
-        );
+          expect(transaction.startingActions![0].conductors).toEqual([]);
+          expect(
+            transaction.completingActions![0].wasBenInfoObtained,
+          ).toBeNull();
 
-        builder.withBasicInfo().withRowValidation().withValidationErrors();
+          expect(transaction.completingActions![0].beneficiaries).toEqual([]);
 
-        builder.build().subscribe((transaction) => {
-          expect(transaction._hiddenValidation).toContain('invalidTime');
+          done();
         });
-      });
+    });
+
+    it('should add invalidPartyKey error when getPartyInfo fails', (done) => {
+      mockGetPartyInfo.and.returnValue(
+        throwError(() => new Error('Party not found')),
+      );
+
+      const valueWithInvalidKey = {
+        ...baseValue,
+        'Conductor Party Key': 'INVALID',
+      };
+
+      const builder = new ManualTransactionBuilder(
+        valueWithInvalidKey,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+        mockGetPartyInfo,
+      );
+
+      builder
+        .withStartingAction()
+        .withCompletingAction()
+        .build()
+        .subscribe((transaction) => {
+          expect(transaction._hiddenValidation).toContain('invalidPartyKey');
+          expect(transaction.startingActions![0].conductors).toEqual([]);
+
+          done();
+        });
     });
   });
 
-  describe('Method Chaining', () => {
-    it('should support full builder chain', (done) => {
-      const rowData = {
-        ...baseRowData,
-        'AML Id': '999',
-        'Txn Date': '2025-01-20',
-        'Method of Txn': 'Cash',
-        'Debit Amount': '500',
-        'Credit Amount': '500',
-      };
+  describe('parseNumber', () => {
+    let builder: ManualTransactionBuilder;
 
-      const transaction$ = new ManualTransactionBuilder(
-        rowData,
-        mockFormOptions,
+    beforeEach(() => {
+      builder = new ManualTransactionBuilder(
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
         mockGetPartyInfo,
-      )
+      );
+    });
+
+    it('should parse valid number strings', () => {
+      expect(builder['parseNumber']('1000')).toBe(1000);
+      expect(builder['parseNumber']('1000.50')).toBe(1000.5);
+      expect(builder['parseNumber']('0')).toBe(0);
+      expect(builder['parseNumber']('-500')).toBe(-500);
+    });
+
+    it('should return null for empty or whitespace strings', () => {
+      expect(builder['parseNumber']('')).toBeNull();
+      expect(builder['parseNumber']('   ')).toBeNull();
+      expect(builder['parseNumber'](null)).toBeNull();
+      expect(builder['parseNumber'](undefined)).toBeNull();
+    });
+
+    it('should return null for invalid numbers', () => {
+      expect(builder['parseNumber']('abc')).toBeNull();
+      expect(builder['parseNumber']('12abc')).toBeNull();
+    });
+  });
+
+  describe('hasValue', () => {
+    let builder: ManualTransactionBuilder;
+
+    beforeEach(() => {
+      builder = new ManualTransactionBuilder(
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+        mockGetPartyInfo,
+      );
+    });
+
+    it('should return true for non-empty strings', () => {
+      expect(builder['hasValue']('test')).toBe(true);
+      expect(builder['hasValue']('0')).toBe(true);
+    });
+
+    it('should return false for null, undefined, or empty strings', () => {
+      expect(builder['hasValue'](null)).toBe(false);
+      expect(builder['hasValue'](undefined)).toBe(false);
+      expect(builder['hasValue']('')).toBe(false);
+      expect(builder['hasValue']('   ')).toBe(false);
+    });
+  });
+
+  describe('parseDateField', () => {
+    let builder: ManualTransactionBuilder;
+    let baseValueClone: Record<ColumnHeaderLabels, string | null>;
+
+    beforeEach(() => {
+      baseValueClone = structuredClone(baseValue);
+      builder = new ManualTransactionBuilder(
+        baseValueClone,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+        mockGetPartyInfo,
+      );
+    });
+
+    it('should parse valid date and return original string', () => {
+      builder['parseDateField']('Txn Date');
+
+      expect(builder['validationErrors'].length).toBe(0);
+    });
+
+    it('should return null for missing dates', () => {
+      const result = builder['parseDateField']('Post Date');
+
+      expect(result).toBeNull();
+    });
+
+    it('should add invalidDate error and return null for invalid dates', () => {
+      baseValueClone['Txn Date'] = '33.33.2022';
+      builder.withBasicInfo();
+
+      expect(builder['validationErrors']).toContain('invalidDate');
+    });
+  });
+
+  describe('parseTimeField', () => {
+    let builder: ManualTransactionBuilder;
+    let baseValueClone: Record<ColumnHeaderLabels, string | null>;
+
+    beforeEach(() => {
+      baseValueClone = structuredClone(baseValue);
+      builder = new ManualTransactionBuilder(
+        baseValueClone,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+        mockGetPartyInfo,
+      );
+    });
+
+    it('should parse valid time and return original string', () => {
+      const result = builder['parseTimeField']('Txn Time');
+
+      expect(result).toBe('14:30:00');
+    });
+
+    it('should return null for missing times', () => {
+      const result = builder['parseTimeField']('Post Time');
+
+      expect(result).toBeNull();
+    });
+
+    it('should add invalidTime error and return null for invalid times', () => {
+      baseValueClone['Txn Time'] = '33:33';
+      builder.withBasicInfo();
+
+      expect(builder['validationErrors']).toContain('invalidTime');
+    });
+  });
+
+  describe('integration: full builder chain', () => {
+    it('should build complete transaction using method chaining', (done) => {
+      mockGetPartyInfo.and.returnValues(of(null), of(null));
+
+      const builder = new ManualTransactionBuilder(
+        baseValue,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+        mockGetPartyInfo,
+      );
+
+      builder
+        .trimValues()
         .withMetadata()
         .withBasicInfo()
         .withFlowOfFundsInfo()
         .withStartingAction()
         .withCompletingAction()
-        .withRowValidation()
         .withValidationErrors()
-        .build();
+        .build()
+        .subscribe((transaction) => {
+          expect(transaction.sourceId).toBe('Manual');
+          expect(transaction.changeLogs).toEqual([]);
+          expect(transaction.dateOfTxn).toBe('2025-01-15');
+          expect(transaction.flowOfFundsAmlId).toBe(123);
+          expect(transaction.startingActions).toBeDefined();
+          expect(transaction.completingActions).toBeDefined();
+          expect(transaction.startingActions!.length).toBe(1);
+          expect(transaction.completingActions!.length).toBe(1);
 
-      transaction$.subscribe((transaction) => {
-        expect(transaction.sourceId).toBe('Manual');
-        expect(transaction.flowOfFundsAmlId).toBe(999);
-        expect(transaction.startingActions).toBeDefined();
-        expect(transaction.completingActions).toBeDefined();
-        done();
-      });
+          done();
+        });
     });
   });
 });

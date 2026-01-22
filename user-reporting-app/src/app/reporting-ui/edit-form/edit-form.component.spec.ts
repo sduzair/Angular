@@ -1,6 +1,6 @@
 import { HarnessLoader } from '@angular/cdk/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
-import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { provideHttpClient } from '@angular/common/http';
 import {
   HttpTestingController,
   provideHttpClientTesting,
@@ -35,6 +35,7 @@ import {
   withRouterConfig,
 } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
+import { provideHashbrown } from '@hashbrownai/angular';
 import { enCA } from 'date-fns/locale';
 import { of } from 'rxjs';
 import { CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE } from '../../aml/case-record.state.fixture';
@@ -52,10 +53,7 @@ import {
 import { createAuthServiceSpy } from '../../auth.service.spec';
 import { LoginComponent } from '../../login/login.component';
 import { activateTabs, findEl } from '../../test-helpers';
-import {
-  AppErrorHandlerService,
-  errorInterceptor,
-} from './../../app-error-handler.service';
+import { AppErrorHandlerService } from './../../app-error-handler.service';
 import { NavLayoutComponent } from './../../nav-layout/nav-layout.component';
 import {
   auditResolver,
@@ -64,10 +62,8 @@ import {
   singleEditTypeResolver,
   StrTxnEditForm,
 } from './edit-form.component';
-import {
-  FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-  FormOptionsService,
-} from './form-options.service';
+import { FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE } from './form-options.fixture';
+import { FormOptionsService } from './form-options.service';
 import { TransactionTimeDirective } from './transaction-time.directive';
 
 @Component({
@@ -136,6 +132,7 @@ describe('EditFormComponent', () => {
                       useValue: CASE_RECORD_STATE_FIXTURE,
                     },
                     CaseRecordStore,
+                    provideHashbrown({}),
                   ],
                   data: { reuse: true },
                   children: [
@@ -190,7 +187,7 @@ describe('EditFormComponent', () => {
             );
           }),
         ),
-        provideHttpClient(withInterceptors([errorInterceptor])),
+        provideHttpClient(),
         provideHttpClientTesting(),
         // note needed as mat date input harness reads displayed value instead of form model value
         provideDateFnsAdapter({
@@ -1630,6 +1627,7 @@ const CASE_RECORD_STATE_FIXTURE: CaseRecordState = {
       changeLogs: [],
       sourceId: 'Manual',
       caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
+      eTag: 0,
     };
   }),
 

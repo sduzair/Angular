@@ -140,7 +140,8 @@ api.MapPost("/transaction/search", async (
         var collection = db.GetCollection<BsonDocument>(collectionName);
 
         var limit = 10;
-        if (collectionName == "flowOfFunds")
+        string[] nolimit = { "flowOfFunds" };
+        if (nolimit.Contains(collectionName))
             limit = 0;
 
         // Create cursor and automatically dispose with 'using'

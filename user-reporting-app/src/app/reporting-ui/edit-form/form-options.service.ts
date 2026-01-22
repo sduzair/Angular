@@ -30,7 +30,7 @@ export interface FormOptions {
     Other: string;
   };
   typeOfFunds: {
-    'Funds withdrawal': string;
+    'Funds Withdrawal': string;
     Cash: string;
     Cheque: string;
     'Domestic Funds Transfer': string;
@@ -72,6 +72,8 @@ export interface FormOptions {
   };
 }
 
+export type FORM_OPTIONS_DIRECTION = 'In' | 'Out';
+
 export type FORM_OPTIONS_ACCOUNT_TYPE =
   | 'Business'
   | 'Casino'
@@ -79,7 +81,7 @@ export type FORM_OPTIONS_ACCOUNT_TYPE =
   | 'Other';
 
 export type FORM_OPTIONS_TYPE_OF_FUNDS =
-  | 'Funds withdrawal'
+  | 'Funds Withdrawal'
   | 'Cash'
   | 'Cheque'
   | 'Domestic Funds Transfer'
@@ -88,7 +90,7 @@ export type FORM_OPTIONS_TYPE_OF_FUNDS =
 
 export type FORM_OPTIONS_DETAILS_OF_DISPOSITION =
   | 'Deposit to account'
-  | 'Cash Withdrawal'
+  | 'Cash Withdrawal (account based)'
   | 'Issued Cheque'
   | 'Outgoing email money transfer';
 

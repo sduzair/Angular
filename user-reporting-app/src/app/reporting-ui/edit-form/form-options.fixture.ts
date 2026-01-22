@@ -6,7 +6,7 @@ export const FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE = {
     Other: 'Other',
   },
   typeOfFunds: {
-    'Funds withdrawal': 'Funds withdrawal',
+    'Funds Withdrawal': 'Funds Withdrawal',
     Cash: 'Cash',
     Cheque: 'Cheque',
     'Domestic Funds Transfer': 'Domestic Funds Transfer',

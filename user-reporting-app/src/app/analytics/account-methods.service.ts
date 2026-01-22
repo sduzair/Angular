@@ -475,8 +475,8 @@ export function getTransactionType(
     method = TRANSACTION_TYPE_ENUM.ABM;
 
   if (
-    typeOfFundsType === 'Funds withdrawal' &&
-    detailsOfDispoType === 'Cash Withdrawal'
+    typeOfFundsType === 'Funds Withdrawal' &&
+    detailsOfDispoType === 'Cash Withdrawal (account based)'
   )
     method = TRANSACTION_TYPE_ENUM.ABM;
 
@@ -495,7 +495,7 @@ export function getTransactionType(
     method = TRANSACTION_TYPE_ENUM.EMT;
 
   if (
-    typeOfFundsType === 'Funds withdrawal' &&
+    typeOfFundsType === 'Funds Withdrawal' &&
     detailsOfDispoType === 'Outgoing email money transfer'
   )
     method = TRANSACTION_TYPE_ENUM.EMT;
