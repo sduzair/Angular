@@ -92,6 +92,8 @@ export class ManualUploadReviewTableComponent {
     'timeOfTxn',
     'dateOfPosting',
     'timeOfPosting',
+    'flowOfFundsTransactionDesc',
+
     '_hiddenTxnType',
     'methodOfTxn',
     'methodOfTxnOther',

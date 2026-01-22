@@ -129,6 +129,7 @@ api.MapPost("/transaction/search", async (
         ("OLB", "olb"),
         ("EMT", "emt"),
         ("Wire", "wire"),
+        ("OTC", "otc"),
     };
 
     foreach (var (sourceId, collectionName) in sources)
@@ -138,9 +139,13 @@ api.MapPost("/transaction/search", async (
 
         var collection = db.GetCollection<BsonDocument>(collectionName);
 
+        var limit = 10;
+        if (collectionName == "flowOfFunds")
+            limit = 0;
+
         // Create cursor and automatically dispose with 'using'
         using var cursor = await collection
-            .Find(FilterDefinition<BsonDocument>.Empty).Limit(10)
+            .Find(FilterDefinition<BsonDocument>.Empty).Limit(limit)
             .ToCursorAsync(cancellationToken);
 
         string status = "completed";

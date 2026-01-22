@@ -23,6 +23,7 @@ mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofInE
 mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofOutEmtCibcRecipient.json    --jsonArray
 mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofOutEmtNonCibcRecipient.json --jsonArray
 mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofWireIn.json                 --jsonArray
+mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofCbfeMixedDeposit.json       --jsonArray
 
 mongoimport --uri "$URI" --db "$DB" --collection abm --file /seed/abmCashDeposit.json     --jsonArray
 mongoimport --uri "$URI" --db "$DB" --collection abm --file /seed/abmCashWithdrawal.json  --jsonArray
@@ -38,6 +39,9 @@ mongoimport --uri "$URI" --db "$DB" --collection emt --file /seed/emtOutEmtCibcR
 mongoimport --uri "$URI" --db "$DB" --collection emt --file /seed/emtOutEmtNonCibcRecipient.json --jsonArray
 
 mongoimport --uri "$URI" --db "$DB" --collection wire --file /seed/wireIn.json --jsonArray
+
+mongoimport --uri "$URI" --db "$DB" --collection otc --file /seed/cbfeMixedDeposit.json --jsonArray
+
 
 mongosh "$URI/$DB" --quiet --eval 'db.createCollection("selections")'
 

@@ -29,13 +29,11 @@ import {
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { StrTransaction } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
-import { formatCurrencyLocal } from '../circular/circular.component';
 import {
-  FORM_OPTIONS_DETAILS_OF_DISPOSITION,
-  FORM_OPTIONS_METHOD_OF_TXN,
-  FORM_OPTIONS_TYPE_OF_FUNDS,
-} from '../../reporting-ui/edit-form/form-options.service';
-import { getTxnMethod, METHOD_FRIENDLY_NAME } from '../account-methods.service';
+  getTransactionType,
+  TRANSACTION_TYPE_FRIENDLY_NAME,
+} from '../account-methods.service';
+import { formatCurrencyLocal } from '../circular/circular.component';
 
 echarts.use([
   PieChart,
@@ -349,20 +347,23 @@ export class TxnMethodBreakdownComponent
 
     data.forEach(
       ({
+        wasTxnAttempted,
         flowOfFundsCreditAmount,
         flowOfFundsDebitAmount,
         methodOfTxn,
         startingActions = [],
         completingActions = [],
       }) => {
-        // Determine txn method
-        const txnMethod = getTxnMethod(
+        if (wasTxnAttempted) return;
+
+        // Determine txn type
+        const txnTypeKey = getTransactionType(
           startingActions[0].typeOfFunds,
           completingActions[0].detailsOfDispo,
           methodOfTxn,
         )!;
 
-        const friendlyName = METHOD_FRIENDLY_NAME[txnMethod];
+        const friendlyName = TRANSACTION_TYPE_FRIENDLY_NAME[txnTypeKey];
 
         // Separate credits and debits
         const creditAmount = flowOfFundsCreditAmount || 0;

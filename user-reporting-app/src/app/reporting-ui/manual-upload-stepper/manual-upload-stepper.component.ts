@@ -30,6 +30,7 @@ import {
   catchError,
   defer,
   finalize,
+  forkJoin,
   from,
   fromEvent,
   map,
@@ -40,6 +41,7 @@ import {
 } from 'rxjs';
 import {
   CaseRecordStore,
+  setRowValidationInfo,
   StrTransactionWithChangeLogs,
 } from '../../aml/case-record.store';
 import {
@@ -52,6 +54,7 @@ import {
 } from '../reporting-ui-table/reporting-ui-table.component';
 import { ManualTransactionBuilder } from './manual-transaction-builder';
 import { ManualUploadReviewTableComponent } from './manual-upload-review-table/manual-upload-review-table.component';
+import { TransactionSearchService } from '../../transaction-search/transaction-search.service';
 // import { MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE } from './manual-upload-review-table/manual-upload-review-table.data.fixture';
 
 @Component({
@@ -202,15 +205,20 @@ import { ManualUploadReviewTableComponent } from './manual-upload-review-table/m
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
-  onFileInputClick(fileInput: HTMLInputElement) {
-    // eslint-disable-next-line no-param-reassign
-    fileInput.value = null as unknown as string;
-  }
+  protected sessionDataService = inject(CaseRecordStore);
+  private formOptionsService = inject(FormOptionsService);
+  private searchService = inject(TransactionSearchService);
   private destroyRef = inject(DestroyRef);
   private fb = inject(FormBuilder);
   dialogRef = inject(MatDialogRef<ManualUploadStepperComponent>);
 
   @ViewChild('dropZone') dropZone!: ElementRef;
+
+  onFileInputClick(fileInput: HTMLInputElement) {
+    // eslint-disable-next-line no-param-reassign
+    fileInput.value = null as unknown as string;
+  }
+
   stepperFormGroup = this.fb.nonNullable.group({
     step1PickFile: [null as File | null, Validators.required],
     step2ReviewTableValidationErrors: [
@@ -377,8 +385,6 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
       });
   }
 
-  private formOptionsService = inject(FormOptionsService);
-
   _processFile(file: File) {
     return defer(() => from(file.arrayBuffer())).pipe(
       map((arrayBuffer) => read(arrayBuffer)),
@@ -390,7 +396,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
           customProps.manualupload !==
           ADD_SELECTIONS_MANUAL_FILE_VERSION.manualupload
         ) {
-          throw new Error('Unknown manual upload file');
+          throw new Error('Unknown manual upload template');
         }
         // Convert to JSON
         return utils.sheet_to_json<Record<ColumnHeaderLabels, string>>(ws, {
@@ -403,10 +409,12 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
           map((formOptions) => ({ jsonData, formOptions })),
         );
       }),
-      map(({ jsonData, formOptions }) =>
-        jsonData.map((json) =>
-          this.convertSheetJsonToStrTxn(json, formOptions),
-        ),
+      switchMap(({ jsonData, formOptions }) =>
+        forkJoin(
+          jsonData.map((json) =>
+            this.convertSheetJsonToStrTxn(json, formOptions),
+          ),
+        ).pipe(map((strTxns) => strTxns.map(setRowValidationInfo))),
       ),
     );
   }
@@ -414,21 +422,20 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
   convertSheetJsonToStrTxn(
     value: Record<ColumnHeaderLabels, string>,
     formOptions: FormOptions,
-  ): StrTransactionWithChangeLogs {
-    const transaction = new ManualTransactionBuilder(value, formOptions)
+  ) {
+    return new ManualTransactionBuilder(value, formOptions, (partyKey) =>
+      this.searchService.getPartyInfo(partyKey),
+    )
+      .trimValues()
       .withMetadata()
       .withBasicInfo()
       .withFlowOfFundsInfo()
       .withStartingAction()
       .withCompletingAction()
-      .withRowValidation()
       .withValidationErrors()
       .build();
-
-    return transaction;
   }
 
-  protected sessionDataService = inject(CaseRecordStore);
   onUpload(stepper: MatStepper) {
     this.stepperFormGroup.controls.readyForUpload.setValue(true);
     this.sessionDataService.qAddManualSelections(this.parsedData);
@@ -488,6 +495,9 @@ function reviewTableErrorValidation(): (
     'invalidAmountCurrency',
     'invalidAccountCurrency',
     'invalidAccountStatus',
+    'bankInfoMissing',
+    'invalidPartyKey',
+    'invalidFiu',
   ] as _hiddenValidationType[]);
 
   return (control) => {

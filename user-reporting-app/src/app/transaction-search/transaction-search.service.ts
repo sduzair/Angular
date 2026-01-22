@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { map, Observable, share, shareReplay, timer } from 'rxjs';
+import { map, Observable, shareReplay, timer } from 'rxjs';
 // import { SUBJECT_INFO_BY_PARTY_KEY_DEV_OR_TEST_ONLY_FIXTURE } from '../aml/case-record.state.fixture';
 import { ReviewPeriod } from '../aml/case-record.store';
 import { TableSelectionType } from '../transaction-view/transaction-view.component';
@@ -213,6 +213,11 @@ export type TransactionSearchResponse = (
       sourceId: 'Wire';
       status: 'completed' | 'failed';
       sourceData: WireSourceData[];
+    }
+  | {
+      sourceId: 'OTC';
+      status: 'completed' | 'failed';
+      sourceData: OTCSourceData[];
     }
 )[];
 
@@ -699,6 +704,120 @@ export interface WireSourceData {
   userDeviceType: null;
   userSessionDatetime: null;
   wireRole: string;
+}
+
+export interface OTCSourceData {
+  accountCurrency: string;
+  accountNumber: string;
+  acctCurrAmount: number;
+  acctHoldersAll: string;
+  actualCurrencyCD: string;
+  aggregatedCheques: number;
+  amlId: number;
+  branchTransit: number;
+  cardNumber: string;
+  caseAccountNumber: string;
+  caseEcif: string;
+  caseTransitNumber: string;
+  cdtAcctShortName: string;
+  channelCd: string;
+  chequeBreakdown: string;
+  conductor: string;
+  crdrCode: string;
+  creditAmount: number;
+  creditedAccount: string;
+  creditedTransit: string;
+  creditorId: string;
+  customer1AccountHolderCifId: string;
+  customer1AccountStatus: string;
+  customer2AccountCurrencyCode: null;
+  customer2AccountHolderCifId: null;
+  customer2AccountStatus: null;
+  dbtAcctShortName: string;
+  debitAmount: null;
+  debitedAccount: null;
+  debitedTransit: null;
+  flowOfFundsAccountCurrency: string;
+  flowOfFundsAmlId: number;
+  flowOfFundsAmlTransactionId: string;
+  flowOfFundsCasePartyKey: number;
+  flowOfFundsConductorPartyKey: number;
+  flowOfFundsCreditAmount: number;
+  flowOfFundsCreditedAccount: string;
+  flowOfFundsCreditedTransit: string;
+  flowOfFundsDebitAmount: null;
+  flowOfFundsDebitedAccount: null;
+  flowOfFundsDebitedTransit: null;
+  flowOfFundsPostingDate: string;
+  flowOfFundsSource: string;
+  flowOfFundsSourceTransactionId: string;
+  flowOfFundsTransactionCurrency: string;
+  flowOfFundsTransactionCurrencyAmount: number;
+  flowOfFundsTransactionDate: string;
+  flowOfFundsTransactionDesc: string;
+  flowOfFundsTransactionTime: string;
+  executionLocalDateTime: number;
+  holdingBranchKey: string;
+  oppAccountNumber: null;
+  oppProdType: null;
+  oppTransitNumber: null;
+  origCurrAmount: number;
+  origcurrCashAmount: number;
+  origCurrencyCD: string;
+  postingDate: string;
+  processingDate: string;
+  rowUpdateDate: number;
+  sequenceNumberDescr: string;
+  sourceTransactionId: string;
+  splittableColumnValue: number;
+  splittingDelimiter: string;
+  strCaAccount: number;
+  strCaAccountCurrency: string;
+  strCaAccountHolderCifId: string;
+  strCaAccountStatus: string;
+  strCaAmount: number;
+  strCaBeneficiaryInd: string;
+  strCaBranch: number;
+  strCaCurrency: string;
+  strCaDispositionType: string;
+  strCaDispositionTypeOpp: null;
+  strCaDispositionTypeOther: null;
+  strCaDispositionTypeOtherOpp: null;
+  strCaFiNumber: string;
+  strCaInvolvedInCifId: null;
+  strCaInvolvedInInd: string;
+  strReportingEntity: string;
+  strReportingEntityOpp: string;
+  strSaAccount: null;
+  strSaAccountCurrency: null;
+  strSaAccountHoldersCifId: string | null;
+  strSaAccountStatus: null;
+  strSaAmount: number;
+  strSaBranch: null;
+  strSaConductorInd: string;
+  strSaCurrency: string;
+  strSaDirection: string;
+  strSaDirectionOpp: null;
+  strSaFiNumber: null;
+  strSaFundingSourceInd: string;
+  strSaFundsType: string;
+  strSaFundsTypeOpp: null;
+  strSaFundsTypeOther: null;
+  strSaFundsTypeOtherOpp: null;
+  strSaOboInd: string;
+  strSaPostingDate: null;
+  strSaPurposeOfTransaction: null;
+  strTransactionStatus: string;
+  systemJournalId: null;
+  tellerId: null;
+  transactionCurrency: string;
+  transactionCurrencyAmount: number;
+  transactionDate: string;
+  transactionDescription: string;
+  transactionExecutionLocalTimestamp: string;
+  transactionId: string;
+  transactionTime: string;
+  sourceId: string
 }
 
 export type SourceData =

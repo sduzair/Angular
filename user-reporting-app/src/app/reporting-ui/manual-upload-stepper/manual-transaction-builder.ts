@@ -4,9 +4,15 @@ import {
   StrTransactionWithChangeLogs,
   setRowValidationInfo,
 } from '../../aml/case-record.store';
-import { EditFormComponent } from '../edit-form/edit-form.component';
+import {
+  EditFormComponent,
+  InvalidFormOptionsErrorKeys,
+} from '../edit-form/edit-form.component';
 import { FormOptions } from '../edit-form/form-options.service';
-import { TransactionDateDirective } from '../edit-form/transaction-date.directive';
+import {
+  ParsingError,
+  TransactionDateDirective,
+} from '../edit-form/transaction-date.directive';
 import { TransactionTimeDirective } from '../edit-form/transaction-time.directive';
 import {
   Beneficiary,
@@ -16,7 +22,12 @@ import {
   _hiddenValidationType,
 } from '../reporting-ui-table/reporting-ui-table.component';
 import { type ColumnHeaderLabels } from './manual-upload-stepper.component';
+import { catchError, forkJoin, map, Observable, of } from 'rxjs';
+import { GetPartyInfoRes } from '../../transaction-search/transaction-search.service';
 
+/**
+ * - Does not accept 010 account info
+ */
 export class ManualTransactionBuilder {
   private transaction: Partial<StrTransactionWithChangeLogs> = {};
   private validationErrors: _hiddenValidationType[] = [];
@@ -25,7 +36,18 @@ export class ManualTransactionBuilder {
   constructor(
     private value: Record<ColumnHeaderLabels, string | null>,
     private formOptions: FormOptions,
+    private getPartyInfo: (partyKey: string) => Observable<GetPartyInfoRes>,
   ) {}
+
+  trimValues(): this {
+    Object.keys(this.value).forEach((key) => {
+      const val = this.value[key as ColumnHeaderLabels];
+      this.value[key as ColumnHeaderLabels] =
+        typeof val === 'string' ? val.trim() : val;
+    });
+
+    return this;
+  }
 
   withMetadata(): this {
     this.transaction.changeLogs = [];
@@ -45,13 +67,12 @@ export class ManualTransactionBuilder {
     this.transaction.timeOfPosting = this.parseTimeField('Post Time') ?? null;
     this.transaction.reportingEntityTxnRefNo = this.flowOfFundsAmlTransactionId;
     this.transaction.purposeOfTxn = null;
-    this.transaction.reportingEntityLocationNo = null;
+    this.transaction.reportingEntityLocationNo = this.value['Reporting Entity'];
 
     // Method of transaction with validation
     const isKnownMethodOfTxn = this.validateOptionField(
       'Method of Txn',
       'methodOfTxn',
-      'invalidMethodOfTxn',
     );
     this.transaction.methodOfTxn = isKnownMethodOfTxn
       ? this.value['Method of Txn']
@@ -83,44 +104,29 @@ export class ManualTransactionBuilder {
     this.transaction.flowOfFundsTransactionCurrency = null;
     this.transaction.flowOfFundsTransactionCurrencyAmount = null;
     this.transaction.flowOfFundsTransactionDate = null;
-    this.transaction.flowOfFundsTransactionDesc = '';
+    this.transaction.flowOfFundsTransactionDesc =
+      this.value['Transaction Description'] ?? '';
     this.transaction.flowOfFundsTransactionTime = null;
     return this;
   }
 
   withStartingAction(): this {
-    const conductor = this.buildConductor();
-
     // Validate all debit-side fields
     const isKnownDirectionOfSA = this.validateOptionField(
       'Direction',
       'directionOfSA',
-      'invalidDirectionOfSA',
     );
     const isKnownTypeOfFunds = this.validateOptionField(
       'Funds Type',
       'typeOfFunds',
-      'invalidTypeOfFunds',
     );
     const isKnownDebitCurrency = this.validateOptionField(
       'Debit Currency',
       'amountCurrency',
-      'invalidAmountCurrency',
     );
     const isKnownDebitAccountType = this.validateOptionField(
       'Debit Account Type',
       'accountType',
-      'invalidAccountType',
-    );
-    const isKnownDebitAccountCurrency = this.validateOptionField(
-      'Debit Account Currency',
-      'accountCurrency',
-      'invalidAccountCurrency',
-    );
-    const isKnownDebitAccountStatus = this.validateOptionField(
-      'Debit Account Status',
-      'accountStatus',
-      'invalidAccountStatus',
     );
 
     const startingAction: StartingAction = {
@@ -139,21 +145,17 @@ export class ManualTransactionBuilder {
       accountTypeOther: !isKnownDebitAccountType
         ? this.value['Debit Account Type']
         : null,
-      accountCurrency: isKnownDebitAccountCurrency
-        ? this.value['Debit Account Currency']
-        : null,
-      accountOpen: this.value['Debit Account Open'] || null,
-      accountClose: this.value['Debit Account Close'] || null,
-      accountStatus: isKnownDebitAccountStatus
-        ? this.value['Debit Account Status']
-        : null,
-      howFundsObtained: this.value['How Funds Were Obtained?'] || null,
+      accountCurrency: null,
+      accountOpen: null,
+      accountClose: null,
+      accountStatus: null,
+      howFundsObtained: null,
       hasAccountHolders: null,
       accountHolders: [],
       wasSofInfoObtained: null,
       sourceOfFunds: [],
-      wasCondInfoObtained: conductor ? true : null,
-      conductors: conductor ? [conductor] : [],
+      wasCondInfoObtained: null,
+      conductors: [],
     };
 
     this.transaction.startingActions = [startingAction];
@@ -161,33 +163,18 @@ export class ManualTransactionBuilder {
   }
 
   withCompletingAction(): this {
-    const beneficiary = this.buildBeneficiary();
-
     // Validate all credit-side fields
     const isKnownDetailsOfDispo = this.validateOptionField(
       'Disposition Details',
       'detailsOfDisposition',
-      'invalidDetailsOfDisposition',
     );
     const isKnownCreditCurrency = this.validateOptionField(
       'Credit Currency',
       'amountCurrency',
-      'invalidAmountCurrency',
     );
     const isKnownCreditAccountType = this.validateOptionField(
       'Credit Account Type',
       'accountType',
-      'invalidAccountType',
-    );
-    const isKnownCreditAccountCurrency = this.validateOptionField(
-      'Credit Account Currency',
-      'accountCurrency',
-      'invalidAccountCurrency',
-    );
-    const isKnownCreditAccountStatus = this.validateOptionField(
-      'Credit Account Status',
-      'accountStatus',
-      'invalidAccountStatus',
     );
 
     const completingAction: CompletingAction = {
@@ -211,29 +198,19 @@ export class ManualTransactionBuilder {
       accountTypeOther: !isKnownCreditAccountType
         ? this.value['Credit Account Type']
         : null,
-      accountCurrency: isKnownCreditAccountCurrency
-        ? this.value['Credit Account Currency']
-        : null,
-      accountOpen: this.value['Credit Account Open'] || null,
-      accountClose: this.value['Credit Account Close'] || null,
-      accountStatus: isKnownCreditAccountStatus
-        ? this.value['Credit Account Status']
-        : null,
+      accountCurrency: null,
+      accountOpen: null,
+      accountClose: null,
+      accountStatus: null,
       hasAccountHolders: null,
       accountHolders: [],
       wasAnyOtherSubInvolved: null,
       involvedIn: [],
-      wasBenInfoObtained: beneficiary ? true : null,
-      beneficiaries: beneficiary ? [beneficiary] : [],
+      wasBenInfoObtained: null,
+      beneficiaries: [],
     };
 
     this.transaction.completingActions = [completingAction];
-    return this;
-  }
-
-  // note: overrites validation errors prop
-  withRowValidation(): this {
-    setRowValidationInfo(this.transaction as StrTransactionWithChangeLogs);
     return this;
   }
 
@@ -244,8 +221,47 @@ export class ManualTransactionBuilder {
     return this;
   }
 
-  build(): StrTransactionWithChangeLogs {
-    return this.transaction as StrTransactionWithChangeLogs;
+  build(): Observable<StrTransactionWithChangeLogs> {
+    return forkJoin({
+      conductor: this.buildConductor(this.getPartyInfo).pipe(
+        catchError(() => {
+          this.transaction._hiddenValidation ??= [];
+          this.transaction._hiddenValidation.push('invalidPartyKey');
+          return of(null);
+        }),
+      ),
+      beneficiary: this.buildBeneficiary(this.getPartyInfo).pipe(
+        catchError(() => {
+          this.transaction._hiddenValidation ??= [];
+          this.transaction._hiddenValidation.push('invalidPartyKey');
+          return of(null);
+        }),
+      ),
+    }).pipe(
+      map(({ conductor, beneficiary }) => {
+        // Update starting action with conductor
+        if (this.transaction.startingActions?.[0]) {
+          this.transaction.startingActions[0].wasCondInfoObtained = conductor
+            ? true
+            : null;
+          this.transaction.startingActions[0].conductors = conductor
+            ? [conductor]
+            : [];
+        }
+
+        // Update completing action with beneficiary
+        if (this.transaction.completingActions?.[0]) {
+          this.transaction.completingActions[0].wasBenInfoObtained = beneficiary
+            ? true
+            : null;
+          this.transaction.completingActions[0].beneficiaries = beneficiary
+            ? [beneficiary]
+            : [];
+        }
+
+        return this.transaction as StrTransactionWithChangeLogs;
+      }),
+    );
   }
 
   // Helper methods
@@ -262,9 +278,9 @@ export class ManualTransactionBuilder {
   private isValidOption(
     field: ColumnHeaderLabels,
     optionKey: keyof FormOptions,
-  ): boolean {
-    if (!this.value[field]) return true;
-    return !EditFormComponent.validateFormOptions(
+  ) {
+    if (!this.value[field]) return null;
+    return EditFormComponent.validateFormOptions(
       this.value[field],
       this.formOptions,
       optionKey,
@@ -274,22 +290,29 @@ export class ManualTransactionBuilder {
   private validateOptionField(
     field: ColumnHeaderLabels,
     optionKey: keyof FormOptions,
-    errorType: _hiddenValidationType,
   ): boolean {
-    const isValid = this.isValidOption(field, optionKey);
-    if (!isValid) {
-      this.validationErrors.push(errorType);
+    const validationError = this.isValidOption(field, optionKey);
+    if (validationError) {
+      const errorKeys = Object.keys(
+        validationError,
+      ) as InvalidFormOptionsErrorKeys[];
+      this.validationErrors.push(...errorKeys);
+      return false;
     }
-    return isValid;
+    return true;
   }
 
   private parseDateField(field: ColumnHeaderLabels) {
     if (!this.value[field]) return null;
 
-    const parsedDate = TransactionDateDirective.parse(this.value[field]);
-    if (!isValid(parsedDate)) {
-      this.validationErrors.push('invalidDate');
-      return null;
+    try {
+      TransactionDateDirective.parse(this.value[field]);
+    } catch (error) {
+      if (error instanceof ParsingError) {
+        this.validationErrors.push('invalidDate');
+        return null;
+      }
+      throw error;
     }
 
     return this.value[field] as string;
@@ -310,17 +333,29 @@ export class ManualTransactionBuilder {
     return this.value[field] as string;
   }
 
-  private buildConductor(): Conductor | null {
+  private buildConductor(
+    getPartyInfo: (partyKey: string) => Observable<GetPartyInfoRes>,
+  ): Observable<Conductor | null> {
     if (
       !this.hasValue(this.value['Conductor Party Key']) &&
       !this.hasValue(this.value['Conductor Surname']) &&
       !this.hasValue(this.value['Conductor Given Name']) &&
       !this.hasValue(this.value['Conductor Entity Name'])
     ) {
-      return null;
+      return of(null);
     }
 
-    return {
+    if (this.hasValue(this.value['Conductor Party Key']))
+      return getPartyInfo(this.value['Conductor Party Key']!).pipe(
+        map((party) => ({
+          _id: ulid(),
+          ...party,
+          wasConductedOnBehalf: null,
+          onBehalfOf: [],
+        })),
+      );
+
+    return of({
       _id: ulid(),
       partyKey: this.value['Conductor Party Key'] || null,
       surname: this.value['Conductor Surname'] || null,
@@ -329,29 +364,38 @@ export class ManualTransactionBuilder {
       nameOfEntity: this.value['Conductor Entity Name'] || null,
       wasConductedOnBehalf: null,
       onBehalfOf: [],
-    };
+    });
   }
 
-  private buildBeneficiary(): Beneficiary | null {
+  private buildBeneficiary(
+    getPartyInfo: (partyKey: string) => Observable<GetPartyInfoRes>,
+  ): Observable<Beneficiary | null> {
     if (
       !this.hasValue(this.value['Beneficiary Party Key']) &&
       !this.hasValue(this.value['Beneficiary Surname']) &&
       !this.hasValue(this.value['Beneficiary Given Name']) &&
       !this.hasValue(this.value['Beneficiary Entity Name'])
     ) {
-      return null;
+      return of(null);
     }
 
-    return {
+    if (this.hasValue(this.value['Beneficiary Party Key']))
+      return getPartyInfo(this.value['Beneficiary Party Key']!).pipe(
+        map((party) => ({
+          _id: ulid(),
+          ...party,
+          wasConductedOnBehalf: null,
+          onBehalfOf: [],
+        })),
+      );
+
+    return of({
       _id: ulid(),
       partyKey: this.value['Beneficiary Party Key'] || null,
       surname: this.value['Beneficiary Surname'] || null,
       givenName: this.value['Beneficiary Given Name'] || null,
       otherOrInitial: this.value['Beneficiary Other Name'] || null,
       nameOfEntity: this.value['Beneficiary Entity Name'] || null,
-    };
+    });
   }
 }
-
-// todo: convert to a service which verifies/populates account info
-// todo:? use schema lib validate manual transaction object

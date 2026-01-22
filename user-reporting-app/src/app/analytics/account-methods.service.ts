@@ -11,14 +11,14 @@ import {
   switchMap,
 } from 'rxjs';
 import { CaseRecordStore } from '../aml/case-record.store';
-import { TransactionDateDirective } from '../reporting-ui/edit-form/transaction-date.directive';
-import { TransactionSearchService } from '../transaction-search/transaction-search.service';
-import { fiuMap } from './fiu';
 import {
   FORM_OPTIONS_DETAILS_OF_DISPOSITION,
   FORM_OPTIONS_METHOD_OF_TXN,
   FORM_OPTIONS_TYPE_OF_FUNDS,
 } from '../reporting-ui/edit-form/form-options.service';
+import { TransactionDateDirective } from '../reporting-ui/edit-form/transaction-date.directive';
+import { TransactionSearchService } from '../transaction-search/transaction-search.service';
+import { fiuMap } from './fiu';
 
 @Injectable()
 export class AccountMethodsService {
@@ -73,6 +73,8 @@ export class AccountMethodsService {
     map(([accountsInfo, partyKeysSelection, transactionSelections]) => {
       const focalSubjects = new Set(partyKeysSelection);
 
+      // fix: ignores manuals
+      // fix: attempted txns ignore
       const transactionsCredit = transactionSelections.filter(
         (txn) => txn.flowOfFundsCreditedAccount,
       );
@@ -80,7 +82,7 @@ export class AccountMethodsService {
         (txn) => txn.flowOfFundsDebitedAccount,
       );
 
-      const accountMethods: AccountMethods[] = [];
+      const accountMethods: AccountTransactionActivity[] = [];
 
       for (const {
         account: selectedAccount,
@@ -88,7 +90,9 @@ export class AccountMethodsService {
         transit,
       } of accountsInfo) {
         // CREDITS - funds received into this account
-        const methodMapCredits: Partial<Record<MethodKey, MethodVal>> = {};
+        const methodMapCredits: Partial<
+          Record<TransactionTypeKey, TransactionTypeTotals>
+        > = {};
 
         for (const {
           flowOfFundsCreditedAccount,
@@ -105,9 +109,9 @@ export class AccountMethodsService {
           const { typeOfFunds: saTypeOfFunds } = startingActions[0];
           const { detailsOfDispo: caDetailsOfDispo } = completingActions[0];
 
-          const methodKey =
-            getTxnMethod(saTypeOfFunds, caDetailsOfDispo, methodOfTxn) ??
-            METHOD_ENUM.Unknown;
+          const txnTypeKey =
+            getTransactionType(saTypeOfFunds, caDetailsOfDispo, methodOfTxn) ??
+            TRANSACTION_TYPE_ENUM.Unknown;
 
           const amount = flowOfFundsCreditAmount ?? 0;
           const date = TransactionDateDirective.format(
@@ -117,17 +121,18 @@ export class AccountMethodsService {
           );
 
           // Initialize method entry if not exists
-          if (!methodMapCredits[methodKey]) {
-            methodMapCredits[methodKey] = {
-              type: METHOD_FRIENDLY_NAME[methodKey] ?? 'Unknown Method',
+          if (!methodMapCredits[txnTypeKey]) {
+            methodMapCredits[txnTypeKey] = {
+              type:
+                TRANSACTION_TYPE_FRIENDLY_NAME[txnTypeKey] ?? 'Unknown Method',
               amount: 0,
               count: 0,
               dates: [],
               subjects: [],
-            } satisfies MethodVal;
+            } satisfies TransactionTypeTotals;
           }
 
-          const methodEntry = methodMapCredits[methodKey];
+          const methodEntry = methodMapCredits[txnTypeKey];
           methodEntry.amount += amount;
           methodEntry.count += 1;
           if (date && !methodEntry.dates.includes(date)) {
@@ -154,7 +159,7 @@ export class AccountMethodsService {
                 fiu: fiuNo ?? '',
                 transit: branch ?? '',
                 account: account ?? '',
-                methodKey,
+                methodKey: txnTypeKey,
                 flowOfFundsTransactionDesc,
               });
             }
@@ -169,7 +174,7 @@ export class AccountMethodsService {
                 fiu: fiuNo ?? '',
                 transit: branch ?? '',
                 account: account ?? '',
-                methodKey,
+                methodKey: txnTypeKey,
                 flowOfFundsTransactionDesc,
               });
             }
@@ -186,7 +191,9 @@ export class AccountMethodsService {
         });
 
         // DEBITS - funds sent from this account
-        const methodMapDebits: Partial<Record<MethodKey, MethodVal>> = {};
+        const methodMapDebits: Partial<
+          Record<TransactionTypeKey, TransactionTypeTotals>
+        > = {};
 
         for (const {
           flowOfFundsDebitedAccount,
@@ -203,9 +210,9 @@ export class AccountMethodsService {
           const { typeOfFunds: saTypeOfFunds } = startingActions[0];
           const { detailsOfDispo: caDetailsOfDispo } = completingActions[0];
 
-          const methodKey =
-            getTxnMethod(saTypeOfFunds, caDetailsOfDispo, methodOfTxn) ??
-            METHOD_ENUM.Unknown;
+          const txnTypeKey =
+            getTransactionType(saTypeOfFunds, caDetailsOfDispo, methodOfTxn) ??
+            TRANSACTION_TYPE_ENUM.Unknown;
 
           const amount = flowOfFundsDebitAmount ?? 0;
           const date = TransactionDateDirective.format(
@@ -215,17 +222,18 @@ export class AccountMethodsService {
           );
 
           // Initialize method entry if not exists
-          if (!methodMapDebits[methodKey]) {
-            methodMapDebits[methodKey] = {
-              type: METHOD_FRIENDLY_NAME[methodKey] ?? 'Unknown Method',
+          if (!methodMapDebits[txnTypeKey]) {
+            methodMapDebits[txnTypeKey] = {
+              type:
+                TRANSACTION_TYPE_FRIENDLY_NAME[txnTypeKey] ?? 'Unknown Method',
               amount: 0,
               count: 0,
               dates: [],
               subjects: [],
-            } satisfies MethodVal;
+            } satisfies TransactionTypeTotals;
           }
 
-          const methodEntry = methodMapDebits[methodKey];
+          const methodEntry = methodMapDebits[txnTypeKey];
           methodEntry.amount += amount;
           methodEntry.count += 1;
           if (date && !methodEntry.dates.includes(date)) {
@@ -253,7 +261,7 @@ export class AccountMethodsService {
                 fiu: fiuNo ?? '',
                 transit: branch ?? '',
                 account: account ?? '',
-                methodKey,
+                methodKey: txnTypeKey,
                 flowOfFundsTransactionDesc,
               });
             }
@@ -268,7 +276,7 @@ export class AccountMethodsService {
                 fiu: fiuNo ?? '',
                 transit: branch ?? '',
                 account: account ?? '',
-                methodKey,
+                methodKey: txnTypeKey,
                 flowOfFundsTransactionDesc,
               });
             }
@@ -291,32 +299,34 @@ export class AccountMethodsService {
     shareReplay({ bufferSize: 1, refCount: false }),
   );
 
-  getAllAccountMethods$(): Observable<AccountMethods[]> {
+  getAllAccountTransactionActivity$(): Observable<
+    AccountTransactionActivity[]
+  > {
     return this.accountMethods$;
   }
 }
 
-interface AccountMethods {
+interface AccountTransactionActivity {
   account: string;
   transit: string;
   currency: string;
   type: 'credits' | 'debits';
-  methodMap: Partial<Record<MethodKey, MethodVal>>;
+  methodMap: Partial<Record<TransactionTypeKey, TransactionTypeTotals>>;
 }
 
-export type MethodKey =
-  | (typeof METHOD_ENUM)[keyof typeof METHOD_ENUM]
+export type TransactionTypeKey =
+  | (typeof TRANSACTION_TYPE_ENUM)[keyof typeof TRANSACTION_TYPE_ENUM]
   | (number & {});
 
-interface MethodVal {
-  type: (typeof METHOD_FRIENDLY_NAME)[keyof typeof METHOD_FRIENDLY_NAME];
+interface TransactionTypeTotals {
+  type: (typeof TRANSACTION_TYPE_FRIENDLY_NAME)[keyof typeof TRANSACTION_TYPE_FRIENDLY_NAME];
   amount: number;
   count: number;
   dates: string[];
-  subjects: MethodSubject[];
+  subjects: TransactionTypeSubject[];
 }
 
-interface MethodSubject {
+interface TransactionTypeSubject {
   name: string;
   category: SUBJECT_TYPE;
   categoryLabel: string;
@@ -346,12 +356,12 @@ function addSubject({
     nameOfEntity: string | null;
   };
   focalSubjects: Set<string>;
-  methodEntry: MethodVal;
+  methodEntry: TransactionTypeTotals;
   subjectRelation: 'accountholder' | 'beneficiary' | 'conductor';
   fiu?: string;
   transit?: string;
   account?: string;
-  methodKey: keyof typeof METHOD_FRIENDLY_NAME;
+  methodKey: keyof typeof TRANSACTION_TYPE_FRIENDLY_NAME;
   flowOfFundsTransactionDesc: string;
 }) {
   const { category, name } = getSubjectIdAndCategory(subject, focalSubjects);
@@ -371,7 +381,7 @@ function addSubject({
       sub.account === account,
   );
 
-  if (!exists && METHOD_ENUM.EMT === methodKey) {
+  if (!exists && TRANSACTION_TYPE_ENUM.EMT === methodKey) {
     const isEmail = EMAIL_RE.test(account ?? '');
 
     const bankPhrase = fiu ? `a customer of ${fiuMap[fiu ?? '']} bank` : '';
@@ -394,7 +404,7 @@ function addSubject({
     return;
   }
 
-  if (!exists && METHOD_ENUM.Wires === methodKey) {
+  if (!exists && TRANSACTION_TYPE_ENUM.Wires === methodKey) {
     const subjectPhrase = `from address ${flowOfFundsTransactionDesc
       .split('@')[1]
       ?.trim()
@@ -430,7 +440,7 @@ function addSubject({
 const EMAIL_RE =
   /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 
-export const METHOD_ENUM = {
+export const TRANSACTION_TYPE_ENUM = {
   Unknown: 0,
   ABM: 1,
   Cheque: 2,
@@ -439,7 +449,7 @@ export const METHOD_ENUM = {
   Wires: 5,
 } as const;
 
-export const METHOD_FRIENDLY_NAME = {
+export const TRANSACTION_TYPE_FRIENDLY_NAME = {
   0: 'Unknown' as const,
   1: 'ABM Cash' as const,
   2: 'Cheque' as const,
@@ -448,7 +458,7 @@ export const METHOD_FRIENDLY_NAME = {
   5: 'Wire Transfer' as const,
 };
 
-export function getTxnMethod(
+export function getTransactionType(
   typeOfFunds: FORM_OPTIONS_TYPE_OF_FUNDS | (string & {}) | null,
   detailsOfDispo: FORM_OPTIONS_DETAILS_OF_DISPOSITION | (string & {}) | null,
   methodOfTxn: string | null,
@@ -462,35 +472,36 @@ export function getTxnMethod(
   let method;
 
   if (typeOfFundsType === 'Cash' && detailsOfDispoType === 'Deposit to account')
-    method = METHOD_ENUM.ABM;
+    method = TRANSACTION_TYPE_ENUM.ABM;
 
   if (
     typeOfFundsType === 'Funds withdrawal' &&
     detailsOfDispoType === 'Cash Withdrawal'
   )
-    method = METHOD_ENUM.ABM;
+    method = TRANSACTION_TYPE_ENUM.ABM;
 
   if (
     typeOfFundsType === 'Cheque' &&
     detailsOfDispoType === 'Deposit to account'
   )
-    method = METHOD_ENUM.Cheque;
+    method = TRANSACTION_TYPE_ENUM.Cheque;
 
   if (typeOfFundsType === 'Cheque' && detailsOfDispoType === 'Issued Cheque')
-    method = METHOD_ENUM.Cheque;
+    method = TRANSACTION_TYPE_ENUM.Cheque;
 
-  if (methodOfTxnType === 'Online') method = METHOD_ENUM.OLB;
+  if (methodOfTxnType === 'Online') method = TRANSACTION_TYPE_ENUM.OLB;
 
-  if (typeOfFundsType === 'Email money transfer') method = METHOD_ENUM.EMT;
+  if (typeOfFundsType === 'Email money transfer')
+    method = TRANSACTION_TYPE_ENUM.EMT;
 
   if (
     typeOfFundsType === 'Funds withdrawal' &&
     detailsOfDispoType === 'Outgoing email money transfer'
   )
-    method = METHOD_ENUM.EMT;
+    method = TRANSACTION_TYPE_ENUM.EMT;
 
   if (typeOfFundsType === 'International Funds Transfer')
-    method = METHOD_ENUM.Wires;
+    method = TRANSACTION_TYPE_ENUM.Wires;
 
   return method;
 }

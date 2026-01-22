@@ -83,6 +83,17 @@ export abstract class AbstractTransactionViewComponent {
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
+  searchOtcSet$ = this.searchResponse$.pipe(
+    map((search) => {
+      return new Set(
+        search
+          .find((source) => source.sourceId === 'OTC')
+          ?.sourceData.map((txn) => txn.flowOfFundsAmlTransactionId),
+      );
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
   selectionModel$ = this.selections$.pipe(
     map(
       (selections) =>
@@ -156,6 +167,17 @@ export abstract class AbstractTransactionViewComponent {
   );
 
   wiresSourceDataSelectionCount$ = this.wiresSourceDataSelection$.pipe(
+    map((selection) => selection.length),
+  );
+
+  otcSourceDataSelection$ = this._selectionsCurrent$.pipe(
+    combineLatestWith(this.searchOtcSet$),
+    map(([selections, otcSet]) =>
+      selections.filter((sel) => otcSet.has(sel.flowOfFundsAmlTransactionId)),
+    ),
+  );
+
+  otcSourceDataSelectionCount$ = this.otcSourceDataSelection$.pipe(
     map((selection) => selection.length),
   );
 }

@@ -82,6 +82,7 @@ import {
 import { ClearFieldDirective } from './clear-field.directive';
 import {
   hasEntityName,
+  hasInvalidFiu,
   hasMissingAccountInfo,
   hasMissingConductorInfo,
   hasPersonName,
@@ -574,6 +575,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           )
                         ) {
                           <mat-error>This field is required</mat-error>
+                        } @else if (
+                          editForm.controls.reportingEntityLocationNo.invalid
+                        ) {
+                          <mat-error>This field is invalid</mat-error>
                         }
                       </mat-form-field>
                       <mat-form-field
@@ -922,6 +927,14 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                   saAction.controls.fiuNo.errors![
                                     'missingAccountInfo'
                                   ]
+                                }}
+                              </mat-error>
+                            } @else if (
+                              saAction.controls.fiuNo.hasError('invalidFiu')
+                            ) {
+                              <mat-error>
+                                {{
+                                  saAction.controls.fiuNo.errors!['invalidFiu']
                                 }}
                               </mat-error>
                             }
@@ -2584,6 +2597,14 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                   ]
                                 }}
                               </mat-error>
+                            } @else if (
+                              caAction.controls.fiuNo.hasError('invalidFiu')
+                            ) {
+                              <mat-error>
+                                {{
+                                  caAction.controls.fiuNo.errors!['invalidFiu']
+                                }}
+                              </mat-error>
                             }
                           </mat-form-field>
                           <mat-form-field
@@ -4028,6 +4049,7 @@ export class EditFormComponent implements AfterViewChecked {
         ),
         fiuNo: new FormControl({ value: action?.fiuNo || '', disabled }, [
           accountInfoValidator(),
+          fiuValidator(),
         ]),
         branch: new FormControl({ value: action?.branch || '', disabled }, [
           Validators.minLength(5),
@@ -4216,6 +4238,7 @@ export class EditFormComponent implements AfterViewChecked {
         }),
         fiuNo: new FormControl({ value: action?.fiuNo || '', disabled }, [
           accountInfoValidator(),
+          fiuValidator(),
         ]),
         branch: new FormControl({ value: action?.branch || '', disabled }, [
           Validators.minLength(5),
@@ -5219,6 +5242,26 @@ function personOrEntityValidator(): ValidatorFn {
   };
 }
 
+function fiuValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const actionCtrl = control.parent as FormGroup<
+      TypedForm<
+        RecursiveOmit<StartingAction, keyof ConductorNpdData> | CompletingAction
+      >
+    > | null;
+
+    if (!actionCtrl) return null;
+
+    const value = actionCtrl.value;
+
+    if (hasInvalidFiu(value)) {
+      return { invalidFiu: 'Invalid FIU' };
+    }
+
+    return null;
+  };
+}
+
 export const singleEditTypeResolver: ResolveFn<EditFormEditType> = (
   route: ActivatedRouteSnapshot,
   _: RouterStateSnapshot,
@@ -5229,7 +5272,9 @@ export const singleEditTypeResolver: ResolveFn<EditFormEditType> = (
         (txn) =>
           route.params['transactionId'] === txn.flowOfFundsAmlTransactionId,
       );
+
       if (!strTransaction) throw new Error('Transaction not found');
+
       return {
         type: 'SINGLE_SAVE',
         payload: structuredClone(
@@ -5363,7 +5408,7 @@ export type EditFormType = ReturnType<
   typeof EditFormComponent.prototype.createEditForm
 >;
 
-type InvalidFormOptionsErrors = {
+export type InvalidFormOptionsErrors = {
   [K in InvalidFormOptionsErrorKeys]: Record<
     K,
     {

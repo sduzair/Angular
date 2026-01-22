@@ -15,6 +15,7 @@ import {
 } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import {
   EmtSourceData,
+  FlowOfFundsSourceData,
   GetAccountInfoRes,
   GetPartyInfoRes,
   OlbSourceData,
@@ -32,6 +33,7 @@ import {
  */
 export function transformOlbEmtToStrTransaction(
   olbTxn: OlbSourceData,
+  fofTxn: FlowOfFundsSourceData,
   emtTxn: EmtSourceData,
   getPartyInfo: (partyKey: string) => Observable<GetPartyInfoRes>,
   getAccountInfo: (account: string) => Observable<GetAccountInfoRes>,
@@ -465,6 +467,8 @@ export function transformOlbEmtToStrTransaction(
         });
       }
 
+      const { flowOfFundsTransactionDesc } = fofTxn;
+
       // Build the transformed transaction
       const transformed: StrTransactionWithChangeLogs = {
         // Base StrTransaction fields
@@ -504,7 +508,7 @@ export function transformOlbEmtToStrTransaction(
         flowOfFundsTransactionCurrencyAmount:
           olbTxn.flowOfFundsTransactionCurrencyAmount,
         flowOfFundsTransactionDate: olbTxn.flowOfFundsTransactionDate,
-        flowOfFundsTransactionDesc: olbTxn.transactionDescription || '',
+        flowOfFundsTransactionDesc,
         flowOfFundsTransactionTime: olbTxn.flowOfFundsTransactionTime,
 
         // StrTransactionWithChangeLogs fields

@@ -1,4 +1,7 @@
-import { METHOD_FRIENDLY_NAME, NODE_ENUM } from '../account-methods.service';
+import {
+  NODE_ENUM,
+  TRANSACTION_TYPE_FRIENDLY_NAME,
+} from '../account-methods.service';
 import {
   formatCurrencyLocal,
   getNodeName,
@@ -131,8 +134,9 @@ function extractMethodBreakdownData(
     .filter(({ received, sent }) => received > 0 || sent > 0)
     .map(({ method, received, sent, receivedCount, sentCount }) => ({
       method:
-        METHOD_FRIENDLY_NAME[method as keyof typeof METHOD_FRIENDLY_NAME] ??
-        'Unknown',
+        TRANSACTION_TYPE_FRIENDLY_NAME[
+          method as keyof typeof TRANSACTION_TYPE_FRIENDLY_NAME
+        ] ?? 'Unknown',
       received: received > 0 ? formatCurrencyLocal(received) : undefined,
       sent: sent > 0 ? formatCurrencyLocal(sent) : undefined,
       receivedCount,

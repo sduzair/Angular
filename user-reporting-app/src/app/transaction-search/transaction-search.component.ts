@@ -111,9 +111,10 @@ const AMLID_TEST = '99999999';
     PartyKeySelectableTableComponent,
   ],
   template: `
-    <div class="transaction-search container px-0 my-1">
-      <div class="row row-cols-1">
-        <mat-toolbar class="col mb-3">
+    <div
+      class="transaction-search container h-100 my-1 overflow-x-hidden overflow-y-scroll px-0 my-1">
+      <div class="row row-cols-1 gap-3 px-3 pb-3">
+        <mat-toolbar class="col">
           <span>Transaction Search</span>
           <div class="flex-fill"></div>
           <button
@@ -131,9 +132,9 @@ const AMLID_TEST = '99999999';
         </mat-toolbar>
 
         <form [formGroup]="searchParamsForm" class="search-form col">
-          <div class="row">
+          <div class="row gap-3">
             <!-- Search Form Section -->
-            <mat-toolbar-row class="col-12 flex-row mb-3 gap-3">
+            <mat-toolbar-row class="col-12 flex-row gap-3">
               <!-- AML ID Input -->
               <mat-form-field subscriptSizing="dynamic">
                 <mat-label>AML ID</mat-label>
@@ -180,7 +181,7 @@ const AMLID_TEST = '99999999';
                 Save
               </button>
             </mat-toolbar-row>
-            <mat-toolbar-row class="col-12 flex-row mb-2 updated-by-row">
+            <mat-toolbar-row class="col-12 flex-row updated-by-row">
               <div class="flex-fill"></div>
               @let lastUpdatedBy =
                 searchParamsForm.controls.lastUpdatedBy.value;

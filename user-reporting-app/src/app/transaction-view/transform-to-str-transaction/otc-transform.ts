@@ -12,22 +12,23 @@ import {
   StartingAction,
 } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import {
-  AbmSourceData,
   FlowOfFundsSourceData,
   GetAccountInfoRes,
   GetPartyInfoRes,
+  OTCSourceData,
 } from '../../transaction-search/transaction-search.service';
 
 /**
- * Transform source transaction into StrTransactionWithChangeLogs format
- * @param sourceTxn - Source transaction from transaction search
+ * Transform CBFE mixed deposit transaction into StrTransactionWithChangeLogs format
+ * @param sourceTxn - Source transaction from transaction search (OTC/CBFE)
+ * @param fofTxn - Flow of funds transaction data
  * @param getPartyInfo - Method to fetch party information by partyKey
  * @param getAccountInfo - Method to fetch account information
  * @param caseRecordId - The case record ID to associate with this transaction
  * @returns Observable of transformed transaction
  */
-export function transformABMToStrTransaction(
-  sourceTxn: AbmSourceData,
+export function transformOTCToStrTransaction(
+  sourceTxn: OTCSourceData,
   fofTxn: FlowOfFundsSourceData,
   getPartyInfo: (partyKey: string) => Observable<GetPartyInfoRes>,
   getAccountInfo: (account: string) => Observable<GetAccountInfoRes>,
@@ -44,13 +45,13 @@ export function transformABMToStrTransaction(
 
   // Add starting action account holders
   if (sourceTxn.strSaAccountHoldersCifId) {
-    const holders = sourceTxn.strSaAccountHoldersCifId.split(/[;:]/);
+    const holders = sourceTxn.strSaAccountHoldersCifId.split(';');
     holders.forEach((h) => partyKeysToFetch.add(h.trim()));
   }
 
   // Add completing action account holders
   if (sourceTxn.strCaAccountHolderCifId) {
-    const holders = sourceTxn.strCaAccountHolderCifId.split(/[;:]/);
+    const holders = sourceTxn.strCaAccountHolderCifId.split(';');
     holders.forEach((h) => partyKeysToFetch.add(h.trim()));
   }
 
@@ -82,6 +83,7 @@ export function transformABMToStrTransaction(
         : of({} as Record<string, GetAccountInfoRes | null>),
   }).pipe(
     switchMap(({ accountsInfo }) => {
+      // Add account holders from fetched account info
       for (const acckey of Object.keys(accountsInfo)) {
         accountsInfo[acckey]!.accountHolders.forEach((item) =>
           partyKeysToFetch.add(item.partyKey),
@@ -96,6 +98,7 @@ export function transformABMToStrTransaction(
       Array.from(partyKeysToFetch).forEach((key) => {
         partyInfoObservables[key] = getPartyInfo(key);
       });
+
       return forkJoin({
         partiesInfo:
           partyKeysToFetch.size > 0
@@ -133,19 +136,23 @@ export function transformABMToStrTransaction(
         };
       };
 
-      // Build starting actions
-      const startingActions: StartingAction[] = [];
+      // Parse cheque amount from chequeBreakdown field
+      const parseChequeAmount = (): number => {
+        if (!sourceTxn.chequeBreakdown) {
+          return 0;
+        }
+        // Parse format like "10800.00 CAD" - extract numeric value
+        const match = sourceTxn.chequeBreakdown.match(/[\d,]+\.?\d*/);
+        if (match) {
+          return parseFloat(match[0].replace(/,/g, ''));
+        }
+        return 0;
+      };
 
-      const saAccountInfo = accountsInfo[sourceTxn.strSaAccount!];
+      const chequeAmount = parseChequeAmount();
+      const cashAmount = sourceTxn.strCaAmount - chequeAmount;
 
-      const saAccountHolders: AccountHolder[] = [];
-      if (sourceTxn.strSaAccountHoldersCifId) {
-        const holderKeys = sourceTxn.strSaAccountHoldersCifId.split(/[;:]/);
-        holderKeys.forEach((key) => {
-          saAccountHolders.push(mapPartyInfo(key.trim()));
-        });
-      }
-
+      // Build conductors (shared between both starting actions)
       const conductors: Conductor[] = [];
       if (sourceTxn.flowOfFundsConductorPartyKey) {
         const conductorInfo = mapPartyInfo(
@@ -153,7 +160,7 @@ export function transformABMToStrTransaction(
         );
         conductors.push({
           ...conductorInfo,
-          wasConductedOnBehalf: false,
+          wasConductedOnBehalf: sourceTxn.strSaOboInd === 'Yes',
           onBehalfOf: [],
           npdTypeOfDevice: null,
           npdTypeOfDeviceOther: null,
@@ -165,30 +172,59 @@ export function transformABMToStrTransaction(
         });
       }
 
+      // Build starting actions - separate for cash and cheque
+      const startingActions: StartingAction[] = [];
+
+      //   const saAccountInfo = accountsInfo[sourceTxn.strSaAccount!];
+
+      // Add cheque starting action for cheque amount
+      startingActions.push({
+        directionOfSA: sourceTxn.strSaDirection,
+        typeOfFunds: 'Cheque' satisfies FORM_OPTIONS_TYPE_OF_FUNDS,
+        typeOfFundsOther: null,
+        amount: chequeAmount,
+        currency: sourceTxn.origCurrencyCD,
+        fiuNo: null,
+        branch: null,
+        account: null,
+        accountType: null,
+        accountTypeOther: null,
+        accountOpen: null,
+        accountClose: null,
+        accountStatus: null,
+        howFundsObtained: null,
+        accountCurrency: null,
+        hasAccountHolders: false,
+        accountHolders: undefined,
+        wasSofInfoObtained: false,
+        sourceOfFunds: [],
+        wasCondInfoObtained: conductors.length > 0,
+        conductors: conductors.length > 0 ? [...conductors] : undefined,
+      });
+
+      // Add cash starting action for cash
       startingActions.push({
         directionOfSA: sourceTxn.strSaDirection,
         typeOfFunds: 'Cash' satisfies FORM_OPTIONS_TYPE_OF_FUNDS,
         typeOfFundsOther: null,
-        amount: sourceTxn.strSaAmount,
-        currency: sourceTxn.strSaCurrency,
-        fiuNo: sourceTxn.strSaFiNumber,
-        branch: sourceTxn.strSaBranch ? String(sourceTxn.strSaBranch) : null,
-        account: sourceTxn.strSaAccount ? String(sourceTxn.strSaAccount) : null,
-        accountType: saAccountInfo?.accountType || null,
+        amount: cashAmount,
+        currency: sourceTxn.origCurrencyCD,
+        fiuNo: null,
+        branch: null,
+        account: null,
+        accountType: null,
         accountTypeOther: null,
-        accountOpen: saAccountInfo?.accountOpen || null,
-        accountClose: saAccountInfo?.accountClose || null,
-        accountStatus:
-          saAccountInfo?.accountStatus || sourceTxn.strSaAccountStatus,
+        accountOpen: null,
+        accountClose: null,
+        accountStatus: null,
         howFundsObtained: null,
-        accountCurrency: sourceTxn.strSaAccountCurrency,
-        hasAccountHolders: saAccountHolders.length > 0,
-        accountHolders:
-          saAccountHolders.length > 0 ? saAccountHolders : undefined,
-        wasSofInfoObtained: false,
-        sourceOfFunds: undefined,
+        accountCurrency: null,
+        hasAccountHolders: false,
+        accountHolders: undefined,
+        wasSofInfoObtained: sourceTxn.strSaFundingSourceInd === 'Yes',
+        sourceOfFunds: [],
         wasCondInfoObtained: conductors.length > 0,
-        conductors: conductors.length > 0 ? conductors : undefined,
+        conductors: conductors.length > 0 ? [...conductors] : undefined,
       });
 
       // Build completing actions
@@ -196,6 +232,7 @@ export function transformABMToStrTransaction(
 
       const caAccountInfo = accountsInfo[sourceTxn.strCaAccount!];
 
+      // Build account holders from strCaAccountHolderCifId
       const accountHolders: AccountHolder[] = [];
       if (sourceTxn.strCaAccountHolderCifId) {
         const holderKeys = sourceTxn.strCaAccountHolderCifId.split(/[;:]/);
@@ -206,27 +243,29 @@ export function transformABMToStrTransaction(
 
       completingActions.push({
         detailsOfDispo:
-          'Deposit to account' satisfies FORM_OPTIONS_DETAILS_OF_DISPOSITION,
-        detailsOfDispoOther: null,
+          sourceTxn.strCaDispositionType as FORM_OPTIONS_DETAILS_OF_DISPOSITION,
+        detailsOfDispoOther: sourceTxn.strCaDispositionTypeOther,
         amount: sourceTxn.strCaAmount,
         currency: sourceTxn.strCaCurrency,
         exchangeRate: null,
         valueInCad: null,
         fiuNo: sourceTxn.strCaFiNumber,
-        branch: String(sourceTxn.strCaBranch ?? ''),
-        account: String(sourceTxn.strCaAccount ?? ''),
+        branch: String(sourceTxn.strCaBranch),
+        account: String(sourceTxn.strCaAccount),
         accountType: caAccountInfo?.accountType || null,
         accountTypeOther: null,
         accountCurrency: caAccountInfo?.accountCurrency ?? null,
         accountOpen: caAccountInfo?.accountOpen || null,
         accountClose: caAccountInfo?.accountClose || null,
-        accountStatus: caAccountInfo?.accountStatus ?? '',
-        hasAccountHolders: true,
-        accountHolders: accountHolders,
-        wasAnyOtherSubInvolved: false,
-        involvedIn: [],
-        wasBenInfoObtained: true,
-        beneficiaries: accountHolders,
+        accountStatus:
+          caAccountInfo?.accountStatus || sourceTxn.strCaAccountStatus,
+        hasAccountHolders: accountHolders.length > 0,
+        accountHolders: accountHolders.length > 0 ? accountHolders : undefined,
+        wasAnyOtherSubInvolved: sourceTxn.strCaInvolvedInInd === 'Yes',
+        involvedIn: sourceTxn.strCaInvolvedInInd === 'Yes' ? [] : undefined,
+        wasBenInfoObtained: sourceTxn.strCaBeneficiaryInd === 'Yes',
+        beneficiaries:
+          sourceTxn.strCaBeneficiaryInd === 'Yes' ? accountHolders : undefined,
       });
 
       const { flowOfFundsTransactionDesc } = fofTxn;
@@ -235,14 +274,14 @@ export function transformABMToStrTransaction(
       const transformed: StrTransactionWithChangeLogs = {
         // Base StrTransaction fields
         sourceId: sourceTxn.sourceId,
-        wasTxnAttempted: false,
+        wasTxnAttempted: sourceTxn.strTransactionStatus === 'Yes',
         wasTxnAttemptedReason: null,
         dateOfTxn: sourceTxn.flowOfFundsTransactionDate,
         timeOfTxn: sourceTxn.flowOfFundsTransactionTime,
         hasPostingDate: !!sourceTxn.flowOfFundsPostingDate,
         dateOfPosting: sourceTxn.flowOfFundsPostingDate,
         timeOfPosting: null,
-        methodOfTxn: 'ABM' satisfies FORM_OPTIONS_METHOD_OF_TXN,
+        methodOfTxn: 'In-Person' satisfies FORM_OPTIONS_METHOD_OF_TXN,
         methodOfTxnOther: null,
         reportingEntityTxnRefNo: sourceTxn.flowOfFundsAmlTransactionId,
         purposeOfTxn: sourceTxn.strSaPurposeOfTransaction,
@@ -266,7 +305,7 @@ export function transformABMToStrTransaction(
         flowOfFundsPostingDate: sourceTxn.flowOfFundsPostingDate,
         flowOfFundsSource: sourceTxn.flowOfFundsSource,
         flowOfFundsSourceTransactionId:
-          sourceTxn.flowofFundsSourceTransactionId,
+          sourceTxn.flowOfFundsSourceTransactionId,
         flowOfFundsTransactionCurrency:
           sourceTxn.flowOfFundsTransactionCurrency,
         flowOfFundsTransactionCurrencyAmount:

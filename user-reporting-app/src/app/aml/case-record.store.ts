@@ -35,7 +35,9 @@ import {
 import { AuthService } from '../auth.service';
 import * as ChangeLog from '../change-logging/change-log';
 import {
+  hasInvalidFiu,
   hasMissingAccountInfo,
+  hasMissingCheque,
   hasMissingConductorInfo,
 } from '../reporting-ui/edit-form/common-validation';
 import { EditFormValueType } from '../reporting-ui/edit-form/edit-form.component';
@@ -789,7 +791,17 @@ export class CaseRecordStore implements OnDestroy {
         // Conflict triggers refresh of local state
         if (error.status === 409) {
           this.conflict$.next();
+          return EMPTY;
         }
+
+        // rollback highlights applied optimistically
+        const { pendingChanges } = payloadClone;
+        this._state$.next({
+          ...this._state$.value,
+          selectionsWithPendingChanges: pendingChanges.map(
+            ({ flowOfFundsAmlTransactionId }) => flowOfFundsAmlTransactionId,
+          ),
+        });
 
         return EMPTY;
       }),
@@ -951,7 +963,7 @@ const computeAddedSelectionsHandler = (
 export function setRowValidationInfo(
   transaction: StrTransactionWithChangeLogs,
 ) {
-  const errors: _hiddenValidationType[] = [];
+  const errors: _hiddenValidationType[] = transaction._hiddenValidation ?? [];
   if (
     transaction.changeLogs.length > 0 &&
     !transaction.changeLogs.every((log) => log.path === '/highlightColor')
@@ -966,6 +978,15 @@ export function setRowValidationInfo(
     transaction.completingActions.some(hasMissingAccountInfo)
   )
     errors.push('bankInfoMissing');
+
+  if (
+    transaction.startingActions.some(hasInvalidFiu) ||
+    transaction.completingActions.some(hasInvalidFiu)
+  )
+    errors.push('invalidFiu');
+
+  if (transaction.startingActions.some(hasMissingCheque))
+    errors.push('missingCheque');
 
   return { ...transaction, _hiddenValidation: errors };
 }

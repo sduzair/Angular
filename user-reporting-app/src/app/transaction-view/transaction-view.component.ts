@@ -40,7 +40,9 @@ import { RouteExtrasFromSearch } from '../transaction-search/transaction-search.
 import {
   AbmSourceData,
   EmtSourceData,
+  FlowOfFundsSourceData,
   OlbSourceData,
+  OTCSourceData,
   TransactionSearchService,
   WireSourceData,
 } from '../transaction-search/transaction-search.service';
@@ -50,9 +52,11 @@ import { EmtTableComponent } from './emt-table/emt-table.component';
 import { FofTableComponent } from './fof-table/fof-table.component';
 import { LocalHighlightsService } from './local-highlights.service';
 import { OlbTableComponent } from './olb-table/olb-table.component';
+import { OtcTableComponent } from './otc-table/otc-table.component';
 import { transformABMToStrTransaction } from './transform-to-str-transaction/abm-transform';
 import { transformOlbEmtToStrTransaction } from './transform-to-str-transaction/olb-emt-transform';
-import { transformWireInToStrTransaction } from './transform-to-str-transaction/wire-transform';
+import { transformOTCToStrTransaction } from './transform-to-str-transaction/otc-transform';
+import { transformWireToStrTransaction } from './transform-to-str-transaction/wire-transform';
 import { WiresTableComponent } from './wires-table/wires-table.component';
 
 @Component({
@@ -70,10 +74,11 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
     MatButton,
     WiresTableComponent,
     MatIconModule,
+    OtcTableComponent,
   ],
   template: `
     <div class="row row-cols-1 mx-0">
-      <mat-toolbar class="col">
+      <mat-toolbar class="col px-0">
         <mat-toolbar-row class="px-0 header-toolbar-row">
           <div class="flex-fill"></div>
           <button
@@ -178,6 +183,19 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [masterSelection]="selectionModel"
             (highlightChange)="onHighlightChange()" />
         </mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            OTC
+            <mat-chip class="ms-1" disableRipple>
+              {{ otcSourceDataSelectionCount$ | async }}
+            </mat-chip>
+          </ng-template>
+          <app-otc-table
+            [otcSourceData]="(otcSourceData$ | async) || []"
+            [selectionCount]="(otcSourceDataSelectionCount$ | async) ?? 0"
+            [masterSelection]="selectionModel"
+            (highlightChange)="onHighlightChange()" />
+        </mat-tab>
       </mat-tab-group>
     }
   `,
@@ -197,7 +215,7 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
   private highlights$ = merge(
     this._caseRecordStore.state$,
     this.refreshHighlights$.pipe(
-      debounceTime(300),
+      debounceTime(2000),
       withLatestFrom(this._caseRecordStore.state$),
       map(([_, state]) => state),
     ),
@@ -267,6 +285,19 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     map(([search, higlightsMap]) =>
       search
         .find((res) => res.sourceId === 'Wire')
+        ?.sourceData!.map((row) => ({
+          ...row,
+          _uiPropHighlightColor: higlightsMap.get(
+            row.flowOfFundsAmlTransactionId,
+          ),
+        })),
+    ),
+  );
+
+  otcSourceData$ = combineLatest([this.searchResponse$, this.highlights$]).pipe(
+    map(([search, higlightsMap]) =>
+      search
+        .find((res) => res.sourceId === 'OTC')
         ?.sourceData!.map((row) => ({
           ...row,
           _uiPropHighlightColor: higlightsMap.get(
@@ -389,6 +420,12 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
             ?.sourceData.find(
               (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
             );
+          const abmFofTxn = searchResponse
+            .find((src) => src.sourceId === 'FlowOfFunds')
+            ?.sourceData.find(
+              (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
+            );
+
           const emtTxn = searchResponse
             .find((src) => src.sourceId === 'EMT')
             ?.sourceData.find(
@@ -399,15 +436,37 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
             ?.sourceData.find(
               (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
             );
+          const olbFofTxn = searchResponse
+            .find((src) => src.sourceId === 'FlowOfFunds')
+            ?.sourceData.find(
+              (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
+            );
+
           const wireTxn = searchResponse
             .find((src) => src.sourceId === 'Wire')
             ?.sourceData.find(
               (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
             );
+          const wireFofTxn = searchResponse
+            .find((src) => src.sourceId === 'FlowOfFunds')
+            ?.sourceData.find(
+              (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
+            );
 
-          if (abmTxn) {
+          const otcTxn = searchResponse
+            .find((src) => src.sourceId === 'OTC')
+            ?.sourceData.find(
+              (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
+            );
+          const otcFofTxn = searchResponse
+            .find((src) => src.sourceId === 'FlowOfFunds')
+            ?.sourceData.find(
+              (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
+            );
+
+          if (abmTxn && abmFofTxn) {
             transformations.push(
-              this.transformABM(abmTxn, caseRecordId).pipe(
+              this.transformABM(abmTxn, abmFofTxn, caseRecordId).pipe(
                 catchError((err) => {
                   console.error(
                     `Failed to transform ABM transaction ${selectionId}:`,
@@ -419,9 +478,14 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
             );
           }
 
-          if (olbTxn && emtTxn) {
+          if (olbTxn && olbFofTxn && emtTxn) {
             transformations.push(
-              this.transformOlbEmt(olbTxn, emtTxn, caseRecordId).pipe(
+              this.transformOlbEmt(
+                olbTxn,
+                olbFofTxn,
+                emtTxn,
+                caseRecordId,
+              ).pipe(
                 catchError((err) => {
                   console.error(
                     `Failed to transform OLB/EMT transaction ${selectionId}:`,
@@ -433,12 +497,26 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
             );
           }
 
-          if (wireTxn) {
+          if (wireTxn && wireFofTxn) {
             transformations.push(
-              this.transformWire(wireTxn, caseRecordId).pipe(
+              this.transformWire(wireTxn, wireFofTxn, caseRecordId).pipe(
                 catchError((err) => {
                   console.error(
                     `Failed to transform Wire transaction ${selectionId}:`,
+                    err,
+                  );
+                  return of(null);
+                }),
+              ),
+            );
+          }
+
+          if (otcTxn && otcFofTxn) {
+            transformations.push(
+              this.transformOTC(otcTxn, otcFofTxn, caseRecordId).pipe(
+                catchError((err) => {
+                  console.error(
+                    `Failed to transform OTC transaction ${selectionId}:`,
                     err,
                   );
                   return of(null);
@@ -515,10 +593,12 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
   private searchService = inject(TransactionSearchService);
   private transformABM(
     abmTxn: AbmSourceData,
+    fofTxn: FlowOfFundsSourceData,
     caseRecordId: string,
   ): Observable<StrTransactionWithChangeLogs> {
     return transformABMToStrTransaction(
       abmTxn,
+      fofTxn,
       (partyKey) => this.searchService.getPartyInfo(partyKey),
       (account) => this.searchService.getAccountInfo(account),
       caseRecordId,
@@ -527,11 +607,13 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
 
   private transformOlbEmt(
     olbTxn: OlbSourceData,
+    fofTxn: FlowOfFundsSourceData,
     emtTxn: EmtSourceData,
     caseRecordId: string,
   ): Observable<StrTransactionWithChangeLogs> {
     return transformOlbEmtToStrTransaction(
       olbTxn,
+      fofTxn,
       emtTxn,
       (partyKey) => this.searchService.getPartyInfo(partyKey),
       (account) => this.searchService.getAccountInfo(account),
@@ -541,10 +623,26 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
 
   private transformWire(
     wireTxn: WireSourceData,
+    fofTxn: FlowOfFundsSourceData,
     caseRecordId: string,
   ): Observable<StrTransactionWithChangeLogs> {
-    return transformWireInToStrTransaction(
+    return transformWireToStrTransaction(
       wireTxn,
+      fofTxn,
+      (partyKey) => this.searchService.getPartyInfo(partyKey),
+      (account) => this.searchService.getAccountInfo(account),
+      caseRecordId,
+    );
+  }
+
+  private transformOTC(
+    otcTxn: OTCSourceData,
+    fofTxn: FlowOfFundsSourceData,
+    caseRecordId: string,
+  ): Observable<StrTransactionWithChangeLogs> {
+    return transformOTCToStrTransaction(
+      otcTxn,
+      fofTxn,
       (partyKey) => this.searchService.getPartyInfo(partyKey),
       (account) => this.searchService.getAccountInfo(account),
       caseRecordId,

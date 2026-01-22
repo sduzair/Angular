@@ -1,23 +1,24 @@
 import { forkJoin, map, Observable, of, switchMap } from 'rxjs';
 import { StrTransactionWithChangeLogs } from '../../aml/case-record.store';
 import {
+  FORM_OPTIONS_ACCOUNT_TYPE,
+  FORM_OPTIONS_DETAILS_OF_DISPOSITION,
+  FORM_OPTIONS_METHOD_OF_TXN,
+  FORM_OPTIONS_TYPE_OF_FUNDS,
+} from '../../reporting-ui/edit-form/form-options.service';
+import {
   AccountHolder,
   CompletingAction,
   Conductor,
   StartingAction,
 } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import {
+  FlowOfFundsSourceData,
   GetAccountInfoRes,
   GetPartyInfoRes,
   SEARCH_SOURCE_ID,
   WireSourceData,
 } from '../../transaction-search/transaction-search.service';
-import {
-  FORM_OPTIONS_ACCOUNT_TYPE,
-  FORM_OPTIONS_DETAILS_OF_DISPOSITION,
-  FORM_OPTIONS_METHOD_OF_TXN,
-  FORM_OPTIONS_TYPE_OF_FUNDS,
-} from '../../reporting-ui/edit-form/form-options.service';
 
 /**
  * Transform incoming wire transfer into StrTransactionWithChangeLogs format
@@ -27,8 +28,9 @@ import {
  * @param caseRecordId - The case record ID to associate with this transaction
  * @returns Observable of transformed transaction
  */
-export function transformWireInToStrTransaction(
+export function transformWireToStrTransaction(
   wireTxn: WireSourceData,
+  fofTxn: FlowOfFundsSourceData,
   getPartyInfo: (partyKey: string) => Observable<GetPartyInfoRes>,
   getAccountInfo: (account: string) => Observable<GetAccountInfoRes>,
   caseRecordId: string,
@@ -259,6 +261,8 @@ export function transformWireInToStrTransaction(
         beneficiaries: receiverAccountHolders,
       });
 
+      const { flowOfFundsTransactionDesc } = fofTxn;
+
       // Build the transformed transaction
       const transformed: StrTransactionWithChangeLogs = {
         // Base StrTransaction fields
@@ -306,7 +310,7 @@ export function transformWireInToStrTransaction(
         flowOfFundsTransactionCurrencyAmount:
           wireTxn.flowOfFundsTransactionCurrencyAmount,
         flowOfFundsTransactionDate: wireTxn.flowOfFundsTransactionDate,
-        flowOfFundsTransactionDesc: wireTxn.flowOfFundsTransactionDesc || '',
+        flowOfFundsTransactionDesc,
         flowOfFundsTransactionTime: wireTxn.flowOfFundsTransactionTime,
 
         // StrTransactionWithChangeLogs fields

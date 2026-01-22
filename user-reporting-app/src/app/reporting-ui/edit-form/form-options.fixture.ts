@@ -41,7 +41,7 @@ export const FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE = {
   },
   detailsOfDisposition: {
     'Deposit to account': 'Deposit to account',
-    'Cash Withdrawal': 'Cash Withdrawal',
+    'Cash Withdrawal (account based)': 'Cash Withdrawal (account based)',
     'Issued Cheque': 'Issued Cheque',
     'Outgoing email money transfer': 'Outgoing email money transfer',
     Other: 'Other',

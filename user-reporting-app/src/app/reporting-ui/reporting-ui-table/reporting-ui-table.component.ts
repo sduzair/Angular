@@ -277,6 +277,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
     'timeOfTxn',
     'dateOfPosting',
     'timeOfPosting',
+    'flowOfFundsTransactionDesc',
     'flowOfFundsSource',
     'methodOfTxn',
     'reportingEntityLocationNo',
@@ -348,6 +349,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
     timeOfTxn: 'Txn Time' as const,
     dateOfPosting: 'Post Date' as const,
     timeOfPosting: 'Post Time' as const,
+    flowOfFundsTransactionDesc: 'Transaction Description' as const,
     'startingActions.0.directionOfSA': 'Direction' as const,
     'startingActions.0.typeOfFunds': 'Funds Type' as const,
     'startingActions.0.typeOfFundsOther': 'Funds Type Other' as const,
@@ -464,14 +466,16 @@ export class ReportingUiTableComponent implements AfterViewInit {
   dateFiltersValues: StrTransactionDataColumnKey[] = [
     'dateOfTxn',
     'dateOfPosting',
+    'startingActions.0.accountOpen',
+    'startingActions.0.accountClose',
+    'completingActions.0.accountOpen',
+    'completingActions.0.accountClose',
   ];
 
   dateFiltersValuesIgnore: StrTransactionDataColumnKey[] = [
     'timeOfTxn',
     'timeOfPosting',
-    'startingActions.0.accountOpen',
     'startingActions.0.accountClose',
-    'completingActions.0.accountOpen',
     'completingActions.0.accountClose',
   ];
 
@@ -506,13 +510,16 @@ export class ReportingUiTableComponent implements AfterViewInit {
       invalidMethodOfTxn: '#0d6efd',
       invalidTypeOfFunds: '#0d6efd',
       invalidAccountType: '#0d6efd',
-      invalidAmountCurrency: '#0d6efd',
-      invalidAccountCurrency: '#0d6efd',
-      invalidAccountStatus: '#0d6efd',
-      invalidDirectionOfSA: '#0d6efd',
+      invalidAmountCurrency: '#dc3545',
+      invalidAccountCurrency: '#dc3545',
+      invalidAccountStatus: '#dc3545',
+      invalidDirectionOfSA: '#dc3545',
       invalidDetailsOfDisposition: '#0d6efd',
-      invalidDate: '#0d6efd',
-      invalidTime: '#0d6efd',
+      invalidDate: '#dc3545',
+      invalidTime: '#dc3545',
+      invalidPartyKey: '#dc3545',
+      invalidFiu: '#dc3545',
+      missingCheque: '#0d6efd',
     };
     if (!error) return '#007bff'; // fallback color
     return colors[error];
@@ -625,6 +632,9 @@ export type _hiddenValidationType =
   | 'edited'
   | 'conductorMissing'
   | 'bankInfoMissing'
+  | 'invalidPartyKey'
+  | 'invalidFiu'
+  | 'missingCheque'
   | InvalidFormOptionsErrorKeys
   | InvalidTxnDateTimeErrorKeys;
 

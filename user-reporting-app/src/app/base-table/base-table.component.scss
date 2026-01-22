@@ -248,3 +248,7 @@ mat-button-toggle.highlight-radio {
   -webkit-user-select: none;
   user-select: none;
 }
+
+::ng-deep mat-paginator .mat-mdc-paginator-container {
+  justify-content: start;
+}

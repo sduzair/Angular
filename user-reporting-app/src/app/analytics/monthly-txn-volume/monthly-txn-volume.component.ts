@@ -319,6 +319,9 @@ export class MonthlyTxnVolumeComponent
     const accountsSet = new Set<string>();
 
     data.forEach((txn) => {
+      const { wasTxnAttempted } = txn;
+      if (wasTxnAttempted) return;
+
       const dateStr = txn.dateOfTxn || txn.flowOfFundsTransactionDate;
       if (!dateStr) return;
 

@@ -77,7 +77,7 @@ export const getAccountMethods = createTool({
     'Returns aggregated transaction activity by account and direction (credits/debits), summarized by method with totals, counts, date coverage, and involved subjects.',
   handler: () => {
     return firstValueFrom(
-      inject(AccountMethodsService).getAllAccountMethods$(),
+      inject(AccountMethodsService).getAllAccountTransactionActivity$(),
     );
   },
 });

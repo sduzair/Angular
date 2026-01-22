@@ -19,7 +19,6 @@ import { MatPaginator } from '@angular/material/paginator';
 import { MatSort } from '@angular/material/sort';
 import { MatTable, MatTableDataSource } from '@angular/material/table';
 import { format, isAfter, isBefore, startOfDay } from 'date-fns';
-import { isValid } from 'date-fns/fp';
 import {
   Observable,
   Subject,
@@ -507,7 +506,6 @@ export abstract class AbstractBaseTable<
 
   // todo: invert filter
   // todo: selection filter
-  // todo: hidden validation info
   filterFormFilterPredicateCreate(): (
     record: TData,
     filter: string,
@@ -532,17 +530,23 @@ export abstract class AbstractBaseTable<
             ),
           );
 
-          console.assert(typeof searchTerms[`${keyPath}Start`] === 'string');
+          const searchTermPrefix = this.filterFormFilterFormKeySanitize(
+            keyPath as unknown as TFilterKeys,
+          );
+
+          console.assert(
+            typeof searchTerms[`${searchTermPrefix}Start`] === 'string',
+          );
 
           const startDate =
-            searchTerms[`${keyPath}Start`] == null
+            searchTerms[`${searchTermPrefix}Start`] == null
               ? null
-              : startOfDay(searchTerms[`${keyPath}Start`] as string);
+              : startOfDay(searchTerms[`${searchTermPrefix}Start`] as string);
 
           const endDate =
-            searchTerms[`${keyPath}End`] == null
+            searchTerms[`${searchTermPrefix}End`] == null
               ? null
-              : startOfDay(searchTerms[`${keyPath}End`] as string);
+              : startOfDay(searchTerms[`${searchTermPrefix}End`] as string);
 
           if (startDate && isBefore(safeRecordValue, startDate)) return false;
           if (endDate && isAfter(safeRecordValue, endDate)) return false;

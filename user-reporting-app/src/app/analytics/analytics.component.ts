@@ -241,7 +241,7 @@ export class AnalyticsComponent implements AfterViewInit {
       });
   }
 
-  selections$ = this.caseRecord$.pipe(map(({ selections }) => selections));
+  selections$ = this.caseRecord.selectionsComputed$;
 
   partyKeysSelection$ = this.caseRecord$.pipe(
     map(({ searchParams: { partyKeysSelection } }) => {

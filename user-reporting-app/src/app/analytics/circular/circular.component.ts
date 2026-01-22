@@ -22,25 +22,24 @@ import {
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
+import {
+  FORM_OPTIONS_DETAILS_OF_DISPOSITION,
+  FORM_OPTIONS_TYPE_OF_FUNDS,
+} from '../../reporting-ui/edit-form/form-options.service';
 import { StrTransaction } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import { SnackbarQueueService } from '../../snackbar-queue.service';
 import { AccountNumberData } from '../../transaction-search/account-number-selectable-table/account-number-selectable-table.component';
+import {
+  getSubjectIdAndCategory,
+  getTransactionType,
+  NODE_ENUM,
+  TRANSACTION_TYPE_ENUM,
+} from '../account-methods.service';
 import {
   extractNodeDisplayData,
   formatNodeDataAsHtml,
   getNodeDataTextToCopy,
 } from './clipboardHelper';
-import {
-  FORM_OPTIONS_TYPE_OF_FUNDS,
-  FORM_OPTIONS_DETAILS_OF_DISPOSITION,
-} from '../../reporting-ui/edit-form/form-options.service';
-import {
-  NODE_ENUM,
-  generateUnknownNodeKey,
-  getSubjectIdAndCategory,
-  getTxnMethod,
-  METHOD_ENUM,
-} from '../account-methods.service';
 
 // Register only what you need
 echarts.use([
@@ -306,7 +305,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
 }
 
 /**
- * Creates nodes and links for subjects and accounts
+ * Creates nodes and links for accounts and account holders
  */
 export function buildNodesAndAccountHolderLinks({
   transaction,
@@ -321,38 +320,26 @@ export function buildNodesAndAccountHolderLinks({
   focalSubjects: Set<string>;
   focalAccounts: Set<string>;
 }) {
-  // SA account and subjects nodes and links
+  // SA account and subjects, nodes and links
   for (const {
-    conductors = [],
     branch: saTransit,
     account: saAccount,
     accountHolders = [],
-    typeOfFunds: saTypeOfFunds,
   } of transaction.startingActions) {
-    const typeOfFunds = saTypeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS;
-
-    const isAccountInfoMissingSA = !saAccount && typeOfFunds !== 'Cash';
-
-    let accountId = saAccount;
     let accountCategory: number = NODE_ENUM.Account;
-
-    if (isAccountInfoMissingSA) {
-      accountId = generateUnknownNodeKey();
-      accountCategory = NODE_ENUM.UnknownNode;
-    }
 
     if (saAccount && focalAccounts.has(saAccount)) {
       accountCategory = NODE_ENUM.FocalAccount;
     }
 
-    if (!nodesMap.has(accountId)) {
-      nodesMap.set(accountId, {
-        id: accountId ?? '',
+    if (saAccount && !nodesMap.has(saAccount)) {
+      nodesMap.set(saAccount, {
+        id: saAccount,
         category: accountCategory,
         nodeType: 'account',
         transit: saTransit,
-        account: saAccount ?? '',
-        name: saAccount ?? '',
+        account: saAccount,
+        name: saAccount,
         rawCredit: 0,
         rawDebit: 0,
         creditsByMethod: {},
@@ -360,36 +347,11 @@ export function buildNodesAndAccountHolderLinks({
       });
     }
 
-    // Related Subjects - Conductor, Account holders
-    const {
-      subjectId: conductorId,
-      category,
-      name: conductorName,
-    } = getSubjectIdAndCategory(conductors?.[0], focalSubjects);
+    // Related Subjects - Account holders
 
-    if (!nodesMap.has(conductorId)) {
-      nodesMap.set(conductorId, {
-        id: conductorId,
-        category,
-        nodeType: 'subject',
-        subjectName: conductorName,
-        relatedTransit: saTransit,
-        relatedAccount: saAccount,
-        rawCredit: 0,
-        rawDebit: 0,
-        creditsByMethod: {},
-        debitsByMethod: {},
-      });
-    }
+    const relatedAccountHolderIds = [] as string[];
 
-    const relatedConductorAndAccountHolderIds = [] as string[];
-    const isConductorRelatedToAccount = typeOfFunds !== 'Cheque';
-
-    if (isConductorRelatedToAccount) {
-      relatedConductorAndAccountHolderIds.push(conductorId);
-    }
-
-    accountHolders.forEach((accHolder) => {
+    for (const accHolder of accountHolders) {
       const {
         subjectId: accountHolderId,
         category,
@@ -411,21 +373,21 @@ export function buildNodesAndAccountHolderLinks({
         });
       }
 
-      relatedConductorAndAccountHolderIds.push(accountHolderId);
-    });
+      relatedAccountHolderIds.push(accountHolderId);
+    }
 
-    if (!accountId) continue;
+    if (!saAccount) continue;
 
-    for (const subId of relatedConductorAndAccountHolderIds) {
-      const source = accountId;
-      const target = subId;
+    for (const accountHolderId of relatedAccountHolderIds) {
+      const source = saAccount;
+      const target = accountHolderId;
       const linkId = getLinkId(source, target);
 
       if (linksMap.has(linkId)) continue;
 
       linksMap.set(linkId, {
-        source: accountId,
-        target: subId,
+        source,
+        target,
         linkId,
         linkType: 'accountHolder',
         rawAmount: 0,
@@ -434,35 +396,21 @@ export function buildNodesAndAccountHolderLinks({
     }
   }
 
-  // CA account and subjects nodes and links
+  // CA account and subjects, nodes and links
   for (const {
-    beneficiaries = [],
     branch: caTransit,
     account: caAccount,
     accountHolders = [],
-    detailsOfDispo: caDetailsOfDispo,
   } of transaction.completingActions) {
-    const detailsOfDispo =
-      caDetailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION;
-
-    const isAccountInfoMissingCA =
-      !caAccount && detailsOfDispo !== 'Cash Withdrawal';
-
-    let accountId = caAccount;
     let accountCategory: number = NODE_ENUM.Account;
-
-    if (isAccountInfoMissingCA) {
-      accountId = generateUnknownNodeKey();
-      accountCategory = NODE_ENUM.UnknownNode;
-    }
 
     if (caAccount && focalAccounts.has(caAccount)) {
       accountCategory = NODE_ENUM.FocalAccount;
     }
 
-    if (!nodesMap.has(accountId)) {
-      nodesMap.set(accountId, {
-        id: accountId ?? '',
+    if (caAccount && !nodesMap.has(caAccount)) {
+      nodesMap.set(caAccount, {
+        id: caAccount ?? '',
         category: accountCategory,
         nodeType: 'account',
         transit: caTransit,
@@ -475,33 +423,9 @@ export function buildNodesAndAccountHolderLinks({
       });
     }
 
-    // Related Subjects - Beneficiaries, Account holders
-    const relatedBeneficiariesAndAccountHoldersIds = [] as string[];
+    // Related Subjects - Account holders
 
-    for (const beneficiary of beneficiaries) {
-      const {
-        subjectId: beneficiaryId,
-        category,
-        name: beneficiaryName,
-      } = getSubjectIdAndCategory(beneficiary, focalSubjects);
-
-      if (!nodesMap.has(beneficiaryId)) {
-        nodesMap.set(beneficiaryId, {
-          id: beneficiaryId,
-          category,
-          nodeType: 'subject',
-          subjectName: beneficiaryName,
-          relatedTransit: caTransit,
-          relatedAccount: caAccount,
-          rawCredit: 0,
-          rawDebit: 0,
-          creditsByMethod: {},
-          debitsByMethod: {},
-        });
-      }
-
-      relatedBeneficiariesAndAccountHoldersIds.push(beneficiaryId);
-    }
+    const relatedAccountHoldersIds = [] as string[];
 
     for (const accHolder of accountHolders) {
       const {
@@ -525,21 +449,21 @@ export function buildNodesAndAccountHolderLinks({
         });
       }
 
-      relatedBeneficiariesAndAccountHoldersIds.push(accountHolderId);
+      relatedAccountHoldersIds.push(accountHolderId);
     }
 
-    if (!accountId) return;
+    if (!caAccount) return;
 
-    for (const subId of relatedBeneficiariesAndAccountHoldersIds) {
-      const source = accountId;
-      const target = subId;
+    for (const accountHolderId of relatedAccountHoldersIds) {
+      const source = caAccount;
+      const target = accountHolderId;
       const linkId = getLinkId(source, target);
 
       if (linksMap.has(linkId)) continue;
 
       linksMap.set(linkId, {
-        source: accountId,
-        target: subId,
+        source,
+        target,
         linkId,
         linkType: 'accountHolder',
         rawAmount: 0,
@@ -550,7 +474,7 @@ export function buildNodesAndAccountHolderLinks({
 }
 
 /**
- * Creates links for in/out transactions
+ * Creates links for sent/received transactions
  */
 export function buildTransactionLinks({
   transaction,
@@ -563,13 +487,14 @@ export function buildTransactionLinks({
   linksMap: Map<string, Link>;
   focalSubjects: Set<string>;
 }) {
-  const { methodOfTxn } = transaction;
+  const { methodOfTxn, wasTxnAttempted } = transaction;
+
+  if (wasTxnAttempted) return;
 
   for (const {
     directionOfSA,
     conductors = [],
     typeOfFunds: saTypeOfFunds,
-    account: saAccount,
     amount: saAmount,
   } of transaction.startingActions) {
     const addEmptyConductor = conductors.length === 0;
@@ -588,41 +513,36 @@ export function buildTransactionLinks({
       for (const {
         beneficiaries = [],
         detailsOfDispo: caDetailsOfDispo,
-        account: caAccount,
       } of transaction.completingActions) {
-        const direction = directionOfSA as DIRECTION_OF_SA | null;
-        if (!direction) continue;
+        if (!directionOfSA) continue;
 
         let { subjectId: conductorId } = getSubjectIdAndCategory(
           conductor,
           focalSubjects,
         );
 
-        const typeOfFunds = saTypeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS;
-        const detailsOfDispo =
-          caDetailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION;
-        const txnMethod =
-          getTxnMethod(typeOfFunds, detailsOfDispo, methodOfTxn) ??
-          METHOD_ENUM.Unknown;
+        const txnTypeKey =
+          getTransactionType(
+            saTypeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS,
+            caDetailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION,
+            methodOfTxn,
+          ) ?? TRANSACTION_TYPE_ENUM.Unknown;
 
         let nodeCon = nodesMap.get(conductorId)!;
 
-        const isCashWithdrawal =
-          txnMethod === METHOD_ENUM.ABM && direction === 'Out';
-        const isChequeWithdrawal =
-          txnMethod === METHOD_ENUM.Cheque && direction === 'Out';
+        const isConductorABeneficiary = (conductorId: string) =>
+          beneficiaries
+            .map((ben) => {
+              let { subjectId: beneficiaryId } = getSubjectIdAndCategory(
+                ben,
+                focalSubjects,
+              );
+              return beneficiaryId;
+            })
+            .some((benId) => benId === conductorId);
 
-        const isCashDeposit =
-          txnMethod === METHOD_ENUM.ABM && direction === 'In';
-        const isChequeDeposit =
-          txnMethod === METHOD_ENUM.Cheque && direction === 'In';
-
-        if (isCashWithdrawal || isChequeWithdrawal) {
-          conductorId = saAccount ? saAccount : generateUnknownNodeKey();
-          nodeCon = nodesMap.get(conductorId)!;
-        }
-
-        addToDebits(nodeCon, txnMethod, saAmount ?? 0);
+        if (!isConductorABeneficiary(conductorId))
+          addToDebits(nodeCon, txnTypeKey, saAmount ?? 0);
 
         for (const beneficiary of beneficiaries) {
           let { subjectId: beneficiaryId } = getSubjectIdAndCategory(
@@ -631,32 +551,15 @@ export function buildTransactionLinks({
           );
           let nodeBen = nodesMap.get(beneficiaryId)!;
 
-          if (isCashDeposit || isChequeDeposit) {
-            beneficiaryId = caAccount ? caAccount : generateUnknownNodeKey();
-            nodeBen = nodesMap.get(beneficiaryId)!;
-
-            createOrUpdateBidirectionalLink(
-              linksMap,
-              conductorId,
-              beneficiaryId,
-              direction,
-              saAmount ?? 0,
-            );
-
-            addToCredits(nodeBen, txnMethod, saAmount ?? 0);
-
-            break;
-          }
-
           createOrUpdateBidirectionalLink(
             linksMap,
             conductorId,
             beneficiaryId,
-            direction,
+            directionOfSA as DIRECTION_OF_SA,
             saAmount ?? 0,
           );
 
-          addToCredits(nodeBen, txnMethod, saAmount ?? 0);
+          addToCredits(nodeBen, txnTypeKey, saAmount ?? 0);
         }
       }
     }
@@ -938,7 +841,7 @@ type DIRECTION_OF_SA = 'In' | 'Out';
 
 const SYMBOL_MIN_SIZE = 20;
 const SYMBOL_MAX_SIZE = 40;
-const SYMBOL_ACCOUNT_SIZE = 5;
+const SYMBOL_ACCOUNT_SIZE = 20;
 const LINK_OPACITY = 0.8;
 
 export function formatCurrencyLocal(val: number) {
