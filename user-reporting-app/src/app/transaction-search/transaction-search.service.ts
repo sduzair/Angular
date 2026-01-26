@@ -32,7 +32,7 @@ export class TransactionSearchService {
     // return timer(100).pipe(
     //   map(() => {
     //     return SUBJECT_INFO_BY_PARTY_KEY_DEV_OR_TEST_ONLY_FIXTURE.find(
-    //       (sub) => sub.partyKey === partyKey,
+    //       (sub) => sub._hiddenPartyKey === _hiddenPartyKey,
     //     );
     //   }),
     // );
@@ -508,7 +508,7 @@ export type AbmSourceData = {
   splittingDelimiter: string;
   strCaAccount: number | null;
   strCaAccountCurrency: string;
-  strCaAccountHolderCifId: string;
+  strCaAccountHolderCifId: string | null;
   strCaAccountStatus: string;
   strCaAmount: number;
   strCaBeneficiaryInd: string;
@@ -599,9 +599,9 @@ export interface WireSourceData {
   creditorld: string;
   currencyConversionRate: null;
   custld: null;
-  customer1AccountHolderCifId: string;
+  customer1AccountHolderCifId: string | null;
   customer1AccountStatus: string;
-  customer2AccountHolderCifId: null;
+  customer2AccountHolderCifId: string | null;
   customer2AccountStatus: null;
   deviceType: null;
   ecifMatchLeve1: string;
@@ -773,7 +773,7 @@ export interface OTCSourceData {
   splittingDelimiter: string;
   strCaAccount: number;
   strCaAccountCurrency: string;
-  strCaAccountHolderCifId: string;
+  strCaAccountHolderCifId: string | null;
   strCaAccountStatus: string;
   strCaAmount: number;
   strCaBeneficiaryInd: string;

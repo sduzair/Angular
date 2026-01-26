@@ -684,7 +684,7 @@ export class TransactionSearchComponent implements OnInit {
               {
                 amlId: amlId,
                 partyKeys: (partyKeysSelection ?? []).map((p) => ({
-                  partyKey: p,
+                  _hiddenPartyKey: p,
                 })),
                 accountNumbers: accountNumbersSelection ?? [],
                 sourceSystems: (sourceSystemsSelection ?? []).map((s) => ({
@@ -770,7 +770,7 @@ export class TransactionSearchComponent implements OnInit {
     }),
     map((responses) =>
       responses.map((res) => ({
-        partyKey: res.partyKey,
+        _hiddenPartyKey: res.partyKey,
         name: formatPartyName(res),
       })),
     ),
@@ -882,7 +882,9 @@ export class TransactionSearchComponent implements OnInit {
               account,
             }),
           ),
-          partyKeysSelection: (partyKeys ?? []).map((item) => item.partyKey),
+          partyKeysSelection: (partyKeys ?? []).map(
+            (item) => item._hiddenPartyKey,
+          ),
           productTypesSelection: (productTypes ?? []).map((item) => item.value),
           reviewPeriodSelection: (reviewPeriods ?? []) as ReviewPeriod[],
           sourceSystemsSelection: (sourceSystems ?? []).map(
@@ -935,7 +937,7 @@ export class TransactionSearchComponent implements OnInit {
   onSearch() {
     if (this.searchParamsForm.invalid) {
       this.snackbarQ.open(
-        'Please enter transaction search filters before searching',
+        'Please enter valid transaction search filters before searching',
         'Dismiss',
         {
           duration: 5000,
@@ -960,7 +962,9 @@ export class TransactionSearchComponent implements OnInit {
             account,
           }),
         ),
-        partyKeysSelection: (partyKeys ?? []).map((item) => item.partyKey),
+        partyKeysSelection: (partyKeys ?? []).map(
+          (item) => item._hiddenPartyKey,
+        ),
         productTypesSelection: (productTypes ?? []).map((item) => item.value),
         reviewPeriodSelection: (reviewPeriods ?? []) as ReviewPeriod[],
         sourceSystemsSelection: (sourceSystems ?? []).map(
@@ -997,7 +1001,7 @@ export class TransactionSearchComponent implements OnInit {
                   }),
                 ),
                 partyKeysSelection: (partyKeys ?? []).map(
-                  (item) => item.partyKey,
+                  (item) => item._hiddenPartyKey,
                 ),
                 productTypesSelection: (productTypes ?? []).map(
                   (item) => item.value,

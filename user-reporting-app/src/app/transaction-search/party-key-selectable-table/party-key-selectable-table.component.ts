@@ -35,12 +35,12 @@ import { AbstractSelectableTableComponent } from '../abstract-selectable-table/a
       </ng-container>
 
       <!-- Party key Column -->
-      <ng-container matColumnDef="partyKey">
+      <ng-container matColumnDef="_hiddenPartyKey">
         <th mat-header-cell *matHeaderCellDef>Party Key</th>
         <td mat-cell *matCellDef="let element">
           @if (!isLoading) {
             <span>
-              {{ element.partyKey }}
+              {{ element._hiddenPartyKey }}
             </span>
           }
           @if (isLoading) {
@@ -87,7 +87,7 @@ export class PartyKeySelectableTableComponent
 {
   get data() {
     return Array.from({ length: 5 }, () => ({
-      partyKey: '',
+      _hiddenPartyKey: '',
       name: '',
     })) satisfies PartyKeyData[];
   }
@@ -99,21 +99,23 @@ export class PartyKeySelectableTableComponent
 
   protected override displayedColumns: (keyof PartyKeyData | 'select')[] = [
     'select',
-    'partyKey',
+    '_hiddenPartyKey',
     'name',
   ];
 
-  protected override trackingProps: ('name' | 'partyKey')[] = ['partyKey'];
+  protected override trackingProps: ('name' | '_hiddenPartyKey')[] = [
+    '_hiddenPartyKey',
+  ];
 
   protected override getSelectionComparator(): (
     a: PartyKeyData,
     b: PartyKeyData,
   ) => boolean {
-    return (a, b) => a.partyKey === b.partyKey;
+    return (a, b) => a._hiddenPartyKey === b._hiddenPartyKey;
   }
 }
 
 export interface PartyKeyData {
-  partyKey: string;
+  _hiddenPartyKey: string;
   name?: string;
 }

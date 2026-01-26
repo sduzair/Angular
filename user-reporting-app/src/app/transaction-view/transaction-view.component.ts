@@ -56,6 +56,10 @@ import { OtcTableComponent } from './otc-table/otc-table.component';
 import { transformABMToStrTransaction } from './transform-to-str-transaction/abm-transform';
 import { transformOlbEmtToStrTransaction } from './transform-to-str-transaction/olb-emt-transform';
 import { transformOTCToStrTransaction } from './transform-to-str-transaction/otc-transform';
+import {
+  PartyGenService,
+  PartyGenType,
+} from './transform-to-str-transaction/party-gen.service';
 import { transformWireToStrTransaction } from './transform-to-str-transaction/wire-transform';
 import { WiresTableComponent } from './wires-table/wires-table.component';
 
@@ -591,6 +595,7 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
 
   // Transformation helper methods
   private searchService = inject(TransactionSearchService);
+  private partyGenService = inject(PartyGenService);
   private transformABM(
     abmTxn: AbmSourceData,
     fofTxn: FlowOfFundsSourceData,
@@ -599,7 +604,8 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     return transformABMToStrTransaction(
       abmTxn,
       fofTxn,
-      (partyKey) => this.searchService.getPartyInfo(partyKey),
+      (party: Omit<PartyGenType, 'partyIdentifier'>) =>
+        this.partyGenService.generateParty(party),
       (account) => this.searchService.getAccountInfo(account),
       caseRecordId,
     );
@@ -611,14 +617,15 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     emtTxn: EmtSourceData,
     caseRecordId: string,
   ): Observable<StrTransactionWithChangeLogs> {
-    return transformOlbEmtToStrTransaction(
+    return transformOlbEmtToStrTransaction({
       olbTxn,
       fofTxn,
       emtTxn,
-      (partyKey) => this.searchService.getPartyInfo(partyKey),
-      (account) => this.searchService.getAccountInfo(account),
+      generateParty: (party: Omit<PartyGenType, 'partyIdentifier'>) =>
+        this.partyGenService.generateParty(party),
+      getAccountInfo: (account) => this.searchService.getAccountInfo(account),
       caseRecordId,
-    );
+    });
   }
 
   private transformWire(
@@ -626,13 +633,14 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     fofTxn: FlowOfFundsSourceData,
     caseRecordId: string,
   ): Observable<StrTransactionWithChangeLogs> {
-    return transformWireToStrTransaction(
+    return transformWireToStrTransaction({
       wireTxn,
       fofTxn,
-      (partyKey) => this.searchService.getPartyInfo(partyKey),
-      (account) => this.searchService.getAccountInfo(account),
+      generateParty: (party: Omit<PartyGenType, 'partyIdentifier'>) =>
+        this.partyGenService.generateParty(party),
+      getAccountInfo: (account) => this.searchService.getAccountInfo(account),
       caseRecordId,
-    );
+    });
   }
 
   private transformOTC(
@@ -640,13 +648,14 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     fofTxn: FlowOfFundsSourceData,
     caseRecordId: string,
   ): Observable<StrTransactionWithChangeLogs> {
-    return transformOTCToStrTransaction(
-      otcTxn,
+    return transformOTCToStrTransaction({
+      sourceTxn: otcTxn,
       fofTxn,
-      (partyKey) => this.searchService.getPartyInfo(partyKey),
-      (account) => this.searchService.getAccountInfo(account),
+      getPartyInfo: (_hiddenPartyKey) =>
+        this.searchService.getPartyInfo(_hiddenPartyKey),
+      getAccountInfo: (account) => this.searchService.getAccountInfo(account),
       caseRecordId,
-    );
+    });
   }
 }
 

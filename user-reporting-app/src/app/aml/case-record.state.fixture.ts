@@ -47,7 +47,7 @@ export const ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE = {
   amlId: String(AML_ID_DEV_OR_TEST_ONLY_FIXTURE),
   partyKeys: [
     {
-      partyKey: '3415674561',
+      _hiddenPartyKey: '3415674561',
       accountModels: [
         { accountTransit: '84255', accountNumber: '5582195' },
         { accountTransit: '31980', accountNumber: '8692413' },
@@ -58,7 +58,7 @@ export const ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE = {
       ],
     },
     {
-      partyKey: '1846597320',
+      _hiddenPartyKey: '1846597320',
       accountModels: [
         { accountTransit: '84255', accountNumber: '5582195' },
         { accountTransit: '31980', accountNumber: '8692413' },
@@ -73,18 +73,18 @@ export const ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE = {
 
 export const SUBJECT_INFO_BY_PARTY_KEY_DEV_OR_TEST_ONLY_FIXTURE = [
   {
-    partyKey: '3415674561',
-    surname: 'Carter',
-    givenName: 'James',
-    otherOrInitial: 'L',
-    nameOfEntity: '',
+    _hiddenPartyKey: '3415674561',
+    _hiddenSurname: 'Carter',
+    _hiddenGivenName: 'James',
+    _hiddenOtherOrInitial: 'L',
+    _hiddenNameOfEntity: '',
   },
   {
-    partyKey: '1846597320',
-    surname: 'Nguyen',
-    givenName: 'Laura',
-    otherOrInitial: 'M',
-    nameOfEntity: '',
+    _hiddenPartyKey: '1846597320',
+    _hiddenSurname: 'Nguyen',
+    _hiddenGivenName: 'Laura',
+    _hiddenOtherOrInitial: 'M',
+    _hiddenNameOfEntity: '',
   },
 ];
 
@@ -99,7 +99,10 @@ export const ACCOUNT_INFO_DEV_OR_TEST_ONLY_FIXTURE = [
     accountClose: '',
     accountStatus: 'Active',
     accountCurrency: 'CAD',
-    accountHolders: [{ partyKey: '3415674561' }, { partyKey: '1846597320' }],
+    accountHolders: [
+      { _hiddenPartyKey: '3415674561' },
+      { _hiddenPartyKey: '1846597320' },
+    ],
   },
   {
     fiuNo: '010',
@@ -111,7 +114,10 @@ export const ACCOUNT_INFO_DEV_OR_TEST_ONLY_FIXTURE = [
     accountClose: '',
     accountStatus: 'Active',
     accountCurrency: 'CAD',
-    accountHolders: [{ partyKey: '3415674561' }, { partyKey: '1846597320' }],
+    accountHolders: [
+      { _hiddenPartyKey: '3415674561' },
+      { _hiddenPartyKey: '1846597320' },
+    ],
   },
   {
     fiuNo: '010',
@@ -123,6 +129,9 @@ export const ACCOUNT_INFO_DEV_OR_TEST_ONLY_FIXTURE = [
     accountClose: '',
     accountStatus: 'Active',
     accountCurrency: 'CAD',
-    accountHolders: [{ partyKey: '3415674561' }, { partyKey: '1846597320' }],
+    accountHolders: [
+      { _hiddenPartyKey: '3415674561' },
+      { _hiddenPartyKey: '1846597320' },
+    ],
   },
 ];

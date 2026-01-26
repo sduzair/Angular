@@ -1,5 +1,7 @@
+import { catchError, forkJoin, map, Observable, of } from 'rxjs';
 import { ulid } from 'ulid';
 import { StrTransactionWithChangeLogs } from '../../aml/case-record.store';
+import { PartyGenType } from '../../transaction-view/transform-to-str-transaction/party-gen.service';
 import {
   EditFormComponent,
   InvalidFormOptionsErrorKeys,
@@ -11,15 +13,13 @@ import {
 } from '../edit-form/transaction-date.directive';
 import { TransactionTimeDirective } from '../edit-form/transaction-time.directive';
 import {
+  _hiddenValidationType,
   Beneficiary,
   CompletingAction,
   Conductor,
   StartingAction,
-  _hiddenValidationType,
 } from '../reporting-ui-table/reporting-ui-table.component';
 import { type ColumnHeaderLabels } from './manual-upload-stepper.component';
-import { catchError, forkJoin, map, Observable, of } from 'rxjs';
-import { GetPartyInfoRes } from '../../transaction-search/transaction-search.service';
 
 export class ManualTransactionBuilder {
   private transaction: Partial<StrTransactionWithChangeLogs> = {};
@@ -29,7 +29,9 @@ export class ManualTransactionBuilder {
   constructor(
     private value: Record<ColumnHeaderLabels, string | null>,
     private formOptions: FormOptions,
-    private getPartyInfo: (partyKey: string) => Observable<GetPartyInfoRes>,
+    private getUnifiedParty: (
+      party: Omit<PartyGenType, 'partyIdentifier'>,
+    ) => Observable<PartyGenType>,
   ) {}
 
   trimValues(): this {
@@ -216,14 +218,14 @@ export class ManualTransactionBuilder {
 
   build(): Observable<StrTransactionWithChangeLogs> {
     return forkJoin({
-      conductor: this.buildConductor(this.getPartyInfo).pipe(
+      conductor: this.buildConductor(this.getUnifiedParty).pipe(
         catchError(() => {
           this.transaction._hiddenValidation ??= [];
           this.transaction._hiddenValidation.push('invalidPartyKey');
           return of(null);
         }),
       ),
-      beneficiary: this.buildBeneficiary(this.getPartyInfo).pipe(
+      beneficiary: this.buildBeneficiary(this.getUnifiedParty).pipe(
         catchError(() => {
           this.transaction._hiddenValidation ??= [];
           this.transaction._hiddenValidation.push('invalidPartyKey');
@@ -328,7 +330,9 @@ export class ManualTransactionBuilder {
   }
 
   private buildConductor(
-    getPartyInfo: (partyKey: string) => Observable<GetPartyInfoRes>,
+    getUnifiedParty: (
+      party: Omit<PartyGenType, 'partyIdentifier'>,
+    ) => Observable<PartyGenType>,
   ): Observable<Conductor | null> {
     if (
       !this.hasValue(this.value['Conductor Party Key']) &&
@@ -339,30 +343,40 @@ export class ManualTransactionBuilder {
       return of(null);
     }
 
-    if (this.hasValue(this.value['Conductor Party Key']))
-      return getPartyInfo(this.value['Conductor Party Key']!).pipe(
-        map((party) => ({
-          _id: ulid(),
-          ...party,
+    const party: Omit<PartyGenType, 'partyIdentifier'> = {
+      identifiers: { partyKey: this.value['Conductor Party Key']! },
+      partyName: {
+        surname: this.value['Conductor Surname'] || null,
+        givenName: this.value['Conductor Given Name'] || null,
+        otherOrInitial: this.value['Conductor Other Name'] || null,
+        nameOfEntity: this.value['Conductor Entity Name'] || null,
+      },
+    };
+
+    return getUnifiedParty(party).pipe(
+      map(({ partyIdentifier, partyName, identifiers }) => {
+        const { givenName, surname, otherOrInitial, nameOfEntity } =
+          partyName ?? {};
+        const { partyKey } = identifiers ?? {};
+
+        return {
+          _hiddenPartyKey: partyKey as string,
+          _hiddenGivenName: givenName ?? null,
+          _hiddenSurname: surname ?? null,
+          _hiddenOtherOrInitial: otherOrInitial ?? null,
+          _hiddenNameOfEntity: nameOfEntity ?? null,
+          linkToSub: partyIdentifier,
           wasConductedOnBehalf: null,
           onBehalfOf: [],
-        })),
-      );
-
-    return of({
-      _id: ulid(),
-      partyKey: this.value['Conductor Party Key'] || null,
-      surname: this.value['Conductor Surname'] || null,
-      givenName: this.value['Conductor Given Name'] || null,
-      otherOrInitial: this.value['Conductor Other Name'] || null,
-      nameOfEntity: this.value['Conductor Entity Name'] || null,
-      wasConductedOnBehalf: null,
-      onBehalfOf: [],
-    });
+        } satisfies Conductor;
+      }),
+    );
   }
 
   private buildBeneficiary(
-    getPartyInfo: (partyKey: string) => Observable<GetPartyInfoRes>,
+    getUnifiedParty: (
+      party: Omit<PartyGenType, 'partyIdentifier'>,
+    ) => Observable<PartyGenType>,
   ): Observable<Beneficiary | null> {
     if (
       !this.hasValue(this.value['Beneficiary Party Key']) &&
@@ -373,23 +387,31 @@ export class ManualTransactionBuilder {
       return of(null);
     }
 
-    if (this.hasValue(this.value['Beneficiary Party Key']))
-      return getPartyInfo(this.value['Beneficiary Party Key']!).pipe(
-        map((party) => ({
-          _id: ulid(),
-          ...party,
-          wasConductedOnBehalf: null,
-          onBehalfOf: [],
-        })),
-      );
+    const party: Omit<PartyGenType, 'partyIdentifier'> = {
+      identifiers: { partyKey: this.value['Beneficiary Party Key']! },
+      partyName: {
+        surname: this.value['Beneficiary Surname'] || null,
+        givenName: this.value['Beneficiary Given Name'] || null,
+        otherOrInitial: this.value['Beneficiary Other Name'] || null,
+        nameOfEntity: this.value['Beneficiary Entity Name'] || null,
+      },
+    };
 
-    return of({
-      _id: ulid(),
-      partyKey: this.value['Beneficiary Party Key'] || null,
-      surname: this.value['Beneficiary Surname'] || null,
-      givenName: this.value['Beneficiary Given Name'] || null,
-      otherOrInitial: this.value['Beneficiary Other Name'] || null,
-      nameOfEntity: this.value['Beneficiary Entity Name'] || null,
-    });
+    return getUnifiedParty(party).pipe(
+      map(({ partyIdentifier, partyName, identifiers }) => {
+        const { givenName, surname, otherOrInitial, nameOfEntity } =
+          partyName ?? {};
+        const { partyKey } = identifiers ?? {};
+
+        return {
+          _hiddenPartyKey: partyKey as string,
+          _hiddenGivenName: givenName ?? null,
+          _hiddenSurname: surname ?? null,
+          _hiddenOtherOrInitial: otherOrInitial ?? null,
+          _hiddenNameOfEntity: nameOfEntity ?? null,
+          linkToSub: partyIdentifier,
+        } satisfies Beneficiary;
+      }),
+    );
   }
 }

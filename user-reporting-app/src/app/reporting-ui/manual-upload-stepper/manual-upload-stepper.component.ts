@@ -41,9 +41,11 @@ import {
 } from 'rxjs';
 import {
   CaseRecordStore,
-  setRowValidationInfo,
   StrTransactionWithChangeLogs,
+  setRowValidationInfo,
 } from '../../aml/case-record.store';
+import { TransactionSearchService } from '../../transaction-search/transaction-search.service';
+import { PartyGenService } from '../../transaction-view/transform-to-str-transaction/party-gen.service';
 import {
   FormOptions,
   FormOptionsService,
@@ -54,7 +56,6 @@ import {
 } from '../reporting-ui-table/reporting-ui-table.component';
 import { ManualTransactionBuilder } from './manual-transaction-builder';
 import { ManualUploadReviewTableComponent } from './manual-upload-review-table/manual-upload-review-table.component';
-import { TransactionSearchService } from '../../transaction-search/transaction-search.service';
 // import { MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE } from './manual-upload-review-table/manual-upload-review-table.data.fixture';
 
 @Component({
@@ -418,13 +419,14 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
       ),
     );
   }
+  private partyGenService = inject(PartyGenService);
 
   convertSheetJsonToStrTxn(
     value: Record<ColumnHeaderLabels, string>,
     formOptions: FormOptions,
   ) {
-    return new ManualTransactionBuilder(value, formOptions, (partyKey) =>
-      this.searchService.getPartyInfo(partyKey),
+    return new ManualTransactionBuilder(value, formOptions, (party) =>
+      this.partyGenService.generateParty(party),
     )
       .trimValues()
       .withMetadata()

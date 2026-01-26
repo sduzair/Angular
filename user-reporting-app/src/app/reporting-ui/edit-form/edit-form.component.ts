@@ -84,6 +84,7 @@ import {
   hasEntityName,
   hasInvalidFiu,
   hasMissingAccountInfo,
+  hasMissingCheque,
   hasMissingConductorInfo,
   hasPersonName,
 } from './common-validation';
@@ -283,6 +284,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           matInput
                           formControlName="dateOfTxn"
                           [matDatepicker]="dateOfTxnPicker"
+                          [max]="maxDate"
                           appTransactionDate />
                         <mat-datepicker-toggle
                           matIconSuffix
@@ -373,6 +375,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           matInput
                           formControlName="dateOfPosting"
                           [matDatepicker]="dateOfPostingPicker"
+                          [max]="maxDate"
                           appTransactionDate
                           appControlToggle="hasPostingDate" />
                         <mat-datepicker-toggle
@@ -759,7 +762,21 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
-                            <mat-error>This field is required</mat-error>
+                            @if (
+                              saAction.controls.typeOfFunds.hasError(
+                                'missingCheque'
+                              )
+                            ) {
+                              <mat-error>
+                                {{
+                                  saAction.controls.typeOfFunds.errors![
+                                    'missingCheque'
+                                  ]
+                                }}
+                              </mat-error>
+                            } @else {
+                              <mat-error>This field is required</mat-error>
+                            }
                           </mat-form-field>
                           <mat-form-field
                             class="col"
@@ -1211,6 +1228,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               matInput
                               formControlName="accountOpen"
                               [matDatepicker]="accountOpenPicker"
+                              [max]="maxDate"
                               appTransactionDate />
                             <mat-datepicker-toggle
                               matIconSuffix
@@ -1252,6 +1270,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               matInput
                               formControlName="accountClose"
                               [matDatepicker]="accountClosePicker"
+                              [max]="maxDate"
                               appTransactionDate
                               appValidateOnParentChanges />
                             <mat-datepicker-toggle
@@ -1399,12 +1418,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       saIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-partyKey'
+                                      '-_hiddenPartyKey'
                                     ">
                                     <mat-label>Party Key</mat-label>
                                     <input
                                       matInput
-                                      formControlName="partyKey" />
+                                      formControlName="_hiddenPartyKey" />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -1424,12 +1443,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       saIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-surname'
+                                      '-_hiddenSurname'
                                     ">
-                                    <mat-label>Surname</mat-label>
+                                    <mat-label>_hiddenSurname</mat-label>
                                     <input
                                       matInput
-                                      formControlName="surname"
+                                      formControlName="_hiddenSurname"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1450,12 +1469,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       saIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-givenName'
+                                      '-_hiddenGivenName'
                                     ">
-                                    <mat-label>GivenName</mat-label>
+                                    <mat-label>_hiddenGivenName</mat-label>
                                     <input
                                       matInput
-                                      formControlName="givenName"
+                                      formControlName="_hiddenGivenName"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1476,12 +1495,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       saIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-otherOrInitial'
+                                      '-_hiddenOtherOrInitial'
                                     ">
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="otherOrInitial"
+                                      formControlName="_hiddenOtherOrInitial"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1502,12 +1521,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       saIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-nameOfEntity'
+                                      '-_hiddenNameOfEntity'
                                     ">
                                     <mat-label>Name of Entity</mat-label>
                                     <input
                                       matInput
-                                      formControlName="nameOfEntity"
+                                      formControlName="_hiddenNameOfEntity"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1608,12 +1627,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       saIndex +
                                       '-sourceOfFunds-' +
                                       fundsIndex +
-                                      '-partyKey'
+                                      '-_hiddenPartyKey'
                                     ">
                                     <mat-label>Party Key</mat-label>
                                     <input
                                       matInput
-                                      formControlName="partyKey" />
+                                      formControlName="_hiddenPartyKey" />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -1633,12 +1652,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       saIndex +
                                       '-sourceOfFunds-' +
                                       fundsIndex +
-                                      '-surname'
+                                      '-_hiddenSurname'
                                     ">
-                                    <mat-label>Surname</mat-label>
+                                    <mat-label>_hiddenSurname</mat-label>
                                     <input
                                       matInput
-                                      formControlName="surname"
+                                      formControlName="_hiddenSurname"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1659,12 +1678,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       saIndex +
                                       '-sourceOfFunds-' +
                                       fundsIndex +
-                                      '-givenName'
+                                      '-_hiddenGivenName'
                                     ">
-                                    <mat-label>GivenName</mat-label>
+                                    <mat-label>_hiddenGivenName</mat-label>
                                     <input
                                       matInput
-                                      formControlName="givenName"
+                                      formControlName="_hiddenGivenName"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1685,12 +1704,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       saIndex +
                                       '-sourceOfFunds-' +
                                       fundsIndex +
-                                      '-otherOrInitial'
+                                      '-_hiddenOtherOrInitial'
                                     ">
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="otherOrInitial"
+                                      formControlName="_hiddenOtherOrInitial"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1711,12 +1730,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       saIndex +
                                       '-sourceOfFunds-' +
                                       fundsIndex +
-                                      '-nameOfEntity'
+                                      '-_hiddenNameOfEntity'
                                     ">
                                     <mat-label>Name of Entity</mat-label>
                                     <input
                                       matInput
-                                      formControlName="nameOfEntity"
+                                      formControlName="_hiddenNameOfEntity"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1865,12 +1884,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       saIndex +
                                       '-conductors-' +
                                       condIndex +
-                                      '-partyKey'
+                                      '-_hiddenPartyKey'
                                     ">
                                     <mat-label>Party Key</mat-label>
                                     <input
                                       matInput
-                                      formControlName="partyKey" />
+                                      formControlName="_hiddenPartyKey" />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -1890,12 +1909,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       saIndex +
                                       '-conductors-' +
                                       condIndex +
-                                      '-surname'
+                                      '-_hiddenSurname'
                                     ">
-                                    <mat-label>Surname</mat-label>
+                                    <mat-label>_hiddenSurname</mat-label>
                                     <input
                                       matInput
-                                      formControlName="surname"
+                                      formControlName="_hiddenSurname"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1916,12 +1935,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       saIndex +
                                       '-conductors-' +
                                       condIndex +
-                                      '-givenName'
+                                      '-_hiddenGivenName'
                                     ">
-                                    <mat-label>GivenName</mat-label>
+                                    <mat-label>_hiddenGivenName</mat-label>
                                     <input
                                       matInput
-                                      formControlName="givenName"
+                                      formControlName="_hiddenGivenName"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1942,12 +1961,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       saIndex +
                                       '-conductors-' +
                                       condIndex +
-                                      '-otherOrInitial'
+                                      '-_hiddenOtherOrInitial'
                                     ">
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="otherOrInitial"
+                                      formControlName="_hiddenOtherOrInitial"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1968,12 +1987,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       saIndex +
                                       '-conductors-' +
                                       condIndex +
-                                      '-nameOfEntity'
+                                      '-_hiddenNameOfEntity'
                                     ">
                                     <mat-label>Name of Entity</mat-label>
                                     <input
                                       matInput
-                                      formControlName="nameOfEntity"
+                                      formControlName="_hiddenNameOfEntity"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -2069,12 +2088,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                               condIndex +
                                               '-onBehalfOf-' +
                                               behalfIndex +
-                                              '-partyKey'
+                                              '-_hiddenPartyKey'
                                             ">
                                             <mat-label>Party Key</mat-label>
                                             <input
                                               matInput
-                                              formControlName="partyKey" />
+                                              formControlName="_hiddenPartyKey" />
                                             <button
                                               [disabled]="this.isBulkEdit"
                                               type="button"
@@ -2096,12 +2115,14 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                               condIndex +
                                               '-onBehalfOf-' +
                                               behalfIndex +
-                                              '-surname'
+                                              '-_hiddenSurname'
                                             ">
-                                            <mat-label>Surname</mat-label>
+                                            <mat-label
+                                              >_hiddenSurname</mat-label
+                                            >
                                             <input
                                               matInput
-                                              formControlName="surname"
+                                              formControlName="_hiddenSurname"
                                               appValidateOnParentChanges />
                                             <button
                                               [disabled]="this.isBulkEdit"
@@ -2124,12 +2145,14 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                               condIndex +
                                               '-onBehalfOf-' +
                                               behalfIndex +
-                                              '-givenName'
+                                              '-_hiddenGivenName'
                                             ">
-                                            <mat-label>GivenName</mat-label>
+                                            <mat-label
+                                              >_hiddenGivenName</mat-label
+                                            >
                                             <input
                                               matInput
-                                              formControlName="givenName"
+                                              formControlName="_hiddenGivenName"
                                               appValidateOnParentChanges />
                                             <button
                                               [disabled]="this.isBulkEdit"
@@ -2152,14 +2175,14 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                               condIndex +
                                               '-onBehalfOf-' +
                                               behalfIndex +
-                                              '-otherOrInitial'
+                                              '-_hiddenOtherOrInitial'
                                             ">
                                             <mat-label
                                               >Other or Initial</mat-label
                                             >
                                             <input
                                               matInput
-                                              formControlName="otherOrInitial"
+                                              formControlName="_hiddenOtherOrInitial"
                                               appValidateOnParentChanges />
                                             <button
                                               [disabled]="this.isBulkEdit"
@@ -2182,14 +2205,14 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                               condIndex +
                                               '-onBehalfOf-' +
                                               behalfIndex +
-                                              '-nameOfEntity'
+                                              '-_hiddenNameOfEntity'
                                             ">
                                             <mat-label
                                               >Name of Entity</mat-label
                                             >
                                             <input
                                               matInput
-                                              formControlName="nameOfEntity"
+                                              formControlName="_hiddenNameOfEntity"
                                               appValidateOnParentChanges />
                                             <button
                                               [disabled]="this.isBulkEdit"
@@ -2884,6 +2907,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               matInput
                               formControlName="accountOpen"
                               [matDatepicker]="accountOpenPicker"
+                              [max]="maxDate"
                               appTransactionDate />
                             <mat-datepicker-toggle
                               matIconSuffix
@@ -2925,6 +2949,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               matInput
                               formControlName="accountClose"
                               [matDatepicker]="accountClosePicker"
+                              [max]="maxDate"
                               appTransactionDate
                               appValidateOnParentChanges />
                             <mat-datepicker-toggle
@@ -3036,12 +3061,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       caIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-partyKey'
+                                      '-_hiddenPartyKey'
                                     ">
                                     <mat-label>Party Key</mat-label>
                                     <input
                                       matInput
-                                      formControlName="partyKey" />
+                                      formControlName="_hiddenPartyKey" />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -3061,12 +3086,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       caIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-surname'
+                                      '-_hiddenSurname'
                                     ">
-                                    <mat-label>Surname</mat-label>
+                                    <mat-label>_hiddenSurname</mat-label>
                                     <input
                                       matInput
-                                      formControlName="surname"
+                                      formControlName="_hiddenSurname"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3087,12 +3112,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       caIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-givenName'
+                                      '-_hiddenGivenName'
                                     ">
-                                    <mat-label>GivenName</mat-label>
+                                    <mat-label>_hiddenGivenName</mat-label>
                                     <input
                                       matInput
-                                      formControlName="givenName"
+                                      formControlName="_hiddenGivenName"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3113,12 +3138,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       caIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-otherOrInitial'
+                                      '-_hiddenOtherOrInitial'
                                     ">
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="otherOrInitial"
+                                      formControlName="_hiddenOtherOrInitial"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3139,12 +3164,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       caIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-nameOfEntity'
+                                      '-_hiddenNameOfEntity'
                                     ">
                                     <mat-label>Name of Entity</mat-label>
                                     <input
                                       matInput
-                                      formControlName="nameOfEntity"
+                                      formControlName="_hiddenNameOfEntity"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3247,12 +3272,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       caIndex +
                                       '-involvedIn-' +
                                       invIndex +
-                                      '-partyKey'
+                                      '-_hiddenPartyKey'
                                     ">
                                     <mat-label>Party Key</mat-label>
                                     <input
                                       matInput
-                                      formControlName="partyKey" />
+                                      formControlName="_hiddenPartyKey" />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -3272,12 +3297,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       caIndex +
                                       '-involvedIn-' +
                                       invIndex +
-                                      '-surname'
+                                      '-_hiddenSurname'
                                     ">
-                                    <mat-label>Surname</mat-label>
+                                    <mat-label>_hiddenSurname</mat-label>
                                     <input
                                       matInput
-                                      formControlName="surname"
+                                      formControlName="_hiddenSurname"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3298,12 +3323,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       caIndex +
                                       '-involvedIn-' +
                                       invIndex +
-                                      '-givenName'
+                                      '-_hiddenGivenName'
                                     ">
-                                    <mat-label>GivenName</mat-label>
+                                    <mat-label>_hiddenGivenName</mat-label>
                                     <input
                                       matInput
-                                      formControlName="givenName"
+                                      formControlName="_hiddenGivenName"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3324,12 +3349,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       caIndex +
                                       '-involvedIn-' +
                                       invIndex +
-                                      '-otherOrInitial'
+                                      '-_hiddenOtherOrInitial'
                                     ">
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="otherOrInitial"
+                                      formControlName="_hiddenOtherOrInitial"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3350,12 +3375,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       caIndex +
                                       '-involvedIn-' +
                                       invIndex +
-                                      '-nameOfEntity'
+                                      '-_hiddenNameOfEntity'
                                     ">
                                     <mat-label>Name of Entity</mat-label>
                                     <input
                                       matInput
-                                      formControlName="nameOfEntity"
+                                      formControlName="_hiddenNameOfEntity"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3503,12 +3528,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       caIndex +
                                       '-beneficiaries-' +
                                       benIndex +
-                                      '-partyKey'
+                                      '-_hiddenPartyKey'
                                     ">
                                     <mat-label>Party Key</mat-label>
                                     <input
                                       matInput
-                                      formControlName="partyKey" />
+                                      formControlName="_hiddenPartyKey" />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -3528,12 +3553,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       caIndex +
                                       '-beneficiaries-' +
                                       benIndex +
-                                      '-surname'
+                                      '-_hiddenSurname'
                                     ">
-                                    <mat-label>Surname</mat-label>
+                                    <mat-label>_hiddenSurname</mat-label>
                                     <input
                                       matInput
-                                      formControlName="surname"
+                                      formControlName="_hiddenSurname"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3554,12 +3579,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       caIndex +
                                       '-beneficiaries-' +
                                       benIndex +
-                                      '-givenName'
+                                      '-_hiddenGivenName'
                                     ">
-                                    <mat-label>GivenName</mat-label>
+                                    <mat-label>_hiddenGivenName</mat-label>
                                     <input
                                       matInput
-                                      formControlName="givenName"
+                                      formControlName="_hiddenGivenName"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3580,12 +3605,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       caIndex +
                                       '-beneficiaries-' +
                                       benIndex +
-                                      '-otherOrInitial'
+                                      '-_hiddenOtherOrInitial'
                                     ">
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="otherOrInitial"
+                                      formControlName="_hiddenOtherOrInitial"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3606,12 +3631,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       caIndex +
                                       '-beneficiaries-' +
                                       benIndex +
-                                      '-nameOfEntity'
+                                      '-_hiddenNameOfEntity'
                                     ">
                                     <mat-label>Name of Entity</mat-label>
                                     <input
                                       matInput
-                                      formControlName="nameOfEntity"
+                                      formControlName="_hiddenNameOfEntity"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3794,21 +3819,17 @@ export class EditFormComponent implements AfterViewChecked {
     switchMap((form) => {
       // Store initial value to detect form changes
       const editFormValueBefore: EditFormValueType | null = structuredClone(
-        form?.getRawValue() ?? null,
+        form?.value ?? null,
       );
 
       return form.valueChanges.pipe(
-        startWith(form.getRawValue()),
+        startWith(form.value),
         map(() => {
-          const editFormVal = form.getRawValue()!;
+          const editFormVal = form.value!;
           return !isEqualWith(
             editFormVal,
             editFormValueBefore,
             (val1, val2, indexOrKey) => {
-              const isEmpty = (val: unknown) => val == null || val === '';
-
-              if (isEmpty(val1) && isEmpty(val2)) return true;
-
               if (indexOrKey === '_id') return true;
 
               if (
@@ -3899,15 +3920,15 @@ export class EditFormComponent implements AfterViewChecked {
           disabled,
         }),
         wasTxnAttemptedReason: new FormControl(
-          { value: txn?.wasTxnAttemptedReason || '', disabled },
+          { value: txn?.wasTxnAttemptedReason ?? null, disabled },
           Validators.required,
         ),
-        dateOfTxn: new FormControl({ value: txn?.dateOfTxn || '', disabled }, [
-          Validators.required,
-          dateValidator(),
-        ]),
+        dateOfTxn: new FormControl(
+          { value: txn?.dateOfTxn ?? null, disabled },
+          [Validators.required, dateValidator()],
+        ),
         timeOfTxn: new FormControl(
-          { value: txn?.timeOfTxn || '', disabled },
+          { value: txn?.timeOfTxn ?? null, disabled },
           Validators.required,
         ),
         hasPostingDate: new FormControl({
@@ -3919,20 +3940,20 @@ export class EditFormComponent implements AfterViewChecked {
           disabled,
         }),
         dateOfPosting: new FormControl(
-          { value: txn?.dateOfPosting || '', disabled },
+          { value: txn?.dateOfPosting ?? null, disabled },
           [Validators.required, dateValidator()],
         ),
         timeOfPosting: new FormControl(
-          { value: txn?.timeOfPosting || '', disabled },
+          { value: txn?.timeOfPosting ?? null, disabled },
           Validators.required,
         ),
         methodOfTxn: new FormControl(
-          { value: txn?.methodOfTxn || '', disabled },
+          { value: txn?.methodOfTxn ?? null, disabled },
           Validators.required,
           this.methodOfTxnValidator(),
         ),
         methodOfTxnOther: new FormControl(
-          { value: txn?.methodOfTxnOther || '', disabled },
+          { value: txn?.methodOfTxnOther ?? null, disabled },
           Validators.required,
         ),
         reportingEntityTxnRefNo: new FormControl({
@@ -3940,11 +3961,11 @@ export class EditFormComponent implements AfterViewChecked {
           disabled,
         }),
         purposeOfTxn: new FormControl({
-          value: txn?.purposeOfTxn || '',
+          value: txn?.purposeOfTxn ?? null,
           disabled,
         }),
         reportingEntityLocationNo: new FormControl(
-          { value: txn?.reportingEntityLocationNo || '', disabled },
+          { value: txn?.reportingEntityLocationNo ?? null, disabled },
           [
             Validators.required,
             Validators.minLength(5),
@@ -4020,7 +4041,7 @@ export class EditFormComponent implements AfterViewChecked {
         }),
         directionOfSA: new FormControl(
           {
-            value: action?.directionOfSA || '',
+            value: action?.directionOfSA ?? null,
             disabled,
           },
           [Validators.required],
@@ -4028,72 +4049,72 @@ export class EditFormComponent implements AfterViewChecked {
         ),
         typeOfFunds: new FormControl(
           {
-            value: action?.typeOfFunds || '',
+            value: action?.typeOfFunds ?? null,
             disabled,
           },
           [Validators.required],
           this.typeOfFundsValidator(),
         ),
         typeOfFundsOther: new FormControl(
-          { value: action?.typeOfFundsOther || '', disabled },
+          { value: action?.typeOfFundsOther ?? null, disabled },
           Validators.required,
         ),
         amount: new FormControl(
-          { value: action?.amount || null, disabled },
+          { value: action?.amount ?? null, disabled },
           Validators.required,
         ),
         currency: new FormControl(
-          { value: action?.currency || '', disabled },
+          { value: action?.currency ?? null, disabled },
           [],
           this.amountCurrencyValidator(),
         ),
-        fiuNo: new FormControl({ value: action?.fiuNo || '', disabled }, [
+        fiuNo: new FormControl({ value: action?.fiuNo ?? null, disabled }, [
           accountInfoValidator(),
           fiuValidator(),
         ]),
-        branch: new FormControl({ value: action?.branch || '', disabled }, [
+        branch: new FormControl({ value: action?.branch ?? null, disabled }, [
           Validators.minLength(5),
           Validators.maxLength(5),
         ]),
-        account: new FormControl({ value: action?.account || '', disabled }),
+        account: new FormControl({ value: action?.account ?? null, disabled }),
         accountType: new FormControl(
           {
-            value: action?.accountType || '',
+            value: action?.accountType ?? null,
             disabled,
           },
           [],
           this.accountTypeValidator(),
         ),
         accountTypeOther: new FormControl(
-          { value: action?.accountTypeOther || '', disabled },
+          { value: action?.accountTypeOther ?? null, disabled },
           Validators.required,
         ),
         accountOpen: new FormControl({
-          value: action?.accountOpen || '',
+          value: action?.accountOpen ?? null,
           disabled,
         }),
         accountClose: new FormControl(
           {
-            value: action?.accountClose || '',
+            value: action?.accountClose ?? null,
             disabled,
           },
           [accountCloseDateValidator()],
         ),
         accountStatus: new FormControl(
           {
-            value: action?.accountStatus || '',
+            value: action?.accountStatus ?? null,
             disabled,
           },
           [],
           [this.accountStatusValidator()],
         ),
         howFundsObtained: new FormControl({
-          value: action?.howFundsObtained || '',
+          value: action?.howFundsObtained ?? null,
           disabled,
         }),
         accountCurrency: new FormControl(
           {
-            value: action?.accountCurrency || '',
+            value: action?.accountCurrency ?? null,
             disabled,
           },
           [],
@@ -4173,6 +4194,7 @@ export class EditFormComponent implements AfterViewChecked {
         accountHolderValidator(),
         sourceOfFundsValidator(),
         conductorValidator(),
+        chequeValidator(),
       ],
     ) satisfies FormGroup<
       TypedForm<RecursiveOmit<StartingAction, keyof ConductorNpdData>>
@@ -4209,76 +4231,76 @@ export class EditFormComponent implements AfterViewChecked {
         }),
         detailsOfDispo: new FormControl(
           {
-            value: action?.detailsOfDispo || '',
+            value: action?.detailsOfDispo ?? null,
             disabled,
           },
           [],
           this.detailsOfDispositionValidator(),
         ),
         detailsOfDispoOther: new FormControl(
-          { value: action?.detailsOfDispoOther || '', disabled },
+          { value: action?.detailsOfDispoOther ?? null, disabled },
           Validators.required,
         ),
         amount: new FormControl(
-          { value: action?.amount || null, disabled },
+          { value: action?.amount ?? null, disabled },
           Validators.required,
         ),
         currency: new FormControl(
-          { value: action?.currency || '', disabled },
+          { value: action?.currency ?? null, disabled },
           [],
           this.amountCurrencyValidator(),
         ),
         exchangeRate: new FormControl({
-          value: action?.exchangeRate || null,
+          value: action?.exchangeRate ?? null,
           disabled,
         }),
         valueInCad: new FormControl({
-          value: action?.valueInCad || null,
+          value: action?.valueInCad ?? null,
           disabled,
         }),
-        fiuNo: new FormControl({ value: action?.fiuNo || '', disabled }, [
+        fiuNo: new FormControl({ value: action?.fiuNo ?? null, disabled }, [
           accountInfoValidator(),
           fiuValidator(),
         ]),
-        branch: new FormControl({ value: action?.branch || '', disabled }, [
+        branch: new FormControl({ value: action?.branch ?? null, disabled }, [
           Validators.minLength(5),
           Validators.maxLength(5),
         ]),
-        account: new FormControl({ value: action?.account || '', disabled }),
+        account: new FormControl({ value: action?.account ?? null, disabled }),
         accountType: new FormControl(
           {
-            value: action?.accountType || '',
+            value: action?.accountType ?? null,
             disabled,
           },
           [],
           this.accountTypeValidator(),
         ),
         accountTypeOther: new FormControl(
-          { value: action?.accountTypeOther || '', disabled },
+          { value: action?.accountTypeOther ?? null, disabled },
           Validators.required,
         ),
         accountCurrency: new FormControl(
           {
-            value: action?.accountCurrency || '',
+            value: action?.accountCurrency ?? null,
             disabled,
           },
           [],
           this.accountCurrencyValidator(),
         ),
         accountOpen: new FormControl({
-          value: action?.accountOpen || '',
+          value: action?.accountOpen ?? null,
           disabled,
         }),
         accountClose: new FormControl(
           {
-            value: action?.accountClose || '',
+            value: action?.accountClose ?? null,
             disabled,
           },
           [accountCloseDateValidator()],
         ),
         accountStatus: new FormControl(
           {
-            value: action?.accountStatus || '',
+            value: action?.accountStatus ?? null,
             disabled,
           },
           [],
@@ -4375,25 +4397,33 @@ export class EditFormComponent implements AfterViewChecked {
         value: holder?._id ?? getFormGroupId(),
         disabled: false,
       }),
-      partyKey: new FormControl({ value: holder?.partyKey || '', disabled }),
-      givenName: new FormControl({ value: holder?.givenName || '', disabled }, [
-        personOrEntityValidator(),
-      ]),
-      otherOrInitial: new FormControl(
+      linkToSub: new FormControl({
+        value: holder?.linkToSub ?? null,
+        disabled,
+      }),
+      _hiddenPartyKey: new FormControl({
+        value: holder?._hiddenPartyKey ?? null,
+        disabled,
+      }),
+      _hiddenGivenName: new FormControl(
+        { value: holder?._hiddenGivenName ?? null, disabled },
+        [personOrEntityValidator()],
+      ),
+      _hiddenOtherOrInitial: new FormControl(
         {
-          value: holder?.otherOrInitial || '',
+          value: holder?._hiddenOtherOrInitial ?? null,
           disabled,
         },
         [personOrEntityValidator()],
       ),
-      surname: new FormControl(
-        { value: holder?.surname || '', disabled },
+      _hiddenSurname: new FormControl(
+        { value: holder?._hiddenSurname ?? null, disabled },
 
         [personOrEntityValidator()],
       ),
-      nameOfEntity: new FormControl(
+      _hiddenNameOfEntity: new FormControl(
         {
-          value: holder?.nameOfEntity || '',
+          value: holder?._hiddenNameOfEntity ?? null,
           disabled,
         },
 
@@ -4415,23 +4445,36 @@ export class EditFormComponent implements AfterViewChecked {
         value: source?._id ?? getFormGroupId(),
         disabled: false,
       }),
-      partyKey: new FormControl({ value: source?.partyKey || '', disabled }),
-      givenName: new FormControl({ value: source?.givenName || '', disabled }),
-      otherOrInitial: new FormControl({
-        value: source?.otherOrInitial || '',
+      linkToSub: new FormControl({
+        value: source?.linkToSub ?? null,
         disabled,
       }),
-      surname: new FormControl({ value: source?.surname || '', disabled }),
-      nameOfEntity: new FormControl({
-        value: source?.nameOfEntity || '',
+      _hiddenPartyKey: new FormControl({
+        value: source?._hiddenPartyKey ?? null,
+        disabled,
+      }),
+      _hiddenGivenName: new FormControl({
+        value: source?._hiddenGivenName ?? null,
+        disabled,
+      }),
+      _hiddenOtherOrInitial: new FormControl({
+        value: source?._hiddenOtherOrInitial ?? null,
+        disabled,
+      }),
+      _hiddenSurname: new FormControl({
+        value: source?._hiddenSurname ?? null,
+        disabled,
+      }),
+      _hiddenNameOfEntity: new FormControl({
+        value: source?._hiddenNameOfEntity ?? null,
         disabled,
       }),
       accountNumber: new FormControl({
-        value: source?.accountNumber || '',
+        value: source?.accountNumber ?? null,
         disabled,
       }),
       identifyingNumber: new FormControl({
-        value: source?.identifyingNumber || '',
+        value: source?.identifyingNumber ?? null,
         disabled,
       }),
     }) satisfies FormGroup<TypedForm<SourceOfFunds>>;
@@ -4451,18 +4494,28 @@ export class EditFormComponent implements AfterViewChecked {
         value: conductor?._id ?? getFormGroupId(),
         disabled: false,
       }),
-      partyKey: new FormControl({ value: conductor?.partyKey || '', disabled }),
-      givenName: new FormControl({
-        value: conductor?.givenName || '',
+      linkToSub: new FormControl({
+        value: conductor?.linkToSub ?? null,
         disabled,
       }),
-      otherOrInitial: new FormControl({
-        value: conductor?.otherOrInitial || '',
+      _hiddenPartyKey: new FormControl({
+        value: conductor?._hiddenPartyKey ?? null,
         disabled,
       }),
-      surname: new FormControl({ value: conductor?.surname || '', disabled }),
-      nameOfEntity: new FormControl({
-        value: conductor?.nameOfEntity || '',
+      _hiddenGivenName: new FormControl({
+        value: conductor?._hiddenGivenName ?? null,
+        disabled,
+      }),
+      _hiddenOtherOrInitial: new FormControl({
+        value: conductor?._hiddenOtherOrInitial ?? null,
+        disabled,
+      }),
+      _hiddenSurname: new FormControl({
+        value: conductor?._hiddenSurname ?? null,
+        disabled,
+      }),
+      _hiddenNameOfEntity: new FormControl({
+        value: conductor?._hiddenNameOfEntity ?? null,
         disabled,
       }),
       wasConductedOnBehalf: new FormControl({
@@ -4503,15 +4556,24 @@ export class EditFormComponent implements AfterViewChecked {
         value: behalf?._id ?? getFormGroupId(),
         disabled: false,
       }),
-      partyKey: new FormControl({ value: behalf?.partyKey || '', disabled }),
-      givenName: new FormControl({ value: behalf?.givenName || '', disabled }),
-      otherOrInitial: new FormControl({
-        value: behalf?.otherOrInitial || '',
+      _hiddenPartyKey: new FormControl({
+        value: behalf?._hiddenPartyKey ?? null,
         disabled,
       }),
-      surname: new FormControl({ value: behalf?.surname || '', disabled }),
-      nameOfEntity: new FormControl({
-        value: behalf?.nameOfEntity || '',
+      _hiddenGivenName: new FormControl({
+        value: behalf?._hiddenGivenName ?? null,
+        disabled,
+      }),
+      _hiddenOtherOrInitial: new FormControl({
+        value: behalf?._hiddenOtherOrInitial ?? null,
+        disabled,
+      }),
+      _hiddenSurname: new FormControl({
+        value: behalf?._hiddenSurname ?? null,
+        disabled,
+      }),
+      _hiddenNameOfEntity: new FormControl({
+        value: behalf?._hiddenNameOfEntity ?? null,
         disabled,
       }),
     }) satisfies FormGroup<TypedForm<OnBehalfOf>>;
@@ -4530,26 +4592,36 @@ export class EditFormComponent implements AfterViewChecked {
         value: involved?._id ?? getFormGroupId(),
         disabled: false,
       }),
-      partyKey: new FormControl({ value: involved?.partyKey || '', disabled }),
-      givenName: new FormControl({
-        value: involved?.givenName || '',
+      linkToSub: new FormControl({
+        value: involved?.linkToSub ?? null,
         disabled,
       }),
-      otherOrInitial: new FormControl({
-        value: involved?.otherOrInitial || '',
+      _hiddenPartyKey: new FormControl({
+        value: involved?._hiddenPartyKey ?? null,
         disabled,
       }),
-      surname: new FormControl({ value: involved?.surname || '', disabled }),
-      nameOfEntity: new FormControl({
-        value: involved?.nameOfEntity || '',
+      _hiddenGivenName: new FormControl({
+        value: involved?._hiddenGivenName ?? null,
+        disabled,
+      }),
+      _hiddenOtherOrInitial: new FormControl({
+        value: involved?._hiddenOtherOrInitial ?? null,
+        disabled,
+      }),
+      _hiddenSurname: new FormControl({
+        value: involved?._hiddenSurname ?? null,
+        disabled,
+      }),
+      _hiddenNameOfEntity: new FormControl({
+        value: involved?._hiddenNameOfEntity ?? null,
         disabled,
       }),
       accountNumber: new FormControl({
-        value: involved?.accountNumber || '',
+        value: involved?.accountNumber ?? null,
         disabled,
       }),
       identifyingNumber: new FormControl({
-        value: involved?.identifyingNumber || '',
+        value: involved?.identifyingNumber ?? null,
         disabled,
       }),
     }) satisfies FormGroup<TypedForm<InvolvedIn>>;
@@ -4569,21 +4641,28 @@ export class EditFormComponent implements AfterViewChecked {
         value: beneficiary?._id ?? getFormGroupId(),
         disabled: false,
       }),
-      partyKey: new FormControl({
-        value: beneficiary?.partyKey || '',
+      linkToSub: new FormControl({
+        value: beneficiary?.linkToSub ?? null,
         disabled,
       }),
-      givenName: new FormControl({
-        value: beneficiary?.givenName || '',
+      _hiddenPartyKey: new FormControl({
+        value: beneficiary?._hiddenPartyKey ?? null,
         disabled,
       }),
-      otherOrInitial: new FormControl({
-        value: beneficiary?.otherOrInitial || '',
+      _hiddenGivenName: new FormControl({
+        value: beneficiary?._hiddenGivenName ?? null,
         disabled,
       }),
-      surname: new FormControl({ value: beneficiary?.surname || '', disabled }),
-      nameOfEntity: new FormControl({
-        value: beneficiary?.nameOfEntity || '',
+      _hiddenOtherOrInitial: new FormControl({
+        value: beneficiary?._hiddenOtherOrInitial ?? null,
+        disabled,
+      }),
+      _hiddenSurname: new FormControl({
+        value: beneficiary?._hiddenSurname ?? null,
+        disabled,
+      }),
+      _hiddenNameOfEntity: new FormControl({
+        value: beneficiary?._hiddenNameOfEntity ?? null,
         disabled,
       }),
     }) satisfies FormGroup<TypedForm<Beneficiary>>;
@@ -5082,6 +5161,7 @@ export class EditFormComponent implements AfterViewChecked {
       this.selectedTransactionsForBulkEditLength !== 1 ? 's' : ''
     } selected`;
   }
+  readonly maxDate = new Date();
 }
 
 function dateValidator(): ValidatorFn {
@@ -5144,6 +5224,26 @@ function conductorValidator(): ValidatorFn {
         missingConductorInfo: true,
       },
       () => hasMissingConductorInfo(value),
+    );
+
+    return null;
+  };
+}
+
+function chequeValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const saControl = control as FormGroup<
+      TypedForm<RecursiveOmit<StartingAction, keyof ConductorNpdData>>
+    >;
+
+    if (!saControl.value) return null;
+
+    setError(
+      saControl.controls.typeOfFunds,
+      {
+        missingCheque: 'Missing cheque info',
+      },
+      () => hasMissingCheque(saControl.value as StartingAction),
     );
 
     return null;
@@ -5273,7 +5373,7 @@ export const singleEditTypeResolver: ResolveFn<EditFormEditType> = (
           route.params['transactionId'] === txn.flowOfFundsAmlTransactionId,
       );
 
-      if (!strTransaction) throw new Error('Transaction not found');
+      if (!strTransaction) throw new Error('Transaction record not found');
 
       return {
         type: 'SINGLE_SAVE',
@@ -5322,7 +5422,7 @@ export const auditResolver: ResolveFn<EditFormEditType> = (
         (txn) =>
           route.params['transactionId'] === txn.flowOfFundsAmlTransactionId,
       );
-      if (!strTransaction) throw new Error('Transaction not found');
+      if (!strTransaction) throw new Error('Transaction record not found');
       return {
         type: 'AUDIT_REQUEST',
         payload: structuredClone(

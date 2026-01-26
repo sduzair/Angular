@@ -2,9 +2,7 @@ import { forkJoin, map, Observable, of, switchMap } from 'rxjs';
 import { StrTransactionWithChangeLogs } from '../../aml/case-record.store';
 import {
   FORM_OPTIONS_DETAILS_OF_DISPOSITION,
-  FORM_OPTIONS_DIRECTION,
   FORM_OPTIONS_METHOD_OF_TXN,
-  FORM_OPTIONS_TYPE_OF_FUNDS,
 } from '../../reporting-ui/edit-form/form-options.service';
 import {
   AccountHolder,
@@ -16,21 +14,18 @@ import {
   AbmSourceData,
   FlowOfFundsSourceData,
   GetAccountInfoRes,
-  GetPartyInfoRes,
 } from '../../transaction-search/transaction-search.service';
+import { PartyGenType } from './party-gen.service';
 
 /**
  * Transform source transaction into StrTransactionWithChangeLogs format
- * @param sourceTxn - Source transaction from transaction search
- * @param getPartyInfo - Method to fetch party information by partyKey
- * @param getAccountInfo - Method to fetch account information
- * @param caseRecordId - The case record ID to associate with this transaction
- * @returns Observable of transformed transaction
  */
 export function transformABMToStrTransaction(
   sourceTxn: AbmSourceData,
   fofTxn: FlowOfFundsSourceData,
-  getPartyInfo: (partyKey: string) => Observable<GetPartyInfoRes>,
+  generateParty: (
+    party: Omit<PartyGenType, 'partyIdentifier'>,
+  ) => Observable<PartyGenType>,
   getAccountInfo: (account: string) => Observable<GetAccountInfoRes>,
   caseRecordId: string,
 ): Observable<StrTransactionWithChangeLogs> {
@@ -44,16 +39,14 @@ export function transformABMToStrTransaction(
   }
 
   // Add starting action account holders
-  if (sourceTxn.strSaAccountHoldersCifId) {
-    const holders = sourceTxn.strSaAccountHoldersCifId.split(/[;:]/);
-    holders.forEach((h) => partyKeysToFetch.add(h.trim()));
-  }
+  sourceTxn.strSaAccountHoldersCifId
+    ?.split(/[;:]/)
+    .forEach((h) => partyKeysToFetch.add(h.trim()));
 
   // Add completing action account holders
-  if (sourceTxn.strCaAccountHolderCifId) {
-    const holders = sourceTxn.strCaAccountHolderCifId.split(/[;:]/);
-    holders.forEach((h) => partyKeysToFetch.add(h.trim()));
-  }
+  sourceTxn.strCaAccountHolderCifId
+    ?.split(/[;:]/)
+    .forEach((h) => partyKeysToFetch.add(h.trim()));
 
   // Add starting action account fetch
   if (sourceTxn.strSaAccount) {
@@ -92,81 +85,75 @@ export function transformABMToStrTransaction(
       // Fetch all party info in parallel
       const partyInfoObservables: Record<
         string,
-        Observable<GetPartyInfoRes | null>
+        Observable<PartyGenType | null>
       > = {};
-      Array.from(partyKeysToFetch).forEach((key) => {
-        partyInfoObservables[key] = getPartyInfo(key);
+      Array.from(partyKeysToFetch).forEach((partyKey) => {
+        partyInfoObservables[partyKey] = generateParty({
+          identifiers: { partyKey },
+        });
       });
+
       return forkJoin({
         partiesInfo:
-          partyKeysToFetch.size > 0
+          Object.keys(partyInfoObservables).length > 0
             ? forkJoin(partyInfoObservables)
-            : of({} as Record<string, GetPartyInfoRes | null>),
+            : of({} as Record<string, PartyGenType | null>),
       }).pipe(map(({ partiesInfo }) => ({ partiesInfo, accountsInfo })));
     }),
     map(({ partiesInfo, accountsInfo }) => {
-      // Helper to map party info
-      const mapPartyInfo = (
-        partyKey: string | null,
-      ): {
-        partyKey: string | null;
-        surname: string | null;
-        givenName: string | null;
-        otherOrInitial: string | null;
-        nameOfEntity: string | null;
-      } => {
-        if (!partyKey) {
-          return {
-            partyKey: null,
-            surname: null,
-            givenName: null,
-            otherOrInitial: null,
-            nameOfEntity: null,
-          };
-        }
-        const info = partiesInfo[partyKey];
-        return {
-          partyKey,
-          surname: info?.surname || null,
-          givenName: info?.givenName || null,
-          otherOrInitial: info?.otherOrInitial || null,
-          nameOfEntity: info?.nameOfEntity || null,
-        };
-      };
-
-      const dispositionType =
-        sourceTxn.strCaDispositionType as FORM_OPTIONS_DETAILS_OF_DISPOSITION;
       // Build starting actions
       const startingActions: StartingAction[] = [];
 
       const saAccountInfo = accountsInfo[sourceTxn.strSaAccount!];
 
-      const saAccountHolders: AccountHolder[] = [];
-      if (sourceTxn.strSaAccountHoldersCifId) {
-        const holderKeys = sourceTxn.strSaAccountHoldersCifId.split(/[;:]/);
-        holderKeys.forEach((key) => {
-          saAccountHolders.push(mapPartyInfo(key.trim()));
-        });
-      }
+      const saAccountHolders =
+        sourceTxn.strSaAccountHoldersCifId
+          ?.split(/[;:]/)
+          .reduce((acc, partyKey) => {
+            acc.push({
+              linkToSub: partiesInfo[partyKey]?.partyIdentifier,
+              _hiddenPartyKey: partiesInfo[partyKey]?.identifiers?.partyKey!,
+              _hiddenGivenName:
+                partiesInfo[partyKey]?.partyName?.givenName ?? null,
+              _hiddenSurname: partiesInfo[partyKey]?.partyName?.surname ?? null,
+              _hiddenOtherOrInitial:
+                partiesInfo[partyKey]?.partyName?.otherOrInitial ?? null,
+              _hiddenNameOfEntity:
+                partiesInfo[partyKey]?.partyName?.nameOfEntity ?? null,
+            });
+            return acc;
+          }, [] as AccountHolder[]) ?? [];
 
       const conductors: Conductor[] = [];
-      if (sourceTxn.flowOfFundsConductorPartyKey) {
-        const conductorInfo = mapPartyInfo(
-          String(sourceTxn.flowOfFundsConductorPartyKey),
-        );
-        conductors.push({
-          ...conductorInfo,
-          wasConductedOnBehalf: false,
-          onBehalfOf: [],
-          npdTypeOfDevice: null,
-          npdTypeOfDeviceOther: null,
-          npdDeviceIdNo: null,
-          npdUsername: null,
-          npdIp: null,
-          npdDateTimeSession: null,
-          npdTimeZone: null,
-        });
-      }
+      conductors.push({
+        linkToSub:
+          partiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
+            ?.partyIdentifier,
+        _hiddenPartyKey:
+          partiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
+            ?.identifiers?.partyKey!,
+        _hiddenGivenName:
+          partiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]?.partyName
+            ?.givenName!,
+        _hiddenSurname:
+          partiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]?.partyName
+            ?.surname!,
+        _hiddenOtherOrInitial:
+          partiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]?.partyName
+            ?.otherOrInitial!,
+        _hiddenNameOfEntity:
+          partiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]?.partyName
+            ?.nameOfEntity!,
+        wasConductedOnBehalf: false,
+        onBehalfOf: [],
+        npdTypeOfDevice: null,
+        npdTypeOfDeviceOther: null,
+        npdDeviceIdNo: null,
+        npdUsername: null,
+        npdIp: null,
+        npdDateTimeSession: null,
+        npdTimeZone: null,
+      });
 
       startingActions.push({
         directionOfSA: sourceTxn.strSaDirection,
@@ -198,13 +185,23 @@ export function transformABMToStrTransaction(
 
       const caAccountInfo = accountsInfo[sourceTxn.strCaAccount!];
 
-      const caAccountHolders: AccountHolder[] = [];
-      if (sourceTxn.strCaAccountHolderCifId) {
-        const holderKeys = sourceTxn.strCaAccountHolderCifId.split(/[;:]/);
-        holderKeys.forEach((key) => {
-          caAccountHolders.push(mapPartyInfo(key.trim()));
-        });
-      }
+      const caAccountHolders =
+        sourceTxn.strCaAccountHolderCifId
+          ?.split(/[;:]/)
+          .reduce((acc, partyKey) => {
+            acc.push({
+              linkToSub: partiesInfo[partyKey]?.partyIdentifier,
+              _hiddenPartyKey: partiesInfo[partyKey]?.identifiers?.partyKey!,
+              _hiddenGivenName:
+                partiesInfo[partyKey]?.partyName?.givenName ?? null,
+              _hiddenSurname: partiesInfo[partyKey]?.partyName?.surname ?? null,
+              _hiddenOtherOrInitial:
+                partiesInfo[partyKey]?.partyName?.otherOrInitial ?? null,
+              _hiddenNameOfEntity:
+                partiesInfo[partyKey]?.partyName?.nameOfEntity ?? null,
+            });
+            return acc;
+          }, [] as AccountHolder[]) ?? [];
 
       completingActions.push({
         detailsOfDispo: sourceTxn.strCaDispositionType,
@@ -228,7 +225,8 @@ export function transformABMToStrTransaction(
         involvedIn: [],
         wasBenInfoObtained: true,
         beneficiaries:
-          dispositionType === 'Cash Withdrawal (account based)'
+          (sourceTxn.strCaDispositionType as FORM_OPTIONS_DETAILS_OF_DISPOSITION) ===
+          'Cash Withdrawal (account based)'
             ? conductors
             : caAccountHolders,
       });

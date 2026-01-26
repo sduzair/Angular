@@ -1,6 +1,5 @@
 import { FormGroup } from '@angular/forms';
 import {
-  AccountHolder,
   CompletingAction,
   ConductorNpdData,
   StartingAction,
@@ -11,10 +10,22 @@ import {
   FORM_OPTIONS_TYPE_OF_FUNDS,
 } from './form-options.service';
 
-export const hasPersonName = (cond: AccountHolder) =>
-  !!cond.givenName && !!cond.surname && (true || !!cond.otherOrInitial);
+export const hasPersonName = (cond: {
+  _hiddenSurname?: string | null;
+  _hiddenGivenName?: string | null;
+  _hiddenOtherOrInitial?: string | null;
+  _hiddenNameOfEntity?: string | null;
+}) =>
+  !!cond._hiddenGivenName &&
+  !!cond._hiddenSurname &&
+  (true || !!cond._hiddenOtherOrInitial);
 
-export const hasEntityName = (cond: AccountHolder) => !!cond.nameOfEntity;
+export const hasEntityName = (cond: {
+  _hiddenSurname?: string | null;
+  _hiddenGivenName?: string | null;
+  _hiddenOtherOrInitial?: string | null;
+  _hiddenNameOfEntity?: string | null;
+}) => !!cond._hiddenNameOfEntity;
 
 export function hasMissingConductorInfo(
   value: RecursiveOmit<StartingAction, keyof ConductorNpdData>,
@@ -44,7 +55,6 @@ export function hasMissingAccountInfo(
     (action.detailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION) ===
       'Deposit to account';
 
-  // todo: check for account holder
   if (
     (isDepositToAccount || action.fiuNo === '010') &&
     (!action.branch ||
@@ -57,6 +67,8 @@ export function hasMissingAccountInfo(
       (action.accountStatus === 'Closed' && !action.accountClose))
   )
     return true;
+
+  if ((action.accountHolders ?? []).some(hasMissingHolderInfo)) return true;
 
   return false;
 }
@@ -90,7 +102,21 @@ export function hasMissingCheque(action: StartingAction) {
   )
     return false;
 
-  if (!action.branch && !action.account && !action.accountType) return true;
+  if (!action.fiuNo || !action.branch || !action.account || !action.accountType)
+    return true;
+
+  if ((action.accountHolders ?? []).length == 0) return true;
+
+  if ((action.accountHolders ?? []).some(hasMissingHolderInfo)) return true;
 
   return false;
+}
+
+function hasMissingHolderInfo(value: {
+  _hiddenSurname?: string | null;
+  _hiddenGivenName?: string | null;
+  _hiddenOtherOrInitial?: string | null;
+  _hiddenNameOfEntity?: string | null;
+}): boolean {
+  return !hasPersonName(value) && !hasEntityName(value);
 }

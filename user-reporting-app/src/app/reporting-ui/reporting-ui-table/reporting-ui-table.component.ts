@@ -296,11 +296,11 @@ export class ReportingUiTableComponent implements AfterViewInit {
     'startingActions.0.accountOpen',
     'startingActions.0.accountClose',
 
-    'startingActions.0.conductors.0.partyKey',
-    'startingActions.0.conductors.0.givenName',
-    'startingActions.0.conductors.0.surname',
-    'startingActions.0.conductors.0.otherOrInitial',
-    'startingActions.0.conductors.0.nameOfEntity',
+    'startingActions.0.conductors.0._hiddenPartyKey',
+    'startingActions.0.conductors.0._hiddenGivenName',
+    'startingActions.0.conductors.0._hiddenSurname',
+    'startingActions.0.conductors.0._hiddenOtherOrInitial',
+    'startingActions.0.conductors.0._hiddenNameOfEntity',
 
     'completingActions.0.detailsOfDispo',
     'completingActions.0.amount',
@@ -315,11 +315,11 @@ export class ReportingUiTableComponent implements AfterViewInit {
     'completingActions.0.accountOpen',
     'completingActions.0.accountClose',
 
-    'completingActions.0.beneficiaries.0.partyKey',
-    'completingActions.0.beneficiaries.0.givenName',
-    'completingActions.0.beneficiaries.0.surname',
-    'completingActions.0.beneficiaries.0.otherOrInitial',
-    'completingActions.0.beneficiaries.0.nameOfEntity',
+    'completingActions.0.beneficiaries.0._hiddenPartyKey',
+    'completingActions.0.beneficiaries.0._hiddenGivenName',
+    'completingActions.0.beneficiaries.0._hiddenSurname',
+    'completingActions.0.beneficiaries.0._hiddenOtherOrInitial',
+    'completingActions.0.beneficiaries.0._hiddenNameOfEntity',
     'flowOfFundsAmlId',
     'reportingEntityTxnRefNo',
   ];
@@ -367,12 +367,15 @@ export class ReportingUiTableComponent implements AfterViewInit {
     'startingActions.0.accountOpen': 'Debit Account Open' as const,
     'startingActions.0.accountClose': 'Debit Account Close' as const,
 
-    'startingActions.0.conductors.0.partyKey': 'Conductor Party Key' as const,
-    'startingActions.0.conductors.0.givenName': 'Conductor Given Name' as const,
-    'startingActions.0.conductors.0.surname': 'Conductor Surname' as const,
-    'startingActions.0.conductors.0.otherOrInitial':
+    'startingActions.0.conductors.0._hiddenPartyKey':
+      'Conductor Party Key' as const,
+    'startingActions.0.conductors.0._hiddenGivenName':
+      'Conductor Given Name' as const,
+    'startingActions.0.conductors.0._hiddenSurname':
+      'Conductor Surname' as const,
+    'startingActions.0.conductors.0._hiddenOtherOrInitial':
       'Conductor Other Name' as const,
-    'startingActions.0.conductors.0.nameOfEntity':
+    'startingActions.0.conductors.0._hiddenNameOfEntity':
       'Conductor Entity Name' as const,
 
     'completingActions.0.detailsOfDispo': 'Disposition Details' as const,
@@ -392,15 +395,15 @@ export class ReportingUiTableComponent implements AfterViewInit {
     'completingActions.0.accountOpen': 'Credit Account Open' as const,
     'completingActions.0.accountClose': 'Credit Account Close' as const,
 
-    'completingActions.0.beneficiaries.0.partyKey':
+    'completingActions.0.beneficiaries.0._hiddenPartyKey':
       'Beneficiary Party Key' as const,
-    'completingActions.0.beneficiaries.0.givenName':
+    'completingActions.0.beneficiaries.0._hiddenGivenName':
       'Beneficiary Given Name' as const,
-    'completingActions.0.beneficiaries.0.surname':
+    'completingActions.0.beneficiaries.0._hiddenSurname':
       'Beneficiary Surname' as const,
-    'completingActions.0.beneficiaries.0.otherOrInitial':
+    'completingActions.0.beneficiaries.0._hiddenOtherOrInitial':
       'Beneficiary Other Name' as const,
-    'completingActions.0.beneficiaries.0.nameOfEntity':
+    'completingActions.0.beneficiaries.0._hiddenNameOfEntity':
       'Beneficiary Entity Name' as const,
     'completingActions.0.wasAnyOtherSubInvolved':
       'Was there any other person or entity involved in the completing action?' as const,
@@ -437,11 +440,11 @@ export class ReportingUiTableComponent implements AfterViewInit {
     'startingActions.0.accountCurrency',
     'startingActions.0.accountStatus',
 
-    'startingActions.0.conductors.0.partyKey',
-    'startingActions.0.conductors.0.givenName',
-    'startingActions.0.conductors.0.surname',
-    'startingActions.0.conductors.0.otherOrInitial',
-    'startingActions.0.conductors.0.nameOfEntity',
+    'startingActions.0.conductors.0._hiddenPartyKey',
+    'startingActions.0.conductors.0._hiddenGivenName',
+    'startingActions.0.conductors.0._hiddenSurname',
+    'startingActions.0.conductors.0._hiddenOtherOrInitial',
+    'startingActions.0.conductors.0._hiddenNameOfEntity',
 
     'completingActions.0.detailsOfDispo',
     'completingActions.0.amount',
@@ -454,11 +457,11 @@ export class ReportingUiTableComponent implements AfterViewInit {
     'completingActions.0.accountCurrency',
     'completingActions.0.accountStatus',
 
-    'completingActions.0.beneficiaries.0.partyKey',
-    'completingActions.0.beneficiaries.0.givenName',
-    'completingActions.0.beneficiaries.0.surname',
-    'completingActions.0.beneficiaries.0.otherOrInitial',
-    'completingActions.0.beneficiaries.0.nameOfEntity',
+    'completingActions.0.beneficiaries.0._hiddenPartyKey',
+    'completingActions.0.beneficiaries.0._hiddenGivenName',
+    'completingActions.0.beneficiaries.0._hiddenSurname',
+    'completingActions.0.beneficiaries.0._hiddenOtherOrInitial',
+    'completingActions.0.beneficiaries.0._hiddenNameOfEntity',
     'flowOfFundsSource',
     'flowOfFundsAmlId',
   ];
@@ -707,21 +710,23 @@ export interface StartingAction {
   conductors?: Conductor[];
 }
 export interface AccountHolder {
+  linkToSub?: string;
   _id?: string;
-  partyKey: string | null;
-  surname: string | null;
-  givenName: string | null;
-  otherOrInitial: string | null;
-  nameOfEntity: string | null;
+  _hiddenPartyKey: string | null;
+  _hiddenSurname: string | null;
+  _hiddenGivenName: string | null;
+  _hiddenOtherOrInitial: string | null;
+  _hiddenNameOfEntity: string | null;
 }
 
 export type Conductor = {
+  linkToSub?: string;
   _id?: string;
-  partyKey: string | null;
-  surname: string | null;
-  givenName: string | null;
-  otherOrInitial: string | null;
-  nameOfEntity: string | null;
+  _hiddenPartyKey: string | null;
+  _hiddenSurname: string | null;
+  _hiddenGivenName: string | null;
+  _hiddenOtherOrInitial: string | null;
+  _hiddenNameOfEntity: string | null;
   wasConductedOnBehalf: boolean | null;
   onBehalfOf?: OnBehalfOf[] | null;
 } & ConductorNpdData;
@@ -737,23 +742,24 @@ export interface ConductorNpdData {
 }
 
 export interface SourceOfFunds {
+  linkToSub?: string;
   _id?: string;
-  partyKey: string | null;
-  surname: string | null;
-  givenName: string | null;
-  otherOrInitial: string | null;
-  nameOfEntity: string | null;
+  _hiddenPartyKey: string | null;
+  _hiddenSurname: string | null;
+  _hiddenGivenName: string | null;
+  _hiddenOtherOrInitial: string | null;
+  _hiddenNameOfEntity: string | null;
   accountNumber: string | null;
   identifyingNumber: string | null;
 }
 
 export interface OnBehalfOf {
   _id?: string;
-  partyKey: string | null;
-  surname: string | null;
-  givenName: string | null;
-  otherOrInitial: string | null;
-  nameOfEntity: string | null;
+  _hiddenPartyKey: string | null;
+  _hiddenSurname: string | null;
+  _hiddenGivenName: string | null;
+  _hiddenOtherOrInitial: string | null;
+  _hiddenNameOfEntity: string | null;
 }
 
 export interface CompletingAction {
@@ -782,23 +788,25 @@ export interface CompletingAction {
 }
 
 export interface InvolvedIn {
+  linkToSub?: string;
   _id?: string;
-  partyKey: string | null;
-  surname: string | null;
-  givenName: string | null;
-  otherOrInitial: string | null;
-  nameOfEntity: string | null;
+  _hiddenPartyKey: string | null;
+  _hiddenSurname: string | null;
+  _hiddenGivenName: string | null;
+  _hiddenOtherOrInitial: string | null;
+  _hiddenNameOfEntity: string | null;
   accountNumber: string | null;
   identifyingNumber: string | null;
 }
 
 export interface Beneficiary {
+  linkToSub?: string;
   _id?: string;
-  partyKey: string | null;
-  surname: string | null;
-  givenName: string | null;
-  otherOrInitial: string | null;
-  nameOfEntity: string | null;
+  _hiddenPartyKey: string | null;
+  _hiddenSurname: string | null;
+  _hiddenGivenName: string | null;
+  _hiddenOtherOrInitial: string | null;
+  _hiddenNameOfEntity: string | null;
 }
 
 export type StrTransactionDataColumnKey =

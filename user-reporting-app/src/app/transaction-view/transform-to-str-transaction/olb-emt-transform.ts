@@ -8,7 +8,6 @@ import {
 } from '../../reporting-ui/edit-form/form-options.service';
 import {
   AccountHolder,
-  Beneficiary,
   CompletingAction,
   Conductor,
   StartingAction,
@@ -17,28 +16,31 @@ import {
   EmtSourceData,
   FlowOfFundsSourceData,
   GetAccountInfoRes,
-  GetPartyInfoRes,
   OlbSourceData,
   SEARCH_SOURCE_ID,
 } from '../../transaction-search/transaction-search.service';
+import { PartyGenType, PartyName } from './party-gen.service';
 
 /**
  * Transform OLB/EMT source transactions into StrTransactionWithChangeLogs format
- * @param olbTxn - OLB transaction record
- * @param emtTxn - EMT transaction record (matched by flowOfFundsAmlTransactionId)
- * @param getPartyInfo - Method to fetch party information by partyKey
- * @param getAccountInfo - Method to fetch account information
- * @param caseRecordId - The case record ID to associate with this transaction
- * @returns Observable of transformed transaction
  */
-export function transformOlbEmtToStrTransaction(
-  olbTxn: OlbSourceData,
-  fofTxn: FlowOfFundsSourceData,
-  emtTxn: EmtSourceData,
-  getPartyInfo: (partyKey: string) => Observable<GetPartyInfoRes>,
-  getAccountInfo: (account: string) => Observable<GetAccountInfoRes>,
-  caseRecordId: string,
-): Observable<StrTransactionWithChangeLogs> {
+export function transformOlbEmtToStrTransaction({
+  olbTxn,
+  fofTxn,
+  emtTxn,
+  generateParty,
+  getAccountInfo,
+  caseRecordId,
+}: {
+  olbTxn: OlbSourceData;
+  fofTxn: FlowOfFundsSourceData;
+  emtTxn: EmtSourceData;
+  generateParty: (
+    party: Omit<PartyGenType, 'partyIdentifier'>,
+  ) => Observable<PartyGenType>;
+  getAccountInfo: (account: string) => Observable<GetAccountInfoRes>;
+  caseRecordId: string;
+}): Observable<StrTransactionWithChangeLogs> {
   const isIncoming = olbTxn.strSaDirection === 'In';
   const isOutgoing = olbTxn.strSaDirection === 'Out';
   const isSenderCibc = emtTxn.senderFiNumber === 'CA000010';
@@ -56,44 +58,21 @@ export function transformOlbEmtToStrTransaction(
     partyKeysToFetch.add(emtTxn.conductorEcif);
   }
 
-  // For INCOMING transactions
-  if (isIncoming) {
-    // Recipient account holders (case party - CIBC account)
-    if (olbTxn.customer2AccountHolderCifId) {
-      const holders = olbTxn.customer2AccountHolderCifId.split(/[;:]/);
-      holders.forEach((h) => partyKeysToFetch.add(h.trim()));
-    }
+  // Recipient account holders
+  olbTxn.customer2AccountHolderCifId
+    ?.split(/[;:]/)
+    .forEach((h) => partyKeysToFetch.add(h.trim()));
 
-    // Recipient account (CIBC)
-    accountsToFetch.add(emtTxn.recipientAccountNumber?.split('-').at(-1)!);
-    console.assert(
-      isRecipientCibc && !!emtTxn.recipientAccountNumber,
-      'Assert recipient is cibc',
-    );
+  // Sender account holders
+  olbTxn.customer1AccountHolderCifId
+    ?.split(/[;:]/)
+    .forEach((h) => partyKeysToFetch.add(h.trim()));
 
-    // Sender account (if CIBC)
-    if (isSenderCibc) {
-      accountsToFetch.add(emtTxn.senderAccountNumber?.split('-').at(-1)!);
-    }
-  }
-
-  // For OUTGOING transactions
-  if (isOutgoing) {
-    // Sender account holders (case party - CIBC account)
-    if (olbTxn.customer1AccountHolderCifId) {
-      const holders = olbTxn.customer1AccountHolderCifId.split(/[;:]/);
-      holders.forEach((h) => partyKeysToFetch.add(h.trim()));
-    }
-
-    // Sender account (CIBC)
+  if (isSenderCibc)
     accountsToFetch.add(emtTxn.senderAccountNumber?.split('-').at(-1)!);
-    console.assert(isSenderCibc && !!emtTxn.senderAccountNumber);
 
-    // Recipient account (if CIBC)
-    if (isRecipientCibc) {
-      accountsToFetch.add(emtTxn.recipientAccountNumber?.split('-').at(-1)!);
-    }
-  }
+  if (isRecipientCibc)
+    accountsToFetch.add(emtTxn.recipientAccountNumber?.split('-').at(-1)!);
 
   // Fetch all account info in parallel
   const accountInfoObservables: Record<
@@ -121,80 +100,43 @@ export function transformOlbEmtToStrTransaction(
       // Fetch all party info in parallel
       const partyInfoObservables: Record<
         string,
-        Observable<GetPartyInfoRes | null>
+        Observable<PartyGenType | null>
       > = {};
-      Array.from(partyKeysToFetch).forEach((key) => {
-        partyInfoObservables[key] = getPartyInfo(key);
+      Array.from(partyKeysToFetch).forEach((partyKey) => {
+        partyInfoObservables[partyKey] = generateParty({
+          identifiers: { partyKey },
+        });
       });
+
+      if (isIncoming && !isSenderCibc) {
+        partyInfoObservables[emtTxn.senderCertapayAccount] = generateParty({
+          identifiers: { certapayAccount: emtTxn.senderCertapayAccount },
+          contact: { email: emtTxn.senderEmail },
+          partyName: { ...parsePartyNameFromEmt(emtTxn.senderName) },
+        });
+      }
+
+      if (isOutgoing && !isRecipientCibc) {
+        partyInfoObservables[emtTxn.recipientCertapayAccount] = generateParty({
+          identifiers: { certapayAccount: emtTxn.recipientCertapayAccount },
+          contact: { email: emtTxn.recipientEmail },
+          partyName: { ...parsePartyNameFromEmt(emtTxn.recipientName) },
+        });
+      }
+
       return forkJoin({
         partiesInfo:
-          partyKeysToFetch.size > 0
+          Object.keys(partyInfoObservables).length > 0
             ? forkJoin(partyInfoObservables)
-            : of({} as Record<string, GetPartyInfoRes | null>),
+            : of({} as Record<string, PartyGenType | null>),
       }).pipe(map(({ partiesInfo }) => ({ partiesInfo, accountsInfo })));
     }),
     map(({ partiesInfo, accountsInfo }) => {
-      // Helper to map party info
-      const mapPartyInfo = (partyKey: string | null): AccountHolder => {
-        if (!partyKey) {
-          return {
-            partyKey: null,
-            surname: null,
-            givenName: null,
-            otherOrInitial: null,
-            nameOfEntity: null,
-          };
-        }
-        const info = partiesInfo[partyKey];
-        return {
-          partyKey,
-          surname: info?.surname || null,
-          givenName: info?.givenName || null,
-          otherOrInitial: info?.otherOrInitial || null,
-          nameOfEntity: info?.nameOfEntity || null,
-        };
-      };
-
-      // Helper to parse name from EMT data
-      const parseNameFromEmt = (
-        fullName?: string | null,
-      ): {
-        surname: string | null;
-        givenName: string | null;
-        otherOrInitial: string | null;
-        nameOfEntity: string | null;
-      } => {
-        if (!fullName) {
-          return {
-            surname: null,
-            givenName: null,
-            otherOrInitial: null,
-            nameOfEntity: null,
-          };
-        }
-
-        const parts = fullName.trim().split(' ');
-        const givenName = parts[0];
-        const surname = parts.at(-1)!;
-        const otherOrInitial = parts.slice(1, -1).join(' ');
-
-        // todo does not account for businesses
-        return {
-          surname,
-          givenName,
-          otherOrInitial,
-          nameOfEntity: null,
-        };
-      };
-
       // Build starting actions
       const startingActions: StartingAction[] = [];
 
       if (isIncoming && !isSenderCibc) {
         // INCOMING: Sender is starting action
-
-        // For non-CIBC sender, use name from EMT data
-        const emtSenderNameParsed = parseNameFromEmt(emtTxn.senderName);
 
         startingActions.push({
           directionOfSA: 'In',
@@ -220,8 +162,20 @@ export function transformOlbEmtToStrTransaction(
           wasCondInfoObtained: false,
           conductors: [
             {
-              ...emtSenderNameParsed,
-              partyKey: null,
+              linkToSub:
+                partiesInfo[emtTxn.senderCertapayAccount]?.partyIdentifier,
+              _hiddenPartyKey: null,
+              _hiddenGivenName:
+                partiesInfo[emtTxn.senderCertapayAccount]?.partyName
+                  ?.givenName!,
+              _hiddenSurname:
+                partiesInfo[emtTxn.senderCertapayAccount]?.partyName?.surname!,
+              _hiddenOtherOrInitial:
+                partiesInfo[emtTxn.senderCertapayAccount]?.partyName
+                  ?.otherOrInitial!,
+              _hiddenNameOfEntity:
+                partiesInfo[emtTxn.senderCertapayAccount]?.partyName
+                  ?.nameOfEntity!,
               wasConductedOnBehalf: false,
               onBehalfOf: [],
               npdTypeOfDevice: olbTxn.userDeviceType || null,
@@ -231,22 +185,32 @@ export function transformOlbEmtToStrTransaction(
               npdIp: emtTxn.senderIpAddress || olbTxn.ipAddress || null,
               npdDateTimeSession: olbTxn.userSessionDateTimeStr || null,
               npdTimeZone: null,
-            } as Conductor,
+            } satisfies Conductor,
           ],
         });
       }
 
       if (isIncoming && isSenderCibc) {
         // INCOMING: Sender is starting action
-        const senderAccountInfo =
-          accountsInfo[emtTxn.senderAccountNumber?.split('-').at(-1)!];
 
-        // Get sender account holders if CIBC
-        const senderAccountHolders: AccountHolder[] = [];
-
-        senderAccountInfo?.accountHolders.forEach((holder) => {
-          senderAccountHolders.push(mapPartyInfo(holder.partyKey));
-        });
+        // Get sender account holders
+        const senderAccountHolders = accountsInfo[
+          emtTxn.senderAccountNumber?.split('-').at(-1)!
+        ]?.accountHolders.reduce((acc, holder) => {
+          acc.push({
+            linkToSub: partiesInfo[holder.partyKey]?.partyIdentifier,
+            _hiddenPartyKey:
+              partiesInfo[holder.partyKey]?.identifiers?.partyKey!,
+            _hiddenGivenName:
+              partiesInfo[holder.partyKey]?.partyName?.givenName!,
+            _hiddenSurname: partiesInfo[holder.partyKey]?.partyName?.surname!,
+            _hiddenOtherOrInitial:
+              partiesInfo[holder.partyKey]?.partyName?.otherOrInitial!,
+            _hiddenNameOfEntity:
+              partiesInfo[holder.partyKey]?.partyName?.nameOfEntity!,
+          });
+          return acc;
+        }, [] as AccountHolder[]);
 
         startingActions.push({
           directionOfSA: 'In',
@@ -256,33 +220,49 @@ export function transformOlbEmtToStrTransaction(
           amount: olbTxn.strSaAmount,
           currency: olbTxn.strSaCurrency,
           fiuNo: '010',
-          branch: senderAccountInfo?.branch ?? '',
-          account: senderAccountInfo?.account ?? '',
-          accountType: senderAccountInfo?.accountType || null,
+          branch:
+            accountsInfo[emtTxn.senderAccountNumber?.split('-').at(-1)!]
+              ?.branch ?? '',
+          account:
+            accountsInfo[emtTxn.senderAccountNumber?.split('-').at(-1)!]
+              ?.account ?? '',
+          accountType:
+            accountsInfo[emtTxn.senderAccountNumber?.split('-').at(-1)!]
+              ?.accountType || null,
           accountTypeOther: null,
-          accountOpen: senderAccountInfo?.accountOpen || null,
-          accountClose: senderAccountInfo?.accountClose || null,
-          accountStatus: senderAccountInfo?.accountStatus || null,
-          accountCurrency: senderAccountInfo?.accountCurrency ?? '',
+          accountOpen:
+            accountsInfo[emtTxn.senderAccountNumber?.split('-').at(-1)!]
+              ?.accountOpen || null,
+          accountClose:
+            accountsInfo[emtTxn.senderAccountNumber?.split('-').at(-1)!]
+              ?.accountClose || null,
+          accountStatus:
+            accountsInfo[emtTxn.senderAccountNumber?.split('-').at(-1)!]
+              ?.accountStatus || null,
+          accountCurrency:
+            accountsInfo[emtTxn.senderAccountNumber?.split('-').at(-1)!]
+              ?.accountCurrency ?? '',
           howFundsObtained: null,
           hasAccountHolders: true,
           accountHolders: senderAccountHolders,
           wasSofInfoObtained: false,
           sourceOfFunds: [],
           wasCondInfoObtained: true,
-          conductors: senderAccountHolders.map(
+          conductors: senderAccountHolders?.map(
             ({
-              partyKey,
-              givenName,
-              surname,
-              otherOrInitial,
-              nameOfEntity,
+              linkToSub,
+              _hiddenPartyKey,
+              _hiddenGivenName,
+              _hiddenSurname,
+              _hiddenOtherOrInitial,
+              _hiddenNameOfEntity,
             }) => ({
-              partyKey,
-              givenName,
-              surname,
-              otherOrInitial,
-              nameOfEntity,
+              linkToSub,
+              _hiddenPartyKey,
+              _hiddenGivenName,
+              _hiddenSurname,
+              _hiddenOtherOrInitial,
+              _hiddenNameOfEntity,
               wasConductedOnBehalf: false,
               onBehalfOf: [],
               npdTypeOfDevice: olbTxn.userDeviceType || null,
@@ -299,23 +279,35 @@ export function transformOlbEmtToStrTransaction(
 
       if (isOutgoing) {
         // OUTGOING: Sender account (CIBC) is starting action
-        const senderAccountInfo = emtTxn.senderAccountNumber
-          ? accountsInfo[emtTxn.senderAccountNumber.split('-').at(-1)!]
-          : null;
+        const senderAccountInfo =
+          accountsInfo[emtTxn.senderAccountNumber?.split('-').at(-1)!];
 
-        const senderAccountHolders: AccountHolder[] = [];
-        if (olbTxn.customer1AccountHolderCifId) {
-          const holders = olbTxn.customer1AccountHolderCifId.split(/[;:]/);
-          holders.forEach((key) => {
-            senderAccountHolders.push(mapPartyInfo(key.trim()));
-          });
-        }
+        const senderAccountHolders = olbTxn
+          .customer1AccountHolderCifId!.split(/[;:]/)
+          .reduce((acc, partyKey) => {
+            acc.push({
+              linkToSub: partiesInfo[partyKey]?.partyIdentifier,
+              _hiddenPartyKey: partiesInfo[partyKey]?.identifiers?.partyKey!,
+              _hiddenGivenName: partiesInfo[partyKey]?.partyName?.givenName!,
+              _hiddenSurname: partiesInfo[partyKey]?.partyName?.surname!,
+              _hiddenOtherOrInitial:
+                partiesInfo[partyKey]?.partyName?.otherOrInitial!,
+              _hiddenNameOfEntity:
+                partiesInfo[partyKey]?.partyName?.nameOfEntity!,
+            });
+            return acc;
+          }, [] as AccountHolder[]);
 
         // Conductor information (the person who sent the e-transfer)
-        const conductors: Conductor[] = [mapPartyInfo(olbTxn.conductor)].map(
-          (sub) => {
-            return {
-              ...sub,
+        const conductors = [partiesInfo[olbTxn.conductor!]].map(
+          (sub) =>
+            ({
+              linkToSub: sub?.partyIdentifier,
+              _hiddenPartyKey: sub?.identifiers?.partyKey!,
+              _hiddenGivenName: sub?.partyName?.givenName!,
+              _hiddenSurname: sub?.partyName?.surname!,
+              _hiddenOtherOrInitial: sub?.partyName?.otherOrInitial!,
+              _hiddenNameOfEntity: sub?.partyName?.nameOfEntity!,
               wasConductedOnBehalf: false,
               onBehalfOf: [],
               npdTypeOfDevice: olbTxn.userDeviceType || null,
@@ -325,8 +317,7 @@ export function transformOlbEmtToStrTransaction(
               npdIp: emtTxn.senderIpAddress || olbTxn.ipAddress || null,
               npdDateTimeSession: olbTxn.userSessionDateTimeStr || null,
               npdTimeZone: null,
-            };
-          },
+            }) satisfies Conductor,
         );
 
         startingActions.push({
@@ -364,13 +355,21 @@ export function transformOlbEmtToStrTransaction(
         const recipientAccountInfo =
           accountsInfo[emtTxn.recipientAccountNumber?.split('-').at(-1)!];
 
-        const recipientAccountHolders: AccountHolder[] = [];
-        if (olbTxn.customer2AccountHolderCifId) {
-          const holders = olbTxn.customer2AccountHolderCifId.split(/[;:]/);
-          holders.forEach((key) => {
-            recipientAccountHolders.push(mapPartyInfo(key.trim()));
-          });
-        }
+        const recipientAccountHolders = olbTxn
+          .customer2AccountHolderCifId!.split(/[;:]/)
+          .reduce((acc, partyKey) => {
+            acc.push({
+              linkToSub: partiesInfo[partyKey]?.partyIdentifier,
+              _hiddenPartyKey: partiesInfo[partyKey]?.identifiers?.partyKey!,
+              _hiddenGivenName: partiesInfo[partyKey]?.partyName?.givenName!,
+              _hiddenSurname: partiesInfo[partyKey]?.partyName?.surname!,
+              _hiddenOtherOrInitial:
+                partiesInfo[partyKey]?.partyName?.otherOrInitial!,
+              _hiddenNameOfEntity:
+                partiesInfo[partyKey]?.partyName?.nameOfEntity!,
+            });
+            return acc;
+          }, [] as AccountHolder[]);
 
         completingActions.push({
           detailsOfDispo:
@@ -401,8 +400,6 @@ export function transformOlbEmtToStrTransaction(
       if (isOutgoing && !isRecipientCibc) {
         // OUTGOING: Recipient is completing action
 
-        const emtRecepientNameParsed = parseNameFromEmt(emtTxn.recipientName);
-
         completingActions.push({
           detailsOfDispo:
             'Outgoing email money transfer' satisfies FORM_OPTIONS_DETAILS_OF_DISPOSITION,
@@ -425,7 +422,25 @@ export function transformOlbEmtToStrTransaction(
           wasAnyOtherSubInvolved: false,
           involvedIn: [],
           wasBenInfoObtained: true,
-          beneficiaries: [{ ...emtRecepientNameParsed } as Beneficiary],
+          beneficiaries: [
+            {
+              linkToSub:
+                partiesInfo[emtTxn.recipientCertapayAccount]?.partyIdentifier,
+              _hiddenPartyKey: null,
+              _hiddenGivenName:
+                partiesInfo[emtTxn.recipientCertapayAccount]?.partyName
+                  ?.givenName!,
+              _hiddenSurname:
+                partiesInfo[emtTxn.recipientCertapayAccount]?.partyName
+                  ?.surname!,
+              _hiddenOtherOrInitial:
+                partiesInfo[emtTxn.recipientCertapayAccount]?.partyName
+                  ?.otherOrInitial!,
+              _hiddenNameOfEntity:
+                partiesInfo[emtTxn.recipientCertapayAccount]?.partyName
+                  ?.nameOfEntity!,
+            },
+          ],
         });
       }
 
@@ -435,11 +450,22 @@ export function transformOlbEmtToStrTransaction(
           accountsInfo[emtTxn.recipientAccountNumber?.split('-').at(-1)!];
 
         // Get recipient account holders if CIBC
-        const recipientAccountHolders: AccountHolder[] = [];
-
-        recipientAccountInfo?.accountHolders.forEach((holder) => {
-          recipientAccountHolders.push(mapPartyInfo(holder.partyKey));
-        });
+        const recipientAccountHolders =
+          recipientAccountInfo!.accountHolders.reduce((acc, holder) => {
+            acc.push({
+              linkToSub: partiesInfo[holder.partyKey]?.partyIdentifier,
+              _hiddenPartyKey:
+                partiesInfo[holder.partyKey]?.identifiers?.partyKey!,
+              _hiddenGivenName:
+                partiesInfo[holder.partyKey]?.partyName?.givenName!,
+              _hiddenSurname: partiesInfo[holder.partyKey]?.partyName?.surname!,
+              _hiddenOtherOrInitial:
+                partiesInfo[holder.partyKey]?.partyName?.otherOrInitial!,
+              _hiddenNameOfEntity:
+                partiesInfo[holder.partyKey]?.partyName?.nameOfEntity!,
+            });
+            return acc;
+          }, [] as AccountHolder[]);
 
         completingActions.push({
           detailsOfDispo:
@@ -522,3 +548,18 @@ export function transformOlbEmtToStrTransaction(
     }),
   );
 }
+
+// Helper to parse party name from EMT data
+const parsePartyNameFromEmt = (emtName: string): PartyName => {
+  const parts = emtName.trim().split(' ');
+  const givenName = parts[0];
+  const surname = parts.at(-1)!;
+  const otherOrInitial = parts.slice(1, -1).join(' ');
+
+  return {
+    surname,
+    givenName,
+    otherOrInitial,
+    nameOfEntity: null,
+  };
+};

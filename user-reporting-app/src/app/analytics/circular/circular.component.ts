@@ -500,11 +500,11 @@ export function buildTransactionLinks({
     const addEmptyConductor = conductors.length === 0;
     if (addEmptyConductor) {
       conductors.push({
-        partyKey: '',
-        surname: '',
-        givenName: '',
-        otherOrInitial: '',
-        nameOfEntity: '',
+        _hiddenPartyKey: '',
+        _hiddenSurname: '',
+        _hiddenGivenName: '',
+        _hiddenOtherOrInitial: '',
+        _hiddenNameOfEntity: '',
         wasConductedOnBehalf: null,
       });
     }

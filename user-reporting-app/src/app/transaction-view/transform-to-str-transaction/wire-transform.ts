@@ -9,32 +9,34 @@ import {
 import {
   AccountHolder,
   CompletingAction,
-  Conductor,
   StartingAction,
 } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import {
   FlowOfFundsSourceData,
   GetAccountInfoRes,
-  GetPartyInfoRes,
   SEARCH_SOURCE_ID,
   WireSourceData,
 } from '../../transaction-search/transaction-search.service';
+import { PartyGenType, PartyName } from './party-gen.service';
 
 /**
  * Transform incoming wire transfer into StrTransactionWithChangeLogs format
- * @param wireTxn - Wire transaction from MongoDB
- * @param getPartyInfo - Method to fetch party information by partyKey
- * @param getAccountInfo - Method to fetch account information
- * @param caseRecordId - The case record ID to associate with this transaction
- * @returns Observable of transformed transaction
  */
-export function transformWireToStrTransaction(
-  wireTxn: WireSourceData,
-  fofTxn: FlowOfFundsSourceData,
-  getPartyInfo: (partyKey: string) => Observable<GetPartyInfoRes>,
-  getAccountInfo: (account: string) => Observable<GetAccountInfoRes>,
-  caseRecordId: string,
-): Observable<StrTransactionWithChangeLogs> {
+export function transformWireToStrTransaction({
+  wireTxn,
+  fofTxn,
+  generateParty,
+  getAccountInfo,
+  caseRecordId,
+}: {
+  wireTxn: WireSourceData;
+  fofTxn: FlowOfFundsSourceData;
+  generateParty: (
+    party: Omit<PartyGenType, 'partyIdentifier'>,
+  ) => Observable<PartyGenType>;
+  getAccountInfo: (account: string) => Observable<GetAccountInfoRes>;
+  caseRecordId: string;
+}): Observable<StrTransactionWithChangeLogs> {
   if (wireTxn.wireRole !== 'RECEIVER') {
     throw new Error(
       'This function only handles incoming wire transfers (RECEIVER role)',
@@ -46,10 +48,9 @@ export function transformWireToStrTransaction(
   const accountsToFetch = new Set<string>();
 
   // Add receiver (beneficiary) account holders - CIBC account
-  if (wireTxn.customer1AccountHolderCifId) {
-    const holders = wireTxn.customer1AccountHolderCifId.split(/[;:]/);
-    holders.forEach((h) => partyKeysToFetch.add(h.trim()));
-  }
+  wireTxn.customer1AccountHolderCifId
+    ?.split(/[;:]/)
+    .forEach((h) => partyKeysToFetch.add(h.trim()));
 
   // Add receiver account fetch (CIBC account)
   accountsToFetch.add(String(wireTxn.strCaAccount ?? ''));
@@ -80,119 +81,31 @@ export function transformWireToStrTransaction(
       // Fetch all party info in parallel
       const partyInfoObservables: Record<
         string,
-        Observable<GetPartyInfoRes | null>
+        Observable<PartyGenType | null>
       > = {};
-      Array.from(partyKeysToFetch).forEach((key) => {
-        partyInfoObservables[key] = getPartyInfo(key);
+      Array.from(partyKeysToFetch).forEach((partyKey) => {
+        partyInfoObservables[partyKey] = generateParty({
+          identifiers: { partyKey },
+        });
       });
+
+      partyInfoObservables[wireTxn.msgTag50] = generateParty({
+        identifiers: { msgTag50: wireTxn.msgTag50 },
+        partyName: {
+          ...parseOCPartyName(wireTxn),
+        },
+      });
+
       return forkJoin({
         partiesInfo:
-          partyKeysToFetch.size > 0
+          Object.keys(partyInfoObservables).length > 0
             ? forkJoin(partyInfoObservables)
-            : of({} as Record<string, GetPartyInfoRes | null>),
+            : of({} as Record<string, PartyGenType | null>),
       }).pipe(map(({ partiesInfo }) => ({ partiesInfo, accountsInfo })));
     }),
     map(({ partiesInfo, accountsInfo }) => {
-      // Helper to map party info
-      const mapPartyInfo = (partyKey: string | null): AccountHolder => {
-        if (!partyKey) {
-          return {
-            partyKey: null,
-            surname: null,
-            givenName: null,
-            otherOrInitial: null,
-            nameOfEntity: null,
-          };
-        }
-        const info = partiesInfo[partyKey];
-        return {
-          partyKey,
-          surname: info?.surname || null,
-          givenName: info?.givenName || null,
-          otherOrInitial: info?.otherOrInitial || null,
-          nameOfEntity: info?.nameOfEntity || null,
-        };
-      };
-
-      // Helper to parse name from wire data
-      const parseWireName = (
-        fullName: string | null,
-      ): {
-        surname: string | null;
-        givenName: string | null;
-        otherOrInitial: string | null;
-        nameOfEntity: string | null;
-      } => {
-        if (!fullName) {
-          return {
-            surname: null,
-            givenName: null,
-            otherOrInitial: null,
-            nameOfEntity: null,
-          };
-        }
-
-        // Check if it looks like an entity name (contains words like Inc, Ltd, LLC, etc.)
-        const entityPatterns =
-          /\b(Inc|Ltd|LLC|Corp|Corporation|Limited|Company|Bank|Trust|Credit Union|Plc)\b/i;
-        if (entityPatterns.test(fullName)) {
-          return {
-            surname: null,
-            givenName: null,
-            otherOrInitial: null,
-            nameOfEntity: fullName.trim(),
-          };
-        }
-
-        // Try to parse as person name (format: "FirstName MiddleInitial LastName")
-        const nameParts = fullName.trim().split(/\s+/);
-        if (nameParts.length === 3) {
-          return {
-            givenName: nameParts[0],
-            otherOrInitial: nameParts[1],
-            surname: nameParts[2],
-            nameOfEntity: null,
-          };
-        }
-        if (nameParts.length === 2) {
-          return {
-            givenName: nameParts[0],
-            otherOrInitial: null,
-            surname: nameParts[1],
-            nameOfEntity: null,
-          };
-        }
-        if (nameParts.length === 1) {
-          return {
-            surname: nameParts[0],
-            givenName: null,
-            otherOrInitial: null,
-            nameOfEntity: null,
-          };
-        }
-
-        // If we can't parse it, treat as entity
-        return {
-          surname: null,
-          givenName: null,
-          otherOrInitial: null,
-          nameOfEntity: fullName.trim(),
-        };
-      };
-
       // Build starting actions - INCOMING WIRE
       const startingActions: StartingAction[] = [];
-
-      // Sender information (foreign account/entity)
-      const senderNameInfo = parseWireName(wireTxn.ocName);
-
-      // Account holders for sender (not CIBC, so we create from wire data)
-      const conductor: Conductor = {
-        ...senderNameInfo,
-        partyKey: null,
-        wasConductedOnBehalf: false,
-        onBehalfOf: null,
-      };
 
       startingActions.push({
         directionOfSA: 'In',
@@ -204,7 +117,7 @@ export function transformWireToStrTransaction(
         fiuNo: wireTxn.strSaFiNumber, // Foreign institution identifier
         branch: null,
         account: wireTxn.strSaAccount,
-        accountType: (senderNameInfo.nameOfEntity
+        accountType: (isBusiness(wireTxn.ocName)
           ? 'Business'
           : 'Personal') satisfies FORM_OPTIONS_ACCOUNT_TYPE,
         accountTypeOther: null,
@@ -218,23 +131,47 @@ export function transformWireToStrTransaction(
         wasSofInfoObtained: false,
         sourceOfFunds: [],
         wasCondInfoObtained: true,
-        conductors: [conductor],
+        conductors: [
+          {
+            linkToSub: partiesInfo[wireTxn.msgTag50]?.partyIdentifier,
+            _hiddenPartyKey: null,
+            _hiddenGivenName:
+              partiesInfo[wireTxn.msgTag50]?.partyName?.givenName ?? null,
+            _hiddenSurname:
+              partiesInfo[wireTxn.msgTag50]?.partyName?.surname ?? null,
+            _hiddenOtherOrInitial:
+              partiesInfo[wireTxn.msgTag50]?.partyName?.otherOrInitial ?? null,
+            _hiddenNameOfEntity:
+              partiesInfo[wireTxn.msgTag50]?.partyName?.nameOfEntity ?? null,
+            wasConductedOnBehalf: false,
+            onBehalfOf: [],
+          },
+        ],
       });
 
       // Build completing actions - INCOMING WIRE
       const completingActions: CompletingAction[] = [];
 
       // Receiver (beneficiary) - CIBC account
-      const receiverAccountInfo = accountsInfo[wireTxn.strCaAccount];
+      const caAccountInfo = accountsInfo[wireTxn.strCaAccount];
 
       // Receiver account holders
-      const receiverAccountHolders: AccountHolder[] = [];
-      if (wireTxn.customer1AccountHolderCifId) {
-        const holders = wireTxn.customer1AccountHolderCifId.split(/[;:]/);
-        holders.forEach((key) => {
-          receiverAccountHolders.push(mapPartyInfo(key.trim()));
-        });
-      }
+      const caAccountHolders =
+        wireTxn.customer1AccountHolderCifId
+          ?.split(/[;:]/)
+          .reduce((acc, key) => {
+            acc.push({
+              linkToSub: partiesInfo[key]?.partyIdentifier,
+              _hiddenPartyKey: partiesInfo[key]?.identifiers?.partyKey!,
+              _hiddenGivenName: partiesInfo[key]?.partyName?.givenName ?? null,
+              _hiddenSurname: partiesInfo[key]?.partyName?.surname ?? null,
+              _hiddenOtherOrInitial:
+                partiesInfo[key]?.partyName?.otherOrInitial ?? null,
+              _hiddenNameOfEntity:
+                partiesInfo[key]?.partyName?.nameOfEntity ?? null,
+            });
+            return acc;
+          }, [] as AccountHolder[]) ?? [];
 
       completingActions.push({
         detailsOfDispo:
@@ -247,18 +184,18 @@ export function transformWireToStrTransaction(
         fiuNo: wireTxn.strCaFiNumber,
         branch: String(wireTxn.strCaBranch ?? ''),
         account: String(wireTxn.strCaAccount ?? ''),
-        accountType: receiverAccountInfo?.accountType || null,
+        accountType: caAccountInfo?.accountType || null,
         accountTypeOther: null,
-        accountCurrency: receiverAccountInfo?.accountCurrency ?? '',
-        accountOpen: receiverAccountInfo?.accountOpen || null,
-        accountClose: receiverAccountInfo?.accountClose || null,
-        accountStatus: receiverAccountInfo?.accountStatus ?? '',
+        accountCurrency: caAccountInfo?.accountCurrency ?? '',
+        accountOpen: caAccountInfo?.accountOpen || null,
+        accountClose: caAccountInfo?.accountClose || null,
+        accountStatus: caAccountInfo?.accountStatus ?? '',
         hasAccountHolders: true,
-        accountHolders: receiverAccountHolders,
+        accountHolders: caAccountHolders,
         wasAnyOtherSubInvolved: false,
         involvedIn: [],
         wasBenInfoObtained: true,
-        beneficiaries: receiverAccountHolders,
+        beneficiaries: caAccountHolders,
       });
 
       const { flowOfFundsTransactionDesc } = fofTxn;
@@ -323,4 +260,61 @@ export function transformWireToStrTransaction(
       return transformed;
     }),
   );
+}
+
+// Helper to parse name from wire data
+const parseOCPartyName = (wireTxn: WireSourceData): PartyName => {
+  const { ocName } = wireTxn;
+
+  // Check if it looks like an entity name (contains words like Inc, Ltd, LLC, etc.)
+  if (isBusiness(ocName)) {
+    return {
+      surname: null,
+      givenName: null,
+      otherOrInitial: null,
+      nameOfEntity: ocName.trim(),
+    };
+  }
+
+  // Try to parse as person name (format: "FirstName MiddleInitial LastName")
+  const nameParts = ocName.trim().split(/\s+/);
+
+  if (nameParts.length === 3) {
+    return {
+      givenName: nameParts[0],
+      otherOrInitial: nameParts[1],
+      surname: nameParts[2],
+      nameOfEntity: null,
+    };
+  }
+  if (nameParts.length === 2) {
+    return {
+      givenName: nameParts[0],
+      otherOrInitial: null,
+      surname: nameParts[1],
+      nameOfEntity: null,
+    };
+  }
+  if (nameParts.length === 1) {
+    return {
+      surname: nameParts[0],
+      givenName: null,
+      otherOrInitial: null,
+      nameOfEntity: null,
+    };
+  }
+
+  // If we can't parse it, treat as entity
+  return {
+    surname: null,
+    givenName: null,
+    otherOrInitial: null,
+    nameOfEntity: ocName.trim(),
+  };
+};
+
+function isBusiness(ocName: string) {
+  const entityPatterns =
+    /\b(Inc|Ltd|LLC|Corp|Corporation|Limited|Company|Bank|Trust|Credit Union|Plc)\b/i;
+  return entityPatterns.test(ocName);
 }

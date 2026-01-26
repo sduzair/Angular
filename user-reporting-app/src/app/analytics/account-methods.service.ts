@@ -349,11 +349,11 @@ function addSubject({
   flowOfFundsTransactionDesc,
 }: {
   subject: {
-    partyKey: string | null;
-    surname: string | null;
-    givenName: string | null;
-    otherOrInitial: string | null;
-    nameOfEntity: string | null;
+    _hiddenPartyKey: string | null;
+    _hiddenSurname: string | null;
+    _hiddenGivenName: string | null;
+    _hiddenOtherOrInitial: string | null;
+    _hiddenNameOfEntity: string | null;
   };
   focalSubjects: Set<string>;
   methodEntry: TransactionTypeTotals;
@@ -546,11 +546,11 @@ export function getSubjectIdAndCategory(
   }
 
   if (
-    !subject.partyKey &&
-    !subject.givenName &&
-    !subject.otherOrInitial &&
-    !subject.surname &&
-    !subject.nameOfEntity
+    !subject._hiddenPartyKey &&
+    !subject._hiddenGivenName &&
+    !subject._hiddenOtherOrInitial &&
+    !subject._hiddenSurname &&
+    !subject._hiddenNameOfEntity
   ) {
     return {
       subjectId: generateUnknownNodeKey(),
@@ -560,43 +560,44 @@ export function getSubjectIdAndCategory(
     };
   }
 
-  const isClient = !!subject.partyKey;
-  const isPerson = !!subject.surname && !!subject.givenName;
-  const isEntity = !!subject.nameOfEntity;
-  isFocal = !!subject.partyKey && focalSubjects.has(subject.partyKey);
+  const isClient = !!subject._hiddenPartyKey;
+  const isPerson = !!subject._hiddenSurname && !!subject._hiddenGivenName;
+  const isEntity = !!subject._hiddenNameOfEntity;
+  isFocal =
+    !!subject._hiddenPartyKey && focalSubjects.has(subject._hiddenPartyKey);
 
   if (isFocal && isPerson) {
     category = NODE_ENUM.FocalPersonSubject;
-    name = `${subject.givenName} ${subject.otherOrInitial ? subject.otherOrInitial + ' ' : ''}${subject.surname}`;
+    name = `${subject._hiddenGivenName} ${subject._hiddenOtherOrInitial ? subject._hiddenOtherOrInitial + ' ' : ''}${subject._hiddenSurname}`;
   }
 
   if (isFocal && isEntity) {
     category = NODE_ENUM.FocalEntitySubject;
-    name = `${subject.nameOfEntity}`;
+    name = `${subject._hiddenNameOfEntity}`;
   }
 
   if (!isFocal && isClient && isPerson) {
     category = NODE_ENUM.CibcPersonSubject;
-    name = `${subject.givenName} ${subject.otherOrInitial ? subject.otherOrInitial + ' ' : ''}${subject.surname}`;
+    name = `${subject._hiddenGivenName} ${subject._hiddenOtherOrInitial ? subject._hiddenOtherOrInitial + ' ' : ''}${subject._hiddenSurname}`;
   }
 
   if (!isFocal && isClient && isEntity) {
     category = NODE_ENUM.CibcEntitySubject;
-    name = `${subject.nameOfEntity}`;
+    name = `${subject._hiddenNameOfEntity}`;
   }
 
   if (!isFocal && !isClient && isPerson) {
     category = NODE_ENUM.PersonSubject;
-    name = `${subject.givenName} ${subject.otherOrInitial ? subject.otherOrInitial + ' ' : ''}${subject.surname}`;
+    name = `${subject._hiddenGivenName} ${subject._hiddenOtherOrInitial ? subject._hiddenOtherOrInitial + ' ' : ''}${subject._hiddenSurname}`;
   }
 
   if (!isFocal && !isClient && isEntity) {
     category = NODE_ENUM.EntitySubject;
-    name = `${subject.nameOfEntity}`;
+    name = `${subject._hiddenNameOfEntity}`;
   }
 
   return {
-    subjectId: `SUBJECT-${subject.partyKey ?? ''}-${subject.surname ?? ''}-${subject.givenName ?? ''}-${subject.otherOrInitial ?? ''}-${subject.nameOfEntity ?? ''}`,
+    subjectId: `SUBJECT-${subject._hiddenPartyKey ?? ''}-${subject._hiddenSurname ?? ''}-${subject._hiddenGivenName ?? ''}-${subject._hiddenOtherOrInitial ?? ''}-${subject._hiddenNameOfEntity ?? ''}`,
     category,
     name,
     isFocal,
@@ -608,9 +609,9 @@ export function generateUnknownNodeKey() {
 }
 
 export interface Subject {
-  partyKey: string | null;
-  surname: string | null;
-  givenName: string | null;
-  otherOrInitial: string | null;
-  nameOfEntity: string | null;
+  _hiddenPartyKey: string | null;
+  _hiddenSurname: string | null;
+  _hiddenGivenName: string | null;
+  _hiddenOtherOrInitial: string | null;
+  _hiddenNameOfEntity: string | null;
 }

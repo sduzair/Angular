@@ -62,11 +62,11 @@ export const getSubjectInfoByParyKey = createTool({
   description:
     'Given a party key, returns subject details (at minimum the subject name) for use in narratives and labeling involved parties.',
   schema: s.object('Party key input', {
-    partyKey: s.string('The party key number of the subject'),
+    _hiddenPartyKey: s.string('The party key number of the subject'),
   }),
-  handler: ({ partyKey }) => {
+  handler: ({ _hiddenPartyKey }) => {
     return firstValueFrom(
-      inject(TransactionSearchService).getPartyInfo(partyKey),
+      inject(TransactionSearchService).getPartyInfo(_hiddenPartyKey),
     );
   },
 });

@@ -721,13 +721,13 @@ describe('ChangeLog', () => {
         transactionBefore.startingActions = [
           {
             wasCondInfoObtained: true,
-            conductors: [{ givenName: 'jon' }],
+            conductors: [{ _hiddenGivenName: 'jon' }],
           },
         ];
         transactionAfter.startingActions = [
           {
             wasCondInfoObtained: false,
-            conductors: [{ givenName: 'jon' }],
+            conductors: [{ _hiddenGivenName: 'jon' }],
           },
         ];
 
@@ -742,10 +742,10 @@ describe('ChangeLog', () => {
             hasAccountHolders: true,
             accountHolders: [
               {
-                givenName: 'jon',
+                _hiddenGivenName: 'jon',
               },
               {
-                givenName: 'doe',
+                _hiddenGivenName: 'doe',
               },
             ],
           },
@@ -756,7 +756,7 @@ describe('ChangeLog', () => {
             hasAccountHolders: null,
             accountHolders: [
               {
-                givenName: 'mike',
+                _hiddenGivenName: 'mike',
               },
             ],
           },

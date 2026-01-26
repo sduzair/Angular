@@ -36,12 +36,12 @@ describe('ManualTransactionBuilder', () => {
       'Credit Account': 'ACC456',
       'Credit Account Type': 'Business',
       'Conductor Party Key': null,
-      'Conductor Surname': null,
+      'Conductor _hiddenSurname': null,
       'Conductor Given Name': null,
       'Conductor Other Name': null,
       'Conductor Entity Name': null,
       'Beneficiary Party Key': null,
-      'Beneficiary Surname': null,
+      'Beneficiary _hiddenSurname': null,
       'Beneficiary Given Name': null,
       'Beneficiary Other Name': null,
       'Beneficiary Entity Name': null,
@@ -481,19 +481,19 @@ describe('ManualTransactionBuilder', () => {
   describe('build', () => {
     it('should build complete transaction with conductor and beneficiary from party keys', (done) => {
       const mockConductorParty: GetPartyInfoRes = {
-        partyKey: 'PARTY001',
-        surname: 'Doe',
-        givenName: 'John',
-        otherOrInitial: 'M',
-        nameOfEntity: '',
+        _hiddenPartyKey: 'PARTY001',
+        _hiddenSurname: 'Doe',
+        _hiddenGivenName: 'John',
+        _hiddenOtherOrInitial: 'M',
+        _hiddenNameOfEntity: '',
       };
 
       const mockBeneficiaryParty: GetPartyInfoRes = {
-        partyKey: 'PARTY002',
-        surname: 'Smith',
-        givenName: 'Jane',
-        otherOrInitial: '',
-        nameOfEntity: '',
+        _hiddenPartyKey: 'PARTY002',
+        _hiddenSurname: 'Smith',
+        _hiddenGivenName: 'Jane',
+        _hiddenOtherOrInitial: '',
+        _hiddenNameOfEntity: '',
       };
 
       mockGetPartyInfo.and.returnValues(
@@ -525,9 +525,9 @@ describe('ManualTransactionBuilder', () => {
           );
 
           expect(transaction.startingActions![0].conductors!.length).toBe(1);
-          expect(transaction.startingActions![0].conductors![0].partyKey).toBe(
-            'PARTY001',
-          );
+          expect(
+            transaction.startingActions![0].conductors![0]._hiddenPartyKey,
+          ).toBe('PARTY001');
 
           expect(transaction.completingActions![0].wasBenInfoObtained).toBe(
             true,
@@ -538,7 +538,7 @@ describe('ManualTransactionBuilder', () => {
           );
 
           expect(
-            transaction.completingActions![0].beneficiaries![0].partyKey,
+            transaction.completingActions![0].beneficiaries![0]._hiddenPartyKey,
           ).toBe('PARTY002');
 
           done();
@@ -548,7 +548,7 @@ describe('ManualTransactionBuilder', () => {
     it('should build transaction with manual party names when no party keys', (done) => {
       const valueWithNames = {
         ...baseValue,
-        'Conductor Surname': 'Doe',
+        'Conductor _hiddenSurname': 'Doe',
         'Conductor Given Name': 'John',
         'Beneficiary Entity Name': 'Acme Corp',
       };
@@ -567,15 +567,15 @@ describe('ManualTransactionBuilder', () => {
         .subscribe((transaction) => {
           const conductor = transaction.startingActions![0].conductors![0];
 
-          expect(conductor.surname).toBe('Doe');
-          expect(conductor.givenName).toBe('John');
-          expect(conductor.partyKey).toBeNull();
+          expect(conductor._hiddenSurname).toBe('Doe');
+          expect(conductor._hiddenGivenName).toBe('John');
+          expect(conductor._hiddenPartyKey).toBeNull();
 
           const beneficiary =
             transaction.completingActions![0].beneficiaries![0];
 
-          expect(beneficiary.nameOfEntity).toBe('Acme Corp');
-          expect(beneficiary.partyKey).toBeNull();
+          expect(beneficiary._hiddenNameOfEntity).toBe('Acme Corp');
+          expect(beneficiary._hiddenPartyKey).toBeNull();
 
           done();
         });

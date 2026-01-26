@@ -20,20 +20,20 @@ import {
 
 /**
  * Transform CBFE mixed deposit transaction into StrTransactionWithChangeLogs format
- * @param sourceTxn - Source transaction from transaction search (OTC/CBFE)
- * @param fofTxn - Flow of funds transaction data
- * @param getPartyInfo - Method to fetch party information by partyKey
- * @param getAccountInfo - Method to fetch account information
- * @param caseRecordId - The case record ID to associate with this transaction
- * @returns Observable of transformed transaction
  */
-export function transformOTCToStrTransaction(
-  sourceTxn: OTCSourceData,
-  fofTxn: FlowOfFundsSourceData,
-  getPartyInfo: (partyKey: string) => Observable<GetPartyInfoRes>,
-  getAccountInfo: (account: string) => Observable<GetAccountInfoRes>,
-  caseRecordId: string,
-): Observable<StrTransactionWithChangeLogs> {
+export function transformOTCToStrTransaction({
+  sourceTxn,
+  fofTxn,
+  getPartyInfo,
+  getAccountInfo,
+  caseRecordId,
+}: {
+  sourceTxn: OTCSourceData;
+  fofTxn: FlowOfFundsSourceData;
+  getPartyInfo: (_hiddenPartyKey: string) => Observable<GetPartyInfoRes>;
+  getAccountInfo: (account: string) => Observable<GetAccountInfoRes>;
+  caseRecordId: string;
+}): Observable<StrTransactionWithChangeLogs> {
   // Collect all party keys and account info we need to fetch
   const partyKeysToFetch = new Set<string>();
   const accountsToFetch = new Set<string>();
@@ -44,16 +44,14 @@ export function transformOTCToStrTransaction(
   }
 
   // Add starting action account holders
-  if (sourceTxn.strSaAccountHoldersCifId) {
-    const holders = sourceTxn.strSaAccountHoldersCifId.split(';');
-    holders.forEach((h) => partyKeysToFetch.add(h.trim()));
-  }
+  sourceTxn.strSaAccountHoldersCifId
+    ?.split(';')
+    .forEach((h) => partyKeysToFetch.add(h.trim()));
 
   // Add completing action account holders
-  if (sourceTxn.strCaAccountHolderCifId) {
-    const holders = sourceTxn.strCaAccountHolderCifId.split(';');
-    holders.forEach((h) => partyKeysToFetch.add(h.trim()));
-  }
+  sourceTxn.strCaAccountHolderCifId
+    ?.split(';')
+    .forEach((h) => partyKeysToFetch.add(h.trim()));
 
   // Add starting action account fetch
   if (sourceTxn.strSaAccount) {
@@ -109,30 +107,30 @@ export function transformOTCToStrTransaction(
     map(({ partiesInfo, accountsInfo }) => {
       // Helper to map party info
       const mapPartyInfo = (
-        partyKey: string | null,
+        _hiddenPartyKey: string | null,
       ): {
-        partyKey: string | null;
-        surname: string | null;
-        givenName: string | null;
-        otherOrInitial: string | null;
-        nameOfEntity: string | null;
+        _hiddenPartyKey: string | null;
+        _hiddenSurname: string | null;
+        _hiddenGivenName: string | null;
+        _hiddenOtherOrInitial: string | null;
+        _hiddenNameOfEntity: string | null;
       } => {
-        if (!partyKey) {
+        if (!_hiddenPartyKey) {
           return {
-            partyKey: null,
-            surname: null,
-            givenName: null,
-            otherOrInitial: null,
-            nameOfEntity: null,
+            _hiddenPartyKey: null,
+            _hiddenSurname: null,
+            _hiddenGivenName: null,
+            _hiddenOtherOrInitial: null,
+            _hiddenNameOfEntity: null,
           };
         }
-        const info = partiesInfo[partyKey];
+        const info = partiesInfo[_hiddenPartyKey];
         return {
-          partyKey,
-          surname: info?.surname || null,
-          givenName: info?.givenName || null,
-          otherOrInitial: info?.otherOrInitial || null,
-          nameOfEntity: info?.nameOfEntity || null,
+          _hiddenPartyKey,
+          _hiddenSurname: info?.surname || null,
+          _hiddenGivenName: info?.givenName || null,
+          _hiddenOtherOrInitial: info?.otherOrInitial || null,
+          _hiddenNameOfEntity: info?.nameOfEntity || null,
         };
       };
 
