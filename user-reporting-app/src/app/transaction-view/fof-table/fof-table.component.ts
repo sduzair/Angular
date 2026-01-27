@@ -9,16 +9,17 @@ import {
   Output,
   TrackByFunction,
   ViewChild,
+  WritableSignal,
 } from '@angular/core';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
+import { map, take } from 'rxjs';
+import { CaseRecordStore } from '../../aml/case-record.store';
 import { IFilterForm } from '../../base-table/abstract-base-table';
 import { BaseTableComponent } from '../../base-table/base-table.component';
 import { FlowOfFundsSourceData } from '../../transaction-search/transaction-search.service';
-import { TableSelectionType } from '../transaction-view.component';
 import { LocalHighlightsService } from '../local-highlights.service';
-import { CaseRecordStore } from '../../aml/case-record.store';
-import { map, shareReplay, take } from 'rxjs';
+import { TableSelectionType } from '../transaction-view.component';
 
 @Component({
   selector: 'app-fof-table',
@@ -39,6 +40,7 @@ import { map, shareReplay, take } from 'rxjs';
       [dataSourceTrackBy]="dataSourceTrackBy"
       [selection]="masterSelection!"
       [selectionKey]="'flowOfFundsAmlTransactionId'"
+      [highlightedRecords]="highlightedRecords"
       [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'"
       [filterFormHighlightSideEffect]="filterFormHighlightSideEffect"
       [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
@@ -50,7 +52,6 @@ import { map, shareReplay, take } from 'rxjs';
         <th
           mat-header-cell
           *matHeaderCellDef
-          class="px-0"
           [class.sticky-cell]="baseTable.isStickyColumn('select')">
           <div>
             <mat-checkbox
@@ -64,12 +65,7 @@ import { map, shareReplay, take } from 'rxjs';
         <td
           mat-cell
           *matCellDef="let row; let i = index"
-          class="px-0"
-          [class.sticky-cell]="baseTable.isStickyColumn('select')"
-          [ngStyle]="{
-            backgroundColor:
-              row[baseTable.filterFormHighlightSelectFilterKey] || '',
-          }">
+          [class.sticky-cell]="baseTable.isStickyColumn('select')">
           <div>
             <mat-checkbox
               (click)="baseTable.onCheckBoxClickMultiToggle($event, row, i)"
@@ -81,7 +77,6 @@ import { map, shareReplay, take } from 'rxjs';
       </ng-container>
     </app-base-table>
   `,
-  styleUrl: './fof-table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FofTableComponent<
@@ -197,6 +192,9 @@ export class FofTableComponent<
   @Input({ required: true })
   selectionCount!: number;
 
+  @Input({ required: true })
+  highlightedRecords!: WritableSignal<Map<string, string>>;
+
   @ViewChild(BaseTableComponent, { static: true })
   baseTable?: BaseTableComponent<object, '', '', never, never>;
 
@@ -240,7 +238,6 @@ export class FofTableComponent<
   }
 
   private highlightsService = inject(LocalHighlightsService);
-  @Output() readonly highlightChange = new EventEmitter<void>();
 
   filterFormHighlightSideEffect = (
     highlights: { txnId: string; newColor: string }[],
@@ -249,8 +246,6 @@ export class FofTableComponent<
       .saveHighlights(this.caseRecordId, highlights)
       .pipe(take(1))
       // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
-      .subscribe(() => {
-        this.highlightChange.emit();
-      });
+      .subscribe();
   };
 }

@@ -6,55 +6,79 @@ mat-toolbar-row.header-toolbar-row {
   @include mat.button-density(5);
 }
 
-.base-table-container {
-  min-height: 80dvh;
-  height: 80dvh;
-}
+// Needed for projected content (col definitions)
+:host ::ng-deep {
+  /* Excel-like Table Styling */
+  .base-table-container {
+    min-height: 80dvh;
+    height: 80dvh;
+    // border: 1px solid var(--mat-sys-outline-variant);
+  }
 
-/* Table styling */
-mat-drawer-content table {
-  width: 100%;
-  border-spacing: 0;
-  @include mat.table-density(-5);
-}
+  mat-drawer-content table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0px;
 
-/* Cell content styling */
-.mat-mdc-header-cell,
-.mat-mdc-cell {
-  max-width: 300px;
-}
+    @include mat.table-density(-5);
+  }
 
-.mat-mdc-cell {
-  white-space: nowrap;
-  overflow-x: scroll;
-  scrollbar-width: none;
-  text-overflow: unset;
-}
+  .mat-mdc-header-cell {
+    border-right: 1px solid var(--mat-sys-outline-variant);
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+  }
 
-.mat-column-flowOfFundsTransactionDesc {
-  max-width: 400px;
-}
+  .mat-mdc-cell {
+    border-right: 1px solid var(--mat-sys-outline-variant);
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+  }
 
-.mat-mdc-header-row {
-  z-index: 1;
-}
+  .mat-mdc-header-cell.sticky-cell,
+  .mat-mdc-cell.sticky-cell {
+    border-right: 2px solid var(--mat-sys-outline-variant);
+  }
 
-.mat-mdc-row {
-  transform: translateZ(0); /* Triggers GPU layer creation */
-  will-change: transform; /* Hint for future changes */
-  transition: background-color 0.3s;
-}
+  .mdc-data-table__row:last-child > .mat-mdc-cell {
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+  }
 
-.mat-mdc-row:hover {
-  background-color: var(--mat-sys-primary-fixed);
-}
+  .mat-mdc-header-cell,
+  .mat-mdc-cell {
+    max-width: 300px;
+  }
 
-.mat-mdc-row.recentlyOpenRowHighlight {
-  background-color: var(--mat-sys-primary-fixed);
-}
+  .mat-mdc-cell {
+    white-space: nowrap;
+    overflow-x: scroll;
+    scrollbar-width: none;
+    text-overflow: unset;
+  }
 
-th.mat-sort-header-sorted {
-  color: black;
+  .mat-column-flowOfFundsTransactionDesc {
+    max-width: 400px;
+  }
+
+  .mat-mdc-header-row {
+    z-index: 1;
+  }
+
+  .mat-mdc-row {
+    transform: translateZ(0); /* Triggers GPU layer creation */
+    will-change: transform; /* Hint for future changes */
+    transition: background-color 0.3s;
+  }
+
+  .mat-mdc-row:hover .mat-mdc-cell {
+    box-shadow: inset 0 0 0 9999px rgba(0, 0, 0, 0.1);
+  }
+
+  .mat-mdc-row.recentlyOpenRowHighlight .mat-mdc-cell {
+    box-shadow: inset 0 0 0 9999px rgba(0, 0, 0, 0.1);
+  }
+
+  th.mat-sort-header-sorted {
+    color: black;
+  }
 }
 
 /* Filters styling */

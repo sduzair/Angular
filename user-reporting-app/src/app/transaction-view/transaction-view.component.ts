@@ -1,5 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  signal,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
 import { MatChip } from '@angular/material/chips';
@@ -133,7 +138,7 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [fofSourceData]="(fofSourceData$ | async) || []"
             [selectionCount]="(fofSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
-            (highlightChange)="onHighlightChange()" />
+            [highlightedRecords]="highlightedRecords" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -146,7 +151,7 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [abmSourceData]="(abmSourceData$ | async) || []"
             [selectionCount]="(abmSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
-            (highlightChange)="onHighlightChange()" />
+            [highlightedRecords]="highlightedRecords" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -159,7 +164,7 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [olbSourceData]="(olbSourceData$ | async) || []"
             [selectionCount]="(olbSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
-            (highlightChange)="onHighlightChange()" />
+            [highlightedRecords]="highlightedRecords" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -172,7 +177,7 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [emtSourceData]="(emtSourceData$ | async) || []"
             [selectionCount]="(emtSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
-            (highlightChange)="onHighlightChange()" />
+            [highlightedRecords]="highlightedRecords" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -185,7 +190,7 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [wiresSourceData]="(wiresSourceData$ | async) || []"
             [selectionCount]="(wiresSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
-            (highlightChange)="onHighlightChange()" />
+            [highlightedRecords]="highlightedRecords" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -198,7 +203,7 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [otcSourceData]="(otcSourceData$ | async) || []"
             [selectionCount]="(otcSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
-            (highlightChange)="onHighlightChange()" />
+            [highlightedRecords]="highlightedRecords" />
         </mat-tab>
       </mat-tab-group>
     }
@@ -210,22 +215,15 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
   private snackBar = inject(SnackbarQueueService);
   protected qIsSaving$ = this._caseRecordStore.qIsSaving$;
 
+  highlightedRecords = signal<Map<string, string>>(new Map());
   private highlightsService = inject(LocalHighlightsService);
-  private refreshHighlights$ = new Subject<void>();
-  protected onHighlightChange() {
-    this.refreshHighlights$.next();
-  }
 
-  private highlights$ = merge(
-    this._caseRecordStore.state$,
-    this.refreshHighlights$.pipe(
-      debounceTime(2000),
-      withLatestFrom(this._caseRecordStore.state$),
-      map(([_, state]) => state),
-    ),
-  ).pipe(
+  private highlights$ = this._caseRecordStore.state$.pipe(
     switchMap(({ caseRecordId }) => {
       return this.highlightsService.getHighlights(caseRecordId);
+    }),
+    tap((initHighlightsMap) => {
+      this.highlightedRecords.update(() => new Map(initHighlightsMap));
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );

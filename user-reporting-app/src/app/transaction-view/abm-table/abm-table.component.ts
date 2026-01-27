@@ -9,6 +9,7 @@ import {
   Output,
   TrackByFunction,
   ViewChild,
+  WritableSignal,
 } from '@angular/core';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
@@ -39,6 +40,7 @@ import { LocalHighlightsService } from '../local-highlights.service';
       [dataSourceTrackBy]="dataSourceTrackBy"
       [selection]="masterSelection!"
       [selectionKey]="'flowOfFundsAmlTransactionId'"
+      [highlightedRecords]="highlightedRecords"
       [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'"
       [filterFormHighlightSideEffect]="filterFormHighlightSideEffect"
       [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
@@ -50,7 +52,6 @@ import { LocalHighlightsService } from '../local-highlights.service';
         <th
           mat-header-cell
           *matHeaderCellDef
-          class="px-0"
           [class.sticky-cell]="baseTableRef.isStickyColumn('select')">
           <div>
             <mat-checkbox
@@ -64,12 +65,7 @@ import { LocalHighlightsService } from '../local-highlights.service';
         <td
           mat-cell
           *matCellDef="let row; let i = index"
-          class="px-0"
-          [class.sticky-cell]="baseTableRef.isStickyColumn('select')"
-          [ngStyle]="{
-            backgroundColor:
-              row[baseTableRef.filterFormHighlightSelectFilterKey] || '',
-          }">
+          [class.sticky-cell]="baseTableRef.isStickyColumn('select')">
           <div>
             <mat-checkbox
               (click)="baseTableRef.onCheckBoxClickMultiToggle($event, row, i)"
@@ -81,7 +77,6 @@ import { LocalHighlightsService } from '../local-highlights.service';
       </ng-container>
     </app-base-table>
   `,
-  styleUrl: './abm-table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AbmTableComponent<
@@ -489,6 +484,9 @@ export class AbmTableComponent<
   @Input({ required: true })
   selectionCount!: number;
 
+  @Input({ required: true })
+  highlightedRecords!: WritableSignal<Map<string, string>>;
+
   @ViewChild(BaseTableComponent, { static: true })
   baseTable?: BaseTableComponent<object, '', '', never, never>;
 
@@ -532,7 +530,6 @@ export class AbmTableComponent<
   }
 
   private highlightsService = inject(LocalHighlightsService);
-  @Output() readonly highlightChange = new EventEmitter<void>();
 
   filterFormHighlightSideEffect = (
     highlights: { txnId: string; newColor: string }[],
@@ -541,8 +538,6 @@ export class AbmTableComponent<
       .saveHighlights(this.caseRecordId, highlights)
       .pipe(take(1))
       // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
-      .subscribe(() => {
-        this.highlightChange.emit();
-      });
+      .subscribe();
   };
 }

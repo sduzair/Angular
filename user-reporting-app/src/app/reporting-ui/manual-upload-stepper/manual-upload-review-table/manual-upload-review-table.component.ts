@@ -44,7 +44,9 @@ import {
       [showToolbar]="false"
       class="manual-upload-review-table">
       <!-- Validation Info column -->
-      <ng-container matColumnDef="_hiddenValidation">
+      <ng-container
+        matColumnDef="_hiddenValidation"
+        [sticky]="baseTable.isStickyColumn('_hiddenValidation')">
         <th
           mat-header-cell
           *matHeaderCellDef

@@ -4,9 +4,11 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
+  signal,
   TrackByFunction,
   ViewChild,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
@@ -16,7 +18,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { ActivatedRoute, ResolveFn, Router } from '@angular/router';
-import { BehaviorSubject, combineLatestWith, map, Observable } from 'rxjs';
+import { combineLatestWith, map, Observable, tap } from 'rxjs';
 import {
   CaseRecordStore,
   StrTransactionWithChangeLogs,
@@ -44,201 +46,190 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
     CamelToTitlePipe,
   ],
   template: `
-    @if (qSavingEdits$ | async; as savingIds) {
-      <app-base-table
-        #baseTable
-        [data]="(selectionsComputed$ | async) ?? []"
-        [dataColumnsValues]="dataColumnsValues"
-        [dataColumnsIgnoreValues]="dataColumnsIgnoreValues"
-        [dataColumnsProjected]="dataColumnsProjected"
-        [displayedColumns]="displayedColumns"
-        [displayColumnHeaderMap]="displayColumnHeaderMap"
-        [stickyColumns]="stickyColumns"
-        [selectFiltersValues]="selectFiltersValues"
-        [dateFiltersValues]="dateFiltersValues"
-        [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
-        [displayedColumnsTime]="displayedColumnsTime"
-        [dataSourceTrackBy]="dataSourceTrackBy"
-        [selectionKey]="'flowOfFundsAmlTransactionId'"
-        [filterFormHighlightSelectFilterKey]="'highlightColor'"
-        [filterFormHighlightSideEffect]="filterFormHighlightSideEffect"
-        [recentlyOpenRows$]="recentlyOpenedRows$"
-        [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
-        [hasMasterToggle]="true"
-        [sortedBy]="'dateOfTxn'">
-        <button
-          type="button"
-          mat-raised-button
-          ngProjectAs="table-toolbar-ele"
-          (click)="openManualUploadStepper()">
-          <mat-icon>file_upload</mat-icon>
-          Manual Upload
-        </button>
-        <!-- Selection Model -->
-        <ng-container
-          matColumnDef="select"
-          [sticky]="baseTable.isStickyColumn('select')">
-          <th
-            mat-header-cell
-            *matHeaderCellDef
-            class="px-0"
-            [class.sticky-cell]="baseTable.isStickyColumn('select')">
-            @if (baseTable.hasMasterToggle) {
-              <div>
-                <mat-checkbox
-                  (change)="$event ? baseTable.toggleAllRows() : null"
-                  [checked]="
-                    baseTable.selection.hasValue() && baseTable.isAllSelected()
-                  "
-                  [indeterminate]="
-                    baseTable.selection.hasValue() && !baseTable.isAllSelected()
-                  ">
-                </mat-checkbox>
-              </div>
-            }
-          </th>
-          <td
-            mat-cell
-            *matCellDef="let row; let i = index"
-            class="px-0"
-            [class.sticky-cell]="baseTable.isStickyColumn('select')">
+    <app-base-table
+      #baseTable
+      [data]="(selectionsComputed$ | async) ?? []"
+      [dataColumnsValues]="dataColumnsValues"
+      [dataColumnsIgnoreValues]="dataColumnsIgnoreValues"
+      [dataColumnsProjected]="dataColumnsProjected"
+      [displayedColumns]="displayedColumns"
+      [displayColumnHeaderMap]="displayColumnHeaderMap"
+      [stickyColumns]="stickyColumns"
+      [selectFiltersValues]="selectFiltersValues"
+      [dateFiltersValues]="dateFiltersValues"
+      [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
+      [displayedColumnsTime]="displayedColumnsTime"
+      [dataSourceTrackBy]="dataSourceTrackBy"
+      [selectionKey]="'flowOfFundsAmlTransactionId'"
+      [highlightedRecords]="highlightedRecords"
+      [filterFormHighlightSelectFilterKey]="'highlightColor'"
+      [filterFormHighlightSideEffect]="filterFormHighlightSideEffect"
+      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
+      [hasMasterToggle]="true">
+      <button
+        type="button"
+        mat-raised-button
+        ngProjectAs="table-toolbar-ele"
+        (click)="openManualUploadStepper()">
+        <mat-icon>file_upload</mat-icon>
+        Manual Upload
+      </button>
+      <!-- Selection Model -->
+      <ng-container
+        matColumnDef="select"
+        [sticky]="baseTable.isStickyColumn('select')">
+        <th
+          mat-header-cell
+          *matHeaderCellDef
+          [class.sticky-cell]="baseTable.isStickyColumn('select')">
+          @if (baseTable.hasMasterToggle) {
             <div>
               <mat-checkbox
-                (click)="baseTable.onCheckBoxClickMultiToggle($event, row, i)"
-                (change)="$event ? baseTable.toggleRow(row) : null"
-                [checked]="baseTable.selection.isSelected(row)"
-                [disabled]="isEditDisabled(row, savingIds)">
+                (change)="$event ? baseTable.toggleAllRows() : null"
+                [checked]="
+                  baseTable.selection.hasValue() && baseTable.isAllSelected()
+                "
+                [indeterminate]="
+                  baseTable.selection.hasValue() && !baseTable.isAllSelected()
+                ">
               </mat-checkbox>
             </div>
-          </td>
-        </ng-container>
-        <!-- Actions column -->
-        <ng-container
-          matColumnDef="actions"
-          [sticky]="baseTable.isStickyColumn('actions')">
-          <th
-            mat-header-cell
-            *matHeaderCellDef
-            class="px-0"
-            [class.sticky-cell]="baseTable.isStickyColumn('actions')">
-            <div>
-              <button
-                type="button"
-                [disabled]="isActionHeaderDisabled$ | async"
-                mat-icon-button
-                (click)="navigateToBulkEdit()"
-                [matBadge]="baseTable.selection.selected.length"
-                [matBadgeHidden]="!baseTable.selection.hasValue()">
-                <mat-icon>edit</mat-icon>
-              </button>
-              <button type="button" mat-icon-button class="invisible">
-                <mat-icon
-                  class="text-primary"
-                  [class.text-opacity-50]="isActionHeaderDisabled$ | async">
-                  history
-                </mat-icon>
-              </button>
-              <button
-                type="button"
-                [disabled]="isActionHeaderDisabled$ | async"
-                mat-icon-button
-                (click)="resetSelectedTxns()"
-                [matBadge]="baseTable.selection.selected.length"
-                [matBadgeHidden]="!baseTable.selection.hasValue()">
-                <mat-icon
-                  class="text-danger"
-                  [class.text-opacity-50]="isActionHeaderDisabled$ | async">
-                  restart_alt
-                </mat-icon>
-              </button>
-              <button
-                type="button"
-                [disabled]="isActionHeaderDisabled$ | async"
-                mat-icon-button
-                (click)="removeSelectedTxns()"
-                [matBadge]="baseTable.selection.selected.length"
-                [matBadgeHidden]="!baseTable.selection.hasValue()">
-                <mat-icon
-                  class="text-danger"
-                  [class.text-opacity-50]="isActionHeaderDisabled$ | async">
-                  delete_outline
-                </mat-icon>
-              </button>
-            </div>
-          </th>
-          <td
-            mat-cell
-            *matCellDef="let row"
-            [ngStyle]="{
-              backgroundColor:
-                row[baseTable.filterFormHighlightSelectFilterKey] || '',
-            }"
-            class="px-0"
-            [class.sticky-cell]="baseTable.isStickyColumn('actions')">
-            <div>
-              <button
-                type="button"
-                mat-icon-button
-                (click)="navigateToEditForm(row)"
-                [disabled]="isEditDisabled(row, savingIds)">
-                <mat-icon>edit</mat-icon>
-              </button>
-              <button
-                type="button"
-                mat-icon-button
-                (click)="navigateToAuditForm(row)"
-                [disabled]="isEditDisabled(row, savingIds)">
-                <mat-icon class="text-primary">history</mat-icon>
-              </button>
-              <button
-                type="button"
-                mat-icon-button
-                (click)="resetTxn(row)"
-                [disabled]="isEditDisabled(row, savingIds)">
-                <mat-icon class="text-danger">restart_alt</mat-icon>
-              </button>
-              <button
-                type="button"
-                mat-icon-button
-                (click)="removeTxn(row)"
-                [disabled]="isEditDisabled(row, savingIds)">
-                <mat-icon class="text-danger">delete_outline</mat-icon>
-              </button>
-            </div>
-          </td>
-        </ng-container>
-        <!-- Validation Info column -->
-        <ng-container
-          matColumnDef="_hiddenValidation"
-          [sticky]="baseTable.isStickyColumn('_hiddenValidation')">
-          <th
-            mat-header-cell
-            *matHeaderCellDef
-            mat-sort-header="_hiddenValidation"
-            [class.sticky-cell]="baseTable.isStickyColumn('_hiddenValidation')">
-            <div></div>
-          </th>
-          <td
-            mat-cell
-            *matCellDef="let row"
-            [class.sticky-cell]="baseTable.isStickyColumn('_hiddenValidation')">
-            <mat-chip-set>
-              @for (ch of row._hiddenValidation; track ch) {
-                <mat-chip
-                  [style.--mat-chip-elevated-container-color]="
-                    getColorForValidationChip(ch)
-                  "
-                  [style.--mat-chip-label-text-color]="
-                    getFontColorForValidationChip(ch)
-                  ">
-                  {{ ch | camelToTitle }}
-                </mat-chip>
-              }
-            </mat-chip-set>
-          </td>
-        </ng-container>
-      </app-base-table>
-    }
+          }
+        </th>
+        <td
+          mat-cell
+          *matCellDef="let row; let i = index"
+          [class.sticky-cell]="baseTable.isStickyColumn('select')">
+          <div>
+            <mat-checkbox
+              (click)="baseTable.onCheckBoxClickMultiToggle($event, row, i)"
+              (change)="$event ? baseTable.toggleRow(row) : null"
+              [checked]="baseTable.selection.isSelected(row)"
+              [disabled]="isEditDisabled(row, qSavingEdits())">
+            </mat-checkbox>
+          </div>
+        </td>
+      </ng-container>
+      <!-- Actions column -->
+      <ng-container
+        matColumnDef="actions"
+        [sticky]="baseTable.isStickyColumn('actions')">
+        <th
+          mat-header-cell
+          *matHeaderCellDef
+          [class.sticky-cell]="baseTable.isStickyColumn('actions')">
+          <div>
+            <button
+              type="button"
+              [disabled]="isActionHeaderDisabled$ | async"
+              mat-icon-button
+              (click)="navigateToBulkEdit()"
+              [matBadge]="baseTable.selection.selected.length"
+              [matBadgeHidden]="!baseTable.selection.hasValue()">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button type="button" mat-icon-button class="invisible">
+              <mat-icon
+                class="text-primary"
+                [class.text-opacity-50]="isActionHeaderDisabled$ | async">
+                history
+              </mat-icon>
+            </button>
+            <button
+              type="button"
+              [disabled]="isActionHeaderDisabled$ | async"
+              mat-icon-button
+              (click)="resetSelectedTxns()"
+              [matBadge]="baseTable.selection.selected.length"
+              [matBadgeHidden]="!baseTable.selection.hasValue()">
+              <mat-icon
+                class="text-danger"
+                [class.text-opacity-50]="isActionHeaderDisabled$ | async">
+                restart_alt
+              </mat-icon>
+            </button>
+            <button
+              type="button"
+              [disabled]="isActionHeaderDisabled$ | async"
+              mat-icon-button
+              (click)="removeSelectedTxns()"
+              [matBadge]="baseTable.selection.selected.length"
+              [matBadgeHidden]="!baseTable.selection.hasValue()">
+              <mat-icon
+                class="text-danger"
+                [class.text-opacity-50]="isActionHeaderDisabled$ | async">
+                delete_outline
+              </mat-icon>
+            </button>
+          </div>
+        </th>
+        <td
+          mat-cell
+          *matCellDef="let row"
+          [class.sticky-cell]="baseTable.isStickyColumn('actions')">
+          <div>
+            <button
+              type="button"
+              mat-icon-button
+              (click)="navigateToEditForm(row)"
+              [disabled]="isEditDisabled(row, qSavingEdits())">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button
+              type="button"
+              mat-icon-button
+              (click)="navigateToAuditForm(row)"
+              [disabled]="isEditDisabled(row, qSavingEdits())">
+              <mat-icon class="text-primary">history</mat-icon>
+            </button>
+            <button
+              type="button"
+              mat-icon-button
+              (click)="resetTxn(row)"
+              [disabled]="isEditDisabled(row, qSavingEdits())">
+              <mat-icon class="text-danger">restart_alt</mat-icon>
+            </button>
+            <button
+              type="button"
+              mat-icon-button
+              (click)="removeTxn(row)"
+              [disabled]="isEditDisabled(row, qSavingEdits())">
+              <mat-icon class="text-danger">delete_outline</mat-icon>
+            </button>
+          </div>
+        </td>
+      </ng-container>
+      <!-- Validation Info column -->
+      <ng-container
+        matColumnDef="_hiddenValidation"
+        [sticky]="baseTable.isStickyColumn('_hiddenValidation')">
+        <th
+          mat-header-cell
+          *matHeaderCellDef
+          mat-sort-header="_hiddenValidation"
+          [class.sticky-cell]="baseTable.isStickyColumn('_hiddenValidation')">
+          <div></div>
+        </th>
+        <td
+          mat-cell
+          *matCellDef="let row"
+          [class.sticky-cell]="baseTable.isStickyColumn('_hiddenValidation')">
+          <mat-chip-set>
+            @for (ch of row._hiddenValidation; track ch) {
+              <mat-chip
+                [style.--mat-chip-elevated-container-color]="
+                  getColorForValidationChip(ch)
+                "
+                [style.--mat-chip-label-text-color]="
+                  getFontColorForValidationChip(ch)
+                ">
+                {{ ch | camelToTitle }}
+              </mat-chip>
+            }
+          </mat-chip-set>
+        </td>
+      </ng-container>
+    </app-base-table>
   `,
   styleUrl: './reporting-ui-table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -248,8 +239,21 @@ export class ReportingUiTableComponent implements AfterViewInit {
   private dialog = inject(MatDialog);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
-  selectionsComputed$ = inject(CaseRecordStore).selectionsComputed$;
-  qSavingEdits$ = inject(CaseRecordStore).qActiveSaveIds$;
+  selectionsComputed$ = inject(CaseRecordStore).selectionsComputed$.pipe(
+    tap((txns) => {
+      const initHighlightsMap = new Map(
+        txns.map((txn) => [
+          txn.flowOfFundsAmlTransactionId,
+          txn.highlightColor ?? '',
+        ]),
+      );
+      this.highlightedRecords.update(() => new Map(initHighlightsMap));
+    }),
+  );
+
+  qSavingEdits = toSignal(inject(CaseRecordStore).qActiveSaveIds$, {
+    initialValue: [],
+  });
 
   async openManualUploadStepper() {
     const {
@@ -492,14 +496,13 @@ export class ReportingUiTableComponent implements AfterViewInit {
     ['dateOfPosting', 'timeOfPosting'],
   ];
 
+  highlightedRecords = signal<Map<string, string>>(new Map());
+
   filterFormHighlightSideEffect = (
     highlights: { txnId: string; newColor: string }[],
   ) => {
     this.caseRecordStore.qSaveHighlightEdits(highlights);
   };
-
-  private recentlyOpenedRowsSubject = new BehaviorSubject([] as string[]);
-  recentlyOpenedRows$ = this.recentlyOpenedRowsSubject.asObservable();
 
   isEditDisabled(row: StrTransactionWithChangeLogs, savingIds: string[]) {
     return savingIds.includes(row.flowOfFundsAmlTransactionId);
@@ -545,13 +548,15 @@ export class ReportingUiTableComponent implements AfterViewInit {
   }
 
   navigateToEditForm(record: StrTransactionWithChangeLogs) {
-    this.recentlyOpenedRowsSubject.next([record.flowOfFundsAmlTransactionId]);
+    this.baseTable.recentlyOpenRows.update(() => [
+      record.flowOfFundsAmlTransactionId,
+    ]);
     this.router.navigate([`edit-form/${record.flowOfFundsAmlTransactionId}`], {
       relativeTo: this.route,
     });
   }
 
-  @ViewChild('baseTable') baseTable!: BaseTableComponent<
+  @ViewChild('baseTable', { static: true }) baseTable!: BaseTableComponent<
     StrTransactionWithChangeLogs,
     string,
     'select' | 'actions' | StrTransactionDataColumnKey,
@@ -565,7 +570,11 @@ export class ReportingUiTableComponent implements AfterViewInit {
       this.baseTable.selection.selected.map(
         (strTxn) => strTxn.flowOfFundsAmlTransactionId,
       );
-    this.recentlyOpenedRowsSubject.next(selectedTransactionsForBulkEdit);
+
+    this.baseTable.recentlyOpenRows.update(
+      () => selectedTransactionsForBulkEdit,
+    );
+
     this.router.navigate(['edit-form/bulk-edit'], {
       relativeTo: this.route,
       state: {
@@ -575,7 +584,9 @@ export class ReportingUiTableComponent implements AfterViewInit {
   }
 
   navigateToAuditForm(record: StrTransactionWithChangeLogs) {
-    this.recentlyOpenedRowsSubject.next([record.flowOfFundsAmlTransactionId]);
+    this.baseTable.recentlyOpenRows.update(() => [
+      record.flowOfFundsAmlTransactionId,
+    ]);
 
     this.router.navigate([`audit/${record.flowOfFundsAmlTransactionId}`], {
       relativeTo: this.route,

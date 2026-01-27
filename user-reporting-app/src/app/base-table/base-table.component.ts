@@ -35,6 +35,7 @@ import {
   MatTableModule,
 } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
+import { CamelToTitlePipe } from '../reporting-ui/reporting-ui-table/camel-to-title.pipe';
 import { TxnTimePipe } from '../reporting-ui/reporting-ui-table/pad-zero.pipe';
 import { ScrollPositionPreserveDirective } from '../route-cache/scroll-position-preserve.directive';
 import { ReviewPeriodDateDirective } from '../transaction-search/review-period-date.directive';
@@ -45,7 +46,6 @@ import {
   ISelectionMasterToggle,
 } from './abstract-base-table';
 import { ClickOutsideTableDirective } from './click-outside-table.directive';
-import { CamelToTitlePipe } from '../reporting-ui/reporting-ui-table/camel-to-title.pipe';
 
 @Component({
   selector: 'app-base-table',
@@ -403,8 +403,7 @@ import { CamelToTitlePipe } from '../reporting-ui/reporting-ui-table/camel-to-ti
                   mat-header-cell
                   *matHeaderCellDef
                   [mat-sort-header]="column"
-                  [class.sticky-cell]="isStickyColumn(column)"
-                  class="px-2">
+                  [class.sticky-cell]="isStickyColumn(column)">
                   <div>
                     {{ this.displayedColumnsTransform(column) }}
                   </div>
@@ -412,8 +411,7 @@ import { CamelToTitlePipe } from '../reporting-ui/reporting-ui-table/camel-to-ti
                 <td
                   mat-cell
                   *matCellDef="let row"
-                  [class.sticky-cell]="isStickyColumn(column)"
-                  class="px-2">
+                  [class.sticky-cell]="isStickyColumn(column)">
                   <div>
                     @if (this.displayedColumnsTime.includes(column)) {
                       {{
@@ -441,27 +439,24 @@ import { CamelToTitlePipe } from '../reporting-ui/reporting-ui-table/camel-to-ti
             <tr
               mat-header-row
               *matHeaderRowDef="this.displayedColumns; sticky: true"></tr>
-            @if (recentlyOpenRows$ | async; as recentlyOpenRows) {
-              <tr
-                mat-row
-                *matRowDef="
-                  let row;
-                  columns: this.displayedColumns;
-                  let i = index
-                "
-                [class.recentlyOpenRowHighlight]="
-                  isRecentlyOpened(row, recentlyOpenRows)
-                "
-                [class.no-select]="
-                  filterFormHighlightSelectedColor !== undefined
-                "
-                (click)="filterFormAssignSelectedColorToRow($event, row, i)"
-                [style.cursor]="
-                  filterFormHighlightSelectedColor !== undefined
-                    ? 'pointer'
-                    : 'default'
-                "></tr>
-            }
+            <tr
+              mat-row
+              *matRowDef="
+                let row;
+                columns: this.displayedColumns;
+                let i = index
+              "
+              [class.recentlyOpenRowHighlight]="
+                isRecentlyOpened(row, recentlyOpenRows())
+              "
+              [class.no-select]="filterFormHighlightSelectedColor !== undefined"
+              (click)="filterFormAssignSelectedColorToRow($event, row, i)"
+              [style.background-color]="getHighlightColor(row)"
+              [style.cursor]="
+                filterFormHighlightSelectedColor !== undefined
+                  ? 'pointer'
+                  : 'default'
+              "></tr>
           </table>
         </div>
       </mat-drawer-content>

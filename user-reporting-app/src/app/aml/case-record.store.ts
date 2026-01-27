@@ -307,8 +307,11 @@ export class CaseRecordStore implements OnDestroy {
     }),
     concatMap(({ edit, incomingSaves }) => {
       return of(edit).pipe(
-        withLatestFrom(this.selectionsComputed$),
-        map(([edit, selectionsComputed]) => {
+        withLatestFrom(
+          this.selectionsComputed$,
+          this._state$.pipe(map(({ selections }) => selections)),
+        ),
+        map(([edit, selectionsComputed, selectionsRaw]) => {
           const { editType } = edit;
           const pendingChanges: SaveChangesRequest['pendingChanges'] = [];
           const selectionsToAdd: StrTransactionWithChangeLogs[] = [];
@@ -366,11 +369,16 @@ export class CaseRecordStore implements OnDestroy {
             const { highlightsMap } = edit;
 
             for (const [txnId, newColor] of highlightsMap.entries()) {
-              const transactionBefore = selectionsComputed.find(
+              const transactionRaw = selectionsRaw.find(
                 (txn) => txn.flowOfFundsAmlTransactionId === txnId,
               );
 
-              if (!transactionBefore) continue;
+              if (!transactionRaw) continue;
+
+              const transactionBefore = ChangeLog.applyChangeLogs(
+                transactionRaw,
+                transactionRaw?.changeLogs,
+              );
 
               const pendingChangeLogs = ChangeLog.generateChangeLogs(
                 {
