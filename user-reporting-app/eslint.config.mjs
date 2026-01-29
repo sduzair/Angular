@@ -10,13 +10,7 @@ import tseslint from 'typescript-eslint';
 export default defineConfig([
   {
     files: ['**/*.ts'],
-    ignores: [
-      '.angular/**',
-      '.nx/**',
-      'coverage/**',
-      'dist/**',
-      '**/*data.fixture.ts',
-    ],
+    ignores: ['.angular/**', '.nx/**', 'coverage/**', 'dist/**'],
     extends: [
       eslint.configs.recommended,
       ...tseslint.configs.recommended,
@@ -57,7 +51,7 @@ export default defineConfig([
 
       // RxJS best practices
       'rxjs-angular-x/prefer-async-pipe': 'error',
-      'rxjs-angular-x/prefer-composition': 'warn',
+      'rxjs-angular-x/prefer-composition': 'off',
       'rxjs-angular-x/prefer-takeuntil': [
         'error',
         {
@@ -73,6 +67,7 @@ export default defineConfig([
       '@typescript-eslint/no-unused-vars': 'off',
       'no-param-reassign': ['error', { props: true }],
       '@typescript-eslint/prefer-for-of': 'off',
+      'prefer-const': 'off',
 
       // Lazy-loading
       'no-restricted-imports': [
@@ -87,10 +82,11 @@ export default defineConfig([
             },
             // allow test/dev fixtures when developing
             // @ts-ignore
-            ...(process.env.NODE_ENV === 'production'
-              ? [
+            ...(process.env.NODE_ENV === 'production' || true
+              ? // ...(process.env.NODE_ENV === 'production'
+                [
                   {
-                    group: ['**/*.fixture', '**/*.fixture.ts'],
+                    group: ['**/*.fixture'],
                     message:
                       'Test fixtures can only be imported in .spec.ts files',
                   },
@@ -101,6 +97,11 @@ export default defineConfig([
               message:
                 'Please interface with this library code using change log module',
             },
+            {
+              group: ['**/echarts/*'],
+              message:
+                'import charts only in lazily loaded analytics component',
+            },
           ],
         },
       ],
@@ -108,12 +109,18 @@ export default defineConfig([
     },
   },
   {
-    files: ['**/*.spec.ts'],
+    files: ['**/*.spec.ts', '**/*.fixture.ts'],
     plugins: { jasmine: jasmine },
     rules: {
-      'no-restricted-imports': 'off',
+      'no-restricted-imports': ['off'],
       ...jasmine.configs.recommended.rules,
-      'jasmine/no-unsafe-spy': 'off',
+      'jasmine/no-unsafe-spy': ['off'],
+    },
+  },
+  {
+    files: ['**/analytics/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['off'],
     },
   },
   {

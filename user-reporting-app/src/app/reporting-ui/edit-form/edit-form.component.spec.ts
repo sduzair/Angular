@@ -1,6 +1,6 @@
 import { HarnessLoader } from '@angular/cdk/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
-import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { provideHttpClient } from '@angular/common/http';
 import {
   HttpTestingController,
   provideHttpClientTesting,
@@ -35,8 +35,10 @@ import {
   withRouterConfig,
 } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
+import { provideHashbrown } from '@hashbrownai/angular';
 import { enCA } from 'date-fns/locale';
 import { of } from 'rxjs';
+import { CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE } from '../../aml/case-record.state.fixture';
 import {
   CASE_RECORD_INITIAL_STATE,
   CaseRecordState,
@@ -51,14 +53,7 @@ import {
 import { createAuthServiceSpy } from '../../auth.service.spec';
 import { LoginComponent } from '../../login/login.component';
 import { activateTabs, findEl } from '../../test-helpers';
-import {
-  lastUpdatedResolver,
-  savingStatusResolver,
-} from './../../aml/aml.component';
-import {
-  AppErrorHandlerService,
-  errorInterceptor,
-} from './../../app-error-handler.service';
+import { AppErrorHandlerService } from './../../app-error-handler.service';
 import { NavLayoutComponent } from './../../nav-layout/nav-layout.component';
 import {
   auditResolver,
@@ -67,12 +62,9 @@ import {
   singleEditTypeResolver,
   StrTxnEditForm,
 } from './edit-form.component';
-import {
-  FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-  FormOptionsService,
-} from './form-options.service';
+import { FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE } from './form-options.fixture';
+import { FormOptionsService } from './form-options.service';
 import { TransactionTimeDirective } from './transaction-time.directive';
-import { CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE } from '../../aml/case-record.state.fixture';
 
 @Component({
   selector: 'app-transaction-search',
@@ -137,20 +129,16 @@ describe('EditFormComponent', () => {
                   providers: [
                     {
                       provide: CASE_RECORD_INITIAL_STATE,
-                      useValue: SESSION_STATE_FIXTURE,
+                      useValue: CASE_RECORD_STATE_FIXTURE,
                     },
                     CaseRecordStore,
+                    provideHashbrown({}),
                   ],
-                  resolve: {
-                    lastUpdated$: lastUpdatedResolver,
-                    savingStatus$: savingStatusResolver,
-                  },
                   data: { reuse: true },
                   children: [
                     {
                       path: 'reporting-ui',
-                      title: (route) =>
-                        `Reporting UI - ${route.params['amlId']}`,
+                      title: () => 'Reporting UI',
                       children: [
                         {
                           path: 'edit-form/bulk-edit',
@@ -199,7 +187,7 @@ describe('EditFormComponent', () => {
             );
           }),
         ),
-        provideHttpClient(withInterceptors([errorInterceptor])),
+        provideHttpClient(),
         provideHttpClientTesting(),
         // note needed as mat date input harness reads displayed value instead of form model value
         provideDateFnsAdapter({
@@ -229,7 +217,7 @@ describe('EditFormComponent', () => {
     };
   }
 
-  describe('navigate to edit form component for SINGLE_EDIT', () => {
+  describe('navigate to edit form component for SINGLE_SAVE', () => {
     it('should redirect from single edit form to login page when user not logged in', async () => {
       const { harness, authServiceSpy } = await setup();
       const router = TestBed.inject(Router);
@@ -582,7 +570,7 @@ describe('EditFormComponent', () => {
     });
   });
 
-  describe('navigate to edit form component for BULK_EDIT', () => {
+  describe('navigate to edit form component for BULK_SAVE', () => {
     it('should redirect from bulk edit form to login page when user not logged in', async () => {
       const { harness, authServiceSpy } = await setup();
       const router = TestBed.inject(Router);
@@ -671,7 +659,7 @@ describe('EditFormComponent', () => {
 
       // the form object structure includes one sa and ca
       await expectAsync(
-        verify(TRANSACTION_BULK_EDIT_FORM_SRUCTURE),
+        verify(TRANSACTION_BULK_SAVE_FORM_SRUCTURE),
       ).toBeResolved();
     });
 
@@ -759,7 +747,7 @@ describe('EditFormComponent', () => {
 
       await activateTabs(loader);
 
-      const errors = await verify(TRANSACTION_BULK_EDIT_FORM_SRUCTURE);
+      const errors = await verify(TRANSACTION_BULK_SAVE_FORM_SRUCTURE);
 
       expect(errors.length).toBe(0);
       if (errors.length > 0) {
@@ -811,37 +799,38 @@ describe('EditFormComponent', () => {
         {
           addButtonTestId: 'startingActions-0-accountHolders-add',
           expectedMissingFieldTestId:
-            'startingActions-0-accountHolders-1-partyKey',
+            'startingActions-0-accountHolders-1-_hiddenPartyKey',
         },
         {
           addButtonTestId: 'startingActions-0-sourceOfFunds-add',
           expectedMissingFieldTestId:
-            'startingActions-0-sourceOfFunds-1-partyKey',
+            'startingActions-0-sourceOfFunds-1-_hiddenPartyKey',
         },
         {
           addButtonTestId: 'startingActions-0-conductors-add',
-          expectedMissingFieldTestId: 'startingActions-0-conductors-1-partyKey',
+          expectedMissingFieldTestId:
+            'startingActions-0-conductors-1-_hiddenPartyKey',
         },
         // note: no on befalf of fields intially due
         {
           addButtonTestId: 'startingActions-0-conductors-0-onBehalfOf-add',
           expectedMissingFieldTestId:
-            'startingActions-0-conductors-0-onBehalfOf-0-partyKey',
+            'startingActions-0-conductors-0-onBehalfOf-0-_hiddenPartyKey',
         },
         {
           addButtonTestId: 'completingActions-0-accountHolders-add',
           expectedMissingFieldTestId:
-            'completingActions-0-accountHolders-1-partyKey',
+            'completingActions-0-accountHolders-1-_hiddenPartyKey',
         },
         {
           addButtonTestId: 'completingActions-0-involvedIn-add',
           expectedMissingFieldTestId:
-            'completingActions-0-involvedIn-1-partyKey',
+            'completingActions-0-involvedIn-1-_hiddenPartyKey',
         },
         {
           addButtonTestId: 'completingActions-0-beneficiaries-add',
           expectedMissingFieldTestId:
-            'completingActions-0-beneficiaries-1-partyKey',
+            'completingActions-0-beneficiaries-1-_hiddenPartyKey',
         },
       ];
 
@@ -899,7 +888,7 @@ describe('EditFormComponent', () => {
       await activateTabs(loader);
 
       const removeBtnTestIds = getButtonTestIds(
-        TRANSACTION_BULK_EDIT_FORM_SRUCTURE,
+        TRANSACTION_BULK_SAVE_FORM_SRUCTURE,
       );
 
       for (const btnTestId of removeBtnTestIds) {
@@ -1115,7 +1104,7 @@ describe('EditFormComponent', () => {
 
       await activateTabs(loader);
 
-      const errors = await verify(TRANSACTION_BULK_EDIT_FORM_SRUCTURE);
+      const errors = await verify(TRANSACTION_BULK_SAVE_FORM_SRUCTURE);
 
       expect(errors.length).toBe(0);
       if (errors.length > 0) {
@@ -1139,8 +1128,8 @@ describe('EditFormComponent', () => {
           const firstItem = val[0] as Record<string, unknown>;
           const fieldName = firstItem['amount']
             ? 'amount'
-            : firstItem['partyKey']
-              ? 'partyKey'
+            : firstItem['_hiddenPartyKey']
+              ? '_hiddenPartyKey'
               : null; // never possible either key must exist
 
           const expectedMissingFieldTestId = `${path}${key}-${val.length}-${fieldName}`;
@@ -1471,30 +1460,30 @@ const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
       accountHolders: [
         {
           _id: '26fad9e3-7a4e-46e6-84d0-f75a2f76468c',
-          partyKey: '4415677561',
-          surname: 'Fallon',
-          givenName: 'Jimmy',
-          otherOrInitial: 'M',
-          nameOfEntity: 'Jimmy Inc',
+          _hiddenPartyKey: '4415677561',
+          _hiddenSurname: 'Fallon',
+          _hiddenGivenName: 'Jimmy',
+          _hiddenOtherOrInitial: 'M',
+          _hiddenNameOfEntity: 'Jimmy Inc',
         },
         {
           _id: '67f65447-30ed-420d-870e-30c2567a51f8',
-          partyKey: '5846601320',
-          surname: 'Carter',
-          givenName: 'Jimmy',
-          otherOrInitial: 'S',
-          nameOfEntity: 'Jimmy Inc',
+          _hiddenPartyKey: '5846601320',
+          _hiddenSurname: 'Carter',
+          _hiddenGivenName: 'Jimmy',
+          _hiddenOtherOrInitial: 'S',
+          _hiddenNameOfEntity: 'Jimmy Inc',
         },
       ],
       wasSofInfoObtained: true,
       sourceOfFunds: [
         {
           _id: '47f64447-30ed-420d-470e-30c2564a51f8',
-          partyKey: '5846601320',
-          surname: 'Carter',
-          givenName: 'Jimmy',
-          otherOrInitial: 'S',
-          nameOfEntity: 'Jimmy Inc',
+          _hiddenPartyKey: '5846601320',
+          _hiddenSurname: 'Carter',
+          _hiddenGivenName: 'Jimmy',
+          _hiddenOtherOrInitial: 'S',
+          _hiddenNameOfEntity: 'Jimmy Inc',
           accountNumber: '222222',
           identifyingNumber: '333333',
         },
@@ -1503,20 +1492,20 @@ const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
       conductors: [
         {
           _id: '9855168e-8452-4338-b644-ca73a8b846d2',
-          partyKey: '3415674561',
-          surname: 'Carter',
-          givenName: 'James',
-          otherOrInitial: 'L',
-          nameOfEntity: 'James Inc',
+          _hiddenPartyKey: '3415674561',
+          _hiddenSurname: 'Carter',
+          _hiddenGivenName: 'James',
+          _hiddenOtherOrInitial: 'L',
+          _hiddenNameOfEntity: 'James Inc',
           wasConductedOnBehalf: true,
           onBehalfOf: [
             {
               _id: '7055168e-8452-4338-b644-ca73a8b846d2',
-              partyKey: '9414672563',
-              surname: 'Smith',
-              givenName: 'James',
-              otherOrInitial: 'L',
-              nameOfEntity: 'Jamed Inc',
+              _hiddenPartyKey: '9414672563',
+              _hiddenSurname: 'Smith',
+              _hiddenGivenName: 'James',
+              _hiddenOtherOrInitial: 'L',
+              _hiddenNameOfEntity: 'Jamed Inc',
             },
           ],
         },
@@ -1545,30 +1534,30 @@ const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
       accountHolders: [
         {
           _id: '26fad9e3-7a4e-46e6-84d0-f75a2f76468c',
-          partyKey: '3415674561',
-          surname: 'Carter',
-          givenName: 'James',
-          otherOrInitial: 'L',
-          nameOfEntity: 'James Inc',
+          _hiddenPartyKey: '3415674561',
+          _hiddenSurname: 'Carter',
+          _hiddenGivenName: 'James',
+          _hiddenOtherOrInitial: 'L',
+          _hiddenNameOfEntity: 'James Inc',
         },
         {
           _id: '67f65447-30ed-420d-870e-30c2567a51f8',
-          partyKey: '1846597320',
-          surname: 'Nguyen',
-          givenName: 'Laura',
-          otherOrInitial: 'M',
-          nameOfEntity: 'James Inc',
+          _hiddenPartyKey: '1846597320',
+          _hiddenSurname: 'Nguyen',
+          _hiddenGivenName: 'Laura',
+          _hiddenOtherOrInitial: 'M',
+          _hiddenNameOfEntity: 'James Inc',
         },
       ],
       wasAnyOtherSubInvolved: true,
       involvedIn: [
         {
           _id: '37f34437-30e3-420d-473e-30c2563a51f8',
-          partyKey: '2846601320',
-          surname: 'Carter',
-          givenName: 'Jimmy',
-          otherOrInitial: 'S',
-          nameOfEntity: 'Jimmy Inc',
+          _hiddenPartyKey: '2846601320',
+          _hiddenSurname: 'Carter',
+          _hiddenGivenName: 'Jimmy',
+          _hiddenOtherOrInitial: 'S',
+          _hiddenNameOfEntity: 'Jimmy Inc',
           accountNumber: '222222',
           identifyingNumber: '333333',
         },
@@ -1577,29 +1566,30 @@ const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
       beneficiaries: [
         {
           _id: '84413b8a-31c8-4763-acd5-f9a8c3b3b02a',
-          partyKey: '3415674561',
-          surname: 'Carter',
-          givenName: 'James',
-          otherOrInitial: 'L',
-          nameOfEntity: 'James Inc',
+          _hiddenPartyKey: '3415674561',
+          _hiddenSurname: 'Carter',
+          _hiddenGivenName: 'James',
+          _hiddenOtherOrInitial: 'L',
+          _hiddenNameOfEntity: 'James Inc',
         },
         {
           _id: '3e1463cb-687e-4846-89ba-5eff6d3639a2',
-          partyKey: '1846597320',
-          surname: 'Nguyen',
-          givenName: 'Laura',
-          otherOrInitial: 'M',
-          nameOfEntity: 'James Inc',
+          _hiddenPartyKey: '1846597320',
+          _hiddenSurname: 'Nguyen',
+          _hiddenGivenName: 'Laura',
+          _hiddenOtherOrInitial: 'M',
+          _hiddenNameOfEntity: 'James Inc',
         },
       ],
     },
   ],
 };
 
-const SESSION_STATE_FIXTURE: CaseRecordState = {
+const CASE_RECORD_STATE_FIXTURE: CaseRecordState = {
+  searchResponse: [],
   caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
   amlId: '9999999',
-  transactionSearchParams: {
+  searchParams: {
     accountNumbersSelection: [],
     partyKeysSelection: [],
     productTypesSelection: [],
@@ -1635,18 +1625,18 @@ const SESSION_STATE_FIXTURE: CaseRecordState = {
       _hiddenTxnType: '',
       _hiddenAmlId: '',
       _hiddenStrTxnId: '',
-      _version: 0,
       changeLogs: [],
       sourceId: 'Manual',
       caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
+      eTag: 0,
     };
   }),
 
-  etag: 0,
+  eTag: 0,
   lastUpdated: '1996-06-13',
 };
 
-const TRANSACTION_BULK_EDIT_FORM_SRUCTURE: StrTxnEditForm = {
+const TRANSACTION_BULK_SAVE_FORM_SRUCTURE: StrTxnEditForm = {
   wasTxnAttempted: null,
   wasTxnAttemptedReason: null,
   dateOfTxn: null,
@@ -1679,21 +1669,21 @@ const TRANSACTION_BULK_EDIT_FORM_SRUCTURE: StrTxnEditForm = {
       hasAccountHolders: null,
       accountHolders: [
         {
-          partyKey: null,
-          surname: null,
-          givenName: null,
-          otherOrInitial: null,
-          nameOfEntity: null,
+          _hiddenPartyKey: null,
+          _hiddenSurname: null,
+          _hiddenGivenName: null,
+          _hiddenOtherOrInitial: null,
+          _hiddenNameOfEntity: null,
         },
       ],
       wasSofInfoObtained: null,
       sourceOfFunds: [
         {
-          partyKey: null,
-          surname: null,
-          givenName: null,
-          otherOrInitial: null,
-          nameOfEntity: null,
+          _hiddenPartyKey: null,
+          _hiddenSurname: null,
+          _hiddenGivenName: null,
+          _hiddenOtherOrInitial: null,
+          _hiddenNameOfEntity: null,
           accountNumber: null,
           identifyingNumber: null,
         },
@@ -1701,11 +1691,11 @@ const TRANSACTION_BULK_EDIT_FORM_SRUCTURE: StrTxnEditForm = {
       wasCondInfoObtained: null,
       conductors: [
         {
-          partyKey: null,
-          surname: null,
-          givenName: null,
-          otherOrInitial: null,
-          nameOfEntity: null,
+          _hiddenPartyKey: null,
+          _hiddenSurname: null,
+          _hiddenGivenName: null,
+          _hiddenOtherOrInitial: null,
+          _hiddenNameOfEntity: null,
           wasConductedOnBehalf: null,
           onBehalfOf: [],
         },
@@ -1732,21 +1722,21 @@ const TRANSACTION_BULK_EDIT_FORM_SRUCTURE: StrTxnEditForm = {
       hasAccountHolders: null,
       accountHolders: [
         {
-          partyKey: null,
-          surname: null,
-          givenName: null,
-          otherOrInitial: null,
-          nameOfEntity: null,
+          _hiddenPartyKey: null,
+          _hiddenSurname: null,
+          _hiddenGivenName: null,
+          _hiddenOtherOrInitial: null,
+          _hiddenNameOfEntity: null,
         },
       ],
       wasAnyOtherSubInvolved: null,
       involvedIn: [
         {
-          partyKey: null,
-          surname: null,
-          givenName: null,
-          otherOrInitial: null,
-          nameOfEntity: null,
+          _hiddenPartyKey: null,
+          _hiddenSurname: null,
+          _hiddenGivenName: null,
+          _hiddenOtherOrInitial: null,
+          _hiddenNameOfEntity: null,
           accountNumber: null,
           identifyingNumber: null,
         },
@@ -1754,11 +1744,11 @@ const TRANSACTION_BULK_EDIT_FORM_SRUCTURE: StrTxnEditForm = {
       wasBenInfoObtained: null,
       beneficiaries: [
         {
-          partyKey: null,
-          surname: null,
-          givenName: null,
-          otherOrInitial: null,
-          nameOfEntity: null,
+          _hiddenPartyKey: null,
+          _hiddenSurname: null,
+          _hiddenGivenName: null,
+          _hiddenOtherOrInitial: null,
+          _hiddenNameOfEntity: null,
         },
       ],
     },

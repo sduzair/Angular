@@ -3,6 +3,7 @@ import {
   DestroyRef,
   Directive,
   ElementRef,
+  HostBinding,
   HostListener,
   inject,
   Renderer2,
@@ -64,23 +65,23 @@ export class MarkAsClearedDirective implements AfterViewInit {
     });
   }
 
-  private matIconElement: HTMLElement | null = null;
   ngAfterViewInit(): void {
-    this.matIconElement =
+    const matIconElement =
       this.elementRef.nativeElement.querySelector('mat-icon');
     // Subscribe to value changes to trigger host class update
     this.control.valueChanges
       .pipe(takeUntilDestroyed(this.destroy$))
-      .subscribe(() => this.updateIconClass());
+      .subscribe(() => this.updateIconClass(matIconElement));
   }
 
-  private updateIconClass(): void {
-    console.assert(!!this.matIconElement);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private updateIconClass(matIconElement: any): void {
+    console.assert(!!matIconElement);
 
     if (!this.control!.disabled && this.control!.value === MARKED_AS_CLEARED) {
-      this.renderer.addClass(this.matIconElement, 'mat-warn');
+      this.renderer.addClass(matIconElement, 'mat-warn');
     } else {
-      this.renderer.removeClass(this.matIconElement, 'mat-warn');
+      this.renderer.removeClass(matIconElement, 'mat-warn');
     }
   }
 }

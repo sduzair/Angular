@@ -35,6 +35,7 @@ import {
   MatTableModule,
 } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
+import { CamelToTitlePipe } from '../reporting-ui/reporting-ui-table/camel-to-title.pipe';
 import { TxnTimePipe } from '../reporting-ui/reporting-ui-table/pad-zero.pipe';
 import { ScrollPositionPreserveDirective } from '../route-cache/scroll-position-preserve.directive';
 import { ReviewPeriodDateDirective } from '../transaction-search/review-period-date.directive';
@@ -78,6 +79,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
     MatButtonToggleModule,
     ClickOutsideTableDirective,
     ScrollPositionPreserveDirective,
+    CamelToTitlePipe,
   ],
   template: `
     @if (showToolbar) {
@@ -141,7 +143,10 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
       class="overflow-visible"
       hasBackdrop="false"
       appScrollPositionPreserve>
-      <mat-drawer class="form-drawer" position="end" #drawer>
+      <mat-drawer
+        class="form-drawer border-top border-bottom border-start shadow-sm"
+        position="end"
+        #drawer>
         <form
           [formGroup]="filterFormFormGroup"
           class="h-100 d-flex flex-column container px-0">
@@ -331,7 +336,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                               filterKey
                             ]!.toggle(option.value)
                           ">
-                          {{ option.value }}
+                          {{ option.value | camelToTitle }}
                         </mat-checkbox>
                       </mat-option>
                     }
@@ -391,13 +396,14 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
 
             <!-- Column Definitions  -->
             @for (column of dataColumnsDisplayValues; track column) {
-              <ng-container [matColumnDef]="column">
+              <ng-container
+                [matColumnDef]="column"
+                [sticky]="isStickyColumn(column)">
                 <th
                   mat-header-cell
                   *matHeaderCellDef
                   [mat-sort-header]="column"
-                  [class.sticky-cell]="isStickyColumn(column)"
-                  class="px-2">
+                  [class.sticky-cell]="isStickyColumn(column)">
                   <div>
                     {{ this.displayedColumnsTransform(column) }}
                   </div>
@@ -405,8 +411,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                 <td
                   mat-cell
                   *matCellDef="let row"
-                  [class.sticky-cell]="isStickyColumn(column)"
-                  class="px-2">
+                  [class.sticky-cell]="isStickyColumn(column)">
                   <div>
                     @if (this.displayedColumnsTime.includes(column)) {
                       {{
@@ -434,27 +439,24 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
             <tr
               mat-header-row
               *matHeaderRowDef="this.displayedColumns; sticky: true"></tr>
-            @if (recentlyOpenRows$ | async; as recentlyOpenRows) {
-              <tr
-                mat-row
-                *matRowDef="
-                  let row;
-                  columns: this.displayedColumns;
-                  let i = index
-                "
-                [class.recentlyOpenRowHighlight]="
-                  isRecentlyOpened(row, recentlyOpenRows)
-                "
-                [class.no-select]="
-                  filterFormHighlightSelectedColor !== undefined
-                "
-                (click)="filterFormAssignSelectedColorToRow($event, row, i)"
-                [style.cursor]="
-                  filterFormHighlightSelectedColor !== undefined
-                    ? 'pointer'
-                    : 'default'
-                "></tr>
-            }
+            <tr
+              mat-row
+              *matRowDef="
+                let row;
+                columns: this.displayedColumns;
+                let i = index
+              "
+              [class.recentlyOpenRowHighlight]="
+                isRecentlyOpened(row, recentlyOpenRows())
+              "
+              [class.no-select]="filterFormHighlightSelectedColor !== undefined"
+              (click)="filterFormAssignSelectedColorToRow($event, row, i)"
+              [style.background-color]="getHighlightColor(row)"
+              [style.cursor]="
+                filterFormHighlightSelectedColor !== undefined
+                  ? 'pointer'
+                  : 'default'
+              "></tr>
           </table>
         </div>
       </mat-drawer-content>

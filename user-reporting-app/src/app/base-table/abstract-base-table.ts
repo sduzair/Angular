@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable rxjs-angular-x/prefer-composition */
 /* eslint-disable rxjs-angular-x/prefer-async-pipe */
 import { SelectionModel } from '@angular/cdk/collections';
 import { COMMA, ENTER } from '@angular/cdk/keycodes';
@@ -11,7 +10,11 @@ import {
   Input,
   TrackByFunction,
   ViewChild,
+  WritableSignal,
+  effect,
   inject,
+  signal,
+  untracked,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup } from '@angular/forms';
@@ -20,14 +23,12 @@ import { MatPaginator } from '@angular/material/paginator';
 import { MatSort } from '@angular/material/sort';
 import { MatTable, MatTableDataSource } from '@angular/material/table';
 import { format, isAfter, isBefore, startOfDay } from 'date-fns';
-import { isValid } from 'date-fns/fp';
 import {
   Observable,
   Subject,
   combineLatest,
   filter,
   map,
-  of,
   startWith,
   tap,
 } from 'rxjs';
@@ -66,6 +67,37 @@ export abstract class AbstractBaseTable<
     AfterViewInit
 {
   destroyRef = inject(DestroyRef);
+  // ============================================
+  // IDataSource Implementation
+  // ============================================
+  @ViewChild(MatTable, { static: true }) table!: MatTable<TData>;
+  abstract dataSource: MatTableDataSource<TData>;
+  abstract dataSourceTrackBy: TrackByFunction<TData>;
+  private _data!: TData[];
+  get data(): TData[] {
+    return this._data;
+  }
+
+  @Input()
+  set data(value: TData[]) {
+    this._data = value;
+    if (!this.dataSource) return;
+
+    if (this.dataSource.data.length !== value.length) {
+      this.updatePageSizeOptions(value.length);
+    }
+
+    this.dataSource.data = value;
+
+    // Mark ALL select filter options caches as dirty
+    const selectFilterKeys = this.filterFormFilterKeys.filter(
+      this.selectFiltersIsSelectFilterKey,
+    );
+    for (const key of selectFilterKeys) {
+      this.selectFiltersIsUniqueOptionsCacheDirty.set(key, true);
+    }
+  }
+
   // ============================================================================
   // Data Columns Implementation
   // ============================================================================
@@ -275,7 +307,6 @@ export abstract class AbstractBaseTable<
           filter(
             () => this.selectFiltersIsUniqueOptionsCacheDirty.get(key) === true,
           ),
-          tap(console.log),
           map(() => {
             // lazily recompute readonly select filter options
             this.selectFiltersUniqueFilterOptions[key] =
@@ -509,7 +540,6 @@ export abstract class AbstractBaseTable<
 
   // todo: invert filter
   // todo: selection filter
-  // todo: hidden validation info
   filterFormFilterPredicateCreate(): (
     record: TData,
     filter: string,
@@ -534,17 +564,23 @@ export abstract class AbstractBaseTable<
             ),
           );
 
-          console.assert(typeof searchTerms[`${keyPath}Start`] === 'string');
+          const searchTermPrefix = this.filterFormFilterFormKeySanitize(
+            keyPath as unknown as TFilterKeys,
+          );
+
+          console.assert(
+            typeof searchTerms[`${searchTermPrefix}Start`] === 'string',
+          );
 
           const startDate =
-            searchTerms[`${keyPath}Start`] == null
+            searchTerms[`${searchTermPrefix}Start`] == null
               ? null
-              : startOfDay(searchTerms[`${keyPath}Start`] as string);
+              : startOfDay(searchTerms[`${searchTermPrefix}Start`] as string);
 
           const endDate =
-            searchTerms[`${keyPath}End`] == null
+            searchTerms[`${searchTermPrefix}End`] == null
               ? null
-              : startOfDay(searchTerms[`${keyPath}End`] as string);
+              : startOfDay(searchTerms[`${searchTermPrefix}End`] as string);
 
           if (startDate && isBefore(safeRecordValue, startDate)) return false;
           if (endDate && isAfter(safeRecordValue, endDate)) return false;
@@ -701,6 +737,9 @@ export abstract class AbstractBaseTable<
 
   abstract filterFormHighlightSelectFilterKey: THighlightKey;
 
+  @Input()
+  highlightedRecords!: WritableSignal<Map<string, string>>;
+
   filterFormHighlightMap: Record<string, string> = {
     '#FF6B6B': 'Red',
     '#4ECB71': 'Green',
@@ -757,21 +796,20 @@ export abstract class AbstractBaseTable<
 
     // Apply selectedColor to target rows
     const targetIds = new Set(
-      targetRows.map((row) => {
-        return this.table.trackBy(0, row);
-      }),
+      targetRows.map((row) => this.table.trackBy(0, row)),
     );
 
-    // this.data setter is not used as cache invalidation not needed when updating highlight color
-    this.dataSource.data = this.dataSource.data.map((row) => {
-      if (targetIds.has(this.table.trackBy(0, row))) {
-        return {
-          ...row,
-          [this.filterFormHighlightSelectFilterKey]:
-            this.filterFormHighlightSelectedColor,
-        };
-      }
-      return row;
+    // note: removed because full table update triggers expensive sorting accessor
+    // this.dataSource.data = this.dataSource.data.map((row) => { ... })
+
+    this.highlightedRecords.update((current) => {
+      const newMap = new Map(current);
+
+      targetIds.forEach((id) => {
+        newMap.set(id, this.filterFormHighlightSelectedColor!);
+      });
+
+      return newMap; // Return new reference
     });
 
     this.filterFormHighlightSideEffect(
@@ -788,6 +826,11 @@ export abstract class AbstractBaseTable<
     return;
   }
 
+  getHighlightColor(record: TData): string | undefined {
+    const id = this.table.trackBy(0, record);
+    return this.highlightedRecords().get(id);
+  }
+
   @Input()
   filterFormHighlightSideEffect = (
     highlights: { txnId: string; newColor: string }[],
@@ -795,40 +838,24 @@ export abstract class AbstractBaseTable<
     /* empty */
   };
 
+  private syncHighlightsEffect = effect(() => {
+    const highlightMap = this.highlightedRecords(); // Track the signal
+
+    // Use untracked to read dataSource without creating dependency
+    untracked(() => {
+      this.dataSource.data.forEach((row) => {
+        const rowId = this.table.trackBy?.(0, row);
+        const color = highlightMap.get(rowId);
+
+        // eslint-disable-next-line no-param-reassign
+        row[this.filterFormHighlightSelectFilterKey] = color as any;
+      });
+    });
+  });
+
   filterFormConjunctionControl = new FormControl<'OR' | 'AND'>('AND', {
     nonNullable: true,
   });
-
-  // ============================================
-  // IDataSource Implementation
-  // ============================================
-  @ViewChild(MatTable, { static: true }) table!: MatTable<TData>;
-  abstract dataSource: MatTableDataSource<TData>;
-  abstract dataSourceTrackBy: TrackByFunction<TData>;
-  private _data!: TData[];
-  get data(): TData[] {
-    return this._data;
-  }
-
-  @Input()
-  set data(value: TData[]) {
-    this._data = value;
-    if (!this.dataSource) return;
-
-    if (this.dataSource.data.length !== value.length) {
-      this.updatePageSizeOptions(value.length);
-    }
-
-    this.dataSource.data = value;
-
-    // Mark ALL select filter options caches as dirty
-    const selectFilterKeys = this.filterFormFilterKeys.filter(
-      this.selectFiltersIsSelectFilterKey,
-    );
-    for (const key of selectFilterKeys) {
-      this.selectFiltersIsUniqueOptionsCacheDirty.set(key, true);
-    }
-  }
 
   // ============================================
   // ISortable Implementation
@@ -917,7 +944,6 @@ export abstract class AbstractBaseTable<
     const toggleObject = {
       [this.selectionKey]: row[this.selectionKey],
     };
-    console.log('togglerow table', toggleObject);
     this.selection.toggle(toggleObject as TSelection);
   }
 
@@ -994,7 +1020,7 @@ export abstract class AbstractBaseTable<
   // ============================================================================
   // IRecentlyOpenedRows Implementation
   // ============================================================================
-  @Input() recentlyOpenRows$ = of([] as string[]);
+  readonly recentlyOpenRows = signal([] as string[]);
 
   isRecentlyOpened(row: TData, recentlyOpenRows: string[]) {
     return recentlyOpenRows.includes(
@@ -1007,7 +1033,7 @@ export abstract class AbstractBaseTable<
  * Interface for recently opened rows functionality
  */
 interface IRecentlyOpenedRows<TData> {
-  recentlyOpenRows$: Observable<string[]>;
+  recentlyOpenRows: WritableSignal<string[]>;
 
   isRecentlyOpened(row: TData, recentlyOpenRows: string[]): boolean;
 }
@@ -1124,6 +1150,8 @@ export interface IHighlightable<TData, THighlightKey> {
   ) => void;
 
   filterFormConjunctionControl: FormControl<'OR' | 'AND'>;
+  highlightedRecords: WritableSignal<Map<string, string>>;
+  getHighlightColor: (record: TData) => string | undefined;
 }
 
 /**

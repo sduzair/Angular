@@ -44,7 +44,9 @@ import {
       [showToolbar]="false"
       class="manual-upload-review-table">
       <!-- Validation Info column -->
-      <ng-container matColumnDef="_hiddenValidation">
+      <ng-container
+        matColumnDef="_hiddenValidation"
+        [sticky]="baseTable.isStickyColumn('_hiddenValidation')">
         <th
           mat-header-cell
           *matHeaderCellDef
@@ -92,6 +94,8 @@ export class ManualUploadReviewTableComponent {
     'timeOfTxn',
     'dateOfPosting',
     'timeOfPosting',
+    'flowOfFundsTransactionDesc',
+
     '_hiddenTxnType',
     'methodOfTxn',
     'methodOfTxnOther',
@@ -114,11 +118,11 @@ export class ManualUploadReviewTableComponent {
     'startingActions.0.accountOpen',
     'startingActions.0.accountClose',
 
-    'startingActions.0.conductors.0.partyKey',
-    'startingActions.0.conductors.0.givenName',
-    'startingActions.0.conductors.0.surname',
-    'startingActions.0.conductors.0.otherOrInitial',
-    'startingActions.0.conductors.0.nameOfEntity',
+    'startingActions.0.conductors.0._hiddenPartyKey',
+    'startingActions.0.conductors.0._hiddenGivenName',
+    'startingActions.0.conductors.0._hiddenSurname',
+    'startingActions.0.conductors.0._hiddenOtherOrInitial',
+    'startingActions.0.conductors.0._hiddenNameOfEntity',
 
     'completingActions.0.detailsOfDispo',
     'completingActions.0.detailsOfDispoOther',
@@ -135,11 +139,11 @@ export class ManualUploadReviewTableComponent {
     'completingActions.0.accountOpen',
     'completingActions.0.accountClose',
 
-    'completingActions.0.beneficiaries.0.partyKey',
-    'completingActions.0.beneficiaries.0.givenName',
-    'completingActions.0.beneficiaries.0.surname',
-    'completingActions.0.beneficiaries.0.otherOrInitial',
-    'completingActions.0.beneficiaries.0.nameOfEntity',
+    'completingActions.0.beneficiaries.0._hiddenPartyKey',
+    'completingActions.0.beneficiaries.0._hiddenGivenName',
+    'completingActions.0.beneficiaries.0._hiddenSurname',
+    'completingActions.0.beneficiaries.0._hiddenOtherOrInitial',
+    'completingActions.0.beneficiaries.0._hiddenNameOfEntity',
     '_hiddenAmlId',
     'reportingEntityTxnRefNo',
   ];

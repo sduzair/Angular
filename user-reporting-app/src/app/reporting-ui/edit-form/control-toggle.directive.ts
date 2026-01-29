@@ -2,7 +2,6 @@ import {
   DestroyRef,
   Directive,
   EventEmitter,
-  HostBinding,
   Input,
   OnInit,
   Output,
@@ -14,10 +13,8 @@ import {
   FormArray,
   FormGroupDirective,
   NgControl,
-  ValidatorFn,
 } from '@angular/forms';
 import { startWith } from 'rxjs';
-import { MARKED_AS_CLEARED } from './mark-as-cleared.directive';
 
 @Directive({
   selector: '[appControlToggle]',
@@ -32,33 +29,21 @@ export class ControlToggleDirective implements OnInit {
   @Input({ required: false }) appControlToggleValue?: unknown;
   @Output() readonly addControlGroup = new EventEmitter();
 
-  @HostBinding('attr.readonly') get isReadonly(): boolean | null {
-    return this.depPropControl.value === MARKED_AS_CLEARED ? true : null;
-  }
-
   get controlToWatch() {
     return this.formGroupDirective.form.get(this.appControlToggle);
   }
 
-  get depPropControl() {
-    let depPropControl = this.ngControl?.control;
-    if (!depPropControl) {
-      depPropControl = this.controlContainer.control;
+  get dependentControl() {
+    let dependentControl = this.ngControl?.control;
+    if (!dependentControl) {
+      dependentControl = this.controlContainer.control;
     }
-    return depPropControl!;
+    return dependentControl!;
   }
-
-  get depPropControlValueAccessor() {
-    return this.ngControl!.valueAccessor!;
-  }
-
-  depPropControlOrigWriteValue: ((obj: unknown) => void) | undefined;
-
-  depPropControlOriginalValidators: [ValidatorFn] | null = null;
 
   private destroyRef = inject(DestroyRef);
   ngOnInit() {
-    if (!this.controlToWatch || !this.depPropControl) {
+    if (!this.controlToWatch || !this.dependentControl) {
       throw new Error(
         'ControlToggleDirective: controls not found in the form group',
       );
@@ -71,18 +56,9 @@ export class ControlToggleDirective implements OnInit {
         startWith(this.controlToWatch.value),
       )
       .subscribe((value) => {
-        const isDepControlAFormArray = this.depPropControl instanceof FormArray;
+        const isDepControlAFormArray =
+          this.dependentControl instanceof FormArray;
         const isDepControlAFormControl = !isDepControlAFormArray;
-
-        if (isDepControlAFormControl && value === null && this.isBulkEdit) {
-          this.depPropControl.reset();
-
-          // clear dependent control
-          this.depPropControl.setValue(MARKED_AS_CLEARED, {
-            emitEvent: false,
-          });
-          return;
-        }
 
         const toggleIsReset = value == null;
         const toggleIsSetToFalse = value === false;
@@ -96,7 +72,7 @@ export class ControlToggleDirective implements OnInit {
           this.appControlToggleValue &&
           this.appControlToggleValue === String(value ?? '')
         ) {
-          this.depPropControl.enable({ emitEvent: false });
+          this.dependentControl.enable({ emitEvent: false });
           return;
         }
 
@@ -105,50 +81,50 @@ export class ControlToggleDirective implements OnInit {
           this.appControlToggleValue &&
           this.appControlToggleValue !== String(value ?? '')
         ) {
-          this.depPropControl.reset();
-          this.depPropControl.disable({ emitEvent: false });
+          this.dependentControl.reset();
+          this.dependentControl.disable({ emitEvent: false });
           return;
         }
 
         // field that depends on checkbox toggle's value
         // only needs to be enabled as validator required set by default
         if (isDepControlAFormControl && toggleHasValue) {
-          this.depPropControl.enable({ emitEvent: false });
+          this.dependentControl.enable({ emitEvent: false });
           return;
         }
 
         if (isDepControlAFormControl && (toggleIsReset || toggleIsSetToFalse)) {
-          this.depPropControl.reset();
-          this.depPropControl.disable({ emitEvent: false });
+          this.dependentControl.reset();
+          this.dependentControl.disable({ emitEvent: false });
           return;
         }
 
         // array field depends on checkbox toggle's value
         // only needs to be enabled as field validators set as required by default
         if (isDepControlAFormArray && toggleHasValue && !this.isBulkEdit) {
-          this.depPropControl.enable({ emitEvent: false });
+          this.dependentControl.enable({ emitEvent: false });
 
-          if (this.depPropControl.value.length === 0)
+          if (this.dependentControl.value.length === 0)
             this.addControlGroup.emit();
           return;
         }
 
         if (isDepControlAFormArray && toggleHasValue && this.isBulkEdit) {
-          this.depPropControl.enable({ emitEvent: false });
+          this.dependentControl.enable({ emitEvent: false });
 
-          this.depPropControl.clear({ emitEvent: false });
+          this.dependentControl.clear({ emitEvent: false });
           this.addControlGroup.emit();
           return;
         }
 
         if (isDepControlAFormArray && toggleIsSetToFalse) {
-          this.depPropControl.clear({ emitEvent: false });
+          this.dependentControl.clear({ emitEvent: false });
           return;
         }
 
         if (isDepControlAFormArray && toggleIsReset) {
-          this.depPropControl.reset({ emitEvent: false });
-          this.depPropControl.disable({ emitEvent: false });
+          this.dependentControl.reset({ emitEvent: false });
+          this.dependentControl.disable({ emitEvent: false });
           return;
         }
 

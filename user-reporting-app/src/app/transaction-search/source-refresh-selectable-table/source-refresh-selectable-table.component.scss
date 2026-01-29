@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+
 /* Optional: Style for disabled table rows */
 .disabled-row {
   opacity: 0.6;
@@ -13,4 +15,30 @@
 mat-table.disabled-table {
   opacity: 0.6;
   pointer-events: none;
+}
+
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.status-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+
+  &.text-success {
+    color: var(--bs-success);
+  }
+
+  &.text-primary {
+    color: var(--bs-primary);
+  }
+
+  &.text-danger {
+    color: var(--bs-danger);
+  }
 }

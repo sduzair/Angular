@@ -1,9 +1,5 @@
 @use '@angular/material' as mat;
 
-:host {
-  @include mat.button-density(0);
-}
-
 .form-field-density {
   @include mat.form-field-density(-5);
 }
@@ -138,4 +134,31 @@ mat-card.transaction-details-card {
       elevated-container-color: var(--mat-sys-surface),
     )
   );
+}
+
+mat-toolbar {
+  @include mat.chips-density(3);
+}
+
+mat-chip.selected-chip {
+  --mat-chip-label-text-size: 1rem;
+}
+
+::ng-deep .selected-chip .mdc-evolution-chip__text-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.audit-form-btn {
+  @include mat.form-field-density(-5);
+}
+
+::ng-deep .audit-form-btn .mat-mdc-form-field-infix {
+  width: 45px;
+}
+
+.edit-form,
+.toolbar {
+  @include mat.button-density(0);
 }

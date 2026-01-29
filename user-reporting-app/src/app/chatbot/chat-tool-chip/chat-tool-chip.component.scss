@@ -1,0 +1,41 @@
+:host {
+  display: inline-block;
+}
+
+mat-chip {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.25px;
+  gap: 8px;
+
+  &.pending {
+    --mat-chip-elevated-container-color: var(--mat-sys-secondary-container);
+    --mat-chip-label-text-color: var(--mat-sys-on-secondary-container);
+
+    mat-spinner ::ng-deep circle {
+      stroke: var(--mat-sys-on-secondary-container);
+    }
+
+    mat-icon {
+      color: var(--mat-sys-on-secondary-container);
+    }
+  }
+
+  &.done {
+    --mat-chip-elevated-container-color: var(--mat-sys-tertiary-container);
+    --mat-chip-label-text-color: var(--mat-sys-on-tertiary-container);
+
+    mat-icon {
+      color: var(--mat-sys-on-tertiary-container);
+    }
+  }
+}
+
+::ng-deep mat-chip .mdc-evolution-chip__cell {
+  height: auto;
+}
+
+::ng-deep mat-chip .mdc-evolution-chip__text-label {
+  display: flex;
+  gap: 0.4rem;
+}

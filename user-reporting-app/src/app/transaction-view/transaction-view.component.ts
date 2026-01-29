@@ -1,15 +1,14 @@
-import { SelectionModel } from '@angular/cdk/collections';
 import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
   inject,
-  input,
-  InputSignal,
+  signal,
 } from '@angular/core';
-import { toObservable } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
 import { MatChip } from '@angular/material/chips';
+import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -20,25 +19,54 @@ import {
   RouterStateSnapshot,
 } from '@angular/router';
 import {
+  BehaviorSubject,
+  catchError,
+  combineLatest,
   combineLatestWith,
   debounceTime,
+  finalize,
+  forkJoin,
   map,
+  merge,
+  Observable,
+  of,
   shareReplay,
-  startWith,
+  Subject,
   switchMap,
+  tap,
+  withLatestFrom,
 } from 'rxjs';
-import { CaseRecordStore } from '../aml/case-record.store';
-import { TransactionSearchComponent } from '../transaction-search/transaction-search.component';
 import {
-  TransactionSearchResponse,
+  CaseRecordStore,
+  StrTransactionWithChangeLogs,
+} from '../aml/case-record.store';
+import { SnackbarQueueService } from '../snackbar-queue.service';
+import { RouteExtrasFromSearch } from '../transaction-search/transaction-search.component';
+import {
+  AbmSourceData,
+  EmtSourceData,
+  FlowOfFundsSourceData,
+  OlbSourceData,
+  OTCSourceData,
   TransactionSearchService,
+  WireSourceData,
 } from '../transaction-search/transaction-search.service';
 import { AbmTableComponent } from './abm-table/abm-table.component';
+import { AbstractTransactionViewComponent } from './abstract-transaction-view.component';
 import { EmtTableComponent } from './emt-table/emt-table.component';
 import { FofTableComponent } from './fof-table/fof-table.component';
+import { LocalHighlightsService } from './local-highlights.service';
 import { OlbTableComponent } from './olb-table/olb-table.component';
+import { OtcTableComponent } from './otc-table/otc-table.component';
+import { transformABMToStrTransaction } from './transform-to-str-transaction/abm-transform';
+import { transformOlbEmtToStrTransaction } from './transform-to-str-transaction/olb-emt-transform';
+import { transformOTCToStrTransaction } from './transform-to-str-transaction/otc-transform';
+import {
+  PartyGenService,
+  PartyGenType,
+} from './transform-to-str-transaction/party-gen.service';
+import { transformWireToStrTransaction } from './transform-to-str-transaction/wire-transform';
 import { WiresTableComponent } from './wires-table/wires-table.component';
-import { AbstractTransactionViewComponent } from './abstract-transaction-view.component';
 
 @Component({
   selector: 'app-transaction-view',
@@ -54,18 +82,42 @@ import { AbstractTransactionViewComponent } from './abstract-transaction-view.co
     MatChip,
     MatButton,
     WiresTableComponent,
+    MatIconModule,
+    OtcTableComponent,
   ],
   template: `
     <div class="row row-cols-1 mx-0">
-      <mat-toolbar class="col">
+      <mat-toolbar class="col px-0">
         <mat-toolbar-row class="px-0 header-toolbar-row">
           <div class="flex-fill"></div>
           <button
             type="button"
+            color="accent"
+            mat-raised-button
+            [disabled]="(selectionControlHasChanges$ | async) === false"
+            (click)="resetSelections()"
+            aria-label="Reset selections">
+            <mat-icon>refresh</mat-icon>
+            Reset
+          </button>
+          <button
+            type="button"
             color="primary"
             mat-flat-button
-            [disabled]="(selectionControlHasChanges$ | async) === false">
-            Save
+            [disabled]="
+              (selectionControlHasChanges$ | async) === false ||
+              (saveProgress$ | async)?.status === 'transforming' ||
+              (saveProgress$ | async)?.status === 'saving' ||
+              (qIsSaving$ | async)
+            "
+            (click)="onSave()">
+            @let isSaving =
+              (saveProgress$ | async)?.status === 'transforming' ||
+              (saveProgress$ | async)?.status === 'saving';
+            @if (isSaving) {
+              <mat-icon class="spinning">sync</mat-icon>
+            }
+            {{ isSaving ? 'Saving...' : 'Save' }}
           </button>
         </mat-toolbar-row>
       </mat-toolbar>
@@ -84,7 +136,9 @@ import { AbstractTransactionViewComponent } from './abstract-transaction-view.co
           </ng-template>
           <app-fof-table
             [fofSourceData]="(fofSourceData$ | async) || []"
-            [selection]="selectionModel" />
+            [selectionCount]="(fofSourceDataSelectionCount$ | async) ?? 0"
+            [masterSelection]="selectionModel"
+            [highlightedRecords]="highlightedRecords" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -95,7 +149,9 @@ import { AbstractTransactionViewComponent } from './abstract-transaction-view.co
           </ng-template>
           <app-abm-table
             [abmSourceData]="(abmSourceData$ | async) || []"
-            [selection]="selectionModel" />
+            [selectionCount]="(abmSourceDataSelectionCount$ | async) ?? 0"
+            [masterSelection]="selectionModel"
+            [highlightedRecords]="highlightedRecords" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -106,7 +162,9 @@ import { AbstractTransactionViewComponent } from './abstract-transaction-view.co
           </ng-template>
           <app-olb-table
             [olbSourceData]="(olbSourceData$ | async) || []"
-            [selection]="selectionModel" />
+            [selectionCount]="(olbSourceDataSelectionCount$ | async) ?? 0"
+            [masterSelection]="selectionModel"
+            [highlightedRecords]="highlightedRecords" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -117,8 +175,10 @@ import { AbstractTransactionViewComponent } from './abstract-transaction-view.co
           </ng-template>
           <app-emt-table
             [emtSourceData]="(emtSourceData$ | async) || []"
-            [selection]="selectionModel"
-        /></mat-tab>
+            [selectionCount]="(emtSourceDataSelectionCount$ | async) ?? 0"
+            [masterSelection]="selectionModel"
+            [highlightedRecords]="highlightedRecords" />
+        </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
             Wires
@@ -128,7 +188,22 @@ import { AbstractTransactionViewComponent } from './abstract-transaction-view.co
           </ng-template>
           <app-wires-table
             [wiresSourceData]="(wiresSourceData$ | async) || []"
-            [selection]="selectionModel" />
+            [selectionCount]="(wiresSourceDataSelectionCount$ | async) ?? 0"
+            [masterSelection]="selectionModel"
+            [highlightedRecords]="highlightedRecords" />
+        </mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            OTC
+            <mat-chip class="ms-1" disableRipple>
+              {{ otcSourceDataSelectionCount$ | async }}
+            </mat-chip>
+          </ng-template>
+          <app-otc-table
+            [otcSourceData]="(otcSourceData$ | async) || []"
+            [selectionCount]="(otcSourceDataSelectionCount$ | async) ?? 0"
+            [masterSelection]="selectionModel"
+            [highlightedRecords]="highlightedRecords" />
         </mat-tab>
       </mat-tab-group>
     }
@@ -137,40 +212,112 @@ import { AbstractTransactionViewComponent } from './abstract-transaction-view.co
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TransactionViewComponent extends AbstractTransactionViewComponent {
-  fofSourceData$ = this.transactionSearch$.pipe(
-    map(
-      (search) =>
-        search.find((res) => res.sourceId === 'FlowOfFunds')?.sourceData!,
+  private snackBar = inject(SnackbarQueueService);
+  protected qIsSaving$ = this._caseRecordStore.qIsSaving$;
+
+  highlightedRecords = signal<Map<string, string>>(new Map());
+  private highlightsService = inject(LocalHighlightsService);
+
+  private highlights$ = this._caseRecordStore.state$.pipe(
+    switchMap(({ caseRecordId }) => {
+      return this.highlightsService.getHighlights(caseRecordId);
+    }),
+    tap((initHighlightsMap) => {
+      this.highlightedRecords.update(() => new Map(initHighlightsMap));
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  fofSourceData$ = combineLatest([this.searchResponse$, this.highlights$]).pipe(
+    map(([search, higlightsMap]) =>
+      search
+        .find((res) => res.sourceId === 'FlowOfFunds')
+        ?.sourceData!.map((row) => ({
+          ...row,
+          _uiPropHighlightColor: higlightsMap.get(
+            row.flowOfFundsAmlTransactionId,
+          ),
+        })),
     ),
   );
 
-  abmSourceData$ = this.transactionSearch$.pipe(
-    map((search) => search.find((res) => res.sourceId === 'ABM')?.sourceData!),
-  );
-
-  olbSourceData$ = this.transactionSearch$.pipe(
-    map((search) => search.find((res) => res.sourceId === 'OLB')?.sourceData!),
-  );
-
-  emtSourceData$ = this.transactionSearch$.pipe(
-    map((search) => search.find((res) => res.sourceId === 'EMT')?.sourceData!),
-  );
-
-  wiresSourceData$ = this.transactionSearch$.pipe(
-    map(
-      (search) => search.find((res) => res.sourceId === 'Wires')?.sourceData!,
+  abmSourceData$ = combineLatest([this.searchResponse$, this.highlights$]).pipe(
+    map(([search, higlightsMap]) =>
+      search
+        .find((res) => res.sourceId === 'ABM')
+        ?.sourceData!.map((row) => ({
+          ...row,
+          _uiPropHighlightColor: higlightsMap.get(
+            row.flowOfFundsAmlTransactionId,
+          ),
+        })),
     ),
   );
 
-  private selectionsLastSaved$ = this.initSelections$.pipe(
+  olbSourceData$ = combineLatest([this.searchResponse$, this.highlights$]).pipe(
+    map(([search, higlightsMap]) =>
+      search
+        .find((res) => res.sourceId === 'OLB')
+        ?.sourceData!.map((row) => ({
+          ...row,
+          _uiPropHighlightColor: higlightsMap.get(
+            row.flowOfFundsAmlTransactionId,
+          ),
+        })),
+    ),
+  );
+
+  emtSourceData$ = combineLatest([this.searchResponse$, this.highlights$]).pipe(
+    map(([search, higlightsMap]) =>
+      search
+        .find((res) => res.sourceId === 'EMT')
+        ?.sourceData!.map((row) => ({
+          ...row,
+          _uiPropHighlightColor: higlightsMap.get(
+            row.flowOfFundsAmlTransactionId,
+          ),
+        })),
+    ),
+  );
+
+  wiresSourceData$ = combineLatest([
+    this.searchResponse$,
+    this.highlights$,
+  ]).pipe(
+    map(([search, higlightsMap]) =>
+      search
+        .find((res) => res.sourceId === 'Wire')
+        ?.sourceData!.map((row) => ({
+          ...row,
+          _uiPropHighlightColor: higlightsMap.get(
+            row.flowOfFundsAmlTransactionId,
+          ),
+        })),
+    ),
+  );
+
+  otcSourceData$ = combineLatest([this.searchResponse$, this.highlights$]).pipe(
+    map(([search, higlightsMap]) =>
+      search
+        .find((res) => res.sourceId === 'OTC')
+        ?.sourceData!.map((row) => ({
+          ...row,
+          _uiPropHighlightColor: higlightsMap.get(
+            row.flowOfFundsAmlTransactionId,
+          ),
+        })),
+    ),
+  );
+
+  private selectionIdsLastSaved$ = this.selections$.pipe(
     map(
       (selections) =>
         new Set(selections.map((sel) => sel.flowOfFundsAmlTransactionId)),
     ),
   );
 
-  selectionControlHasChanges$ = this.selections$.pipe(debounceTime(200)).pipe(
-    combineLatestWith(this.selectionsLastSaved$),
+  selectionControlHasChanges$ = this._selectionsCurrent$.pipe(
+    combineLatestWith(this.selectionIdsLastSaved$),
     map(
       ([selections, selectionsLastSaved]) =>
         selections.length !== selectionsLastSaved.size ||
@@ -179,65 +326,374 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
         ),
     ),
   );
-}
 
-export const transactionSearchResolver: ResolveFn<TransactionSearchResponse> = (
-  route: ActivatedRouteSnapshot,
-  _state: RouterStateSnapshot,
-) => {
-  const txnSearchService = inject(TransactionSearchService);
-  const caseRecordStore = inject(CaseRecordStore);
+  private _resetSelections = new Subject<void>();
+  resetSelections() {
+    this._resetSelections.next();
+  }
 
-  const searchParams:
-    | (typeof TransactionSearchComponent.prototype.searchParamsForm)['value']
-    | undefined =
-    inject(Router).currentNavigation()?.extras.state?.['searchParams'];
-
-  const amlId = route.paramMap.get('amlId')!;
-
-  if (!searchParams) {
-    return caseRecordStore.fetchCaseRecordByAmlId(amlId).pipe(
-      switchMap(({ transactionSearchParams }) => {
-        return txnSearchService.searchTransactions({
-          accountNumbersSelection:
-            transactionSearchParams.accountNumbersSelection ?? [],
-          partyKeysSelection: transactionSearchParams.partyKeysSelection ?? [],
-          productTypesSelection:
-            transactionSearchParams.productTypesSelection ?? [],
-          reviewPeriodSelection:
-            transactionSearchParams.reviewPeriodSelection ?? [],
-          sourceSystemsSelection:
-            transactionSearchParams.sourceSystemsSelection ?? [],
-        });
+  _ = this._resetSelections
+    .pipe(
+      withLatestFrom(this.selectionModel$),
+      map(([_, selectionModel]) => {
+        selectionModel.clear();
+        return selectionModel;
       }),
+      withLatestFrom(this.selectionIdsLastSaved$),
+      tap(([selectionModel, selectionIdsLastSaved]) => {
+        selectionModel.select(
+          ...Array.from(selectionIdsLastSaved).map(
+            (id) =>
+              ({ flowOfFundsAmlTransactionId: id }) satisfies {
+                flowOfFundsAmlTransactionId: string;
+              },
+          ),
+        );
+      }),
+      takeUntilDestroyed(),
+    )
+    // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
+    .subscribe();
+
+  constructor() {
+    super();
+    // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
+    this.onSave$.pipe(takeUntilDestroyed()).subscribe();
+  }
+
+  protected onSaveSubject = new Subject<void>();
+  onSave() {
+    this.onSaveSubject.next();
+  }
+
+  // Save progress tracking
+  saveProgress$ = new BehaviorSubject<SaveProgress>({
+    total: 0,
+    completed: 0,
+    status: 'idle',
+  });
+
+  onSave$ = this.onSaveSubject.pipe(
+    withLatestFrom(
+      this._selectionsCurrent$,
+      this.selectionIdsLastSaved$,
+      this.searchResponse$,
+      inject(CaseRecordStore).state$.pipe(map((state) => state.caseRecordId)),
+    ),
+    switchMap(
+      ([
+        _,
+        _selectionsCurrent,
+        selectionIdsLastSaved,
+        searchResponse,
+        caseRecordId,
+      ]) => {
+        const _addedSelections = _selectionsCurrent.filter(
+          (sel) => !selectionIdsLastSaved.has(sel.flowOfFundsAmlTransactionId),
+        );
+
+        const removedSelectionIds = Array.from(selectionIdsLastSaved).filter(
+          (selectionIdFromLastSaved) =>
+            !_selectionsCurrent
+              .map(
+                ({ flowOfFundsAmlTransactionId }) =>
+                  flowOfFundsAmlTransactionId,
+              )
+              .includes(selectionIdFromLastSaved),
+        );
+
+        const totalOperations =
+          2 * _addedSelections.length + removedSelectionIds.length;
+
+        this.saveProgress$.next({
+          total: totalOperations,
+          completed: 0,
+          status: 'transforming',
+        });
+
+        const transformations: Observable<StrTransactionWithChangeLogs | null>[] =
+          [];
+
+        for (const {
+          flowOfFundsAmlTransactionId: selectionId,
+        } of _addedSelections) {
+          const abmTxn = searchResponse
+            .find((src) => src.sourceId === 'ABM')
+            ?.sourceData.find(
+              (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
+            );
+          const abmFofTxn = searchResponse
+            .find((src) => src.sourceId === 'FlowOfFunds')
+            ?.sourceData.find(
+              (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
+            );
+
+          const emtTxn = searchResponse
+            .find((src) => src.sourceId === 'EMT')
+            ?.sourceData.find(
+              (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
+            );
+          const olbTxn = searchResponse
+            .find((src) => src.sourceId === 'OLB')
+            ?.sourceData.find(
+              (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
+            );
+          const olbFofTxn = searchResponse
+            .find((src) => src.sourceId === 'FlowOfFunds')
+            ?.sourceData.find(
+              (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
+            );
+
+          const wireTxn = searchResponse
+            .find((src) => src.sourceId === 'Wire')
+            ?.sourceData.find(
+              (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
+            );
+          const wireFofTxn = searchResponse
+            .find((src) => src.sourceId === 'FlowOfFunds')
+            ?.sourceData.find(
+              (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
+            );
+
+          const otcTxn = searchResponse
+            .find((src) => src.sourceId === 'OTC')
+            ?.sourceData.find(
+              (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
+            );
+          const otcFofTxn = searchResponse
+            .find((src) => src.sourceId === 'FlowOfFunds')
+            ?.sourceData.find(
+              (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
+            );
+
+          if (abmTxn && abmFofTxn) {
+            transformations.push(
+              this.transformABM(abmTxn, abmFofTxn, caseRecordId).pipe(
+                catchError((err) => {
+                  console.error(
+                    `Failed to transform ABM transaction ${selectionId}:`,
+                    err,
+                  );
+                  return of(null);
+                }),
+              ),
+            );
+          }
+
+          if (olbTxn && olbFofTxn && emtTxn) {
+            transformations.push(
+              this.transformOlbEmt(
+                olbTxn,
+                olbFofTxn,
+                emtTxn,
+                caseRecordId,
+              ).pipe(
+                catchError((err) => {
+                  console.error(
+                    `Failed to transform OLB/EMT transaction ${selectionId}:`,
+                    err,
+                  );
+                  return of(null);
+                }),
+              ),
+            );
+          }
+
+          if (wireTxn && wireFofTxn) {
+            transformations.push(
+              this.transformWire(wireTxn, wireFofTxn, caseRecordId).pipe(
+                catchError((err) => {
+                  console.error(
+                    `Failed to transform Wire transaction ${selectionId}:`,
+                    err,
+                  );
+                  return of(null);
+                }),
+              ),
+            );
+          }
+
+          if (otcTxn && otcFofTxn) {
+            transformations.push(
+              this.transformOTC(otcTxn, otcFofTxn, caseRecordId).pipe(
+                catchError((err) => {
+                  console.error(
+                    `Failed to transform OTC transaction ${selectionId}:`,
+                    err,
+                  );
+                  return of(null);
+                }),
+              ),
+            );
+          }
+        }
+
+        // Handle empty transformations array (forkJoin emits EMPTY for empty arrays)
+        const transformations$ =
+          transformations.length > 0 ? forkJoin(transformations) : of([]);
+
+        return transformations$.pipe(
+          map((results) => {
+            const transformedTxns = results.filter(
+              (txn): txn is StrTransactionWithChangeLogs => txn !== null,
+            );
+
+            if (results.length - transformedTxns.length > 0) {
+              this.snackBar.open('Some transformations have failed', 'Close');
+            }
+
+            this.saveProgress$.next({
+              ...this.saveProgress$.value,
+              completed: transformedTxns.length,
+              status: 'saving',
+            });
+
+            return {
+              transformedTxns,
+              removedSelectionIds,
+            };
+          }),
+        );
+      },
+    ),
+    // Save transformed transactions
+    switchMap(({ transformedTxns, removedSelectionIds }) => {
+      return this._caseRecordStore.addSelections(transformedTxns).pipe(
+        switchMap(({ count: addedSelectionsCount }) => {
+          this.saveProgress$.next({
+            ...this.saveProgress$.value,
+            completed: transformedTxns.length + addedSelectionsCount,
+            status: 'saving',
+          });
+          return this._caseRecordStore
+            .removeSelections(removedSelectionIds)
+            .pipe(
+              tap(({ count: removedSelectionsCount }) => {
+                this.saveProgress$.next({
+                  ...this.saveProgress$.value,
+                  completed:
+                    transformedTxns.length +
+                    addedSelectionsCount +
+                    removedSelectionsCount,
+                  status: 'complete',
+                });
+              }),
+            );
+        }),
+        finalize(() => {
+          this.saveProgress$.next({
+            ...this.saveProgress$.value,
+            completed: 0,
+            status: 'error',
+          });
+        }),
+      );
+    }),
+  );
+
+  // Transformation helper methods
+  private searchService = inject(TransactionSearchService);
+  private partyGenService = inject(PartyGenService);
+  private transformABM(
+    abmTxn: AbmSourceData,
+    fofTxn: FlowOfFundsSourceData,
+    caseRecordId: string,
+  ): Observable<StrTransactionWithChangeLogs> {
+    return transformABMToStrTransaction(
+      abmTxn,
+      fofTxn,
+      (party: Omit<PartyGenType, 'partyIdentifier'>) =>
+        this.partyGenService.generateParty(party),
+      (account) => this.searchService.getAccountInfo(account),
+      caseRecordId,
     );
   }
 
-  caseRecordStore.setSearchParams(searchParams);
-  return caseRecordStore.state$.pipe(
-    switchMap(({ transactionSearchParams }) => {
-      return txnSearchService.searchTransactions(transactionSearchParams);
-    }),
-  );
-};
+  private transformOlbEmt(
+    olbTxn: OlbSourceData,
+    fofTxn: FlowOfFundsSourceData,
+    emtTxn: EmtSourceData,
+    caseRecordId: string,
+  ): Observable<StrTransactionWithChangeLogs> {
+    return transformOlbEmtToStrTransaction({
+      olbTxn,
+      fofTxn,
+      emtTxn,
+      generateParty: (party: Omit<PartyGenType, 'partyIdentifier'>) =>
+        this.partyGenService.generateParty(party),
+      getAccountInfo: (account) => this.searchService.getAccountInfo(account),
+      caseRecordId,
+    });
+  }
 
-export const initSelectionsResolver: ResolveFn<
-  { flowOfFundsAmlTransactionId: string }[]
-> = (_route: ActivatedRouteSnapshot, _state: RouterStateSnapshot) => {
-  return inject(CaseRecordStore)
-    .fetchSelections()
-    .pipe(
-      map(({ selections }) => {
-        return selections.map(
-          (txn) =>
-            ({
-              flowOfFundsAmlTransactionId: txn.flowOfFundsAmlTransactionId,
-            }) satisfies TableSelectionType,
-        );
-      }),
-    );
+  private transformWire(
+    wireTxn: WireSourceData,
+    fofTxn: FlowOfFundsSourceData,
+    caseRecordId: string,
+  ): Observable<StrTransactionWithChangeLogs> {
+    return transformWireToStrTransaction({
+      wireTxn,
+      fofTxn,
+      generateParty: (party: Omit<PartyGenType, 'partyIdentifier'>) =>
+        this.partyGenService.generateParty(party),
+      getAccountInfo: (account) => this.searchService.getAccountInfo(account),
+      caseRecordId,
+    });
+  }
+
+  private transformOTC(
+    otcTxn: OTCSourceData,
+    fofTxn: FlowOfFundsSourceData,
+    caseRecordId: string,
+  ): Observable<StrTransactionWithChangeLogs> {
+    return transformOTCToStrTransaction({
+      sourceTxn: otcTxn,
+      fofTxn,
+      getPartyInfo: (_hiddenPartyKey) =>
+        this.searchService.getPartyInfo(_hiddenPartyKey),
+      getAccountInfo: (account) => this.searchService.getAccountInfo(account),
+      caseRecordId,
+    });
+  }
+}
+
+export const searchResultResolver: ResolveFn<boolean> = (
+  route: ActivatedRouteSnapshot,
+  _state: RouterStateSnapshot,
+) => {
+  const caseRecordStore = inject(CaseRecordStore);
+
+  const routeExtras = inject(Router).currentNavigation()?.extras.state as
+    | RouteExtrasFromSearch
+    | undefined;
+
+  if (!routeExtras) {
+    return true;
+  }
+
+  // On navigation from transaction search page
+  const { searchParams, searchResult, caseRecordId } = routeExtras;
+  caseRecordStore.setSearchParams(searchParams);
+  caseRecordStore.setSearchResult(searchResult);
+  caseRecordStore.setCaseRecordId(caseRecordId);
+
+  const amlId = route.paramMap.get('amlId')!;
+
+  return forkJoin([
+    caseRecordStore.fetchCaseRecordByAmlId(amlId),
+    caseRecordStore.fetchSelections(),
+  ]).pipe(
+    map(() => true),
+    catchError(() => of(false)),
+  );
 };
 
 export interface TableSelectionType {
   flowOfFundsAmlTransactionId: string;
+}
+
+interface SaveProgress {
+  total: number;
+  completed: number;
+  status: 'idle' | 'transforming' | 'saving' | 'complete' | 'error';
 }

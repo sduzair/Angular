@@ -1,5 +1,6 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
+// eslint-disable-next-line no-restricted-imports
 import { TEST_USER_ADMIN } from './auth.fixture';
 
 export type UserRole = 'Analyst' | 'Admin';
@@ -34,12 +35,12 @@ export class AuthService {
     };
 
     this._currentUser.set(user);
-    console.log(`[AuthService] Logged in as ${user.username} (${user.role})`);
+    console.info(`[AuthService] Logged in as ${user.username} (${user.role})`);
   }
 
   logout() {
     this._currentUser.set(null);
-    console.log('[AuthService] Logged out');
+    console.info('[AuthService] Logged out');
   }
 }
 

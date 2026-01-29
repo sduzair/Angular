@@ -8,7 +8,6 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
 import { AbstractSelectableTableComponent } from '../abstract-selectable-table/abstract-selectable-table.component';
-import { PartyKey } from '../transaction-search.service';
 
 @Component({
   selector: 'app-party-key-selectable-table',
@@ -35,13 +34,28 @@ import { PartyKey } from '../transaction-search.service';
         </td>
       </ng-container>
 
-      <!-- Value Column -->
-      <ng-container matColumnDef="value">
+      <!-- Party key Column -->
+      <ng-container matColumnDef="_hiddenPartyKey">
         <th mat-header-cell *matHeaderCellDef>Party Key</th>
         <td mat-cell *matCellDef="let element">
           @if (!isLoading) {
             <span>
-              {{ element.value }}
+              {{ element._hiddenPartyKey }}
+            </span>
+          }
+          @if (isLoading) {
+            <span class="sk skw-6 skh-2"></span>
+          }
+        </td>
+      </ng-container>
+
+      <!-- Name Column -->
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef>Name</th>
+        <td mat-cell *matCellDef="let element">
+          @if (!isLoading) {
+            <span>
+              {{ element.name }}
             </span>
           }
           @if (isLoading) {
@@ -68,29 +82,40 @@ import { PartyKey } from '../transaction-search.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PartyKeySelectableTableComponent
-  extends AbstractSelectableTableComponent<PartyKey>
+  extends AbstractSelectableTableComponent<PartyKeyData>
   implements ControlValueAccessor
 {
   get data() {
     return Array.from({ length: 5 }, () => ({
-      value: '',
-    }));
+      _hiddenPartyKey: '',
+      name: '',
+    })) satisfies PartyKeyData[];
   }
 
   @Input({ required: true })
-  set data(value: PartyKey[]) {
+  set data(value: PartyKeyData[]) {
     this.dataSource.data = value;
   }
 
-  protected override displayedColumns: (keyof PartyKey | (string & {}))[] = [
+  protected override displayedColumns: (keyof PartyKeyData | 'select')[] = [
     'select',
-    'value',
+    '_hiddenPartyKey',
+    'name',
+  ];
+
+  protected override trackingProps: ('name' | '_hiddenPartyKey')[] = [
+    '_hiddenPartyKey',
   ];
 
   protected override getSelectionComparator(): (
-    a: PartyKey,
-    b: PartyKey,
+    a: PartyKeyData,
+    b: PartyKeyData,
   ) => boolean {
-    return (a, b) => a.value === b.value;
+    return (a, b) => a._hiddenPartyKey === b._hiddenPartyKey;
   }
+}
+
+export interface PartyKeyData {
+  _hiddenPartyKey: string;
+  name?: string;
 }

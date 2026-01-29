@@ -527,7 +527,7 @@
       "column": "surname",
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "if fiuNo == \"010\" then this\nelse _hiddenFullName.split(\" \")[1] end\n\n"
+      "formula": "if fiuNo == \"010\" then this\nelse _hiddenFullName.split(\" \")[0] end\n\n"
     },
     {
       "name": "startingActions.conductors.givenName",
@@ -537,7 +537,7 @@
       "column": "givenName",
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "if fiuNo == \"010\" then this\nelse _hiddenFullName.split(\" \")[0] end\n\n"
+      "formula": "if fiuNo == \"010\" then this\nelse _hiddenFullName.split(\" \")[1] end\n\n"
     },
     {
       "name": "startingActions.conductors.otherOrInitial",

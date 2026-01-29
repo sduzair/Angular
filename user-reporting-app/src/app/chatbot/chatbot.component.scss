@@ -1,0 +1,26 @@
+:host {
+  display: block;
+  --chat-width: 480px;
+  width: var(--chat-width);
+  height: 100%;
+}
+
+.chatbot-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.chat-loading {
+  display: flex;
+  justify-content: center;
+}
+
+.chat-messages {
+  flex-grow: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+}

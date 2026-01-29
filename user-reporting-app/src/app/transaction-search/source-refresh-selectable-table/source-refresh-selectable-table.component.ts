@@ -6,14 +6,26 @@ import {
   Input,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+import { MatBadgeModule } from '@angular/material/badge';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTableModule } from '@angular/material/table';
+import { Observable } from 'rxjs';
 import { AbstractSelectableTableComponent } from '../abstract-selectable-table/abstract-selectable-table.component';
-import { SourceSysRefreshTime } from '../transaction-search.service';
 
 @Component({
   selector: 'app-source-refresh-selectable-table',
-  imports: [CommonModule, MatCheckboxModule, MatTableModule],
+  imports: [
+    CommonModule,
+    MatCheckboxModule,
+    MatTableModule,
+    MatProgressSpinnerModule,
+    MatChipsModule,
+    MatBadgeModule,
+    MatIconModule,
+  ],
   template: `
     <table mat-table [dataSource]="dataSource">
       <!-- Selection Column -->
@@ -37,16 +49,16 @@ import { SourceSysRefreshTime } from '../transaction-search.service';
       </ng-container>
 
       <!-- System Column -->
-      <ng-container matColumnDef="system">
+      <ng-container matColumnDef="sourceSys">
         <th mat-header-cell *matHeaderCellDef>System</th>
         <td mat-cell *matCellDef="let element">
           @if (!isLoading) {
             <span>
-              {{ element.value }}
+              {{ element.sourceSys }}
             </span>
           }
           @if (isLoading) {
-            <span class="sk skw-6 skh-2"></span>
+            <span class="sk skw-4 skh-2"></span>
           }
         </td>
       </ng-container>
@@ -56,12 +68,50 @@ import { SourceSysRefreshTime } from '../transaction-search.service';
         <th mat-header-cell *matHeaderCellDef>Last Refresh</th>
         <td mat-cell *matCellDef="let element">
           @if (!isLoading) {
-            <span>
+            <span class="text-nowrap">
               {{ element.refresh | date: 'yyyy-MM-dd' }}
             </span>
           }
           @if (isLoading) {
             <span class="sk skw-4 skh-2"></span>
+          }
+        </td>
+      </ng-container>
+
+      <!-- Loading Status Column -->
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>Status</th>
+        <td mat-cell *matCellDef="let element">
+          @let loading = isLoadingSearch$ | async;
+          @if (
+            loading !== null &&
+            loading === 'loading' &&
+            selection.isSelected(element)
+          ) {
+            <!-- Loading spinner -->
+            <div class="status-indicator">
+              <mat-spinner [diameter]="20"></mat-spinner>
+            </div>
+          }
+          @if (
+            loading !== null &&
+            loading === 'success' &&
+            selection.isSelected(element)
+          ) {
+            <!-- Ready icon -->
+            <div class="status-indicator">
+              <mat-icon class="status-icon text-success">task_alt</mat-icon>
+            </div>
+          }
+          @if (
+            loading !== null &&
+            loading === 'fail' &&
+            selection.isSelected(element)
+          ) {
+            <!-- Error icon -->
+            <div class="status-indicator">
+              <mat-icon class="status-icon text-danger">error_outline</mat-icon>
+            </div>
           }
         </td>
       </ng-container>
@@ -84,37 +134,53 @@ import { SourceSysRefreshTime } from '../transaction-search.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SourceRefreshSelectableTableComponent
-  extends AbstractSelectableTableComponent<SourceSysRefreshTime>
+  extends AbstractSelectableTableComponent<SourceSysRefreshTimeData>
   implements ControlValueAccessor
 {
   // initialize with placeholder
   get data() {
     return Array.from({ length: 20 }, () => ({
-      value: '',
+      sourceSys: '',
       refresh: '',
       isDisabled: false,
     }));
   }
 
   @Input({ required: true })
-  set data(value: SourceSysRefreshTime[]) {
+  set data(value: SourceSysRefreshTimeData[]) {
     this.dataSource.data = value;
   }
 
   protected override displayedColumns: (
-    | keyof SourceSysRefreshTime
-    | (string & {})
-  )[] = ['select', 'system', 'refresh'];
+    | keyof SourceSysRefreshTimeData
+    | 'select'
+    | 'status'
+  )[] = ['select', 'sourceSys', 'refresh', 'status'];
+
+  protected override trackingProps: (keyof SourceSysRefreshTimeData)[] = [
+    'sourceSys',
+  ];
 
   protected override getSelectionComparator(): (
-    a: SourceSysRefreshTime,
-    b: SourceSysRefreshTime,
+    a: SourceSysRefreshTimeData,
+    b: SourceSysRefreshTimeData,
   ) => boolean {
-    return (a, b) => a.value === b.value;
+    return (a, b) => a.sourceSys == b.sourceSys;
   }
-  protected override isRowDisabledFn: (row: SourceSysRefreshTime) => boolean = (
-    row: SourceSysRefreshTime,
-  ): boolean => {
+
+  protected override isRowDisabledFn: (
+    row: SourceSysRefreshTimeData,
+  ) => boolean = (row: SourceSysRefreshTimeData): boolean => {
     return row.isDisabled || false;
   };
+
+  @Input({ required: true }) isLoadingSearch$!: Observable<
+    'loading' | 'success' | 'fail' | null
+  >;
+}
+
+export interface SourceSysRefreshTimeData {
+  sourceSys: string;
+  refresh?: string | Date | null;
+  isDisabled?: boolean | null;
 }

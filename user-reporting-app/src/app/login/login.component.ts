@@ -19,7 +19,6 @@ import { RoleDialogComponent } from './role-dialog/role-dialog.component';
   styleUrl: './login.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-// eslint-disable-next-line rxjs-angular-x/prefer-composition
 export class LoginComponent implements OnInit {
   private dialog = inject(MatDialog);
   private authService = inject(AuthService);
@@ -42,7 +41,7 @@ export class LoginComponent implements OnInit {
     dialogRef
       .afterClosed()
       .pipe(takeUntilDestroyed(this.destroyRef))
-      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
       .subscribe((res) => {
         const { username, role } = res!;
 

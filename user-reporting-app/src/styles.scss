@@ -116,6 +116,9 @@ html {
 }
 
 /* Width presets (approximate character widths) */
+.skw-2 {
+  width: 32px;
+}
 .skw-4 {
   width: 64px;
 }
@@ -193,4 +196,35 @@ html {
 
 .upload-stepper-dialog {
   --mat-dialog-container-max-width: 920px;
+}
+
+/* Ensure explicit height for ECharts */
+.h-400 {
+  height: 400px;
+}
+
+.h-500 {
+  height: 500px;
+}
+
+.h-800 {
+  height: 800px;
+}
+
+.h-900 {
+  height: 900px;
+}
+
+.mat-mdc-snack-bar-label {
+  background-color: var(
+    --mat-snack-bar-container-color,
+    var(--mat-sys-inverse-surface)
+  );
+}
+
+.mat-mdc-snack-bar-label.mdc-snackbar__label {
+  border-radius: var(
+    --mat-snack-bar-container-shape,
+    var(--mat-sys-corner-extra-small)
+  );
 }

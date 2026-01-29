@@ -30,6 +30,7 @@ import {
   catchError,
   defer,
   finalize,
+  forkJoin,
   from,
   fromEvent,
   map,
@@ -41,7 +42,10 @@ import {
 import {
   CaseRecordStore,
   StrTransactionWithChangeLogs,
+  setRowValidationInfo,
 } from '../../aml/case-record.store';
+import { TransactionSearchService } from '../../transaction-search/transaction-search.service';
+import { PartyGenService } from '../../transaction-view/transform-to-str-transaction/party-gen.service';
 import {
   FormOptions,
   FormOptionsService,
@@ -52,7 +56,7 @@ import {
 } from '../reporting-ui-table/reporting-ui-table.component';
 import { ManualTransactionBuilder } from './manual-transaction-builder';
 import { ManualUploadReviewTableComponent } from './manual-upload-review-table/manual-upload-review-table.component';
-import { MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE } from './manual-upload-review-table/manual-upload-review-table.data.fixture';
+// import { MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE } from './manual-upload-review-table/manual-upload-review-table.data.fixture';
 
 @Component({
   selector: 'app-manual-upload-stepper',
@@ -152,7 +156,8 @@ import { MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE } from './
               stepperFormGroup.controls.step2ReviewTableValidationErrors
             "
             [editable]="stepperFormGroup.invalid"
-            label="Review Data">
+            label="Review Data"
+            class="review-data">
             <div class="py-4">
               <p>Preview of uploaded data:</p>
 
@@ -175,7 +180,7 @@ import { MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE } from './
                   !stepperFormGroup.controls.step2ReviewTableValidationErrors
                     .valid ||
                   stepperFormGroup.controls.readyForUpload.valid ||
-                  (sessionDataService.isSaving$ | async)
+                  (sessionDataService.qIsSaving$ | async)
                 ">
                 Upload
               </button>
@@ -201,15 +206,20 @@ import { MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE } from './
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
-  onFileInputClick(fileInput: HTMLInputElement) {
-    // eslint-disable-next-line no-param-reassign
-    fileInput.value = null as unknown as string;
-  }
+  protected sessionDataService = inject(CaseRecordStore);
+  private formOptionsService = inject(FormOptionsService);
+  private searchService = inject(TransactionSearchService);
   private destroyRef = inject(DestroyRef);
   private fb = inject(FormBuilder);
   dialogRef = inject(MatDialogRef<ManualUploadStepperComponent>);
 
   @ViewChild('dropZone') dropZone!: ElementRef;
+
+  onFileInputClick(fileInput: HTMLInputElement) {
+    // eslint-disable-next-line no-param-reassign
+    fileInput.value = null as unknown as string;
+  }
+
   stepperFormGroup = this.fb.nonNullable.group({
     step1PickFile: [null as File | null, Validators.required],
     step2ReviewTableValidationErrors: [
@@ -219,8 +229,9 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
     readyForUpload: [false, readyForUploadValidator()],
   });
   selectedFile: File | null = null;
-  parsedData: StrTransactionWithChangeLogs[] =
-    MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE;
+  // parsedData: StrTransactionWithChangeLogs[] =
+  //   MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE;
+  parsedData: StrTransactionWithChangeLogs[] = [];
 
   private _isValidExcelFile = new BehaviorSubject<boolean | null>(null);
   isValidExcelFile$ = this._isValidExcelFile.asObservable();
@@ -247,7 +258,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
         tap((event) => this.onDragOver(event)),
         takeUntilDestroyed(this.destroyRef),
       )
-      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
       .subscribe();
 
     fromEvent<DragEvent>(this.dropZone.nativeElement, 'dragleave')
@@ -255,7 +266,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
         tap((event) => this.onDragLeave(event)),
         takeUntilDestroyed(this.destroyRef),
       )
-      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
       .subscribe();
   }
 
@@ -358,7 +369,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
         finalize(() => this._processingFile$.next(false)),
         takeUntilDestroyed(this.destroyRef),
       )
-      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
       .subscribe({
         next: (strTxns = []) => {
           this.parsedData = strTxns;
@@ -371,23 +382,22 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
               [] as _hiddenValidationType[],
             ),
           );
-          console.log('Processed transactions:', this.parsedData);
         },
       });
   }
-
-  private formOptionsService = inject(FormOptionsService);
 
   _processFile(file: File) {
     return defer(() => from(file.arrayBuffer())).pipe(
       map((arrayBuffer) => read(arrayBuffer)),
       map((wb) => {
         const ws: WorkSheet = wb.Sheets[wb.SheetNames[0]];
-        const customProps = wb.Custprops as typeof MANUAL_UPLOAD_FILE_VERSION;
+        const customProps =
+          wb.Custprops as typeof ADD_SELECTIONS_MANUAL_FILE_VERSION;
         if (
-          customProps.manualupload !== MANUAL_UPLOAD_FILE_VERSION.manualupload
+          customProps.manualupload !==
+          ADD_SELECTIONS_MANUAL_FILE_VERSION.manualupload
         ) {
-          throw new Error('Unknown manual upload file');
+          throw new Error('Unknown manual upload template');
         }
         // Convert to JSON
         return utils.sheet_to_json<Record<ColumnHeaderLabels, string>>(ws, {
@@ -400,35 +410,37 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
           map((formOptions) => ({ jsonData, formOptions })),
         );
       }),
-      map(({ jsonData, formOptions }) =>
-        jsonData.map((json) =>
-          this.convertSheetJsonToStrTxn(json, formOptions),
-        ),
+      switchMap(({ jsonData, formOptions }) =>
+        forkJoin(
+          jsonData.map((json) =>
+            this.convertSheetJsonToStrTxn(json, formOptions),
+          ),
+        ).pipe(map((strTxns) => strTxns.map(setRowValidationInfo))),
       ),
     );
   }
+  private partyGenService = inject(PartyGenService);
 
   convertSheetJsonToStrTxn(
     value: Record<ColumnHeaderLabels, string>,
     formOptions: FormOptions,
-  ): StrTransactionWithChangeLogs {
-    const transaction = new ManualTransactionBuilder(value, formOptions)
+  ) {
+    return new ManualTransactionBuilder(value, formOptions, (party) =>
+      this.partyGenService.generateParty(party),
+    )
+      .trimValues()
       .withMetadata()
       .withBasicInfo()
       .withFlowOfFundsInfo()
       .withStartingAction()
       .withCompletingAction()
-      .withRowValidation()
       .withValidationErrors()
       .build();
-
-    return transaction;
   }
 
-  protected sessionDataService = inject(CaseRecordStore);
   onUpload(stepper: MatStepper) {
     this.stepperFormGroup.controls.readyForUpload.setValue(true);
-    this.sessionDataService.saveManualTransactions(this.parsedData);
+    this.sessionDataService.qAddManualSelections(this.parsedData);
     // After successful upload, move to next step
     this.sessionDataService
       .whenCompleted(this.parsedData.map((d) => d.flowOfFundsAmlTransactionId))
@@ -436,7 +448,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
         tap(() => stepper.next()),
         takeUntilDestroyed(this.destroyRef),
       )
-      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
       .subscribe();
   }
 
@@ -451,19 +463,25 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
   onStepChange(event: StepperSelectionEvent): void {
     switch (event.selectedIndex) {
       case 0: // Step 1: Upload
-        this.dialogRef.updateSize(MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT, '');
+        this.dialogRef.updateSize(
+          ADD_SELECTIONS_MANUAL_STEPPER_WIDTH_DEFAULT,
+          '',
+        );
         break;
       case 1: // Step 2: Preview data
         this.dialogRef.updateSize('920px', ''); // Wider for table
         break;
       case 2: // Step 3: Success
-        this.dialogRef.updateSize(MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT, '');
+        this.dialogRef.updateSize(
+          ADD_SELECTIONS_MANUAL_STEPPER_WIDTH_DEFAULT,
+          '',
+        );
         break;
     }
   }
 }
 
-export const MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT = '600px';
+export const ADD_SELECTIONS_MANUAL_STEPPER_WIDTH_DEFAULT = '600px';
 
 export type ColumnHeaderLabels =
   (typeof ReportingUiTableComponent.displayColumnHeaderMap)[keyof typeof ReportingUiTableComponent.displayColumnHeaderMap];
@@ -479,6 +497,9 @@ function reviewTableErrorValidation(): (
     'invalidAmountCurrency',
     'invalidAccountCurrency',
     'invalidAccountStatus',
+    'bankInfoMissing',
+    'invalidPartyKey',
+    'invalidFiu',
   ] as _hiddenValidationType[]);
 
   return (control) => {
@@ -507,4 +528,4 @@ function readyForUploadValidator(): (
   };
 }
 
-const MANUAL_UPLOAD_FILE_VERSION = { manualupload: 'v0.1' } as const;
+const ADD_SELECTIONS_MANUAL_FILE_VERSION = { manualupload: 'v0.1' } as const;

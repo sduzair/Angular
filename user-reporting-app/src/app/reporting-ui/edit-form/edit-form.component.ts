@@ -13,7 +13,9 @@ import {
   FormArray,
   FormControl,
   FormGroup,
+  FormGroupDirective,
   isFormGroup,
+  NgForm,
   ReactiveFormsModule,
   ValidationErrors,
   ValidatorFn,
@@ -53,14 +55,16 @@ import {
   startWith,
   switchMap,
   tap,
+  withLatestFrom,
 } from 'rxjs/operators';
 import {
   CaseRecordStore,
+  ChangeLogAudit,
   StrTransactionWithChangeLogs,
 } from '../../aml/case-record.store';
 import * as ChangeLog from '../../change-logging/change-log';
 import { setError } from '../../form-helpers';
-import { PreemptiveErrorStateMatcher } from '../../transaction-search/transaction-search.component';
+import { SnackbarQueueService } from '../../snackbar-queue.service';
 import {
   AccountHolder,
   Beneficiary,
@@ -73,12 +77,14 @@ import {
   StartingAction,
   StrTransaction,
   StrTxnFlowOfFunds,
-  WithVersion,
+  WithETag,
 } from '../reporting-ui-table/reporting-ui-table.component';
 import { ClearFieldDirective } from './clear-field.directive';
 import {
   hasEntityName,
+  hasInvalidFiu,
   hasMissingAccountInfo,
+  hasMissingCheque,
   hasMissingConductorInfo,
   hasPersonName,
 } from './common-validation';
@@ -90,7 +96,16 @@ import { TransactionDateDirective } from './transaction-date.directive';
 import { TransactionDetailsPanelComponent } from './transaction-details-panel/transaction-details-panel.component';
 import { TransactionTimeDirective } from './transaction-time.directive';
 import { ValidateOnParentChangesDirective } from './validate-on-parent-changes.directive';
-import { SnackbarQueueService } from '../../snackbar-queue.service';
+
+export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
+  isErrorState(
+    control: FormControl | null,
+    _: FormGroupDirective | NgForm | null,
+  ): boolean {
+    // const isSubmitted = form?.submitted;
+    return !!control?.invalid;
+  }
+}
 
 @Component({
   selector: 'app-edit-form',
@@ -124,8 +139,9 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
     ValidateOnParentChangesDirective,
   ],
   template: `
+    @let editForm = editForm$ | async;
     <div class="container px-0 mb-5">
-      <mat-toolbar class="justify-content-end px-0">
+      <mat-toolbar class="justify-content-end px-0 gap-4 toolbar">
         <button
           type="button"
           mat-icon-button
@@ -133,7 +149,59 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
           aria-label="Go back">
           <mat-icon>arrow_back</mat-icon>
         </button>
+
+        @let editType = editType$ | async;
+
+        @if (editType && editType.type === 'BULK_SAVE') {
+          <div class="d-flex align-items-center gap-2">
+            <mat-chip
+              color="accent"
+              class="d-flex align-items-center selected-chip">
+              <mat-icon>checklist</mat-icon>
+              <span class="fw-bold">{{ editType.payload.length }}</span>
+              <span class="text-muted">
+                transaction(s) selected for bulk edit
+              </span>
+            </mat-chip>
+          </div>
+        }
+
         <div class="flex-fill"></div>
+
+        @if (isAudit) {
+          @let auditLastUpdatedBy = (auditLastUpdatedBy$ | async) ?? '';
+          @let auditLastUpdated = (auditLastUpdated$ | async) ?? '';
+
+          <div
+            class="d-flex align-items-center gap-3 text-muted fs-6"
+            [class.invisible]="!auditLastUpdatedBy || !auditLastUpdated">
+            <span class="d-flex align-items-center gap-1">
+              <span class="fw-medium text-secondary">Updated By:</span>
+              <mat-icon
+                color="accent"
+                style="font-size: 20px; height: 20px; width: 20px;">
+                person
+              </mat-icon>
+              <span class="text-dark">{{ auditLastUpdatedBy }}</span>
+            </span>
+
+            <span class="vr"></span>
+
+            <span class="d-flex align-items-center gap-1">
+              <span class="fw-medium text-secondary"> Last Updated: </span>
+              <mat-icon
+                color="accent"
+                style="font-size: 20px; height: 20px; width: 20px;">
+                schedule
+              </mat-icon>
+              <span class="text-dark">
+                {{ auditLastUpdated | date: 'short' }}
+              </span>
+            </span>
+
+            <span class="vr"></span>
+          </div>
+        }
 
         @if (!isAudit) {
           <button
@@ -143,11 +211,11 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
             form="edit-form"
             [disabled]="
               (editFormHasChanges$ | async) === false ||
-              (sessionDataService.isSaving$ | async)
+              (caseRecordStore.qIsSaving$ | async)
             "
             [matBadge]="selectedTransactionsForBulkEditLength"
             [matBadgeHidden]="!isBulkEdit">
-            @if (sessionDataService.isSaving$ | async) {
+            @if (caseRecordStore.qIsSaving$ | async) {
               Saving...
             } @else {
               Save
@@ -156,7 +224,7 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
         }
 
         @if (isAudit) {
-          <mat-form-field>
+          <mat-form-field class="audit-form-btn" subscriptSizing="dynamic">
             <mat-select
               placeholder="Version"
               [formControl]="auditVersionControl">
@@ -174,14 +242,14 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
       </mat-toolbar>
 
       @if (isSingleEdit || isAudit) {
-        @if (editType$ | async; as editType) {
+        @if (editType) {
           <app-transaction-details-panel
             [singleStrTransaction]="$any(editType.payload)" />
         }
       }
     </div>
     <div class="container form-field-density px-0">
-      @if (editForm$ | async; as editForm) {
+      @if (editForm) {
         <form
           [formGroup]="editForm"
           (ngSubmit)="onSave()"
@@ -216,6 +284,7 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                           matInput
                           formControlName="dateOfTxn"
                           [matDatepicker]="dateOfTxnPicker"
+                          [max]="maxDate"
                           appTransactionDate />
                         <mat-datepicker-toggle
                           matIconSuffix
@@ -306,6 +375,7 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                           matInput
                           formControlName="dateOfPosting"
                           [matDatepicker]="dateOfPostingPicker"
+                          [max]="maxDate"
                           appTransactionDate
                           appControlToggle="hasPostingDate" />
                         <mat-datepicker-toggle
@@ -508,6 +578,10 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                           )
                         ) {
                           <mat-error>This field is required</mat-error>
+                        } @else if (
+                          editForm.controls.reportingEntityLocationNo.invalid
+                        ) {
+                          <mat-error>This field is invalid</mat-error>
                         }
                       </mat-form-field>
                       <mat-form-field
@@ -547,7 +621,7 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                 </button>
                 <div
                   formArrayName="startingActions"
-                  class="w-100 d-flex flex-column gap-3">
+                  class="w-100 d-flex flex-column gap-3 mb-5">
                   @for (
                     saAction of editForm.controls.startingActions.controls;
                     track saAction.value._id;
@@ -688,7 +762,21 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
-                            <mat-error>This field is required</mat-error>
+                            @if (
+                              saAction.controls.typeOfFunds.hasError(
+                                'missingCheque'
+                              )
+                            ) {
+                              <mat-error>
+                                {{
+                                  saAction.controls.typeOfFunds.errors![
+                                    'missingCheque'
+                                  ]
+                                }}
+                              </mat-error>
+                            } @else {
+                              <mat-error>This field is required</mat-error>
+                            }
                           </mat-form-field>
                           <mat-form-field
                             class="col"
@@ -856,6 +944,14 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                   saAction.controls.fiuNo.errors![
                                     'missingAccountInfo'
                                   ]
+                                }}
+                              </mat-error>
+                            } @else if (
+                              saAction.controls.fiuNo.hasError('invalidFiu')
+                            ) {
+                              <mat-error>
+                                {{
+                                  saAction.controls.fiuNo.errors!['invalidFiu']
                                 }}
                               </mat-error>
                             }
@@ -1132,6 +1228,7 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                               matInput
                               formControlName="accountOpen"
                               [matDatepicker]="accountOpenPicker"
+                              [max]="maxDate"
                               appTransactionDate />
                             <mat-datepicker-toggle
                               matIconSuffix
@@ -1173,6 +1270,7 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                               matInput
                               formControlName="accountClose"
                               [matDatepicker]="accountClosePicker"
+                              [max]="maxDate"
                               appTransactionDate
                               appValidateOnParentChanges />
                             <mat-datepicker-toggle
@@ -1320,12 +1418,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       saIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-partyKey'
+                                      '-_hiddenPartyKey'
                                     ">
                                     <mat-label>Party Key</mat-label>
                                     <input
                                       matInput
-                                      formControlName="partyKey" />
+                                      formControlName="_hiddenPartyKey" />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -1345,12 +1443,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       saIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-surname'
+                                      '-_hiddenSurname'
                                     ">
-                                    <mat-label>Surname</mat-label>
+                                    <mat-label>_hiddenSurname</mat-label>
                                     <input
                                       matInput
-                                      formControlName="surname"
+                                      formControlName="_hiddenSurname"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1371,12 +1469,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       saIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-givenName'
+                                      '-_hiddenGivenName'
                                     ">
-                                    <mat-label>GivenName</mat-label>
+                                    <mat-label>_hiddenGivenName</mat-label>
                                     <input
                                       matInput
-                                      formControlName="givenName"
+                                      formControlName="_hiddenGivenName"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1397,12 +1495,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       saIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-otherOrInitial'
+                                      '-_hiddenOtherOrInitial'
                                     ">
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="otherOrInitial"
+                                      formControlName="_hiddenOtherOrInitial"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1423,12 +1521,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       saIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-nameOfEntity'
+                                      '-_hiddenNameOfEntity'
                                     ">
                                     <mat-label>Name of Entity</mat-label>
                                     <input
                                       matInput
-                                      formControlName="nameOfEntity"
+                                      formControlName="_hiddenNameOfEntity"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1529,12 +1627,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       saIndex +
                                       '-sourceOfFunds-' +
                                       fundsIndex +
-                                      '-partyKey'
+                                      '-_hiddenPartyKey'
                                     ">
                                     <mat-label>Party Key</mat-label>
                                     <input
                                       matInput
-                                      formControlName="partyKey" />
+                                      formControlName="_hiddenPartyKey" />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -1554,12 +1652,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       saIndex +
                                       '-sourceOfFunds-' +
                                       fundsIndex +
-                                      '-surname'
+                                      '-_hiddenSurname'
                                     ">
-                                    <mat-label>Surname</mat-label>
+                                    <mat-label>_hiddenSurname</mat-label>
                                     <input
                                       matInput
-                                      formControlName="surname"
+                                      formControlName="_hiddenSurname"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1580,12 +1678,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       saIndex +
                                       '-sourceOfFunds-' +
                                       fundsIndex +
-                                      '-givenName'
+                                      '-_hiddenGivenName'
                                     ">
-                                    <mat-label>GivenName</mat-label>
+                                    <mat-label>_hiddenGivenName</mat-label>
                                     <input
                                       matInput
-                                      formControlName="givenName"
+                                      formControlName="_hiddenGivenName"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1606,12 +1704,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       saIndex +
                                       '-sourceOfFunds-' +
                                       fundsIndex +
-                                      '-otherOrInitial'
+                                      '-_hiddenOtherOrInitial'
                                     ">
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="otherOrInitial"
+                                      formControlName="_hiddenOtherOrInitial"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1632,12 +1730,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       saIndex +
                                       '-sourceOfFunds-' +
                                       fundsIndex +
-                                      '-nameOfEntity'
+                                      '-_hiddenNameOfEntity'
                                     ">
                                     <mat-label>Name of Entity</mat-label>
                                     <input
                                       matInput
-                                      formControlName="nameOfEntity"
+                                      formControlName="_hiddenNameOfEntity"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1786,12 +1884,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       saIndex +
                                       '-conductors-' +
                                       condIndex +
-                                      '-partyKey'
+                                      '-_hiddenPartyKey'
                                     ">
                                     <mat-label>Party Key</mat-label>
                                     <input
                                       matInput
-                                      formControlName="partyKey" />
+                                      formControlName="_hiddenPartyKey" />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -1811,12 +1909,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       saIndex +
                                       '-conductors-' +
                                       condIndex +
-                                      '-surname'
+                                      '-_hiddenSurname'
                                     ">
-                                    <mat-label>Surname</mat-label>
+                                    <mat-label>_hiddenSurname</mat-label>
                                     <input
                                       matInput
-                                      formControlName="surname"
+                                      formControlName="_hiddenSurname"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1837,12 +1935,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       saIndex +
                                       '-conductors-' +
                                       condIndex +
-                                      '-givenName'
+                                      '-_hiddenGivenName'
                                     ">
-                                    <mat-label>GivenName</mat-label>
+                                    <mat-label>_hiddenGivenName</mat-label>
                                     <input
                                       matInput
-                                      formControlName="givenName"
+                                      formControlName="_hiddenGivenName"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1863,12 +1961,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       saIndex +
                                       '-conductors-' +
                                       condIndex +
-                                      '-otherOrInitial'
+                                      '-_hiddenOtherOrInitial'
                                     ">
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="otherOrInitial"
+                                      formControlName="_hiddenOtherOrInitial"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1889,12 +1987,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       saIndex +
                                       '-conductors-' +
                                       condIndex +
-                                      '-nameOfEntity'
+                                      '-_hiddenNameOfEntity'
                                     ">
                                     <mat-label>Name of Entity</mat-label>
                                     <input
                                       matInput
-                                      formControlName="nameOfEntity"
+                                      formControlName="_hiddenNameOfEntity"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -1990,12 +2088,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                               condIndex +
                                               '-onBehalfOf-' +
                                               behalfIndex +
-                                              '-partyKey'
+                                              '-_hiddenPartyKey'
                                             ">
                                             <mat-label>Party Key</mat-label>
                                             <input
                                               matInput
-                                              formControlName="partyKey" />
+                                              formControlName="_hiddenPartyKey" />
                                             <button
                                               [disabled]="this.isBulkEdit"
                                               type="button"
@@ -2017,12 +2115,14 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                               condIndex +
                                               '-onBehalfOf-' +
                                               behalfIndex +
-                                              '-surname'
+                                              '-_hiddenSurname'
                                             ">
-                                            <mat-label>Surname</mat-label>
+                                            <mat-label
+                                              >_hiddenSurname</mat-label
+                                            >
                                             <input
                                               matInput
-                                              formControlName="surname"
+                                              formControlName="_hiddenSurname"
                                               appValidateOnParentChanges />
                                             <button
                                               [disabled]="this.isBulkEdit"
@@ -2045,12 +2145,14 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                               condIndex +
                                               '-onBehalfOf-' +
                                               behalfIndex +
-                                              '-givenName'
+                                              '-_hiddenGivenName'
                                             ">
-                                            <mat-label>GivenName</mat-label>
+                                            <mat-label
+                                              >_hiddenGivenName</mat-label
+                                            >
                                             <input
                                               matInput
-                                              formControlName="givenName"
+                                              formControlName="_hiddenGivenName"
                                               appValidateOnParentChanges />
                                             <button
                                               [disabled]="this.isBulkEdit"
@@ -2073,14 +2175,14 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                               condIndex +
                                               '-onBehalfOf-' +
                                               behalfIndex +
-                                              '-otherOrInitial'
+                                              '-_hiddenOtherOrInitial'
                                             ">
                                             <mat-label
                                               >Other or Initial</mat-label
                                             >
                                             <input
                                               matInput
-                                              formControlName="otherOrInitial"
+                                              formControlName="_hiddenOtherOrInitial"
                                               appValidateOnParentChanges />
                                             <button
                                               [disabled]="this.isBulkEdit"
@@ -2103,14 +2205,14 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                               condIndex +
                                               '-onBehalfOf-' +
                                               behalfIndex +
-                                              '-nameOfEntity'
+                                              '-_hiddenNameOfEntity'
                                             ">
                                             <mat-label
                                               >Name of Entity</mat-label
                                             >
                                             <input
                                               matInput
-                                              formControlName="nameOfEntity"
+                                              formControlName="_hiddenNameOfEntity"
                                               appValidateOnParentChanges />
                                             <button
                                               [disabled]="this.isBulkEdit"
@@ -2186,7 +2288,7 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                 </button>
                 <div
                   formArrayName="completingActions"
-                  class="w-100 d-flex flex-column gap-3">
+                  class="w-100 d-flex flex-column gap-3 mb-5">
                   @for (
                     caAction of editForm.controls.completingActions.controls;
                     track caAction.value._id;
@@ -2518,6 +2620,14 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                   ]
                                 }}
                               </mat-error>
+                            } @else if (
+                              caAction.controls.fiuNo.hasError('invalidFiu')
+                            ) {
+                              <mat-error>
+                                {{
+                                  caAction.controls.fiuNo.errors!['invalidFiu']
+                                }}
+                              </mat-error>
                             }
                           </mat-form-field>
                           <mat-form-field
@@ -2797,6 +2907,7 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                               matInput
                               formControlName="accountOpen"
                               [matDatepicker]="accountOpenPicker"
+                              [max]="maxDate"
                               appTransactionDate />
                             <mat-datepicker-toggle
                               matIconSuffix
@@ -2838,6 +2949,7 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                               matInput
                               formControlName="accountClose"
                               [matDatepicker]="accountClosePicker"
+                              [max]="maxDate"
                               appTransactionDate
                               appValidateOnParentChanges />
                             <mat-datepicker-toggle
@@ -2949,12 +3061,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       caIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-partyKey'
+                                      '-_hiddenPartyKey'
                                     ">
                                     <mat-label>Party Key</mat-label>
                                     <input
                                       matInput
-                                      formControlName="partyKey" />
+                                      formControlName="_hiddenPartyKey" />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -2974,12 +3086,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       caIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-surname'
+                                      '-_hiddenSurname'
                                     ">
-                                    <mat-label>Surname</mat-label>
+                                    <mat-label>_hiddenSurname</mat-label>
                                     <input
                                       matInput
-                                      formControlName="surname"
+                                      formControlName="_hiddenSurname"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3000,12 +3112,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       caIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-givenName'
+                                      '-_hiddenGivenName'
                                     ">
-                                    <mat-label>GivenName</mat-label>
+                                    <mat-label>_hiddenGivenName</mat-label>
                                     <input
                                       matInput
-                                      formControlName="givenName"
+                                      formControlName="_hiddenGivenName"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3026,12 +3138,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       caIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-otherOrInitial'
+                                      '-_hiddenOtherOrInitial'
                                     ">
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="otherOrInitial"
+                                      formControlName="_hiddenOtherOrInitial"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3052,12 +3164,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       caIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-nameOfEntity'
+                                      '-_hiddenNameOfEntity'
                                     ">
                                     <mat-label>Name of Entity</mat-label>
                                     <input
                                       matInput
-                                      formControlName="nameOfEntity"
+                                      formControlName="_hiddenNameOfEntity"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3160,12 +3272,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       caIndex +
                                       '-involvedIn-' +
                                       invIndex +
-                                      '-partyKey'
+                                      '-_hiddenPartyKey'
                                     ">
                                     <mat-label>Party Key</mat-label>
                                     <input
                                       matInput
-                                      formControlName="partyKey" />
+                                      formControlName="_hiddenPartyKey" />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -3185,12 +3297,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       caIndex +
                                       '-involvedIn-' +
                                       invIndex +
-                                      '-surname'
+                                      '-_hiddenSurname'
                                     ">
-                                    <mat-label>Surname</mat-label>
+                                    <mat-label>_hiddenSurname</mat-label>
                                     <input
                                       matInput
-                                      formControlName="surname"
+                                      formControlName="_hiddenSurname"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3211,12 +3323,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       caIndex +
                                       '-involvedIn-' +
                                       invIndex +
-                                      '-givenName'
+                                      '-_hiddenGivenName'
                                     ">
-                                    <mat-label>GivenName</mat-label>
+                                    <mat-label>_hiddenGivenName</mat-label>
                                     <input
                                       matInput
-                                      formControlName="givenName"
+                                      formControlName="_hiddenGivenName"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3237,12 +3349,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       caIndex +
                                       '-involvedIn-' +
                                       invIndex +
-                                      '-otherOrInitial'
+                                      '-_hiddenOtherOrInitial'
                                     ">
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="otherOrInitial"
+                                      formControlName="_hiddenOtherOrInitial"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3263,12 +3375,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       caIndex +
                                       '-involvedIn-' +
                                       invIndex +
-                                      '-nameOfEntity'
+                                      '-_hiddenNameOfEntity'
                                     ">
                                     <mat-label>Name of Entity</mat-label>
                                     <input
                                       matInput
-                                      formControlName="nameOfEntity"
+                                      formControlName="_hiddenNameOfEntity"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3416,12 +3528,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       caIndex +
                                       '-beneficiaries-' +
                                       benIndex +
-                                      '-partyKey'
+                                      '-_hiddenPartyKey'
                                     ">
                                     <mat-label>Party Key</mat-label>
                                     <input
                                       matInput
-                                      formControlName="partyKey" />
+                                      formControlName="_hiddenPartyKey" />
                                     <button
                                       [disabled]="this.isBulkEdit"
                                       type="button"
@@ -3441,12 +3553,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       caIndex +
                                       '-beneficiaries-' +
                                       benIndex +
-                                      '-surname'
+                                      '-_hiddenSurname'
                                     ">
-                                    <mat-label>Surname</mat-label>
+                                    <mat-label>_hiddenSurname</mat-label>
                                     <input
                                       matInput
-                                      formControlName="surname"
+                                      formControlName="_hiddenSurname"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3467,12 +3579,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       caIndex +
                                       '-beneficiaries-' +
                                       benIndex +
-                                      '-givenName'
+                                      '-_hiddenGivenName'
                                     ">
-                                    <mat-label>GivenName</mat-label>
+                                    <mat-label>_hiddenGivenName</mat-label>
                                     <input
                                       matInput
-                                      formControlName="givenName"
+                                      formControlName="_hiddenGivenName"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3493,12 +3605,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       caIndex +
                                       '-beneficiaries-' +
                                       benIndex +
-                                      '-otherOrInitial'
+                                      '-_hiddenOtherOrInitial'
                                     ">
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="otherOrInitial"
+                                      formControlName="_hiddenOtherOrInitial"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3519,12 +3631,12 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
                                       caIndex +
                                       '-beneficiaries-' +
                                       benIndex +
-                                      '-nameOfEntity'
+                                      '-_hiddenNameOfEntity'
                                     ">
                                     <mat-label>Name of Entity</mat-label>
                                     <input
                                       matInput
-                                      formControlName="nameOfEntity"
+                                      formControlName="_hiddenNameOfEntity"
                                       appValidateOnParentChanges />
                                     <button
                                       [disabled]="this.isBulkEdit"
@@ -3576,7 +3688,6 @@ import { SnackbarQueueService } from '../../snackbar-queue.service';
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-// eslint-disable-next-line rxjs-angular-x/prefer-composition
 export class EditFormComponent implements AfterViewChecked {
   private snackbarQ = inject(SnackbarQueueService);
 
@@ -3593,22 +3704,22 @@ export class EditFormComponent implements AfterViewChecked {
     ),
     map(([editType, auditVersion]) => {
       switch (editType.type) {
-        case 'SINGLE_EDIT':
+        case 'SINGLE_SAVE':
           return this.createEditForm({
             txn: editType.payload,
-            options: { editType: 'SINGLE_EDIT' },
+            options: { editType: 'SINGLE_SAVE' },
           });
 
-        case 'BULK_EDIT':
+        case 'BULK_SAVE':
           return this.createEditForm({
-            options: { editType: 'BULK_EDIT', disabled: true },
+            options: { editType: 'BULK_SAVE', disabled: true },
           });
 
         case 'AUDIT_REQUEST': {
           const txn = ChangeLog.applyChangeLogs(
             editType.payload,
             editType.payload.changeLogs.filter(
-              (log) => log.etag! <= auditVersion,
+              (log) => log.eTag! <= auditVersion,
             ),
           );
           return this.createEditForm({
@@ -3622,10 +3733,10 @@ export class EditFormComponent implements AfterViewChecked {
   );
 
   private editForm: EditFormType | null = null;
-  private editFormValueBefore: EditFormValueType | null = null;
+
   _ = this.editForm$
     .pipe(takeUntilDestroyed())
-    // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
+    // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
     .subscribe((form) => {
       this.editForm = form;
     });
@@ -3637,48 +3748,92 @@ export class EditFormComponent implements AfterViewChecked {
         (log) => log.path !== '/highlightColor',
       ),
     ),
-    tap((changes) =>
-      this.auditVersionControl.setValue(changes.at(-1)?.etag ?? 0),
-    ),
+    tap((changes) => {
+      this.auditVersionControl.setValue(changes.at(-1)?.eTag ?? 0);
+    }),
     map((changes) => {
-      const verMap = new Map([[0, 0]]);
+      const verMap = new Map<number, ChangeLogAudit>([
+        [
+          0,
+          {
+            eTag: 0,
+            op: 'test',
+            path: '',
+            updatedAt: '',
+            updatedBy: '',
+            value: null,
+          },
+        ],
+      ]);
 
       changes.forEach((log) => {
-        if (Array.from(verMap.values()).includes(log.etag!)) return verMap;
+        if (Array.from(verMap.values()).find((val) => val.eTag === log.eTag!))
+          return;
 
         let lastLabelIndex = [...verMap].at(-1)![0];
-        return verMap.set(++lastLabelIndex, log.etag!);
+        verMap.set(++lastLabelIndex, log);
+        return;
       });
 
-      return Array.from(verMap.entries()).map(([key, val]) => ({
-        label: `v${String(key)}`,
-        value: val,
-      }));
+      return Array.from(verMap.entries()).map(
+        ([key, { updatedAt, updatedBy }]) => ({
+          label: `v${String(key)}`,
+          value: key,
+          updatedAt,
+          updatedBy,
+        }),
+      );
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
+  private readonly auditInfo$ = this.auditVersionControl.valueChanges.pipe(
+    startWith(this.auditVersionControl.value),
+    withLatestFrom(this.auditVersionOptions$),
+    map(([ver, options]) => {
+      if (Number.isNaN(ver)) {
+        const option = options.at(-1);
+        return {
+          updatedAt: option?.updatedAt,
+          updatedBy: option?.updatedBy,
+        };
+      }
+
+      const option = options.find((opt) => opt.value === ver);
+      return {
+        updatedAt: option?.updatedAt,
+        updatedBy: option?.updatedBy,
+      };
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  protected auditLastUpdated$ = this.auditInfo$.pipe(
+    map((info) => info.updatedAt),
+  );
+  protected auditLastUpdatedBy$ = this.auditInfo$.pipe(
+    map((info) => info.updatedBy),
+  );
+
   protected readonly editFormHasChanges$ = this.editForm$.pipe(
     switchMap((form) => {
-      // Store initial value when form changes
-      this.editFormValueBefore = structuredClone(form?.getRawValue() ?? null);
+      // Store initial value to detect form changes
+      const editFormValueBefore: EditFormValueType | null = structuredClone(
+        form?.value ?? null,
+      );
 
       return form.valueChanges.pipe(
-        startWith(form.getRawValue()),
+        startWith(form.value),
         map(() => {
-          const editFormVal = form.getRawValue()!;
+          const editFormVal = form.value!;
           return !isEqualWith(
             editFormVal,
-            this.editFormValueBefore,
+            editFormValueBefore,
             (val1, val2, indexOrKey) => {
-              const isEmpty = (val: unknown) => val == null || val === '';
-
-              if (isEmpty(val1) && isEmpty(val2)) return true;
-
               if (indexOrKey === '_id') return true;
 
               if (
-                this.editType().type === 'BULK_EDIT' &&
+                this.editType().type === 'BULK_SAVE' &&
                 isDepProp(indexOrKey as ChangeLog.DepPropType)
               )
                 return true;
@@ -3700,7 +3855,7 @@ export class EditFormComponent implements AfterViewChecked {
   // ----------------------
   // Form Submission
   // ----------------------
-  protected sessionDataService = inject(CaseRecordStore);
+  protected caseRecordStore = inject(CaseRecordStore);
   protected isSaved = false;
 
   protected onSave(): void {
@@ -3719,20 +3874,20 @@ export class EditFormComponent implements AfterViewChecked {
     this.isSaved = true;
 
     const editType = this.editType();
-    if (editType.type === 'SINGLE_EDIT') {
-      this.sessionDataService.saveEditForm({
-        editType: 'SINGLE_EDIT',
+    if (editType.type === 'SINGLE_SAVE') {
+      this.caseRecordStore.qSaveEditForm({
+        editType: 'SINGLE_SAVE',
         flowOfFundsAmlTransactionId:
           editType.payload.flowOfFundsAmlTransactionId,
         editFormValue: this.editForm!.getRawValue(),
       });
     }
 
-    if (editType.type === 'BULK_EDIT') {
-      this.sessionDataService.saveEditForm({
-        editType: 'BULK_EDIT',
+    if (editType.type === 'BULK_SAVE') {
+      this.caseRecordStore.qSaveEditForm({
+        editType: 'BULK_SAVE',
         editFormValue: this.editForm!.value,
-        selections: editType.payload,
+        selectionIds: editType.payload,
       });
     }
   }
@@ -3742,63 +3897,63 @@ export class EditFormComponent implements AfterViewChecked {
     options,
   }: {
     txn?:
-      | WithVersion<StrTransactionWithChangeLogs>
+      | WithETag<StrTransactionWithChangeLogs>
       | StrTransactionWithChangeLogs
       | null;
     options: { editType: EditType; disabled?: boolean };
   }) {
     const { editType, disabled = false } = options;
-    const createEmptyArrays = editType === 'BULK_EDIT';
+    const createEmptyArrays = editType === 'BULK_SAVE';
 
     const editForm = new FormGroup(
       {
-        etag: new FormControl<number>({
-          value: txn?.changeLogs.at(-1)?.etag ?? 0,
+        eTag: new FormControl<number>({
+          value: txn?.changeLogs.at(-1)?.eTag ?? 0,
           disabled,
         }),
         wasTxnAttempted: new FormControl({
           value: ChangeLog.getToggleInitVal(
             'wasTxnAttempted',
             txn?.wasTxnAttempted,
-            editType === 'BULK_EDIT',
+            editType === 'BULK_SAVE',
           ),
           disabled,
         }),
         wasTxnAttemptedReason: new FormControl(
-          { value: txn?.wasTxnAttemptedReason || '', disabled },
+          { value: txn?.wasTxnAttemptedReason ?? null, disabled },
           Validators.required,
         ),
-        dateOfTxn: new FormControl({ value: txn?.dateOfTxn || '', disabled }, [
-          Validators.required,
-          dateValidator(),
-        ]),
+        dateOfTxn: new FormControl(
+          { value: txn?.dateOfTxn ?? null, disabled },
+          [Validators.required, dateValidator()],
+        ),
         timeOfTxn: new FormControl(
-          { value: txn?.timeOfTxn || '', disabled },
+          { value: txn?.timeOfTxn ?? null, disabled },
           Validators.required,
         ),
         hasPostingDate: new FormControl({
           value: ChangeLog.getToggleInitVal(
             'hasPostingDate',
             txn?.hasPostingDate,
-            editType === 'BULK_EDIT',
+            editType === 'BULK_SAVE',
           ),
           disabled,
         }),
         dateOfPosting: new FormControl(
-          { value: txn?.dateOfPosting || '', disabled },
+          { value: txn?.dateOfPosting ?? null, disabled },
           [Validators.required, dateValidator()],
         ),
         timeOfPosting: new FormControl(
-          { value: txn?.timeOfPosting || '', disabled },
+          { value: txn?.timeOfPosting ?? null, disabled },
           Validators.required,
         ),
         methodOfTxn: new FormControl(
-          { value: txn?.methodOfTxn || '', disabled },
+          { value: txn?.methodOfTxn ?? null, disabled },
           Validators.required,
           this.methodOfTxnValidator(),
         ),
         methodOfTxnOther: new FormControl(
-          { value: txn?.methodOfTxnOther || '', disabled },
+          { value: txn?.methodOfTxnOther ?? null, disabled },
           Validators.required,
         ),
         reportingEntityTxnRefNo: new FormControl({
@@ -3806,11 +3961,11 @@ export class EditFormComponent implements AfterViewChecked {
           disabled,
         }),
         purposeOfTxn: new FormControl({
-          value: txn?.purposeOfTxn || '',
+          value: txn?.purposeOfTxn ?? null,
           disabled,
         }),
         reportingEntityLocationNo: new FormControl(
-          { value: txn?.reportingEntityLocationNo || '', disabled },
+          { value: txn?.reportingEntityLocationNo ?? null, disabled },
           [
             Validators.required,
             Validators.minLength(5),
@@ -3847,9 +4002,16 @@ export class EditFormComponent implements AfterViewChecked {
                 ]
               : []),
         ),
+        highlightColor: new FormControl(txn?.highlightColor ?? ''),
+        _hiddenUpdatedBy: new FormControl(
+          txn?.changeLogs.at(-1)?.updatedBy ?? '',
+        ),
+        _hiddenUpdatedAt: new FormControl(
+          txn?.changeLogs.at(-1)?.updatedAt ?? '',
+        ),
       },
       { updateOn: 'change' },
-    ) satisfies FormGroup<TypedForm<WithVersion<StrTxnEditForm>>>;
+    ) satisfies FormGroup<TypedForm<WithETag<StrTxnEditForm>>>;
 
     return editForm;
   }
@@ -3865,7 +4027,7 @@ export class EditFormComponent implements AfterViewChecked {
     options: { editType: EditType; disabled: boolean };
   }) {
     const { editType, disabled } = options;
-    const createEmptyArrays = editType === 'BULK_EDIT';
+    const createEmptyArrays = editType === 'BULK_SAVE';
 
     const sAction = action;
     if (sAction?.accountHolders)
@@ -3879,7 +4041,7 @@ export class EditFormComponent implements AfterViewChecked {
         }),
         directionOfSA: new FormControl(
           {
-            value: action?.directionOfSA || '',
+            value: action?.directionOfSA ?? null,
             disabled,
           },
           [Validators.required],
@@ -3887,71 +4049,72 @@ export class EditFormComponent implements AfterViewChecked {
         ),
         typeOfFunds: new FormControl(
           {
-            value: action?.typeOfFunds || '',
+            value: action?.typeOfFunds ?? null,
             disabled,
           },
           [Validators.required],
           this.typeOfFundsValidator(),
         ),
         typeOfFundsOther: new FormControl(
-          { value: action?.typeOfFundsOther || '', disabled },
+          { value: action?.typeOfFundsOther ?? null, disabled },
           Validators.required,
         ),
         amount: new FormControl(
-          { value: action?.amount || null, disabled },
+          { value: action?.amount ?? null, disabled },
           Validators.required,
         ),
         currency: new FormControl(
-          { value: action?.currency || '', disabled },
+          { value: action?.currency ?? null, disabled },
           [],
           this.amountCurrencyValidator(),
         ),
-        fiuNo: new FormControl({ value: action?.fiuNo || '', disabled }, [
+        fiuNo: new FormControl({ value: action?.fiuNo ?? null, disabled }, [
           accountInfoValidator(),
+          fiuValidator(),
         ]),
-        branch: new FormControl({ value: action?.branch || '', disabled }, [
+        branch: new FormControl({ value: action?.branch ?? null, disabled }, [
           Validators.minLength(5),
           Validators.maxLength(5),
         ]),
-        account: new FormControl({ value: action?.account || '', disabled }),
+        account: new FormControl({ value: action?.account ?? null, disabled }),
         accountType: new FormControl(
           {
-            value: action?.accountType || '',
+            value: action?.accountType ?? null,
             disabled,
           },
           [],
           this.accountTypeValidator(),
         ),
         accountTypeOther: new FormControl(
-          { value: action?.accountTypeOther || '', disabled },
+          { value: action?.accountTypeOther ?? null, disabled },
           Validators.required,
         ),
         accountOpen: new FormControl({
-          value: action?.accountOpen || '',
+          value: action?.accountOpen ?? null,
           disabled,
         }),
         accountClose: new FormControl(
           {
-            value: action?.accountClose || '',
+            value: action?.accountClose ?? null,
             disabled,
           },
           [accountCloseDateValidator()],
         ),
         accountStatus: new FormControl(
           {
-            value: action?.accountStatus || '',
+            value: action?.accountStatus ?? null,
             disabled,
           },
           [],
           [this.accountStatusValidator()],
         ),
         howFundsObtained: new FormControl({
-          value: action?.howFundsObtained || '',
+          value: action?.howFundsObtained ?? null,
           disabled,
         }),
         accountCurrency: new FormControl(
           {
-            value: action?.accountCurrency || '',
+            value: action?.accountCurrency ?? null,
             disabled,
           },
           [],
@@ -3961,7 +4124,7 @@ export class EditFormComponent implements AfterViewChecked {
           value: ChangeLog.getToggleInitVal(
             'hasAccountHolders',
             action?.hasAccountHolders,
-            editType === 'BULK_EDIT',
+            editType === 'BULK_SAVE',
           ),
           disabled,
         }),
@@ -3984,7 +4147,7 @@ export class EditFormComponent implements AfterViewChecked {
           value: ChangeLog.getToggleInitVal(
             'wasSofInfoObtained',
             action?.wasSofInfoObtained,
-            editType === 'BULK_EDIT',
+            editType === 'BULK_SAVE',
           ),
           disabled,
         }),
@@ -4007,7 +4170,7 @@ export class EditFormComponent implements AfterViewChecked {
           value: ChangeLog.getToggleInitVal(
             'wasCondInfoObtained',
             action?.wasCondInfoObtained,
-            editType === 'BULK_EDIT',
+            editType === 'BULK_SAVE',
           ),
           disabled,
         }),
@@ -4031,6 +4194,7 @@ export class EditFormComponent implements AfterViewChecked {
         accountHolderValidator(),
         sourceOfFundsValidator(),
         conductorValidator(),
+        chequeValidator(),
       ],
     ) satisfies FormGroup<
       TypedForm<RecursiveOmit<StartingAction, keyof ConductorNpdData>>
@@ -4053,7 +4217,7 @@ export class EditFormComponent implements AfterViewChecked {
     options: { editType: EditType; disabled: boolean };
   }) {
     const { editType, disabled } = options;
-    const createEmptyArrays = editType === 'BULK_EDIT';
+    const createEmptyArrays = editType === 'BULK_SAVE';
 
     const cAction = action;
     if (cAction?.accountHolders)
@@ -4067,75 +4231,76 @@ export class EditFormComponent implements AfterViewChecked {
         }),
         detailsOfDispo: new FormControl(
           {
-            value: action?.detailsOfDispo || '',
+            value: action?.detailsOfDispo ?? null,
             disabled,
           },
           [],
           this.detailsOfDispositionValidator(),
         ),
         detailsOfDispoOther: new FormControl(
-          { value: action?.detailsOfDispoOther || '', disabled },
+          { value: action?.detailsOfDispoOther ?? null, disabled },
           Validators.required,
         ),
         amount: new FormControl(
-          { value: action?.amount || null, disabled },
+          { value: action?.amount ?? null, disabled },
           Validators.required,
         ),
         currency: new FormControl(
-          { value: action?.currency || '', disabled },
+          { value: action?.currency ?? null, disabled },
           [],
           this.amountCurrencyValidator(),
         ),
         exchangeRate: new FormControl({
-          value: action?.exchangeRate || null,
+          value: action?.exchangeRate ?? null,
           disabled,
         }),
         valueInCad: new FormControl({
-          value: action?.valueInCad || null,
+          value: action?.valueInCad ?? null,
           disabled,
         }),
-        fiuNo: new FormControl({ value: action?.fiuNo || '', disabled }, [
+        fiuNo: new FormControl({ value: action?.fiuNo ?? null, disabled }, [
           accountInfoValidator(),
+          fiuValidator(),
         ]),
-        branch: new FormControl({ value: action?.branch || '', disabled }, [
+        branch: new FormControl({ value: action?.branch ?? null, disabled }, [
           Validators.minLength(5),
           Validators.maxLength(5),
         ]),
-        account: new FormControl({ value: action?.account || '', disabled }),
+        account: new FormControl({ value: action?.account ?? null, disabled }),
         accountType: new FormControl(
           {
-            value: action?.accountType || '',
+            value: action?.accountType ?? null,
             disabled,
           },
           [],
           this.accountTypeValidator(),
         ),
         accountTypeOther: new FormControl(
-          { value: action?.accountTypeOther || '', disabled },
+          { value: action?.accountTypeOther ?? null, disabled },
           Validators.required,
         ),
         accountCurrency: new FormControl(
           {
-            value: action?.accountCurrency || '',
+            value: action?.accountCurrency ?? null,
             disabled,
           },
           [],
           this.accountCurrencyValidator(),
         ),
         accountOpen: new FormControl({
-          value: action?.accountOpen || '',
+          value: action?.accountOpen ?? null,
           disabled,
         }),
         accountClose: new FormControl(
           {
-            value: action?.accountClose || '',
+            value: action?.accountClose ?? null,
             disabled,
           },
           [accountCloseDateValidator()],
         ),
         accountStatus: new FormControl(
           {
-            value: action?.accountStatus || '',
+            value: action?.accountStatus ?? null,
             disabled,
           },
           [],
@@ -4164,7 +4329,7 @@ export class EditFormComponent implements AfterViewChecked {
           value: ChangeLog.getToggleInitVal(
             'wasAnyOtherSubInvolved',
             action?.wasAnyOtherSubInvolved,
-            editType === 'BULK_EDIT',
+            editType === 'BULK_SAVE',
           ),
           disabled,
         }),
@@ -4187,7 +4352,7 @@ export class EditFormComponent implements AfterViewChecked {
           value: ChangeLog.getToggleInitVal(
             'wasBenInfoObtained',
             action?.wasBenInfoObtained,
-            editType === 'BULK_EDIT',
+            editType === 'BULK_SAVE',
           ),
           disabled,
         }),
@@ -4232,25 +4397,33 @@ export class EditFormComponent implements AfterViewChecked {
         value: holder?._id ?? getFormGroupId(),
         disabled: false,
       }),
-      partyKey: new FormControl({ value: holder?.partyKey || '', disabled }),
-      givenName: new FormControl({ value: holder?.givenName || '', disabled }, [
-        personOrEntityValidator(),
-      ]),
-      otherOrInitial: new FormControl(
+      linkToSub: new FormControl({
+        value: holder?.linkToSub ?? null,
+        disabled,
+      }),
+      _hiddenPartyKey: new FormControl({
+        value: holder?._hiddenPartyKey ?? null,
+        disabled,
+      }),
+      _hiddenGivenName: new FormControl(
+        { value: holder?._hiddenGivenName ?? null, disabled },
+        [personOrEntityValidator()],
+      ),
+      _hiddenOtherOrInitial: new FormControl(
         {
-          value: holder?.otherOrInitial || '',
+          value: holder?._hiddenOtherOrInitial ?? null,
           disabled,
         },
         [personOrEntityValidator()],
       ),
-      surname: new FormControl(
-        { value: holder?.surname || '', disabled },
+      _hiddenSurname: new FormControl(
+        { value: holder?._hiddenSurname ?? null, disabled },
 
         [personOrEntityValidator()],
       ),
-      nameOfEntity: new FormControl(
+      _hiddenNameOfEntity: new FormControl(
         {
-          value: holder?.nameOfEntity || '',
+          value: holder?._hiddenNameOfEntity ?? null,
           disabled,
         },
 
@@ -4272,23 +4445,36 @@ export class EditFormComponent implements AfterViewChecked {
         value: source?._id ?? getFormGroupId(),
         disabled: false,
       }),
-      partyKey: new FormControl({ value: source?.partyKey || '', disabled }),
-      givenName: new FormControl({ value: source?.givenName || '', disabled }),
-      otherOrInitial: new FormControl({
-        value: source?.otherOrInitial || '',
+      linkToSub: new FormControl({
+        value: source?.linkToSub ?? null,
         disabled,
       }),
-      surname: new FormControl({ value: source?.surname || '', disabled }),
-      nameOfEntity: new FormControl({
-        value: source?.nameOfEntity || '',
+      _hiddenPartyKey: new FormControl({
+        value: source?._hiddenPartyKey ?? null,
+        disabled,
+      }),
+      _hiddenGivenName: new FormControl({
+        value: source?._hiddenGivenName ?? null,
+        disabled,
+      }),
+      _hiddenOtherOrInitial: new FormControl({
+        value: source?._hiddenOtherOrInitial ?? null,
+        disabled,
+      }),
+      _hiddenSurname: new FormControl({
+        value: source?._hiddenSurname ?? null,
+        disabled,
+      }),
+      _hiddenNameOfEntity: new FormControl({
+        value: source?._hiddenNameOfEntity ?? null,
         disabled,
       }),
       accountNumber: new FormControl({
-        value: source?.accountNumber || '',
+        value: source?.accountNumber ?? null,
         disabled,
       }),
       identifyingNumber: new FormControl({
-        value: source?.identifyingNumber || '',
+        value: source?.identifyingNumber ?? null,
         disabled,
       }),
     }) satisfies FormGroup<TypedForm<SourceOfFunds>>;
@@ -4308,18 +4494,28 @@ export class EditFormComponent implements AfterViewChecked {
         value: conductor?._id ?? getFormGroupId(),
         disabled: false,
       }),
-      partyKey: new FormControl({ value: conductor?.partyKey || '', disabled }),
-      givenName: new FormControl({
-        value: conductor?.givenName || '',
+      linkToSub: new FormControl({
+        value: conductor?.linkToSub ?? null,
         disabled,
       }),
-      otherOrInitial: new FormControl({
-        value: conductor?.otherOrInitial || '',
+      _hiddenPartyKey: new FormControl({
+        value: conductor?._hiddenPartyKey ?? null,
         disabled,
       }),
-      surname: new FormControl({ value: conductor?.surname || '', disabled }),
-      nameOfEntity: new FormControl({
-        value: conductor?.nameOfEntity || '',
+      _hiddenGivenName: new FormControl({
+        value: conductor?._hiddenGivenName ?? null,
+        disabled,
+      }),
+      _hiddenOtherOrInitial: new FormControl({
+        value: conductor?._hiddenOtherOrInitial ?? null,
+        disabled,
+      }),
+      _hiddenSurname: new FormControl({
+        value: conductor?._hiddenSurname ?? null,
+        disabled,
+      }),
+      _hiddenNameOfEntity: new FormControl({
+        value: conductor?._hiddenNameOfEntity ?? null,
         disabled,
       }),
       wasConductedOnBehalf: new FormControl({
@@ -4360,15 +4556,24 @@ export class EditFormComponent implements AfterViewChecked {
         value: behalf?._id ?? getFormGroupId(),
         disabled: false,
       }),
-      partyKey: new FormControl({ value: behalf?.partyKey || '', disabled }),
-      givenName: new FormControl({ value: behalf?.givenName || '', disabled }),
-      otherOrInitial: new FormControl({
-        value: behalf?.otherOrInitial || '',
+      _hiddenPartyKey: new FormControl({
+        value: behalf?._hiddenPartyKey ?? null,
         disabled,
       }),
-      surname: new FormControl({ value: behalf?.surname || '', disabled }),
-      nameOfEntity: new FormControl({
-        value: behalf?.nameOfEntity || '',
+      _hiddenGivenName: new FormControl({
+        value: behalf?._hiddenGivenName ?? null,
+        disabled,
+      }),
+      _hiddenOtherOrInitial: new FormControl({
+        value: behalf?._hiddenOtherOrInitial ?? null,
+        disabled,
+      }),
+      _hiddenSurname: new FormControl({
+        value: behalf?._hiddenSurname ?? null,
+        disabled,
+      }),
+      _hiddenNameOfEntity: new FormControl({
+        value: behalf?._hiddenNameOfEntity ?? null,
         disabled,
       }),
     }) satisfies FormGroup<TypedForm<OnBehalfOf>>;
@@ -4387,26 +4592,36 @@ export class EditFormComponent implements AfterViewChecked {
         value: involved?._id ?? getFormGroupId(),
         disabled: false,
       }),
-      partyKey: new FormControl({ value: involved?.partyKey || '', disabled }),
-      givenName: new FormControl({
-        value: involved?.givenName || '',
+      linkToSub: new FormControl({
+        value: involved?.linkToSub ?? null,
         disabled,
       }),
-      otherOrInitial: new FormControl({
-        value: involved?.otherOrInitial || '',
+      _hiddenPartyKey: new FormControl({
+        value: involved?._hiddenPartyKey ?? null,
         disabled,
       }),
-      surname: new FormControl({ value: involved?.surname || '', disabled }),
-      nameOfEntity: new FormControl({
-        value: involved?.nameOfEntity || '',
+      _hiddenGivenName: new FormControl({
+        value: involved?._hiddenGivenName ?? null,
+        disabled,
+      }),
+      _hiddenOtherOrInitial: new FormControl({
+        value: involved?._hiddenOtherOrInitial ?? null,
+        disabled,
+      }),
+      _hiddenSurname: new FormControl({
+        value: involved?._hiddenSurname ?? null,
+        disabled,
+      }),
+      _hiddenNameOfEntity: new FormControl({
+        value: involved?._hiddenNameOfEntity ?? null,
         disabled,
       }),
       accountNumber: new FormControl({
-        value: involved?.accountNumber || '',
+        value: involved?.accountNumber ?? null,
         disabled,
       }),
       identifyingNumber: new FormControl({
-        value: involved?.identifyingNumber || '',
+        value: involved?.identifyingNumber ?? null,
         disabled,
       }),
     }) satisfies FormGroup<TypedForm<InvolvedIn>>;
@@ -4426,21 +4641,28 @@ export class EditFormComponent implements AfterViewChecked {
         value: beneficiary?._id ?? getFormGroupId(),
         disabled: false,
       }),
-      partyKey: new FormControl({
-        value: beneficiary?.partyKey || '',
+      linkToSub: new FormControl({
+        value: beneficiary?.linkToSub ?? null,
         disabled,
       }),
-      givenName: new FormControl({
-        value: beneficiary?.givenName || '',
+      _hiddenPartyKey: new FormControl({
+        value: beneficiary?._hiddenPartyKey ?? null,
         disabled,
       }),
-      otherOrInitial: new FormControl({
-        value: beneficiary?.otherOrInitial || '',
+      _hiddenGivenName: new FormControl({
+        value: beneficiary?._hiddenGivenName ?? null,
         disabled,
       }),
-      surname: new FormControl({ value: beneficiary?.surname || '', disabled }),
-      nameOfEntity: new FormControl({
-        value: beneficiary?.nameOfEntity || '',
+      _hiddenOtherOrInitial: new FormControl({
+        value: beneficiary?._hiddenOtherOrInitial ?? null,
+        disabled,
+      }),
+      _hiddenSurname: new FormControl({
+        value: beneficiary?._hiddenSurname ?? null,
+        disabled,
+      }),
+      _hiddenNameOfEntity: new FormControl({
+        value: beneficiary?._hiddenNameOfEntity ?? null,
         disabled,
       }),
     }) satisfies FormGroup<TypedForm<Beneficiary>>;
@@ -4885,24 +5107,24 @@ export class EditFormComponent implements AfterViewChecked {
   private route = inject(ActivatedRoute);
 
   protected navigateBack() {
-    this.router.navigate(['../../table'], {
+    this.router.navigate(['../../'], {
       relativeTo: this.route,
     });
   }
 
   // template helpers
   protected get isSingleEdit() {
-    return this.editType().type === 'SINGLE_EDIT';
+    return this.editType().type === 'SINGLE_SAVE';
   }
   protected get isBulkEdit() {
-    return this.editType().type === 'BULK_EDIT';
+    return this.editType().type === 'BULK_SAVE';
   }
   protected get isAudit() {
     return this.editType().type === 'AUDIT_REQUEST';
   }
   protected get showTransactionDetailsErrorIcon() {
     if (this.isBulkEdit) return !this.editForm!.valid && this.editForm!.dirty;
-    return !this.editForm!.valid;
+    return !this.editForm!.disabled && !this.editForm!.valid;
   }
   protected get showStartingActionsErrorIcon() {
     if (this.isBulkEdit)
@@ -4910,7 +5132,10 @@ export class EditFormComponent implements AfterViewChecked {
         !this.editForm!.controls.startingActions.valid &&
         this.editForm!.controls.startingActions.dirty
       );
-    return !this.editForm!.controls.startingActions.valid;
+    return (
+      !this.editForm!.controls.startingActions.disabled &&
+      !this.editForm!.controls.startingActions.valid
+    );
   }
   protected get showCompletingActionsErrorIcon() {
     if (this.isBulkEdit)
@@ -4918,12 +5143,15 @@ export class EditFormComponent implements AfterViewChecked {
         !this.editForm!.controls.completingActions.valid &&
         this.editForm!.controls.completingActions.dirty
       );
-    return !this.editForm!.controls.completingActions.valid;
+    return (
+      !this.editForm!.controls.completingActions.disabled &&
+      !this.editForm!.controls.completingActions.valid
+    );
   }
 
   protected get selectedTransactionsForBulkEditLength() {
     const editType = this.editType();
-    if (editType.type !== 'BULK_EDIT') {
+    if (editType.type !== 'BULK_SAVE') {
       return -1;
     }
     return editType.payload.length;
@@ -4933,6 +5161,7 @@ export class EditFormComponent implements AfterViewChecked {
       this.selectedTransactionsForBulkEditLength !== 1 ? 's' : ''
     } selected`;
   }
+  readonly maxDate = new Date();
 }
 
 function dateValidator(): ValidatorFn {
@@ -4995,6 +5224,26 @@ function conductorValidator(): ValidatorFn {
         missingConductorInfo: true,
       },
       () => hasMissingConductorInfo(value),
+    );
+
+    return null;
+  };
+}
+
+function chequeValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const saControl = control as FormGroup<
+      TypedForm<RecursiveOmit<StartingAction, keyof ConductorNpdData>>
+    >;
+
+    if (!saControl.value) return null;
+
+    setError(
+      saControl.controls.typeOfFunds,
+      {
+        missingCheque: 'Missing cheque info',
+      },
+      () => hasMissingCheque(saControl.value as StartingAction),
     );
 
     return null;
@@ -5093,19 +5342,41 @@ function personOrEntityValidator(): ValidatorFn {
   };
 }
 
+function fiuValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const actionCtrl = control.parent as FormGroup<
+      TypedForm<
+        RecursiveOmit<StartingAction, keyof ConductorNpdData> | CompletingAction
+      >
+    > | null;
+
+    if (!actionCtrl) return null;
+
+    const value = actionCtrl.value;
+
+    if (hasInvalidFiu(value)) {
+      return { invalidFiu: 'Invalid FIU' };
+    }
+
+    return null;
+  };
+}
+
 export const singleEditTypeResolver: ResolveFn<EditFormEditType> = (
   route: ActivatedRouteSnapshot,
   _: RouterStateSnapshot,
 ) => {
-  return inject(CaseRecordStore).strTransactionData$.pipe(
+  return inject(CaseRecordStore).selectionsComputed$.pipe(
     map((strTransactionData) => {
       const strTransaction = strTransactionData.find(
         (txn) =>
           route.params['transactionId'] === txn.flowOfFundsAmlTransactionId,
       );
-      if (!strTransaction) throw new Error('Transaction not found');
+
+      if (!strTransaction) throw new Error('Transaction record not found');
+
       return {
-        type: 'SINGLE_EDIT',
+        type: 'SINGLE_SAVE',
         payload: structuredClone(
           strTransaction,
         ) as StrTransactionWithChangeLogs,
@@ -5123,7 +5394,7 @@ export const bulkEditTypeResolver: ResolveFn<EditFormEditType> = (
 
   if (!selectedTransactionsForBulkEdit) throw new Error('Unknown edit type');
 
-  return inject(CaseRecordStore).strTransactionData$.pipe(
+  return inject(CaseRecordStore).selectionsComputed$.pipe(
     map((strTransactionData) => {
       const strTransactions = strTransactionData.filter((txn) =>
         selectedTransactionsForBulkEdit.includes(
@@ -5134,7 +5405,7 @@ export const bulkEditTypeResolver: ResolveFn<EditFormEditType> = (
         strTransactions.length === selectedTransactionsForBulkEdit.length,
       );
       return {
-        type: 'BULK_EDIT',
+        type: 'BULK_SAVE',
         payload: selectedTransactionsForBulkEdit,
       };
     }),
@@ -5151,7 +5422,7 @@ export const auditResolver: ResolveFn<EditFormEditType> = (
         (txn) =>
           route.params['transactionId'] === txn.flowOfFundsAmlTransactionId,
       );
-      if (!strTransaction) throw new Error('Transaction not found');
+      if (!strTransaction) throw new Error('Transaction record not found');
       return {
         type: 'AUDIT_REQUEST',
         payload: structuredClone(
@@ -5198,21 +5469,23 @@ export type TypedForm<T> = {
 export type StrTxnEditForm = RecursiveOmit<
   StrTransaction,
   | keyof StrTxnFlowOfFunds
-  | 'highlightColor'
   | keyof ConductorNpdData
   | '_hiddenFullName'
   | '_hiddenSaAmount'
   | '_hiddenFirstName'
   | 'sourceId'
->;
+> & {
+  _hiddenUpdatedAt?: string | null;
+  _hiddenUpdatedBy?: string | null;
+};
 
 export type EditFormEditType =
   | {
-      type: 'SINGLE_EDIT';
+      type: 'SINGLE_SAVE';
       payload: StrTransactionWithChangeLogs;
     }
   | {
-      type: 'BULK_EDIT';
+      type: 'BULK_SAVE';
       payload: StrTransaction['flowOfFundsAmlTransactionId'][];
     }
   | {
@@ -5235,7 +5508,7 @@ export type EditFormType = ReturnType<
   typeof EditFormComponent.prototype.createEditForm
 >;
 
-type InvalidFormOptionsErrors = {
+export type InvalidFormOptionsErrors = {
   [K in InvalidFormOptionsErrorKeys]: Record<
     K,
     {

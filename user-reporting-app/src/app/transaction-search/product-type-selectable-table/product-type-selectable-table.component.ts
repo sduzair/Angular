@@ -4,7 +4,6 @@ import {
   forwardRef,
   Input,
 } from '@angular/core';
-import { ProductType } from '../transaction-search.component';
 
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -69,29 +68,31 @@ import { TransactionSearchService } from '../transaction-search.service';
   styleUrl: './product-type-selectable-table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ProductTypeSelectableTableComponent
-  extends AbstractSelectableTableComponent<ProductType>
+export class ProductTypeSelectableTableComponent<T extends { value: string }>
+  extends AbstractSelectableTableComponent<{ value: string }>
   implements ControlValueAccessor
 {
   get data() {
     return TransactionSearchService.getProductInfo().map((prod) => ({
       value: prod.productDescription,
-    }));
+    })) as T[];
   }
 
   @Input()
-  set data(value: ProductType[]) {
+  set data(value: T[]) {
     this.dataSource.data = value;
   }
 
-  protected override displayedColumns: (keyof ProductType | (string & {}))[] = [
+  protected override displayedColumns: ('value' | 'select')[] = [
     'select',
     'value',
   ];
 
+  protected override trackingProps: 'value'[] = ['value'];
+
   protected override getSelectionComparator(): (
-    a: ProductType,
-    b: ProductType,
+    a: { value: string },
+    b: { value: string },
   ) => boolean {
     return (a, b) => a.value === b.value;
   }

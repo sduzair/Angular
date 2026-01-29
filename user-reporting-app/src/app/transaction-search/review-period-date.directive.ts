@@ -1,12 +1,17 @@
-import { Directive, inject } from '@angular/core';
+import { Directive, ErrorHandler, inject } from '@angular/core';
 import { ControlValueAccessor, NgControl } from '@angular/forms';
 import { MatDatepickerInput } from '@angular/material/datepicker';
-import { format, isValid, parse } from 'date-fns/fp';
+import { format, isValid, parse } from 'date-fns';
+import { ParsingError } from '../reporting-ui/edit-form/transaction-date.directive';
+
+const REVIEW_DATE_INPUT_FORMATS = ['yyyy/MM/dd', 'MM/dd/yyyy'] as const;
+const REVIEW_DATE_OUTPUT_FORMAT = 'yyyy/MM/dd';
 
 @Directive({
   selector: '[appReviewPeriodDate]',
 })
 export class ReviewPeriodDateDirective implements ControlValueAccessor {
+  private errorHandler = inject(ErrorHandler);
   ngControl = inject(NgControl);
   private datepickerInput = inject<MatDatepickerInput<Date>>(
     MatDatepickerInput,
@@ -32,9 +37,16 @@ export class ReviewPeriodDateDirective implements ControlValueAccessor {
       throw new Error('Expected string type');
     }
 
-    const parsedDate = ReviewPeriodDateDirective.parse(value);
-    if (!isValid(parsedDate)) {
-      throw new Error('Parsing error');
+    let parsedDate: Date | undefined;
+
+    try {
+      parsedDate = ReviewPeriodDateDirective.parse(value);
+    } catch (error) {
+      console.error(
+        '🚀 ~ ReviewPeriodDateDirective ~ writeValue ~ error:',
+        error,
+      );
+      this.errorHandler.handleError(error);
     }
 
     this.datepickerInput.value = parsedDate;
@@ -55,6 +67,15 @@ export class ReviewPeriodDateDirective implements ControlValueAccessor {
     this.datepickerInput.disabled = isDisabled;
   }
 
-  static parse = parse(new Date(), 'yyyy/MM/dd');
-  static format = format('yyyy/MM/dd');
+  static parse(dateStr: string) {
+    for (const format of REVIEW_DATE_INPUT_FORMATS) {
+      const parsedDate = parse(dateStr, format, new Date());
+      if (!isValid(parsedDate)) continue;
+      return parsedDate;
+    }
+    throw new ParsingError(`Review date ${dateStr}`, dateStr);
+  }
+  static format(date: Date) {
+    return format(date, REVIEW_DATE_OUTPUT_FORMAT);
+  }
 }

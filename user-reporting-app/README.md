@@ -51,11 +51,11 @@ This document provides an overview and explanation of the schema used for modeli
 ```json
 {
   "subType": null,
-  "surname": null,
-  "givenName": null,
+  "_hiddenSurname": null,
+  "_hiddenGivenName": null,
   "otherName": null,
-  "partyKey": null,
-  "nameOfEntity": null,
+  "_hiddenPartyKey": null,
+  "_hiddenNameOfEntity": null,
   "telephoneNo": null,
   "addressType": "structured",
   "strucUnitNo": null,
@@ -77,10 +77,10 @@ This document provides an overview and explanation of the schema used for modeli
 ```json
 {
   "subType": "personal",
-  "surname": null,
-  "givenName": null,
+  "_hiddenSurname": null,
+  "_hiddenGivenName": null,
   "otherName": null,
-  "partyKey": null,
+  "_hiddenPartyKey": null,
   "addressType": "structured",
   "strucUnitNo": null,
   "strucHouseNo": null,
@@ -99,10 +99,10 @@ This document provides an overview and explanation of the schema used for modeli
 ```json
 {
   "subType": "personal",
-  "surname": null,
-  "givenName": null,
+  "_hiddenSurname": null,
+  "_hiddenGivenName": null,
   "otherName": null,
-  "partyKey": null,
+  "_hiddenPartyKey": null,
   "addressType": "unstructured",
   "unstrucAddDetails": null,
   "unstrucCountry": null
@@ -114,8 +114,8 @@ This document provides an overview and explanation of the schema used for modeli
 ```json
 {
   "subType": "entity",
-  "partyKey": null,
-  "nameOfEntity": null,
+  "_hiddenPartyKey": null,
+  "_hiddenNameOfEntity": null,
   "telephoneNo": null,
   "addressType": "structured",
   "strucUnitNo": null,
@@ -135,8 +135,8 @@ This document provides an overview and explanation of the schema used for modeli
 ```json
 {
   "subType": "entity",
-  "partyKey": null,
-  "nameOfEntity": null,
+  "_hiddenPartyKey": null,
+  "_hiddenNameOfEntity": null,
   "telephoneNo": null,
   "addressType": "unstructured",
   "unstrucAddDetails": null,

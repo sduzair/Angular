@@ -9,7 +9,6 @@ import { AbstractSelectableTableComponent } from '../abstract-selectable-table/a
 
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
-import { AccountNumber } from '../transaction-search.service';
 
 @Component({
   selector: 'app-account-number-selectable-table',
@@ -36,17 +35,47 @@ import { AccountNumber } from '../transaction-search.service';
         </td>
       </ng-container>
 
-      <!-- Value Column -->
-      <ng-container matColumnDef="value">
-        <th mat-header-cell *matHeaderCellDef>Account No</th>
-        <td mat-cell *matCellDef="let element">
+      <!-- Transit Column -->
+      <ng-container matColumnDef="transit">
+        <th mat-header-cell *matHeaderCellDef>Transit</th>
+        <td mat-cell *matCellDef="let row">
           @if (!isLoading) {
             <span>
-              {{ element.value }}
+              {{ row.transit }}
+            </span>
+          }
+          @if (isLoading) {
+            <span class="sk skw-4 skh-2"></span>
+          }
+        </td>
+      </ng-container>
+
+      <!-- Account Column -->
+      <ng-container matColumnDef="account">
+        <th mat-header-cell *matHeaderCellDef>Account No</th>
+        <td mat-cell *matCellDef="let row">
+          @if (!isLoading) {
+            <span>
+              {{ row.account }}
             </span>
           }
           @if (isLoading) {
             <span class="sk skw-6 skh-2"></span>
+          }
+        </td>
+      </ng-container>
+
+      <!-- Currency Column -->
+      <ng-container matColumnDef="accountCurrency">
+        <th mat-header-cell *matHeaderCellDef>Currency</th>
+        <td mat-cell *matCellDef="let row">
+          @if (!isLoading) {
+            <span>
+              {{ row.accountCurrency }}
+            </span>
+          }
+          @if (isLoading) {
+            <span class="sk skw-4 skh-2"></span>
           }
         </td>
       </ng-container>
@@ -69,26 +98,39 @@ import { AccountNumber } from '../transaction-search.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AccountNumberSelectableTableComponent
-  extends AbstractSelectableTableComponent<AccountNumber>
+  extends AbstractSelectableTableComponent<AccountNumberData>
   implements ControlValueAccessor
 {
   get data() {
     return Array.from({ length: 5 }, () => ({
-      value: '',
+      transit: '',
+      account: '',
+      currency: '',
     }));
   }
 
   @Input({ required: true })
-  set data(value: AccountNumber[]) {
+  set data(value: AccountNumberData[]) {
     this.dataSource.data = value;
   }
-  protected override displayedColumns: (keyof AccountNumber | (string & {}))[] =
-    ['select', 'value'];
+  protected override displayedColumns: (keyof AccountNumberData | 'select')[] =
+    ['select', 'transit', 'account', 'accountCurrency'];
+
+  protected override trackingProps: ('transit' | 'account')[] = [
+    'transit',
+    'account',
+  ];
 
   protected override getSelectionComparator(): (
-    a: AccountNumber,
-    b: AccountNumber,
+    a: AccountNumberData,
+    b: AccountNumberData,
   ) => boolean {
-    return (a, b) => a.value === b.value;
+    return (a, b) => a.transit === b.transit && a.account === b.account;
   }
+}
+
+export interface AccountNumberData {
+  transit: string;
+  account: string;
+  accountCurrency?: string | null;
 }

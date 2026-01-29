@@ -1,30 +1,37 @@
 import { SelectionModel } from '@angular/cdk/collections';
-import { Component, ChangeDetectionStrategy, input } from '@angular/core';
-import { toObservable } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import {
-  shareReplay,
-  map,
-  switchMap,
-  startWith,
-  debounceTime,
   combineLatestWith,
+  debounceTime,
+  map,
+  shareReplay,
+  startWith,
+  switchMap,
 } from 'rxjs';
-import { TransactionSearchResponse } from '../transaction-search/transaction-search.service';
+import { CaseRecordStore } from '../aml/case-record.store';
 import { TableSelectionType } from './transaction-view.component';
 
 @Component({ template: '', changeDetection: ChangeDetectionStrategy.OnPush })
 export abstract class AbstractTransactionViewComponent {
-  readonly transactionSearch = input.required<TransactionSearchResponse>();
-  readonly initSelections = input.required<TableSelectionType[]>();
-
-  transactionSearch$ = toObservable(this.transactionSearch).pipe(
-    shareReplay({ bufferSize: 1, refCount: true }),
-  );
-  initSelections$ = toObservable(this.initSelections).pipe(
+  protected _caseRecordStore = inject(CaseRecordStore);
+  readonly searchResponse$ = this._caseRecordStore.state$.pipe(
+    map(({ searchResponse }) => searchResponse),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  searchFlowOfFundsSet$ = this.transactionSearch$.pipe(
+  readonly selections$ = this._caseRecordStore.state$.pipe(
+    map(({ selections }) => {
+      return selections.map(
+        (txn) =>
+          ({
+            flowOfFundsAmlTransactionId: txn.flowOfFundsAmlTransactionId,
+          }) satisfies TableSelectionType,
+      );
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  searchFlowOfFundsSet$ = this.searchResponse$.pipe(
     map((search) => {
       return new Set(
         search
@@ -34,7 +41,7 @@ export abstract class AbstractTransactionViewComponent {
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
-  searchAbmSet$ = this.transactionSearch$.pipe(
+  searchAbmSet$ = this.searchResponse$.pipe(
     map((search) => {
       return new Set(
         search
@@ -45,7 +52,7 @@ export abstract class AbstractTransactionViewComponent {
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  searchOlbSet$ = this.transactionSearch$.pipe(
+  searchOlbSet$ = this.searchResponse$.pipe(
     map((search) => {
       return new Set(
         search
@@ -55,7 +62,7 @@ export abstract class AbstractTransactionViewComponent {
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
-  searchEmtSet$ = this.transactionSearch$.pipe(
+  searchEmtSet$ = this.searchResponse$.pipe(
     map((search) => {
       return new Set(
         search
@@ -65,18 +72,29 @@ export abstract class AbstractTransactionViewComponent {
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
-  searchWiresSet$ = this.transactionSearch$.pipe(
+  searchWiresSet$ = this.searchResponse$.pipe(
     map((search) => {
       return new Set(
         search
-          .find((source) => source.sourceId === 'Wires')
+          .find((source) => source.sourceId === 'Wire')
           ?.sourceData.map((txn) => txn.flowOfFundsAmlTransactionId),
       );
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  selectionModel$ = this.initSelections$.pipe(
+  searchOtcSet$ = this.searchResponse$.pipe(
+    map((search) => {
+      return new Set(
+        search
+          .find((source) => source.sourceId === 'OTC')
+          ?.sourceData.map((txn) => txn.flowOfFundsAmlTransactionId),
+      );
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  selectionModel$ = this.selections$.pipe(
     map(
       (selections) =>
         new SelectionModel(true, selections, true, this.selectionComparator),
@@ -88,64 +106,78 @@ export abstract class AbstractTransactionViewComponent {
     return o1.flowOfFundsAmlTransactionId === o2.flowOfFundsAmlTransactionId;
   }
 
-  protected selections$ = this.selectionModel$.pipe(
+  protected _selectionsCurrent$ = this.selectionModel$.pipe(
     switchMap((selectionModel) =>
       selectionModel.changed.pipe(
         map(() => selectionModel.selected),
         startWith(selectionModel.selected),
       ),
     ),
+    debounceTime(200),
     shareReplay({ bufferSize: 1, refCount: true }), // Share among multiple subscribers
   );
 
-  fofSourceDataSelectionCount$ = this.selections$.pipe(
-    debounceTime(200),
+  fofSourceDataSelection$ = this._selectionsCurrent$.pipe(
     combineLatestWith(this.searchFlowOfFundsSet$),
-    map(
-      ([selections, fofSet]) =>
-        selections.filter((sel) => fofSet.has(sel.flowOfFundsAmlTransactionId))
-          .length,
+    map(([selections, fofSet]) =>
+      selections.filter((sel) => fofSet.has(sel.flowOfFundsAmlTransactionId)),
     ),
   );
 
-  abmSourceDataSelectionCount$ = this.selections$.pipe(
-    debounceTime(200),
+  fofSourceDataSelectionCount$ = this.fofSourceDataSelection$.pipe(
+    map((selection) => selection.length),
+  );
+
+  abmSourceDataSelection$ = this._selectionsCurrent$.pipe(
     combineLatestWith(this.searchAbmSet$),
-    map(
-      ([selections, abmSet]) =>
-        selections.filter((sel) => abmSet.has(sel.flowOfFundsAmlTransactionId))
-          .length,
+    map(([selections, abmSet]) =>
+      selections.filter((sel) => abmSet.has(sel.flowOfFundsAmlTransactionId)),
     ),
   );
+  abmSourceDataSelectionCount$ = this.abmSourceDataSelection$.pipe(
+    map((selection) => selection.length),
+  );
 
-  olbSourceDataSelectionCount$ = this.selections$.pipe(
-    debounceTime(200),
+  olbSourceDataSelection$ = this._selectionsCurrent$.pipe(
     combineLatestWith(this.searchOlbSet$),
-    map(
-      ([selections, olbSet]) =>
-        selections.filter((sel) => olbSet.has(sel.flowOfFundsAmlTransactionId))
-          .length,
+    map(([selections, olbSet]) =>
+      selections.filter((sel) => olbSet.has(sel.flowOfFundsAmlTransactionId)),
     ),
   );
+  olbSourceDataSelectionCount$ = this.olbSourceDataSelection$.pipe(
+    map((selection) => selection.length),
+  );
 
-  emtSourceDataSelectionCount$ = this.selections$.pipe(
-    debounceTime(200),
+  emtSourceDataSelection$ = this._selectionsCurrent$.pipe(
     combineLatestWith(this.searchEmtSet$),
-    map(
-      ([selections, emtSet]) =>
-        selections.filter((sel) => emtSet.has(sel.flowOfFundsAmlTransactionId))
-          .length,
+    map(([selections, emtSet]) =>
+      selections.filter((sel) => emtSet.has(sel.flowOfFundsAmlTransactionId)),
     ),
   );
 
-  wiresSourceDataSelectionCount$ = this.selections$.pipe(
-    debounceTime(200),
+  emtSourceDataSelectionCount$ = this.emtSourceDataSelection$.pipe(
+    map((selection) => selection.length),
+  );
+
+  wiresSourceDataSelection$ = this._selectionsCurrent$.pipe(
     combineLatestWith(this.searchWiresSet$),
-    map(
-      ([selections, wiresSet]) =>
-        selections.filter((sel) =>
-          wiresSet.has(sel.flowOfFundsAmlTransactionId),
-        ).length,
+    map(([selections, wiresSet]) =>
+      selections.filter((sel) => wiresSet.has(sel.flowOfFundsAmlTransactionId)),
     ),
+  );
+
+  wiresSourceDataSelectionCount$ = this.wiresSourceDataSelection$.pipe(
+    map((selection) => selection.length),
+  );
+
+  otcSourceDataSelection$ = this._selectionsCurrent$.pipe(
+    combineLatestWith(this.searchOtcSet$),
+    map(([selections, otcSet]) =>
+      selections.filter((sel) => otcSet.has(sel.flowOfFundsAmlTransactionId)),
+    ),
+  );
+
+  otcSourceDataSelectionCount$ = this.otcSourceDataSelection$.pipe(
+    map((selection) => selection.length),
   );
 }

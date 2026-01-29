@@ -9,14 +9,6 @@
     )
   );
 
-  .filter-card {
-    @include typo.typography-scaling(0.9);
-  }
-
-  .system-info {
-    @include typo.typography-scaling(0.9);
-  }
-
   .filter-card mat-card-content {
     min-height: 300px;
     max-height: 300px;
@@ -91,4 +83,8 @@ mat-toolbar.card-toolbar .mdc-button {
 .review-period-input.loading .sk {
   display: inline-block; /* show skeleton when loading */
   visibility: visible;
+}
+
+.updated-by-row {
+  --mat-toolbar-standard-height: auto;
 }

@@ -3,8 +3,13 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  EventEmitter,
+  inject,
   Input,
+  Output,
   TrackByFunction,
+  ViewChild,
+  WritableSignal,
 } from '@angular/core';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
@@ -12,13 +17,16 @@ import { IFilterForm } from '../../base-table/abstract-base-table';
 import { BaseTableComponent } from '../../base-table/base-table.component';
 import { AbmSourceData } from '../../transaction-search/transaction-search.service';
 import { TableSelectionType } from '../transaction-view.component';
+import { CaseRecordStore } from '../../aml/case-record.store';
+import { map, take } from 'rxjs';
+import { LocalHighlightsService } from '../local-highlights.service';
 
 @Component({
   selector: 'app-abm-table',
   imports: [BaseTableComponent, CommonModule, MatTableModule, MatCheckbox],
   template: `
     <app-base-table
-      #baseTable
+      #baseTableRef
       [data]="this.abmSourceData"
       [dataColumnsValues]="dataColumnsValues"
       [dataColumnsIgnoreValues]="dataColumnsIgnoreValues"
@@ -30,51 +38,45 @@ import { TableSelectionType } from '../transaction-view.component';
       [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
       [displayedColumnsTime]="displayedColumnsTime"
       [dataSourceTrackBy]="dataSourceTrackBy"
-      [selection]="selection"
+      [selection]="masterSelection!"
       [selectionKey]="'flowOfFundsAmlTransactionId'"
-      [hasMasterToggle]="false"
+      [highlightedRecords]="highlightedRecords"
       [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'"
+      [filterFormHighlightSideEffect]="filterFormHighlightSideEffect"
       [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
       [sortedBy]="'transactionDate'">
       <!-- Selection Model -->
-      <ng-container matColumnDef="select">
+      <ng-container
+        matColumnDef="select"
+        [sticky]="baseTableRef.isStickyColumn('select')">
         <th
           mat-header-cell
           *matHeaderCellDef
-          class="px-2"
-          [class.sticky-cell]="baseTable.isStickyColumn('select')">
-          @if (baseTable.hasMasterToggle) {
-            <div>
-              <mat-checkbox
-                (change)="$event ? baseTable.toggleAllRows() : null"
-                [checked]="selection.hasValue() && baseTable.isAllSelected()"
-                [indeterminate]="
-                  selection.hasValue() && !baseTable.isAllSelected()
-                ">
-              </mat-checkbox>
-            </div>
-          }
+          [class.sticky-cell]="baseTableRef.isStickyColumn('select')">
+          <div>
+            <mat-checkbox
+              (change)="$event ? toggleAllRows() : null"
+              [checked]="hasValue() && isAllSelected()"
+              [indeterminate]="hasValue() && !isAllSelected()"
+              [class.invisible]="!hasValue()">
+            </mat-checkbox>
+          </div>
         </th>
         <td
           mat-cell
           *matCellDef="let row; let i = index"
-          [class.sticky-cell]="baseTable.isStickyColumn('select')"
-          [ngStyle]="{
-            backgroundColor:
-              row[baseTable.filterFormHighlightSelectFilterKey] || '',
-          }">
+          [class.sticky-cell]="baseTableRef.isStickyColumn('select')">
           <div>
             <mat-checkbox
-              (click)="baseTable.onCheckBoxClickMultiToggle($event, row, i)"
-              (change)="$event ? baseTable.toggleRow(row) : null"
-              [checked]="selection.isSelected(row)">
+              (click)="baseTableRef.onCheckBoxClickMultiToggle($event, row, i)"
+              (change)="$event ? baseTableRef.toggleRow(row) : null"
+              [checked]="masterSelection!.isSelected(row)">
             </mat-checkbox>
           </div>
         </td>
       </ng-container>
     </app-base-table>
   `,
-  styleUrl: './abm-table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AbmTableComponent<
@@ -420,7 +422,12 @@ export class AbmTableComponent<
     _uiPropHighlightColor: 'Highlight',
   };
 
-  stickyColumns: ('select' | keyof AbmSourceData)[] = ['select'];
+  stickyColumns: ('select' | keyof AbmSourceData)[] = [
+    'select',
+    'postingDate',
+    'transactionDate',
+    'transactionTime',
+  ];
 
   selectFiltersValues: (keyof AbmSourceData)[] = [
     'oppProdType',
@@ -469,8 +476,68 @@ export class AbmTableComponent<
   };
 
   @Input({ required: true })
-  selection!: SelectionModel<TSelection>;
+  masterSelection?: SelectionModel<TSelection>;
 
   @Input({ required: true })
   abmSourceData!: AbmSourceData[];
+
+  @Input({ required: true })
+  selectionCount!: number;
+
+  @Input({ required: true })
+  highlightedRecords!: WritableSignal<Map<string, string>>;
+
+  @ViewChild(BaseTableComponent, { static: true })
+  baseTable?: BaseTableComponent<object, '', '', never, never>;
+
+  hasValue() {
+    return this.selectionCount > 0;
+  }
+
+  isAllSelected() {
+    if (!this.baseTable || !this.masterSelection) return false;
+
+    return (
+      this.baseTable.dataSource.filteredData as unknown as TSelection[]
+    ).every((row) => !!this.masterSelection?.isSelected(row));
+  }
+
+  toggleAllRows(): void {
+    if (!this.baseTable || !this.masterSelection) return;
+
+    if (this.isAllSelected()) {
+      this.masterSelection.deselect(
+        ...(this.baseTable.dataSource.filteredData as unknown as TSelection[]),
+      );
+    } else {
+      this.masterSelection.select(
+        ...(this.baseTable.dataSource.filteredData as unknown as TSelection[]),
+      );
+    }
+  }
+
+  caseRecordId = '';
+  constructor() {
+    inject(CaseRecordStore)
+      .state$.pipe(
+        map(({ caseRecordId }) => caseRecordId),
+        take(1),
+      )
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
+      .subscribe((caseRecordId) => {
+        this.caseRecordId = caseRecordId;
+      });
+  }
+
+  private highlightsService = inject(LocalHighlightsService);
+
+  filterFormHighlightSideEffect = (
+    highlights: { txnId: string; newColor: string }[],
+  ) => {
+    this.highlightsService
+      .saveHighlights(this.caseRecordId, highlights)
+      .pipe(take(1))
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
+      .subscribe();
+  };
 }

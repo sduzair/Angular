@@ -1,0 +1,88 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+.chat-message.user {
+  background: var(--mat-sys-surface);
+
+  > p {
+    color: var(--mat-sys-on-surface);
+    font: var(--mat-sys-body-medium-font);
+    font-size: var(--mat-sys-body-medium-size);
+    font-weight: var(--mat-sys-body-medium-weight);
+    line-height: var(--mat-sys-body-medium-line-height);
+    letter-spacing: var(--mat-sys-body-medium-tracking);
+  }
+}
+
+.chat-message.assistant {
+  background: var(--mat-sys-surface);
+}
+
+.chat-message.assistant ::ng-deep .app-markdown {
+  p {
+    color: var(--mat-sys-on-surface);
+    font: var(--mat-sys-body-medium-font);
+    font-size: var(--mat-sys-body-medium-size);
+    font-weight: var(--mat-sys-body-medium-weight);
+    line-height: var(--mat-sys-body-medium-line-height);
+    letter-spacing: var(--mat-sys-body-medium-tracking);
+  }
+}
+
+.assistant-content {
+  > hb-render-message {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  > hb-render-message > p {
+    color: var(--mat-sys-on-surface);
+    font: var(--mat-sys-body-medium-font);
+    font-size: var(--mat-sys-body-medium-size);
+    font-weight: var(--mat-sys-body-medium-weight);
+    line-height: var(--mat-sys-body-medium-line-height);
+    letter-spacing: var(--mat-sys-body-medium-tracking);
+  }
+}
+
+.chat-message.component {
+  align-self: flex-start;
+  width: 100%;
+}
+
+.chat-message.tool {
+  align-self: flex-start;
+  width: 100%;
+  font-style: italic;
+}
+
+.chat-message.error {
+  padding: 16px;
+  border-radius: 16px;
+  width: 80%;
+  background-color: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+  align-self: flex-start;
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.chat-message.error span {
+  width: 100%;
+  color: var(--mat-sys-on-error-container);
+}
+
+.chat-message.error mat-icon {
+  width: 32px !important;
+  color: var(--mat-sys-error);
+}
+
+.chat-message.error button[mat-button] {
+  align-self: flex-end;
+  height: 16px;
+}

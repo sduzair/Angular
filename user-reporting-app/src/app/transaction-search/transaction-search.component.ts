@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -15,18 +16,13 @@ import {
   FormControl,
   FormGroup,
   FormGroupDirective,
-  NgForm,
   ReactiveFormsModule,
   ValidationErrors,
   Validators,
 } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-import {
-  ErrorStateMatcher,
-  MAT_DATE_FORMATS,
-  MatDateFormats,
-} from '@angular/material/core';
+import { MAT_DATE_FORMATS, MatDateFormats } from '@angular/material/core';
 import {
   MatDatepicker,
   MatDatepickerModule,
@@ -41,26 +37,27 @@ import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
-import { MatToolbar } from '@angular/material/toolbar';
+import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router } from '@angular/router';
 import {
   getMonth,
   getYear,
   isAfter,
   isBefore,
-  isValid,
   setMonth,
   setYear,
 } from 'date-fns';
-import { isEqual, isEqualWith } from 'lodash-es';
+import { isEqual, xorWith } from 'lodash-es';
 import {
   BehaviorSubject,
   catchError,
   combineLatestWith,
-  distinctUntilChanged,
   EMPTY,
+  filter,
   finalize,
+  forkJoin,
   map,
+  of,
   shareReplay,
   startWith,
   Subject,
@@ -68,29 +65,29 @@ import {
   tap,
 } from 'rxjs';
 import { CaseRecordService } from '../aml/case-record.service';
+import { CaseRecordState, ReviewPeriod } from '../aml/case-record.store';
 import { setError } from '../form-helpers';
-import { AccountNumberSelectableTableComponent } from './account-number-selectable-table/account-number-selectable-table.component';
-import { PartyKeySelectableTableComponent } from './party-key-selectable-table/party-key-selectable-table.component';
+import { SnackbarQueueService } from '../snackbar-queue.service';
+import {
+  AccountNumberData,
+  AccountNumberSelectableTableComponent,
+} from './account-number-selectable-table/account-number-selectable-table.component';
+import {
+  PartyKeyData,
+  PartyKeySelectableTableComponent,
+} from './party-key-selectable-table/party-key-selectable-table.component';
 import { ProductTypeSelectableTableComponent } from './product-type-selectable-table/product-type-selectable-table.component';
 import { ReviewPeriodDateDirective } from './review-period-date.directive';
-import { SourceRefreshSelectableTableComponent } from './source-refresh-selectable-table/source-refresh-selectable-table.component';
 import {
-  AccountNumber,
-  PartyKey,
-  SourceSys,
+  SourceRefreshSelectableTableComponent,
+  SourceSysRefreshTimeData,
+} from './source-refresh-selectable-table/source-refresh-selectable-table.component';
+import {
+  TransactionSearchResponse,
   TransactionSearchService,
 } from './transaction-search.service';
-import { SnackbarQueueService } from '../snackbar-queue.service';
 
-export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
-  isErrorState(
-    control: FormControl | null,
-    _: FormGroupDirective | NgForm | null,
-  ): boolean {
-    // const isSubmitted = form?.submitted;
-    return !!control?.invalid;
-  }
-}
+const AMLID_TEST = '99999999';
 
 @Component({
   selector: 'app-transaction-search',
@@ -107,401 +104,444 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
     MatListModule,
     MatCardModule,
     MatIcon,
-    MatToolbar,
+    MatToolbarModule,
     SourceRefreshSelectableTableComponent,
     ProductTypeSelectableTableComponent,
     AccountNumberSelectableTableComponent,
     PartyKeySelectableTableComponent,
   ],
   template: `
-    <div class="transaction-search container px-0 my-1">
-      <div class="row row-cols-1 mx-0">
-        <mat-toolbar class="col mb-3">
+    <div
+      class="transaction-search container h-100 my-1 overflow-x-hidden overflow-y-auto px-0 my-1">
+      <div class="row row-cols-1 gap-3 px-3 pb-3">
+        <mat-toolbar class="col">
           <span>Transaction Search</span>
           <div class="flex-fill"></div>
           <button
             type="button"
             mat-flat-button
-            (click)="onTransactionSearch()"
-            [disabled]="isSourceRefreshTimeLoading || (isLoading$ | async)">
+            (click)="onSearch()"
+            [disabled]="
+              isSourceRefreshTimeLoading ||
+              (isLoadingCaseRecord$ | async) ||
+              (isLoadingSearch$ | async) === 'loading'
+            ">
             <mat-icon>search</mat-icon>
             Search
           </button>
         </mat-toolbar>
 
-        <form [formGroup]="searchParamsForm" class="search-form">
-          <div class="col">
-            <div class="row g-3">
-              <!-- Search Form Section -->
-              <div class="col-12">
-                <!-- AML ID Input -->
-                <mat-toolbar
-                  class="row row-cols-auto flex-row align-items-baseline">
-                  <mat-form-field class="col">
-                    <mat-label>AML ID</mat-label>
-                    <input
-                      matInput
-                      formControlName="amlId"
-                      placeholder="Enter AML ID" />
-                    <mat-icon matSuffix>search</mat-icon>
-                    @if (searchParamsForm.controls.amlId.hasError('required')) {
-                      <mat-error> AML ID is required </mat-error>
-                    }
-                    @if (searchParamsForm.controls.amlId.hasError('pattern')) {
-                      <mat-error> AML ID must be numbers only </mat-error>
-                    }
-                  </mat-form-field>
-                  <button
-                    type="button"
-                    mat-raised-button
-                    class="col search-btn"
-                    (click)="onLoad()"
-                    [disabled]="
-                      isSourceRefreshTimeLoading ||
-                      (isLoading$ | async) ||
-                      !searchParamsForm.controls.amlId.valid
-                    ">
-                    Load
-                  </button>
-                  <div class="flex-fill"></div>
-                  <button
-                    type="button"
-                    mat-raised-button
-                    class="col search-btn"
-                    [disabled]="
-                      isSourceRefreshTimeLoading ||
-                      (isLoading$ | async) ||
-                      !searchParamsForm.controls.amlId.valid ||
-                      !searchParamsBefore ||
-                      (formHasChanges$ | async) === false
-                    ">
-                    Save
-                  </button>
-                </mat-toolbar>
+        <form [formGroup]="searchParamsForm" class="search-form col">
+          <div class="row">
+            <!-- Search Form Section -->
+            <mat-toolbar-row class="col-12 flex-row gap-3 mb-3">
+              <!-- AML ID Input -->
+              <mat-form-field subscriptSizing="dynamic">
+                <mat-label>AML ID</mat-label>
+                <input
+                  (keyup.enter)="onLoad()"
+                  matInput
+                  formControlName="amlId"
+                  placeholder="Enter AML ID" />
+                <mat-icon matSuffix>search</mat-icon>
+                @if (searchParamsForm.controls.amlId.hasError('required')) {
+                  <mat-error> AML ID is required </mat-error>
+                }
+                @if (searchParamsForm.controls.amlId.hasError('pattern')) {
+                  <mat-error> AML ID must be numbers only </mat-error>
+                }
+              </mat-form-field>
+              <button
+                type="button"
+                mat-raised-button
+                class="search-btn"
+                (click)="onLoad()"
+                [disabled]="
+                  isSourceRefreshTimeLoading ||
+                  (isLoadingCaseRecord$ | async) ||
+                  !searchParamsForm.controls.amlId.valid ||
+                  (isLoadingSearch$ | async) === 'loading'
+                ">
+                Load
+              </button>
+              <div class="flex-fill"></div>
+              <button
+                type="button"
+                mat-raised-button
+                class="search-btn"
+                (click)="onSave()"
+                [disabled]="
+                  isSourceRefreshTimeLoading ||
+                  (isLoadingCaseRecord$ | async) ||
+                  searchParamsForm.invalid ||
+                  !searchParamsBefore ||
+                  (formHasChanges$ | async) === false ||
+                  (isLoadingSearch$ | async) === 'loading'
+                ">
+                Save
+              </button>
+            </mat-toolbar-row>
+            <mat-toolbar-row class="col-12 flex-row updated-by-row">
+              <div class="flex-fill"></div>
+              @let lastUpdatedBy =
+                searchParamsForm.controls.lastUpdatedBy.value;
+              @let lastUpdated = searchParamsForm.controls.lastUpdated.value;
+
+              <div
+                class="d-flex align-items-center gap-3 text-muted fs-6"
+                [class.invisible]="!lastUpdatedBy || !lastUpdated">
+                <span class="d-flex align-items-center gap-1">
+                  <span class="fw-medium text-secondary">Updated By:</span>
+                  <mat-icon
+                    color="accent"
+                    style="font-size: 20px; height: 20px; width: 20px;">
+                    person
+                  </mat-icon>
+                  <span class="text-dark">{{ lastUpdatedBy }}</span>
+                </span>
+
+                <span class="vr"></span>
+
+                <span class="d-flex align-items-center gap-1">
+                  <span class="fw-medium text-secondary"> Last Updated: </span>
+                  <mat-icon
+                    color="accent"
+                    style="font-size: 20px; height: 20px; width: 20px;">
+                    schedule
+                  </mat-icon>
+                  <span class="text-dark">
+                    {{ lastUpdated | date: 'short' }}
+                  </span>
+                </span>
               </div>
-              <div class="col-12 col-xl-8">
-                <!-- Filter Sections -->
-                <div class="row g-3">
-                  <!-- Parties Filter -->
-                  <div class="col-12 col-lg-6 filter-card">
-                    <mat-card>
-                      <mat-card-header>
-                        <mat-card-title>Parties</mat-card-title>
-                        <mat-card-subtitle>
-                          <div
-                            class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
-                            <div class="mat-mdc-form-field-error-wrapper px-0">
-                              <div class="mat-mdc-form-field-bottom-align">
-                                @if (
-                                  searchParamsForm.controls.partyKeys.hasError(
-                                    'atleastOneSelection'
-                                  )
-                                ) {
-                                  <mat-error>
-                                    Atleast one selection must exist
-                                  </mat-error>
-                                }
-                              </div>
+            </mat-toolbar-row>
+            <div class="col-12 col-xl-8 mb-3">
+              <!-- Filter Sections -->
+              <div class="row g-3">
+                <!-- Parties Filter -->
+                <div class="col-12 col-lg-6 filter-card">
+                  <mat-card>
+                    <mat-card-header>
+                      <mat-card-title class="fs-5">Parties</mat-card-title>
+                      <mat-card-subtitle>
+                        <div
+                          class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
+                          <div class="mat-mdc-form-field-error-wrapper px-0">
+                            <div class="mat-mdc-form-field-bottom-align">
+                              @if (
+                                searchParamsForm.controls.partyKeys.hasError(
+                                  'atleastOneSelection'
+                                )
+                              ) {
+                                <mat-error>
+                                  *Atleast one selection must exist
+                                </mat-error>
+                              }
                             </div>
                           </div>
-                        </mat-card-subtitle>
-                      </mat-card-header>
-                      <mat-card-content>
-                        <app-party-key-selectable-table
-                          formControlName="partyKeys"
-                          [data]="(partyKeysData$ | async) || []"
-                          [isLoading]="(isLoading$ | async) || false">
-                        </app-party-key-selectable-table>
-                      </mat-card-content>
-                    </mat-card>
-                  </div>
+                        </div>
+                      </mat-card-subtitle>
+                    </mat-card-header>
+                    <mat-card-content>
+                      <app-party-key-selectable-table
+                        formControlName="partyKeys"
+                        [data]="(partyKeysData$ | async) || []"
+                        [isLoading]="(isLoadingCaseRecord$ | async) || false">
+                      </app-party-key-selectable-table>
+                    </mat-card-content>
+                  </mat-card>
+                </div>
 
-                  <!-- Accounts Filter -->
-                  <div class="col-12 col-lg-6 filter-card">
-                    <mat-card>
-                      <mat-card-header>
-                        <mat-card-title>Accounts / Products</mat-card-title>
-                        <mat-card-subtitle>
-                          <div
-                            class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
-                            <div class="mat-mdc-form-field-error-wrapper px-0">
-                              <div class="mat-mdc-form-field-bottom-align">
-                                @if (
-                                  searchParamsForm.controls.accountNumbers.hasError(
-                                    'atleastOneSelection'
-                                  )
-                                ) {
-                                  <mat-error>
-                                    Atleast one selection must exist
-                                  </mat-error>
-                                }
-                              </div>
+                <!-- Accounts Filter -->
+                <div class="col-12 col-lg-6 filter-card">
+                  <mat-card>
+                    <mat-card-header>
+                      <mat-card-title class="fs-5"
+                        >Accounts / Products</mat-card-title
+                      >
+                      <mat-card-subtitle>
+                        <div
+                          class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
+                          <div class="mat-mdc-form-field-error-wrapper px-0">
+                            <div class="mat-mdc-form-field-bottom-align">
+                              @if (
+                                searchParamsForm.controls.accountNumbers.hasError(
+                                  'atleastOneSelection'
+                                )
+                              ) {
+                                <mat-error>
+                                  *Atleast one selection must exist
+                                </mat-error>
+                              }
                             </div>
                           </div>
-                        </mat-card-subtitle>
-                      </mat-card-header>
-                      <mat-card-content>
-                        <app-account-number-selectable-table
-                          formControlName="accountNumbers"
-                          [data]="(accountNumbersData$ | async) || []"
-                          [isLoading]="(isLoading$ | async) || false">
-                        </app-account-number-selectable-table>
-                      </mat-card-content>
-                    </mat-card>
-                  </div>
+                        </div>
+                      </mat-card-subtitle>
+                    </mat-card-header>
+                    <mat-card-content>
+                      <app-account-number-selectable-table
+                        formControlName="accountNumbers"
+                        [data]="(accountNumbersData$ | async) || []"
+                        [isLoading]="(isLoadingCaseRecord$ | async) || false">
+                      </app-account-number-selectable-table>
+                    </mat-card-content>
+                  </mat-card>
+                </div>
 
-                  <!-- Product Types Filter -->
-                  <div class="col-12 col-lg-6 filter-card">
-                    <mat-card>
-                      <mat-card-header>
-                        <mat-card-title>Product Types</mat-card-title>
-                        <mat-card-subtitle>
-                          <div
-                            class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
-                            <div class="mat-mdc-form-field-error-wrapper px-0">
-                              <div class="mat-mdc-form-field-bottom-align">
-                                @if (
-                                  searchParamsForm.controls.productTypes.hasError(
-                                    'atleastOneSelection'
-                                  )
-                                ) {
-                                  <mat-error>
-                                    Atleast one selection must exist
-                                  </mat-error>
-                                }
-                              </div>
+                <!-- Product Types Filter -->
+                <div class="col-12 col-lg-6 filter-card">
+                  <mat-card>
+                    <mat-card-header>
+                      <mat-card-title class="fs-5"
+                        >Product Types</mat-card-title
+                      >
+                      <mat-card-subtitle>
+                        <div
+                          class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
+                          <div class="mat-mdc-form-field-error-wrapper px-0">
+                            <div class="mat-mdc-form-field-bottom-align">
+                              @if (
+                                searchParamsForm.controls.productTypes.hasError(
+                                  'atleastOneSelection'
+                                )
+                              ) {
+                                <mat-error>
+                                  *Atleast one selection must exist
+                                </mat-error>
+                              }
                             </div>
                           </div>
-                        </mat-card-subtitle>
-                      </mat-card-header>
-                      <mat-card-content>
-                        <app-product-type-selectable-table
-                          formControlName="productTypes"
-                          [isLoading]="(isLoading$ | async) || false">
-                        </app-product-type-selectable-table>
-                      </mat-card-content>
-                    </mat-card>
-                  </div>
+                        </div>
+                      </mat-card-subtitle>
+                    </mat-card-header>
+                    <mat-card-content>
+                      <app-product-type-selectable-table
+                        formControlName="productTypes"
+                        [isLoading]="(isLoadingCaseRecord$ | async) || false">
+                      </app-product-type-selectable-table>
+                    </mat-card-content>
+                  </mat-card>
+                </div>
 
-                  <!-- Date Range -->
-                  <div class="col-12 col-lg-6 filter-card">
-                    <mat-card>
-                      <mat-card-header>
-                        <mat-card-title>
-                          <mat-toolbar class="card-toolbar px-0">
-                            <span>Review Period</span>
-                            <div class="flex-fill"></div>
-                            <button
-                              type="button"
-                              mat-flat-button
-                              (click)="addReviewPeriod()"
-                              [disabled]="
-                                isSourceRefreshTimeLoading ||
-                                (isLoading$ | async) ||
-                                isFormDisabled
-                              ">
-                              <mat-icon>library_add</mat-icon>
-                              Add
-                            </button>
-                          </mat-toolbar>
-                        </mat-card-title>
-                        <mat-card-subtitle>
-                          <div
-                            class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
-                            <div class="mat-mdc-form-field-error-wrapper px-0">
-                              <div class="mat-mdc-form-field-bottom-align">
-                                @if (
-                                  searchParamsForm.controls.reviewPeriods.hasError(
-                                    'overlappingReviewPeriods'
-                                  )
-                                ) {
-                                  <mat-error>
-                                    Review periods must not overlap
-                                  </mat-error>
-                                }
-                              </div>
+                <!-- Date Range -->
+                <div class="col-12 col-lg-6 filter-card">
+                  <mat-card>
+                    <mat-card-header>
+                      <mat-card-title>
+                        <mat-toolbar class="card-toolbar px-0">
+                          <span class="fs-5">Review Period(s)</span>
+                          <div class="flex-fill"></div>
+                          <button
+                            type="button"
+                            mat-flat-button
+                            (click)="addReviewPeriod()"
+                            [disabled]="
+                              isSourceRefreshTimeLoading ||
+                              (isLoadingCaseRecord$ | async) ||
+                              isFormDisabled
+                            ">
+                            <mat-icon>library_add</mat-icon>
+                            Add
+                          </button>
+                        </mat-toolbar>
+                      </mat-card-title>
+                      <mat-card-subtitle>
+                        <div
+                          class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
+                          <div class="mat-mdc-form-field-error-wrapper px-0">
+                            <div class="mat-mdc-form-field-bottom-align">
+                              @if (
+                                searchParamsForm.controls.reviewPeriods.hasError(
+                                  'overlappingReviewPeriods'
+                                )
+                              ) {
+                                <mat-error>
+                                  *Review periods must not overlap
+                                </mat-error>
+                              }
                             </div>
                           </div>
-                        </mat-card-subtitle>
-                      </mat-card-header>
-                      <mat-card-content>
-                        <div formArrayName="reviewPeriods">
-                          <div>
-                            @for (
-                              period of searchParamsForm.controls.reviewPeriods
-                                .controls;
-                              track period;
-                              let i = $index
-                            ) {
-                              <div [formGroupName]="i">
-                                <div
-                                  class="row review-period-input mt-2 justify-content-evenly"
-                                  [class.loading]="
-                                    isSourceRefreshTimeLoading ||
-                                    (isLoading$ | async) ||
-                                    false
-                                  ">
-                                  <mat-form-field class="col">
-                                    <mat-label>Start MM/YYYY</mat-label>
-                                    <input
-                                      matInput
-                                      [matDatepicker]="startPicker"
-                                      formControlName="start"
-                                      readonly
-                                      appReviewPeriodDate
-                                      [max]="maxDate" />
-                                    <mat-datepicker-toggle
-                                      matSuffix
-                                      [for]="
-                                        startPicker
-                                      "></mat-datepicker-toggle>
-                                    <mat-datepicker
-                                      #startPicker
-                                      startView="multi-year"
-                                      (yearSelected)="
-                                        chosenYearHandler(
-                                          $event,
-                                          startPicker,
-                                          'start',
-                                          i
-                                        )
-                                      "
-                                      (monthSelected)="
-                                        chosenMonthHandler(
-                                          $event,
-                                          startPicker,
-                                          'start',
-                                          i
-                                        )
-                                      "></mat-datepicker>
-                                    @if (
-                                      period.controls.start.hasError('required')
-                                    ) {
-                                      <mat-error>
-                                        Start month is required
-                                      </mat-error>
-                                    }
-                                    @if (
-                                      period.controls.start.hasError(
-                                        'startBeforeEndReviewPeriod'
+                        </div>
+                      </mat-card-subtitle>
+                    </mat-card-header>
+                    <mat-card-content>
+                      <div formArrayName="reviewPeriods">
+                        <div>
+                          @for (
+                            period of searchParamsForm.controls.reviewPeriods
+                              .controls;
+                            track $index;
+                            let i = $index
+                          ) {
+                            <div [formGroupName]="i">
+                              <div
+                                class="row review-period-input mt-2 justify-content-evenly"
+                                [class.loading]="
+                                  isSourceRefreshTimeLoading ||
+                                  (isLoadingCaseRecord$ | async) ||
+                                  false
+                                ">
+                                <mat-form-field class="col">
+                                  <mat-label>Start MM/YYYY</mat-label>
+                                  <input
+                                    matInput
+                                    [matDatepicker]="startPicker"
+                                    formControlName="start"
+                                    readonly
+                                    appReviewPeriodDate
+                                    [max]="maxDate" />
+                                  <mat-datepicker-toggle
+                                    matSuffix
+                                    [for]="startPicker"></mat-datepicker-toggle>
+                                  <mat-datepicker
+                                    #startPicker
+                                    startView="multi-year"
+                                    (yearSelected)="
+                                      chosenYearHandler(
+                                        $event,
+                                        startPicker,
+                                        'start',
+                                        i
                                       )
-                                    ) {
-                                      <mat-error>
-                                        Start month must be before end month
-                                      </mat-error>
-                                    }
-                                  </mat-form-field>
-                                  <span
-                                    class="sk skw-6 skh-7 col-auto flex-grow-1 mx-3"></span>
-                                  <mat-form-field class="col">
-                                    <mat-label>End MM/YYYY</mat-label>
-                                    <input
-                                      matInput
-                                      [matDatepicker]="endPicker"
-                                      formControlName="end"
-                                      readonly
-                                      appReviewPeriodDate
-                                      [max]="maxDate" />
-                                    <mat-datepicker-toggle
-                                      matSuffix
-                                      [for]="endPicker"></mat-datepicker-toggle>
-                                    <mat-datepicker
-                                      #endPicker
-                                      startView="multi-year"
-                                      (yearSelected)="
-                                        chosenYearHandler(
-                                          $event,
-                                          endPicker,
-                                          'end',
-                                          i
-                                        )
-                                      "
-                                      (monthSelected)="
-                                        chosenMonthHandler(
-                                          $event,
-                                          endPicker,
-                                          'end',
-                                          i
-                                        )
-                                      "></mat-datepicker>
-                                    @if (
-                                      period.controls.end.hasError('required')
-                                    ) {
-                                      <mat-error>
-                                        End month is required
-                                      </mat-error>
-                                    }
-                                  </mat-form-field>
-                                  <span
-                                    class="sk skw-6 skh-7 col-auto flex-grow-1 mx-3"></span>
-                                  <div
-                                    class="col-1 px-0 d-flex align-items-center">
-                                    <button
-                                      type="button"
-                                      mat-icon-button
-                                      color="warn"
-                                      (click)="removeReviewPeriod(i)"
-                                      [disabled]="
-                                        searchParamsForm.controls.reviewPeriods
-                                          .controls.length === 1 ||
-                                        isFormDisabled ||
-                                        isSourceRefreshTimeLoading ||
-                                        (isLoading$ | async)
-                                      "
-                                      matTooltip="Remove period"
-                                      class="mb-4">
-                                      <mat-icon>delete</mat-icon>
-                                    </button>
-                                  </div>
+                                    "
+                                    (monthSelected)="
+                                      chosenMonthHandler(
+                                        $event,
+                                        startPicker,
+                                        'start',
+                                        i
+                                      )
+                                    "></mat-datepicker>
+                                  @if (
+                                    period.controls.start.hasError('required')
+                                  ) {
+                                    <mat-error>
+                                      *Start month is required
+                                    </mat-error>
+                                  }
+                                  @if (
+                                    period.controls.start.hasError(
+                                      'startBeforeEndReviewPeriod'
+                                    )
+                                  ) {
+                                    <mat-error>
+                                      *Start month must be before end month
+                                    </mat-error>
+                                  }
+                                </mat-form-field>
+                                <span
+                                  class="sk skw-6 skh-7 col-auto flex-grow-1 mx-3"></span>
+                                <mat-form-field class="col">
+                                  <mat-label>End MM/YYYY</mat-label>
+                                  <input
+                                    matInput
+                                    [matDatepicker]="endPicker"
+                                    formControlName="end"
+                                    readonly
+                                    appReviewPeriodDate
+                                    [max]="maxDate" />
+                                  <mat-datepicker-toggle
+                                    matSuffix
+                                    [for]="endPicker"></mat-datepicker-toggle>
+                                  <mat-datepicker
+                                    #endPicker
+                                    startView="multi-year"
+                                    (yearSelected)="
+                                      chosenYearHandler(
+                                        $event,
+                                        endPicker,
+                                        'end',
+                                        i
+                                      )
+                                    "
+                                    (monthSelected)="
+                                      chosenMonthHandler(
+                                        $event,
+                                        endPicker,
+                                        'end',
+                                        i
+                                      )
+                                    "></mat-datepicker>
+                                  @if (
+                                    period.controls.end.hasError('required')
+                                  ) {
+                                    <mat-error>
+                                      *End month is required
+                                    </mat-error>
+                                  }
+                                </mat-form-field>
+                                <span
+                                  class="sk skw-6 skh-7 col-auto flex-grow-1 mx-3"></span>
+                                <div
+                                  class="col-1 px-0 d-flex align-items-center">
+                                  <button
+                                    type="button"
+                                    mat-icon-button
+                                    color="warn"
+                                    (click)="removeReviewPeriod(i)"
+                                    [disabled]="
+                                      searchParamsForm.controls.reviewPeriods
+                                        .controls.length === 1 ||
+                                      isFormDisabled ||
+                                      isSourceRefreshTimeLoading ||
+                                      (isLoadingCaseRecord$ | async)
+                                    "
+                                    matTooltip="Remove period"
+                                    class="mb-4">
+                                    <mat-icon>delete</mat-icon>
+                                  </button>
                                 </div>
                               </div>
-                            }
-                          </div>
-                        </div>
-                      </mat-card-content></mat-card
-                    >
-                  </div>
-                </div>
-              </div>
-
-              <!-- System Information Section -->
-              <div class="col-12 col-xl-4 system-info">
-                <mat-card>
-                  <mat-card-header>
-                    <mat-card-title>System Information</mat-card-title>
-                    <mat-card-subtitle>
-                      <div
-                        class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
-                        <div class="mat-mdc-form-field-error-wrapper px-0">
-                          <div class="mat-mdc-form-field-bottom-align">
-                            @if (
-                              searchParamsForm.controls.sourceSystems.hasError(
-                                'atleastOneSelection'
-                              )
-                            ) {
-                              <mat-error>
-                                Atleast one selection must exist
-                              </mat-error>
-                            }
-                          </div>
+                            </div>
+                          }
                         </div>
                       </div>
-                    </mat-card-subtitle>
-                  </mat-card-header>
-
-                  <mat-card-content>
-                    <app-source-refresh-selectable-table
-                      formControlName="sourceSystems"
-                      [data]="(sourceRefreshTimeData$ | async) || []"
-                      [isLoading]="
-                        isSourceRefreshTimeLoading ||
-                        (isLoading$ | async) ||
-                        false
-                      ">
-                    </app-source-refresh-selectable-table>
-                  </mat-card-content>
-                </mat-card>
+                    </mat-card-content></mat-card
+                  >
+                </div>
               </div>
+            </div>
+
+            <!-- System Information Section -->
+            <div class="col-12 col-xl-4 mb-3 system-info">
+              <mat-card>
+                <mat-card-header>
+                  <mat-card-title class="fs-5"
+                    >System Information</mat-card-title
+                  >
+                  <mat-card-subtitle>
+                    <div
+                      class="mat-mdc-form-field-subscript-wrapper mat-mdc-form-field-bottom-align">
+                      <div class="mat-mdc-form-field-error-wrapper px-0">
+                        <div class="mat-mdc-form-field-bottom-align">
+                          @if (
+                            searchParamsForm.controls.sourceSystems.hasError(
+                              'atleastOneSelection'
+                            )
+                          ) {
+                            <mat-error>
+                              *Atleast one selection must exist
+                            </mat-error>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  </mat-card-subtitle>
+                </mat-card-header>
+
+                <mat-card-content>
+                  <app-source-refresh-selectable-table
+                    formControlName="sourceSystems"
+                    [data]="(sourceRefreshTimeData$ | async) || []"
+                    [isLoading]="
+                      isSourceRefreshTimeLoading ||
+                      (isLoadingCaseRecord$ | async) ||
+                      false
+                    "
+                    [isLoadingSearch$]="isLoadingSearch$">
+                  </app-source-refresh-selectable-table>
+                </mat-card-content>
+              </mat-card>
             </div>
           </div>
         </form>
@@ -524,7 +564,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
         },
       } as MatDateFormats,
     },
-    { provide: ErrorStateMatcher, useClass: PreemptiveErrorStateMatcher },
     {
       provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
       useValue: {
@@ -535,80 +574,104 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-// eslint-disable-next-line rxjs-angular-x/prefer-composition
 export class TransactionSearchComponent implements OnInit {
   private caseRecordService = inject(CaseRecordService);
-  private transactionSearchService = inject(TransactionSearchService);
+  private searchService = inject(TransactionSearchService);
   private snackbarQ = inject(SnackbarQueueService);
-  private router = inject(Router);
   private destroyRef = inject(DestroyRef);
   private errorHandler = inject(ErrorHandler);
+  private router = inject(Router);
 
   searchParamsForm = new FormGroup(
     {
-      amlId: new FormControl({ value: '', disabled: false }, [
-        Validators.required,
-        Validators.pattern('^[0-9]+$'),
-      ]),
-      partyKeys: new FormControl({ value: [] as PartyKey[], disabled: true }, [
-        Validators.required,
-        atleastOneSelectionValidator,
-      ]),
+      amlId: new FormControl(
+        { value: AMLID_TEST, disabled: false },
+        {
+          validators: [Validators.required, Validators.pattern('^[0-9]+$')],
+          nonNullable: true,
+        },
+      ),
+      partyKeys: new FormControl(
+        { value: [] as PartyKeyData[], disabled: true },
+        {
+          validators: [Validators.required, atleastOneSelectionValidator],
+          nonNullable: true,
+        },
+      ),
       accountNumbers: new FormControl(
-        { value: [] as AccountNumber[], disabled: true },
-        [Validators.required, atleastOneSelectionValidator],
+        { value: [] as AccountNumberData[], disabled: true },
+        {
+          validators: [Validators.required, atleastOneSelectionValidator],
+          nonNullable: true,
+        },
       ),
       sourceSystems: new FormControl(
-        { value: [] as SourceSys[], disabled: true },
-        [Validators.required, atleastOneSelectionValidator],
+        { value: [] as SourceSysRefreshTimeData[], disabled: true },
+        {
+          validators: [Validators.required, atleastOneSelectionValidator],
+          nonNullable: true,
+        },
       ),
       productTypes: new FormControl(
-        { value: [] as ProductType[], disabled: true },
-        [Validators.required, atleastOneSelectionValidator],
+        { value: [] as { value: string }[], disabled: true },
+        {
+          validators: [Validators.required, atleastOneSelectionValidator],
+          nonNullable: true,
+        },
       ),
       reviewPeriods: new FormArray(
         [] as ReturnType<typeof this.createReviewPeriodGroup>[],
-        [overlappingReviewPeriodsValidator],
+        { validators: [overlappingReviewPeriodsValidator] },
       ),
+      caseRecordId: new FormControl('', { nonNullable: true }),
+      eTag: new FormControl(Number.NaN, { nonNullable: true }),
+      lastUpdated: new FormControl('', { nonNullable: true }),
+      lastUpdatedBy: new FormControl('', { nonNullable: true }),
     },
     {
       updateOn: 'change',
-      validators: [transactionSearchParamsExistValidator],
+      validators: [searchParamsExistValidator],
     },
   );
   readonly maxDate = new Date();
 
   onLoad() {
+    if (!this.searchParamsForm.controls.amlId.valid) return;
+
     this.loadClick$.next();
   }
 
   private loadClick$ = new Subject<void>();
-  loadCase$ = this.loadClick$.pipe(
+  loadCaseRecord$ = this.loadClick$.pipe(
     map(() => this.searchParamsForm.value.amlId!.trim()),
-    distinctUntilChanged(),
     tap(() => {
-      this.isLoading$.next(true);
+      this.isLoadingCaseRecord$.next(true);
+      this.searchParamsForm.controls.reviewPeriods.clear({ emitEvent: false });
     }),
     switchMap((amlId) =>
-      this.transactionSearchService.getPartyAccountInfoByAmlId(amlId!).pipe(
+      this.searchService.getAmlPartyAccountInfo(amlId!).pipe(
         combineLatestWith(this.caseRecordService.fetchCaseRecordByAmlId(amlId)),
         tap(
           ([
             { amlId },
             {
-              transactionSearchParams: {
-                reviewPeriodSelection,
-                partyKeysSelection,
-                accountNumbersSelection,
-                sourceSystemsSelection,
-                productTypesSelection,
-              },
+              caseRecordId,
+              searchParams,
+              eTag,
+              lastUpdated,
+              lastUpdatedBy,
+              createdBy,
             },
           ]) => {
+            const {
+              reviewPeriodSelection,
+              partyKeysSelection,
+              accountNumbersSelection,
+              sourceSystemsSelection,
+              productTypesSelection,
+            } = searchParams ?? {};
             this.searchParamsForm.enable();
-            this.searchParamsForm.controls.reviewPeriods.clear({
-              emitEvent: false,
-            });
+
             (reviewPeriodSelection ?? []).forEach((period) => {
               this.searchParamsForm.controls.reviewPeriods.push(
                 this.createReviewPeriodGroup({
@@ -621,17 +684,19 @@ export class TransactionSearchComponent implements OnInit {
               {
                 amlId: amlId,
                 partyKeys: (partyKeysSelection ?? []).map((p) => ({
-                  value: p,
+                  _hiddenPartyKey: p,
                 })),
-                accountNumbers: (accountNumbersSelection ?? []).map((a) => ({
-                  value: a,
-                })),
+                accountNumbers: accountNumbersSelection ?? [],
                 sourceSystems: (sourceSystemsSelection ?? []).map((s) => ({
-                  value: s,
+                  sourceSys: s,
                 })),
                 productTypes: (productTypesSelection ?? []).map((p) => ({
                   value: p,
                 })),
+                caseRecordId,
+                eTag,
+                lastUpdated,
+                lastUpdatedBy: lastUpdatedBy ?? createdBy,
               },
               { emitEvent: false }, // prevents value changes emission on aml id which disables form
             );
@@ -643,63 +708,124 @@ export class TransactionSearchComponent implements OnInit {
         ),
         catchError((err) => {
           this.errorHandler.handleError(err);
-          return EMPTY;
+          return of();
         }),
-        finalize(() => this.isLoading$.next(false)),
+        finalize(() => this.isLoadingCaseRecord$.next(false)),
       ),
     ),
-    shareReplay(1),
+    shareReplay({ bufferSize: 1, refCount: true }),
   );
 
   searchParamsBefore: typeof this.searchParamsForm.value | null = null;
 
   formHasChanges$ = this.searchParamsForm.valueChanges.pipe(
+    filter(() => !this.searchParamsForm.controls.partyKeys.disabled),
     map(() => {
       if (!this.searchParamsBefore) return false;
 
-      return !isEqualWith(
-        this.searchParamsForm.value,
-        this.searchParamsBefore,
-        (val1, val2, indexOrKey) => {
-          if (indexOrKey === 'amlId') return true;
-          return undefined;
-        },
-      );
+      const current = this.searchParamsForm.value;
+      const before = this.searchParamsBefore;
+
+      const {
+        accountNumbers: currA = [],
+        partyKeys: currP = [],
+        productTypes: currPt = [],
+        reviewPeriods: currR = [],
+        sourceSystems: currS = [],
+        ...currentRest
+      } = current;
+      const {
+        accountNumbers: befA = [],
+        partyKeys: befP = [],
+        productTypes: befPt = [],
+        reviewPeriods: befR = [],
+        sourceSystems: befS = [],
+        ...beforeRest
+      } = before;
+
+      const arrayChanged =
+        xorWith(
+          [...currA, ...currP, ...currPt, ...currR, ...currS],
+          [...befA, ...befP, ...befPt, ...befR, ...befS],
+          isEqual,
+        ).length > 0;
+
+      const restChanged = !isEqual(currentRest, beforeRest);
+
+      return arrayChanged || restChanged;
     }),
     startWith(false),
   );
 
-  partyKeysData$ = this.loadCase$.pipe(
-    map(([{ partyKeys }]) => {
-      return partyKeys.map((p) => ({ value: p.partyKey }) as PartyKey);
+  partyKeysData$ = this.loadCaseRecord$.pipe(
+    switchMap(([{ partyKeys }]) => {
+      return forkJoin(
+        partyKeys.map((p) => this.searchService.getPartyInfo(p.partyKey)),
+      ).pipe(
+        catchError((error) => {
+          this.errorHandler.handleError(error);
+          return of();
+        }),
+      );
     }),
+    map((responses) =>
+      responses.map((res) => ({
+        _hiddenPartyKey: res.partyKey,
+        name: formatPartyName(res),
+      })),
+    ),
   );
-  accountNumbersData$ = this.loadCase$.pipe(
+
+  accountNumbersData$ = this.loadCaseRecord$.pipe(
     map(([{ partyKeys }]) => {
+      // gets unique accounts
       return Array.from(
         new Set(
           partyKeys
             .flatMap((p) => p.accountModels)
             .map((accountModel) => {
-              return accountModel.accountTransit
-                ? `${accountModel.accountTransit.trim()} / ${accountModel.accountNumber.trim()}`
-                : `${accountModel.accountNumber.trim()}`;
+              return `${accountModel.accountTransit?.trim() ?? ''} $ ${accountModel.accountNumber.trim()}`;
             }),
         ),
-      ).map((value) => ({ value }));
+      ).map((val) => {
+        const [transit, account] = val.split(/\s\$\s/);
+        return { transit, account };
+      });
     }),
-    tap(console.log),
-  );
-  isSourceRefreshTimeLoading = true;
-  sourceRefreshTimeData$ = this.transactionSearchService
-    .fetchSourceRefreshTime()
-    .pipe(
-      finalize(() => {
-        this.isSourceRefreshTimeLoading = false;
-      }),
-    );
+    switchMap((accountAndTransitArray) => {
+      // If no accounts, return empty array
+      if (accountAndTransitArray.length === 0) {
+        return of([]);
+      }
 
-  public isLoading$ = new BehaviorSubject<boolean>(false);
+      // Map each account to an HTTP request observable
+      const requests = accountAndTransitArray.map((account) =>
+        this.searchService
+          .getAccountInfo(account.account)
+          .pipe(map((res) => ({ ...account, ...res }))),
+      );
+
+      // Execute all requests in parallel and wait for all to complete
+      return forkJoin(requests).pipe(
+        catchError((error) => {
+          this.errorHandler.handleError(error);
+          return of();
+        }),
+      );
+    }),
+  );
+
+  isSourceRefreshTimeLoading = true;
+  sourceRefreshTimeData$ = this.searchService.fetchSourceRefreshTime().pipe(
+    finalize(() => {
+      this.isSourceRefreshTimeLoading = false;
+    }),
+  );
+
+  protected isLoadingCaseRecord$ = new BehaviorSubject<boolean>(false);
+  protected isLoadingSearch$ = new BehaviorSubject<
+    'loading' | 'success' | 'fail' | null
+  >(null);
 
   @ViewChild(FormGroupDirective)
   private formDif!: FormGroupDirective;
@@ -730,21 +856,70 @@ export class TransactionSearchComponent implements OnInit {
         }),
         takeUntilDestroyed(this.destroyRef),
       )
-      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
       .subscribe();
   }
 
-  saveSearchParams() {
-    // return this.amlSessionService.updateSession(
-    //   String(this.form.value.amlId),
-    //   {
-    //     partyKeysSelection: partyKeys?.map((p) => p.value),
-    //     accountNumbersSelection: accountNumbers?.map((a) => a.value),
-    //     sourceSystemsSelection: sourceSystems?.map((s) => s.value),
-    //     productTypesSelection: productTypes?.map((p) => p.value),
-    //     reviewPeriodSelection: reviewPeriods,
-    //   },
-    // );
+  onSave() {
+    this.isLoadingCaseRecord$.next(true);
+
+    const {
+      caseRecordId,
+      accountNumbers,
+      partyKeys,
+      productTypes,
+      reviewPeriods,
+      sourceSystems,
+      eTag,
+    } = this.searchParamsForm.value;
+
+    this.caseRecordService
+      .updateCaseRecord(caseRecordId!, {
+        searchParams: {
+          accountNumbersSelection: (accountNumbers ?? []).map(
+            ({ transit, account }) => ({
+              transit,
+              account,
+            }),
+          ),
+          partyKeysSelection: (partyKeys ?? []).map(
+            (item) => item._hiddenPartyKey,
+          ),
+          productTypesSelection: (productTypes ?? []).map((item) => item.value),
+          reviewPeriodSelection: (reviewPeriods ?? []) as ReviewPeriod[],
+          sourceSystemsSelection: (sourceSystems ?? []).map(
+            (item) => item.sourceSys,
+          ),
+        },
+        eTag: eTag!,
+      })
+      .pipe(
+        finalize(() => this.isLoadingCaseRecord$.next(false)),
+        catchError((error: HttpErrorResponse) => {
+          // Handle errors gracefylly
+          this.errorHandler.handleError(error);
+
+          // Conflict triggers refresh of local state
+          if (error.status === 409) {
+            this.loadClick$.next();
+          }
+
+          return EMPTY;
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
+      .subscribe(({ lastUpdated, lastUpdatedBy }) => {
+        this.snackbarQ.open('Saved changes to search parameters');
+        this.searchParamsBefore = structuredClone(this.searchParamsForm.value);
+        this.searchParamsForm.controls.lastUpdated.setValue(lastUpdated, {
+          emitEvent: false,
+        });
+        this.searchParamsForm.controls.lastUpdatedBy.setValue(lastUpdatedBy!, {
+          emitEvent: false,
+        });
+        this.searchParamsForm.updateValueAndValidity();
+      });
   }
 
   get isFormDisabled() {
@@ -759,27 +934,10 @@ export class TransactionSearchComponent implements OnInit {
     );
   }
 
-  //               // Set form options for party key/s and account number/s
-
-  //               // Patch only after options are set
-  //             };,
-  //           ),
-  //           finalize(() => {
-  //             this.transactionSearchParamsLoadingStateSubject.next(false);
-  //           }),
-  //         ),
-  //       ),
-  //       takeUntilDestroyed(this.destroyRef),
-  //     )
-  //     // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-composition
-  //     .subscribe();
-  // }
-
-  // todo: implement loading state in view
-  onTransactionSearch() {
+  onSearch() {
     if (this.searchParamsForm.invalid) {
       this.snackbarQ.open(
-        'Please enter transaction search filters before searching',
+        'Please enter valid transaction search filters before searching',
         'Dismiss',
         {
           duration: 5000,
@@ -787,32 +945,97 @@ export class TransactionSearchComponent implements OnInit {
       );
       return;
     }
-    console.log(
-      '🚀 ~ TransactionSearchComponent ~ onLoad ~ this.form.value:',
-      this.searchParamsForm.value,
-    );
+    const {
+      accountNumbers = [],
+      partyKeys = [],
+      productTypes = [],
+      reviewPeriods = [],
+      sourceSystems = [],
+    } = this.searchParamsForm.value;
 
-    this.router.navigate(
-      ['/aml', this.searchParamsForm.value.amlId!, 'transaction-view'],
-      {
-        state: {
-          searchParams: this.searchParamsForm.value,
-        },
-      },
-    );
+    this.isLoadingSearch$.next('loading');
+    this.searchService
+      .searchTransactions({
+        accountNumbersSelection: (accountNumbers ?? []).map(
+          ({ transit, account }) => ({
+            transit,
+            account,
+          }),
+        ),
+        partyKeysSelection: (partyKeys ?? []).map(
+          (item) => item._hiddenPartyKey,
+        ),
+        productTypesSelection: (productTypes ?? []).map((item) => item.value),
+        reviewPeriodSelection: (reviewPeriods ?? []) as ReviewPeriod[],
+        sourceSystemsSelection: (sourceSystems ?? []).map(
+          (item) => item.sourceSys,
+        ),
+      })
+      .pipe(
+        tap(() => {
+          this.isLoadingSearch$.next('success');
+        }),
+        catchError((error) => {
+          // Handle error and set error state
+          this.isLoadingSearch$.next('fail');
+          this.snackbarQ.open(
+            'Transaction search failed. Please try again.',
+            'Dismiss',
+            { duration: 5000 },
+          );
+          return EMPTY; // Complete the observable
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
+      .subscribe((searchResult) => {
+        this.router.navigate(
+          ['/aml', this.searchParamsForm.value.amlId!, 'transaction-view'],
+          {
+            state: {
+              searchParams: {
+                accountNumbersSelection: (accountNumbers ?? []).map(
+                  ({ transit, account }) => ({
+                    transit,
+                    account,
+                  }),
+                ),
+                partyKeysSelection: (partyKeys ?? []).map(
+                  (item) => item._hiddenPartyKey,
+                ),
+                productTypesSelection: (productTypes ?? []).map(
+                  (item) => item.value,
+                ),
+                reviewPeriodSelection: (reviewPeriods ?? []) as ReviewPeriod[],
+                sourceSystemsSelection: (sourceSystems ?? []).map(
+                  (item) => item.sourceSys,
+                ),
+              },
+              searchResult,
+              caseRecordId: this.searchParamsForm.value.caseRecordId!,
+            } satisfies RouteExtrasFromSearch,
+          },
+        );
+      });
   }
 
   createReviewPeriodGroup({
-    start = null,
-    end = null,
+    start = '',
+    end = '',
     disabled = false,
-  }: { start?: string | null; end?: string | null; disabled?: boolean } = {}) {
+  }: { start?: string; end?: string; disabled?: boolean } = {}) {
     return new FormGroup(
       {
-        start: new FormControl({ value: start, disabled }, Validators.required),
-        end: new FormControl({ value: end, disabled }, Validators.required),
+        start: new FormControl(
+          { value: start as string, disabled },
+          { validators: Validators.required, nonNullable: true },
+        ),
+        end: new FormControl(
+          { value: end as string, disabled },
+          { validators: Validators.required, nonNullable: true },
+        ),
       },
-      [this.startBeforeEndReviewPeriodValidator],
+      { validators: [this.startBeforeEndReviewPeriodValidator] },
     );
   }
 
@@ -823,14 +1046,20 @@ export class TransactionSearchComponent implements OnInit {
     const startControl = (
       control as (typeof this.searchParamsForm.controls.reviewPeriods.controls)[number]
     ).controls.start;
-    const start = ReviewPeriodDateDirective.parse(startControl.value ?? '');
+
+    const start = startControl.value
+      ? ReviewPeriodDateDirective.parse(startControl.value)
+      : null;
 
     const endControl = (
       control as (typeof this.searchParamsForm.controls.reviewPeriods.controls)[number]
     ).controls.end;
-    const end = ReviewPeriodDateDirective.parse(endControl.value ?? '');
 
-    if (!isValid(start) || !isValid(end)) {
+    const end = endControl.value
+      ? ReviewPeriodDateDirective.parse(endControl.value)
+      : null;
+
+    if (!start || !end) {
       return null;
     }
 
@@ -870,16 +1099,19 @@ export class TransactionSearchComponent implements OnInit {
   ) {
     const ctrlValue = this.searchParamsForm.controls.reviewPeriods
       .at(index)
-      .get(controlName)?.value as unknown as Date;
+      .get(controlName)?.value as unknown as string;
+
+    let chosenDate: Date = normalizedYear;
+
+    if (ctrlValue) {
+      chosenDate = setYear(ctrlValue, getYear(normalizedYear));
+    }
 
     this.searchParamsForm.controls.reviewPeriods
       .at(index)
       .get(controlName)
-      ?.setValue(
-        ReviewPeriodDateDirective.format(
-          setYear(ctrlValue, getYear(normalizedYear)),
-        ),
-      );
+      ?.setValue(ReviewPeriodDateDirective.format(chosenDate));
+
     this.searchParamsForm.controls.reviewPeriods
       .at(index)
       .get(controlName)
@@ -896,16 +1128,18 @@ export class TransactionSearchComponent implements OnInit {
   ) {
     const ctrlValue = this.searchParamsForm.controls.reviewPeriods
       .at(index)
-      .get(controlName)?.value as unknown as Date;
+      .get(controlName)?.value as unknown as string;
+
+    let chosenDate: Date = normalizedMonth;
+
+    if (ctrlValue) {
+      chosenDate = setMonth(ctrlValue, getMonth(normalizedMonth));
+    }
 
     this.searchParamsForm.controls.reviewPeriods
       .at(index)
       .get(controlName)
-      ?.setValue(
-        ReviewPeriodDateDirective.format(
-          setMonth(ctrlValue, getMonth(normalizedMonth)),
-        ),
-      );
+      ?.setValue(ReviewPeriodDateDirective.format(chosenDate));
 
     this.searchParamsForm.controls.reviewPeriods
       .at(index)
@@ -916,11 +1150,7 @@ export class TransactionSearchComponent implements OnInit {
   }
 }
 
-export interface ProductType {
-  value: string;
-}
-
-function transactionSearchParamsExistValidator(
+function searchParamsExistValidator(
   control: AbstractControl,
 ): ValidationErrors | null {
   const txnSearchParamsCtrl =
@@ -932,7 +1162,7 @@ function transactionSearchParamsExistValidator(
     !txnSearchParamsCtrl.contains('productTypes') ||
     !txnSearchParamsCtrl.contains('reviewPeriods')
   ) {
-    return { transactionSearchParamsExist: false };
+    return { searchParamsExist: false };
   }
   return null;
 }
@@ -953,14 +1183,18 @@ function overlappingReviewPeriodsValidator(
   const periodsArray =
     control as typeof TransactionSearchComponent.prototype.searchParamsForm.controls.reviewPeriods;
   const periods = periodsArray.controls
-    .map((period, index) => ({
-      index,
-
-      start: ReviewPeriodDateDirective.parse(period.controls.start.value ?? ''),
-
-      end: ReviewPeriodDateDirective.parse(period.controls.end.value ?? ''),
-    }))
-    .filter((p) => isValid(p.start) && isValid(p.end))
+    .map((period, index) => {
+      return {
+        index,
+        start: period.controls.start.value
+          ? ReviewPeriodDateDirective.parse(period.controls.start.value)
+          : null,
+        end: period.controls.end.value
+          ? ReviewPeriodDateDirective.parse(period.controls.end.value)
+          : null,
+      };
+    })
+    .filter(({ start, end }) => !!start && !!end)
     .map((p) => ({
       ...p,
       start: p.start,
@@ -969,11 +1203,11 @@ function overlappingReviewPeriodsValidator(
 
   for (let i = 0; i < periods.length; i++) {
     for (let j = i + 1; j < periods.length; j++) {
-      const startFromReviewPeriod = periods[i].start;
-      const endFromReviewPeriod = periods[i].end;
+      const startFromReviewPeriod = periods[i].start!;
+      const endFromReviewPeriod = periods[i].end!;
 
-      const startToCheck = periods[j].start;
-      const endToCheck = periods[j].end;
+      const startToCheck = periods[j].start!;
+      const endToCheck = periods[j].end!;
 
       if (
         isBefore(startToCheck, startFromReviewPeriod) &&
@@ -990,4 +1224,31 @@ function overlappingReviewPeriodsValidator(
     }
   }
   return null;
+}
+
+export interface RouteExtrasFromSearch {
+  searchParams: CaseRecordState['searchParams'];
+  searchResult: TransactionSearchResponse;
+  caseRecordId: string;
+}
+
+function formatPartyName(party: {
+  surname: string;
+  givenName: string;
+  otherOrInitial: string;
+  nameOfEntity: string;
+}): string {
+  // If entity name exists, use it (for organizations)
+  if (party.nameOfEntity?.trim()) {
+    return party.nameOfEntity.trim();
+  }
+
+  // Otherwise format individual name
+  const parts = [
+    party.givenName?.trim(),
+    party.otherOrInitial?.trim(),
+    party.surname?.trim(),
+  ].filter(Boolean); // Remove empty/null values
+
+  return parts.join(' ') || 'Unknown';
 }

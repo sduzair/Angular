@@ -515,13 +515,8 @@
     },
     {
       "name": "startingActions.conductors.npdTypeOfDevice",
-      "null_percentage": 99,
-      "type": "Custom List",
-      "values": [
-
-      ],
-      "selectionStyle": "sequential",
-      "distribution": null,
+      "null_percentage": 0,
+      "type": "Blank",
       "formula": null
     },
     {

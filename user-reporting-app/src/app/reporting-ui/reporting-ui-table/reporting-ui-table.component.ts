@@ -1,12 +1,14 @@
 import { CommonModule } from '@angular/common';
 import {
+  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
-  Input,
+  inject,
+  signal,
   TrackByFunction,
   ViewChild,
-  inject,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
@@ -16,7 +18,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { ActivatedRoute, ResolveFn, Router } from '@angular/router';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { combineLatestWith, map, Observable, tap } from 'rxjs';
 import {
   CaseRecordStore,
   StrTransactionWithChangeLogs,
@@ -44,169 +46,226 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
     CamelToTitlePipe,
   ],
   template: `
-    @if (savingEdits$ | async; as savingIds) {
-      <app-base-table
-        #baseTable
-        [data]="(strTransactionData$ | async) ?? []"
-        [dataColumnsValues]="dataColumnsValues"
-        [dataColumnsIgnoreValues]="dataColumnsIgnoreValues"
-        [dataColumnsProjected]="dataColumnsProjected"
-        [displayedColumns]="displayedColumns"
-        [displayColumnHeaderMap]="displayColumnHeaderMap"
-        [stickyColumns]="stickyColumns"
-        [selectFiltersValues]="selectFiltersValues"
-        [dateFiltersValues]="dateFiltersValues"
-        [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
-        [displayedColumnsTime]="displayedColumnsTime"
-        [dataSourceTrackBy]="dataSourceTrackBy"
-        [selectionKey]="'flowOfFundsAmlTransactionId'"
-        [filterFormHighlightSelectFilterKey]="'highlightColor'"
-        [filterFormHighlightSideEffect]="filterFormHighlightSideEffect"
-        [recentlyOpenRows$]="recentlyOpenedRows$"
-        [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
-        [sortedBy]="'dateOfTxn'">
-        <button
-          type="button"
-          mat-raised-button
-          ngProjectAs="table-toolbar-ele"
-          (click)="openManualUploadStepper()">
-          <mat-icon>file_upload</mat-icon>
-          Manual Upload
-        </button>
-        <!-- Selection Model -->
-        <ng-container matColumnDef="select">
-          <th
-            mat-header-cell
-            *matHeaderCellDef
-            [class.sticky-cell]="baseTable.isStickyColumn('select')">
-            @if (baseTable.hasMasterToggle) {
-              <div>
-                <mat-checkbox
-                  (change)="$event ? baseTable.toggleAllRows() : null"
-                  [checked]="
-                    baseTable.selection.hasValue() && baseTable.isAllSelected()
-                  "
-                  [indeterminate]="
-                    baseTable.selection.hasValue() && !baseTable.isAllSelected()
-                  ">
-                </mat-checkbox>
-              </div>
-            }
-          </th>
-          <td
-            mat-cell
-            *matCellDef="let row; let i = index"
-            [class.sticky-cell]="baseTable.isStickyColumn('select')">
+    <app-base-table
+      #baseTable
+      [data]="(selectionsComputed$ | async) ?? []"
+      [dataColumnsValues]="dataColumnsValues"
+      [dataColumnsIgnoreValues]="dataColumnsIgnoreValues"
+      [dataColumnsProjected]="dataColumnsProjected"
+      [displayedColumns]="displayedColumns"
+      [displayColumnHeaderMap]="displayColumnHeaderMap"
+      [stickyColumns]="stickyColumns"
+      [selectFiltersValues]="selectFiltersValues"
+      [dateFiltersValues]="dateFiltersValues"
+      [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
+      [displayedColumnsTime]="displayedColumnsTime"
+      [dataSourceTrackBy]="dataSourceTrackBy"
+      [selectionKey]="'flowOfFundsAmlTransactionId'"
+      [highlightedRecords]="highlightedRecords"
+      [filterFormHighlightSelectFilterKey]="'highlightColor'"
+      [filterFormHighlightSideEffect]="filterFormHighlightSideEffect"
+      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
+      [hasMasterToggle]="true">
+      <button
+        type="button"
+        mat-raised-button
+        ngProjectAs="table-toolbar-ele"
+        (click)="openManualUploadStepper()">
+        <mat-icon>file_upload</mat-icon>
+        Manual Upload
+      </button>
+      <!-- Selection Model -->
+      <ng-container
+        matColumnDef="select"
+        [sticky]="baseTable.isStickyColumn('select')">
+        <th
+          mat-header-cell
+          *matHeaderCellDef
+          [class.sticky-cell]="baseTable.isStickyColumn('select')">
+          @if (baseTable.hasMasterToggle) {
             <div>
               <mat-checkbox
-                (click)="baseTable.onCheckBoxClickMultiToggle($event, row, i)"
-                (change)="$event ? baseTable.toggleRow(row) : null"
-                [checked]="baseTable.selection.isSelected(row)"
-                [disabled]="isEditDisabled(row, savingIds)">
+                (change)="$event ? baseTable.toggleAllRows() : null"
+                [checked]="
+                  baseTable.selection.hasValue() && baseTable.isAllSelected()
+                "
+                [indeterminate]="
+                  baseTable.selection.hasValue() && !baseTable.isAllSelected()
+                ">
               </mat-checkbox>
             </div>
-          </td>
-        </ng-container>
-        <!-- Actions column -->
-        <ng-container matColumnDef="actions">
-          <th
-            mat-header-cell
-            *matHeaderCellDef
-            [class.sticky-cell]="baseTable.isStickyColumn('actions')">
-            <div>
-              <button
-                type="button"
-                [disabled]="
-                  (baseTable.hasSelections$ | async) === false ||
-                  (sessionDataService.isSaving$ | async)
+          }
+        </th>
+        <td
+          mat-cell
+          *matCellDef="let row; let i = index"
+          [class.sticky-cell]="baseTable.isStickyColumn('select')">
+          <div>
+            <mat-checkbox
+              (click)="baseTable.onCheckBoxClickMultiToggle($event, row, i)"
+              (change)="$event ? baseTable.toggleRow(row) : null"
+              [checked]="baseTable.selection.isSelected(row)"
+              [disabled]="isEditDisabled(row, qSavingEdits())">
+            </mat-checkbox>
+          </div>
+        </td>
+      </ng-container>
+      <!-- Actions column -->
+      <ng-container
+        matColumnDef="actions"
+        [sticky]="baseTable.isStickyColumn('actions')">
+        <th
+          mat-header-cell
+          *matHeaderCellDef
+          [class.sticky-cell]="baseTable.isStickyColumn('actions')">
+          <div>
+            <button
+              type="button"
+              [disabled]="isActionHeaderDisabled$ | async"
+              mat-icon-button
+              (click)="navigateToBulkEdit()"
+              [matBadge]="baseTable.selection.selected.length"
+              [matBadgeHidden]="!baseTable.selection.hasValue()">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button type="button" mat-icon-button class="invisible">
+              <mat-icon
+                class="text-primary"
+                [class.text-opacity-50]="isActionHeaderDisabled$ | async">
+                history
+              </mat-icon>
+            </button>
+            <button
+              type="button"
+              [disabled]="isActionHeaderDisabled$ | async"
+              mat-icon-button
+              (click)="resetSelectedTxns()"
+              [matBadge]="baseTable.selection.selected.length"
+              [matBadgeHidden]="!baseTable.selection.hasValue()">
+              <mat-icon
+                class="text-danger"
+                [class.text-opacity-50]="isActionHeaderDisabled$ | async">
+                restart_alt
+              </mat-icon>
+            </button>
+            <button
+              type="button"
+              [disabled]="isActionHeaderDisabled$ | async"
+              mat-icon-button
+              (click)="removeSelectedTxns()"
+              [matBadge]="baseTable.selection.selected.length"
+              [matBadgeHidden]="!baseTable.selection.hasValue()">
+              <mat-icon
+                class="text-danger"
+                [class.text-opacity-50]="isActionHeaderDisabled$ | async">
+                delete_outline
+              </mat-icon>
+            </button>
+          </div>
+        </th>
+        <td
+          mat-cell
+          *matCellDef="let row"
+          [class.sticky-cell]="baseTable.isStickyColumn('actions')">
+          <div>
+            <button
+              type="button"
+              mat-icon-button
+              (click)="navigateToEditForm(row)"
+              [disabled]="isEditDisabled(row, qSavingEdits())">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button
+              type="button"
+              mat-icon-button
+              (click)="navigateToAuditForm(row)"
+              [disabled]="isEditDisabled(row, qSavingEdits())">
+              <mat-icon class="text-primary">history</mat-icon>
+            </button>
+            <button
+              type="button"
+              mat-icon-button
+              (click)="resetTxn(row)"
+              [disabled]="isEditDisabled(row, qSavingEdits())">
+              <mat-icon class="text-danger">restart_alt</mat-icon>
+            </button>
+            <button
+              type="button"
+              mat-icon-button
+              (click)="removeTxn(row)"
+              [disabled]="isEditDisabled(row, qSavingEdits())">
+              <mat-icon class="text-danger">delete_outline</mat-icon>
+            </button>
+          </div>
+        </td>
+      </ng-container>
+      <!-- Validation Info column -->
+      <ng-container
+        matColumnDef="_hiddenValidation"
+        [sticky]="baseTable.isStickyColumn('_hiddenValidation')">
+        <th
+          mat-header-cell
+          *matHeaderCellDef
+          mat-sort-header="_hiddenValidation"
+          [class.sticky-cell]="baseTable.isStickyColumn('_hiddenValidation')">
+          <div></div>
+        </th>
+        <td
+          mat-cell
+          *matCellDef="let row"
+          [class.sticky-cell]="baseTable.isStickyColumn('_hiddenValidation')">
+          <mat-chip-set>
+            @for (ch of row._hiddenValidation; track ch) {
+              <mat-chip
+                [style.--mat-chip-elevated-container-color]="
+                  getColorForValidationChip(ch)
                 "
-                mat-icon-button
-                (click)="navigateToBulkEdit()"
-                [matBadge]="baseTable.selection.selected.length"
-                [matBadgeHidden]="!baseTable.selection.hasValue()">
-                <mat-icon>edit</mat-icon>
-              </button>
-              <button type="button" mat-icon-button class="invisible">
-                <mat-icon>history</mat-icon>
-              </button>
-            </div>
-          </th>
-          <td
-            mat-cell
-            *matCellDef="let row"
-            [ngStyle]="{
-              backgroundColor:
-                row[baseTable.filterFormHighlightSelectFilterKey] || '',
-            }"
-            [class.sticky-cell]="baseTable.isStickyColumn('actions')">
-            <div>
-              <button
-                type="button"
-                mat-icon-button
-                (click)="navigateToEditForm(row)"
-                [disabled]="isEditDisabled(row, savingIds)">
-                <mat-icon>edit</mat-icon>
-              </button>
-              <button
-                type="button"
-                mat-icon-button
-                (click)="navigateToAuditForm(row)">
-                <mat-icon>history</mat-icon>
-              </button>
-            </div>
-          </td>
-        </ng-container>
-        <!-- Validation Info column -->
-        <ng-container matColumnDef="_hiddenValidation">
-          <th
-            mat-header-cell
-            *matHeaderCellDef
-            mat-sort-header="_hiddenValidation"
-            [class.sticky-cell]="baseTable.isStickyColumn('_hiddenValidation')">
-            <div></div>
-          </th>
-          <td
-            mat-cell
-            *matCellDef="let row"
-            [class.sticky-cell]="baseTable.isStickyColumn('_hiddenValidation')">
-            <mat-chip-set>
-              @for (ch of row._hiddenValidation; track ch) {
-                <mat-chip
-                  [style.--mat-chip-elevated-container-color]="
-                    getColorForValidationChip(ch)
-                  "
-                  [style.--mat-chip-label-text-color]="
-                    getFontColorForValidationChip(ch)
-                  ">
-                  {{ ch | camelToTitle }}
-                </mat-chip>
-              }
-            </mat-chip-set>
-          </td>
-        </ng-container>
-      </app-base-table>
-    }
+                [style.--mat-chip-label-text-color]="
+                  getFontColorForValidationChip(ch)
+                ">
+                {{ ch | camelToTitle }}
+              </mat-chip>
+            }
+          </mat-chip-set>
+        </td>
+      </ng-container>
+    </app-base-table>
   `,
   styleUrl: './reporting-ui-table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ReportingUiTableComponent {
+export class ReportingUiTableComponent implements AfterViewInit {
+  protected caseRecordStore = inject(CaseRecordStore);
   private dialog = inject(MatDialog);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  selectionsComputed$ = inject(CaseRecordStore).selectionsComputed$.pipe(
+    tap((txns) => {
+      const initHighlightsMap = new Map(
+        txns.map((txn) => [
+          txn.flowOfFundsAmlTransactionId,
+          txn.highlightColor ?? '',
+        ]),
+      );
+      this.highlightedRecords.update(() => new Map(initHighlightsMap));
+    }),
+  );
+
+  qSavingEdits = toSignal(inject(CaseRecordStore).qActiveSaveIds$, {
+    initialValue: [],
+  });
+
   async openManualUploadStepper() {
     const {
       ManualUploadStepperComponent,
-      MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT,
+      ADD_SELECTIONS_MANUAL_STEPPER_WIDTH_DEFAULT,
     } =
       await import('../manual-upload-stepper/manual-upload-stepper.component');
     this.dialog.open(ManualUploadStepperComponent, {
-      width: MANUAL_UPLOAD_STEPPER_WIDTH_DEFAULT,
+      width: ADD_SELECTIONS_MANUAL_STEPPER_WIDTH_DEFAULT,
       panelClass: 'upload-stepper-dialog',
     });
   }
-  @Input()
-  strTransactionData$!: Observable<StrTransactionWithChangeLogs[]>;
-  @Input()
-  savingEdits$!: Observable<string[]>;
 
   dataSourceTrackBy: TrackByFunction<StrTransactionWithChangeLogs> = (
     _,
@@ -215,50 +274,6 @@ export class ReportingUiTableComponent {
     return txn.flowOfFundsAmlTransactionId;
   };
 
-  // override filterFormAssignSelectedColorToRow(
-  //   row: EditedTransaction,
-  //   event: MouseEvent,
-  // ): void {
-  //   if (typeof this.filterFormHighlightSelectedColor === "undefined") return;
-
-  //   let beforeRows: StrTxn[] = [];
-  //   if (event.ctrlKey) {
-  //     beforeRows = this.dataSource.filteredData;
-  //   } else {
-  //     beforeRows = [row];
-  //   }
-  //   // Apply selectedColor to rows
-  //   const payload: EditTabChangeLogsRes[] = beforeRows
-  //     .map((row) => {
-  //       // make optimistic highlight
-  //       const oldTxnHighlight: Pick<StrTxn, "highlightColor"> = {
-  //         highlightColor: row.highlightColor,
-  //       };
-  //       const newTxnHighlight: Pick<StrTxn, "highlightColor"> = {
-  //         highlightColor: this.filterFormHighlightSelectedColor,
-  //       };
-  //       row.highlightColor = this.filterFormHighlightSelectedColor;
-  //       const changes: ChangeLogWithoutVersion[] = [];
-  //       this.changeLogService.compareProperties(
-  //         oldTxnHighlight,
-  //         newTxnHighlight,
-  //         changes,
-  //       );
-  //       return changes.length > 0
-  //         ? { strTxnId: row.flowOfFundsAmlTransactionId, changeLogs: changes }
-  //         : null;
-  //     })
-  //     .filter(
-  //       (editTabChangeLog): editTabChangeLog is EditTabChangeLogsRes =>
-  //         !!editTabChangeLog,
-  //     );
-  //   this.sessionDataService.updateHighlights({
-  //     type: "BULK_EDIT_RESULT",
-  //     payload,
-  //   });
-  //   return;
-  // }
-
   dataColumnsValues: StrTransactionDataColumnKey[] = [
     'highlightColor',
     '_hiddenValidation',
@@ -266,7 +281,8 @@ export class ReportingUiTableComponent {
     'timeOfTxn',
     'dateOfPosting',
     'timeOfPosting',
-    '_hiddenTxnType',
+    'flowOfFundsTransactionDesc',
+    'flowOfFundsSource',
     'methodOfTxn',
     'reportingEntityLocationNo',
 
@@ -284,11 +300,11 @@ export class ReportingUiTableComponent {
     'startingActions.0.accountOpen',
     'startingActions.0.accountClose',
 
-    'startingActions.0.conductors.0.partyKey',
-    'startingActions.0.conductors.0.givenName',
-    'startingActions.0.conductors.0.surname',
-    'startingActions.0.conductors.0.otherOrInitial',
-    'startingActions.0.conductors.0.nameOfEntity',
+    'startingActions.0.conductors.0._hiddenPartyKey',
+    'startingActions.0.conductors.0._hiddenGivenName',
+    'startingActions.0.conductors.0._hiddenSurname',
+    'startingActions.0.conductors.0._hiddenOtherOrInitial',
+    'startingActions.0.conductors.0._hiddenNameOfEntity',
 
     'completingActions.0.detailsOfDispo',
     'completingActions.0.amount',
@@ -303,12 +319,12 @@ export class ReportingUiTableComponent {
     'completingActions.0.accountOpen',
     'completingActions.0.accountClose',
 
-    'completingActions.0.beneficiaries.0.partyKey',
-    'completingActions.0.beneficiaries.0.givenName',
-    'completingActions.0.beneficiaries.0.surname',
-    'completingActions.0.beneficiaries.0.otherOrInitial',
-    'completingActions.0.beneficiaries.0.nameOfEntity',
-    '_hiddenAmlId',
+    'completingActions.0.beneficiaries.0._hiddenPartyKey',
+    'completingActions.0.beneficiaries.0._hiddenGivenName',
+    'completingActions.0.beneficiaries.0._hiddenSurname',
+    'completingActions.0.beneficiaries.0._hiddenOtherOrInitial',
+    'completingActions.0.beneficiaries.0._hiddenNameOfEntity',
+    'flowOfFundsAmlId',
     'reportingEntityTxnRefNo',
   ];
 
@@ -337,6 +353,7 @@ export class ReportingUiTableComponent {
     timeOfTxn: 'Txn Time' as const,
     dateOfPosting: 'Post Date' as const,
     timeOfPosting: 'Post Time' as const,
+    flowOfFundsTransactionDesc: 'Transaction Description' as const,
     'startingActions.0.directionOfSA': 'Direction' as const,
     'startingActions.0.typeOfFunds': 'Funds Type' as const,
     'startingActions.0.typeOfFundsOther': 'Funds Type Other' as const,
@@ -354,12 +371,15 @@ export class ReportingUiTableComponent {
     'startingActions.0.accountOpen': 'Debit Account Open' as const,
     'startingActions.0.accountClose': 'Debit Account Close' as const,
 
-    'startingActions.0.conductors.0.partyKey': 'Conductor Party Key' as const,
-    'startingActions.0.conductors.0.givenName': 'Conductor Given Name' as const,
-    'startingActions.0.conductors.0.surname': 'Conductor Surname' as const,
-    'startingActions.0.conductors.0.otherOrInitial':
+    'startingActions.0.conductors.0._hiddenPartyKey':
+      'Conductor Party Key' as const,
+    'startingActions.0.conductors.0._hiddenGivenName':
+      'Conductor Given Name' as const,
+    'startingActions.0.conductors.0._hiddenSurname':
+      'Conductor Surname' as const,
+    'startingActions.0.conductors.0._hiddenOtherOrInitial':
       'Conductor Other Name' as const,
-    'startingActions.0.conductors.0.nameOfEntity':
+    'startingActions.0.conductors.0._hiddenNameOfEntity':
       'Conductor Entity Name' as const,
 
     'completingActions.0.detailsOfDispo': 'Disposition Details' as const,
@@ -379,22 +399,22 @@ export class ReportingUiTableComponent {
     'completingActions.0.accountOpen': 'Credit Account Open' as const,
     'completingActions.0.accountClose': 'Credit Account Close' as const,
 
-    'completingActions.0.beneficiaries.0.partyKey':
+    'completingActions.0.beneficiaries.0._hiddenPartyKey':
       'Beneficiary Party Key' as const,
-    'completingActions.0.beneficiaries.0.givenName':
+    'completingActions.0.beneficiaries.0._hiddenGivenName':
       'Beneficiary Given Name' as const,
-    'completingActions.0.beneficiaries.0.surname':
+    'completingActions.0.beneficiaries.0._hiddenSurname':
       'Beneficiary Surname' as const,
-    'completingActions.0.beneficiaries.0.otherOrInitial':
+    'completingActions.0.beneficiaries.0._hiddenOtherOrInitial':
       'Beneficiary Other Name' as const,
-    'completingActions.0.beneficiaries.0.nameOfEntity':
+    'completingActions.0.beneficiaries.0._hiddenNameOfEntity':
       'Beneficiary Entity Name' as const,
     'completingActions.0.wasAnyOtherSubInvolved':
       'Was there any other person or entity involved in the completing action?' as const,
     reportingEntityTxnRefNo: 'Transaction Reference No' as const,
     _hiddenValidation: 'Validation Info' as const,
-    _hiddenTxnType: 'Txn Type' as const,
-    _hiddenAmlId: 'AML Id' as const,
+    flowOfFundsSource: 'Source' as const,
+    flowOfFundsAmlId: 'AML Id' as const,
     fullTextFilterKey: 'Full Text' as const,
   } satisfies Partial<
     Record<'fullTextFilterKey' | StrTransactionDataColumnKey, unknown>
@@ -403,7 +423,6 @@ export class ReportingUiTableComponent {
   stickyColumns: (StrTransactionDataColumnKey | 'actions' | 'select')[] = [
     'actions',
     'select',
-    '_mongoid',
     '_hiddenValidation',
   ];
 
@@ -425,11 +444,11 @@ export class ReportingUiTableComponent {
     'startingActions.0.accountCurrency',
     'startingActions.0.accountStatus',
 
-    'startingActions.0.conductors.0.partyKey',
-    'startingActions.0.conductors.0.givenName',
-    'startingActions.0.conductors.0.surname',
-    'startingActions.0.conductors.0.otherOrInitial',
-    'startingActions.0.conductors.0.nameOfEntity',
+    'startingActions.0.conductors.0._hiddenPartyKey',
+    'startingActions.0.conductors.0._hiddenGivenName',
+    'startingActions.0.conductors.0._hiddenSurname',
+    'startingActions.0.conductors.0._hiddenOtherOrInitial',
+    'startingActions.0.conductors.0._hiddenNameOfEntity',
 
     'completingActions.0.detailsOfDispo',
     'completingActions.0.amount',
@@ -442,26 +461,28 @@ export class ReportingUiTableComponent {
     'completingActions.0.accountCurrency',
     'completingActions.0.accountStatus',
 
-    'completingActions.0.beneficiaries.0.partyKey',
-    'completingActions.0.beneficiaries.0.givenName',
-    'completingActions.0.beneficiaries.0.surname',
-    'completingActions.0.beneficiaries.0.otherOrInitial',
-    'completingActions.0.beneficiaries.0.nameOfEntity',
-    '_hiddenTxnType',
-    '_hiddenAmlId',
+    'completingActions.0.beneficiaries.0._hiddenPartyKey',
+    'completingActions.0.beneficiaries.0._hiddenGivenName',
+    'completingActions.0.beneficiaries.0._hiddenSurname',
+    'completingActions.0.beneficiaries.0._hiddenOtherOrInitial',
+    'completingActions.0.beneficiaries.0._hiddenNameOfEntity',
+    'flowOfFundsSource',
+    'flowOfFundsAmlId',
   ];
 
   dateFiltersValues: StrTransactionDataColumnKey[] = [
     'dateOfTxn',
     'dateOfPosting',
+    'startingActions.0.accountOpen',
+    'startingActions.0.accountClose',
+    'completingActions.0.accountOpen',
+    'completingActions.0.accountClose',
   ];
 
   dateFiltersValuesIgnore: StrTransactionDataColumnKey[] = [
     'timeOfTxn',
     'timeOfPosting',
-    'startingActions.0.accountOpen',
     'startingActions.0.accountClose',
-    'completingActions.0.accountOpen',
     'completingActions.0.accountClose',
   ];
 
@@ -475,38 +496,36 @@ export class ReportingUiTableComponent {
     ['dateOfPosting', 'timeOfPosting'],
   ];
 
-  sessionDataService = inject(CaseRecordStore);
+  highlightedRecords = signal<Map<string, string>>(new Map());
+
   filterFormHighlightSideEffect = (
     highlights: { txnId: string; newColor: string }[],
   ) => {
-    this.sessionDataService.saveHighlightEdits(highlights);
+    this.caseRecordStore.qSaveHighlightEdits(highlights);
   };
-
-  private recentlyOpenedRowsSubject = new BehaviorSubject([] as string[]);
-  recentlyOpenedRows$ = this.recentlyOpenedRowsSubject.asObservable();
 
   isEditDisabled(row: StrTransactionWithChangeLogs, savingIds: string[]) {
     return savingIds.includes(row.flowOfFundsAmlTransactionId);
-    // return this.savingEdits$.pipe(
-    //   map((ids) => ids.includes(row.flowOfFundsAmlTransactionId)),
-    // );
   }
 
   static getColorForValidationChip(error: _hiddenValidationType): string {
     const colors: Record<_hiddenValidationType, string> = {
       conductorMissing: '#dc3545',
       bankInfoMissing: '#ba005c',
-      editedTxn: '#0d6efd',
+      edited: '#0d6efd',
       invalidMethodOfTxn: '#0d6efd',
       invalidTypeOfFunds: '#0d6efd',
       invalidAccountType: '#0d6efd',
-      invalidAmountCurrency: '#0d6efd',
-      invalidAccountCurrency: '#0d6efd',
-      invalidAccountStatus: '#0d6efd',
-      invalidDirectionOfSA: '#0d6efd',
+      invalidAmountCurrency: '#dc3545',
+      invalidAccountCurrency: '#dc3545',
+      invalidAccountStatus: '#dc3545',
+      invalidDirectionOfSA: '#dc3545',
       invalidDetailsOfDisposition: '#0d6efd',
-      invalidDate: '#0d6efd',
-      invalidTime: '#0d6efd',
+      invalidDate: '#dc3545',
+      invalidTime: '#dc3545',
+      invalidPartyKey: '#dc3545',
+      invalidFiu: '#dc3545',
+      missingCheque: '#0d6efd',
     };
     if (!error) return '#007bff'; // fallback color
     return colors[error];
@@ -528,19 +547,16 @@ export class ReportingUiTableComponent {
     return brightness > 125 ? '#000000' : '#ffffff';
   }
 
-  private route = inject(ActivatedRoute);
-  private router = inject(Router);
   navigateToEditForm(record: StrTransactionWithChangeLogs) {
-    this.recentlyOpenedRowsSubject.next([record.flowOfFundsAmlTransactionId]);
-    this.router.navigate(
-      [`../edit-form/${record.flowOfFundsAmlTransactionId}`],
-      {
-        relativeTo: this.route,
-      },
-    );
+    this.baseTable.recentlyOpenRows.update(() => [
+      record.flowOfFundsAmlTransactionId,
+    ]);
+    this.router.navigate([`edit-form/${record.flowOfFundsAmlTransactionId}`], {
+      relativeTo: this.route,
+    });
   }
 
-  @ViewChild('baseTable') baseTable!: BaseTableComponent<
+  @ViewChild('baseTable', { static: true }) baseTable!: BaseTableComponent<
     StrTransactionWithChangeLogs,
     string,
     'select' | 'actions' | StrTransactionDataColumnKey,
@@ -554,8 +570,12 @@ export class ReportingUiTableComponent {
       this.baseTable.selection.selected.map(
         (strTxn) => strTxn.flowOfFundsAmlTransactionId,
       );
-    this.recentlyOpenedRowsSubject.next(selectedTransactionsForBulkEdit);
-    this.router.navigate(['../edit-form/bulk-edit'], {
+
+    this.baseTable.recentlyOpenRows.update(
+      () => selectedTransactionsForBulkEdit,
+    );
+
+    this.router.navigate(['edit-form/bulk-edit'], {
       relativeTo: this.route,
       state: {
         selectedTransactionsForBulkEdit,
@@ -564,14 +584,50 @@ export class ReportingUiTableComponent {
   }
 
   navigateToAuditForm(record: StrTransactionWithChangeLogs) {
-    this.recentlyOpenedRowsSubject.next([record.flowOfFundsAmlTransactionId]);
+    this.baseTable.recentlyOpenRows.update(() => [
+      record.flowOfFundsAmlTransactionId,
+    ]);
 
-    this.router.navigate([`../audit/${record.flowOfFundsAmlTransactionId}`], {
+    this.router.navigate([`audit/${record.flowOfFundsAmlTransactionId}`], {
       relativeTo: this.route,
     });
   }
 
+  resetSelectedTxns() {
+    const selectedIds = this.baseTable.selection.selected.map(
+      (strTxn) => strTxn.flowOfFundsAmlTransactionId,
+    );
+    this.caseRecordStore.qResetSelections(selectedIds);
+  }
+
+  resetTxn(record: StrTransactionWithChangeLogs) {
+    this.caseRecordStore.qResetSelections([record.flowOfFundsAmlTransactionId]);
+  }
+
+  removeSelectedTxns() {
+    const selectedIds = this.baseTable.selection.selected.map(
+      (strTxn) => strTxn.flowOfFundsAmlTransactionId,
+    );
+    this.baseTable.selection.clear();
+    this.caseRecordStore.qRemoveSelections(selectedIds);
+  }
+
+  removeTxn(record: StrTransactionWithChangeLogs) {
+    this.caseRecordStore.qRemoveSelections([
+      record.flowOfFundsAmlTransactionId,
+    ]);
+  }
+
   // template helpers
+
+  protected isActionHeaderDisabled$?: Observable<boolean>;
+  ngAfterViewInit(): void {
+    this.isActionHeaderDisabled$ = this.baseTable.hasSelections$.pipe(
+      combineLatestWith(this.caseRecordStore.qIsSaving$),
+      map(([hasSelections, isSaving]) => !hasSelections || isSaving),
+    );
+  }
+
   getColorForValidationChip(error: _hiddenValidationType): string {
     return ReportingUiTableComponent.getColorForValidationChip(error);
   }
@@ -580,22 +636,19 @@ export class ReportingUiTableComponent {
   }
 }
 
-export const strTransactionsEditedResolver: ResolveFn<
+export const selectionsComputedResolver: ResolveFn<
   Observable<StrTransactionWithChangeLogs[]>
 > = async () => {
-  return inject(CaseRecordStore).strTransactionData$;
-};
-
-export const savingEditsResolver: ResolveFn<
-  Observable<string[]>
-> = async () => {
-  return inject(CaseRecordStore).activeSaveIds$;
+  return inject(CaseRecordStore).selectionsComputed$;
 };
 
 export type _hiddenValidationType =
-  | 'editedTxn'
+  | 'edited'
   | 'conductorMissing'
   | 'bankInfoMissing'
+  | 'invalidPartyKey'
+  | 'invalidFiu'
+  | 'missingCheque'
   | InvalidFormOptionsErrorKeys
   | InvalidTxnDateTimeErrorKeys;
 
@@ -668,21 +721,23 @@ export interface StartingAction {
   conductors?: Conductor[];
 }
 export interface AccountHolder {
+  linkToSub?: string;
   _id?: string;
-  partyKey: string | null;
-  surname: string | null;
-  givenName: string | null;
-  otherOrInitial: string | null;
-  nameOfEntity: string | null;
+  _hiddenPartyKey: string | null;
+  _hiddenSurname: string | null;
+  _hiddenGivenName: string | null;
+  _hiddenOtherOrInitial: string | null;
+  _hiddenNameOfEntity: string | null;
 }
 
 export type Conductor = {
+  linkToSub?: string;
   _id?: string;
-  partyKey: string | null;
-  surname: string | null;
-  givenName: string | null;
-  otherOrInitial: string | null;
-  nameOfEntity: string | null;
+  _hiddenPartyKey: string | null;
+  _hiddenSurname: string | null;
+  _hiddenGivenName: string | null;
+  _hiddenOtherOrInitial: string | null;
+  _hiddenNameOfEntity: string | null;
   wasConductedOnBehalf: boolean | null;
   onBehalfOf?: OnBehalfOf[] | null;
 } & ConductorNpdData;
@@ -698,23 +753,24 @@ export interface ConductorNpdData {
 }
 
 export interface SourceOfFunds {
+  linkToSub?: string;
   _id?: string;
-  partyKey: string | null;
-  surname: string | null;
-  givenName: string | null;
-  otherOrInitial: string | null;
-  nameOfEntity: string | null;
+  _hiddenPartyKey: string | null;
+  _hiddenSurname: string | null;
+  _hiddenGivenName: string | null;
+  _hiddenOtherOrInitial: string | null;
+  _hiddenNameOfEntity: string | null;
   accountNumber: string | null;
   identifyingNumber: string | null;
 }
 
 export interface OnBehalfOf {
   _id?: string;
-  partyKey: string | null;
-  surname: string | null;
-  givenName: string | null;
-  otherOrInitial: string | null;
-  nameOfEntity: string | null;
+  _hiddenPartyKey: string | null;
+  _hiddenSurname: string | null;
+  _hiddenGivenName: string | null;
+  _hiddenOtherOrInitial: string | null;
+  _hiddenNameOfEntity: string | null;
 }
 
 export interface CompletingAction {
@@ -743,23 +799,25 @@ export interface CompletingAction {
 }
 
 export interface InvolvedIn {
+  linkToSub?: string;
   _id?: string;
-  partyKey: string | null;
-  surname: string | null;
-  givenName: string | null;
-  otherOrInitial: string | null;
-  nameOfEntity: string | null;
+  _hiddenPartyKey: string | null;
+  _hiddenSurname: string | null;
+  _hiddenGivenName: string | null;
+  _hiddenOtherOrInitial: string | null;
+  _hiddenNameOfEntity: string | null;
   accountNumber: string | null;
   identifyingNumber: string | null;
 }
 
 export interface Beneficiary {
+  linkToSub?: string;
   _id?: string;
-  partyKey: string | null;
-  surname: string | null;
-  givenName: string | null;
-  otherOrInitial: string | null;
-  nameOfEntity: string | null;
+  _hiddenPartyKey: string | null;
+  _hiddenSurname: string | null;
+  _hiddenGivenName: string | null;
+  _hiddenOtherOrInitial: string | null;
+  _hiddenNameOfEntity: string | null;
 }
 
 export type StrTransactionDataColumnKey =
@@ -780,9 +838,9 @@ export type AddPrefixToObject<T, P extends string> = {
   [K in keyof T as K extends string ? `${P}${K}` : never]: T[K];
 };
 
-export type WithVersion<T = object> = T & {
+export type WithETag<T = object> = T & {
   /**
    * The last session in which the txn was edited not necessarily current session version.
    */
-  etag: number | null;
+  eTag?: number;
 };

@@ -1,10 +1,12 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { delay, map, of, timer } from 'rxjs';
+import { map, Observable, shareReplay, timer } from 'rxjs';
+// import { SUBJECT_INFO_BY_PARTY_KEY_DEV_OR_TEST_ONLY_FIXTURE } from '../aml/case-record.state.fixture';
 import { ReviewPeriod } from '../aml/case-record.store';
 import { TableSelectionType } from '../transaction-view/transaction-view.component';
-import { ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE } from '../aml/case-record.state.fixture';
-import { TRANSACTION_SEARCH_RES_DEV_ONLY } from './transaction-search.data.fixture';
+import { SourceSysRefreshTimeData } from './source-refresh-selectable-table/source-refresh-selectable-table.component';
+// import { TRANSACTION_SEARCH_RES_DEV_ONLY } from './transaction-search.data.fixture';
+// import { ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE } from '../aml/case-record.state.fixture';
 
 @Injectable({
   providedIn: 'root',
@@ -12,10 +14,37 @@ import { TRANSACTION_SEARCH_RES_DEV_ONLY } from './transaction-search.data.fixtu
 export class TransactionSearchService {
   private http = inject(HttpClient);
 
-  getPartyAccountInfoByAmlId(amlId: string) {
-    return timer(1000).pipe(
-      map(() => ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE),
+  getAmlPartyAccountInfo(amlId: string) {
+    // return timer(1000).pipe(
+    //   map(() => ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE),
+    // );
+    return this.http.get<GetAmlPartyAccountInfoRes>(
+      `/api/aml/${amlId}/partyaccountinfo`,
     );
+  }
+
+  private cachedObservablesGetPartyInfo = new Map<
+    string,
+    Observable<GetPartyInfoRes>
+  >();
+
+  getPartyInfo(partyKey: string) {
+    // return timer(100).pipe(
+    //   map(() => {
+    //     return SUBJECT_INFO_BY_PARTY_KEY_DEV_OR_TEST_ONLY_FIXTURE.find(
+    //       (sub) => sub._hiddenPartyKey === _hiddenPartyKey,
+    //     );
+    //   }),
+    // );
+    if (!this.cachedObservablesGetPartyInfo.has(partyKey)) {
+      const request$ = this.http
+        .get<GetPartyInfoRes>(`/api/aml/partyinfo/${partyKey}`)
+        .pipe(shareReplay(1));
+
+      this.cachedObservablesGetPartyInfo.set(partyKey, request$);
+    }
+
+    return this.cachedObservablesGetPartyInfo.get(partyKey)!;
   }
 
   static getProductInfo() {
@@ -64,10 +93,10 @@ export class TransactionSearchService {
         TransactionSearchService.getSourceSystemInfo().map(
           (src) =>
             ({
-              value: src,
+              sourceSys: src,
               refresh: new Date(),
               isDisabled: false,
-            }) as SourceSysRefreshTime,
+            }) as SourceSysRefreshTimeData,
         ),
       ),
     );
@@ -98,40 +127,66 @@ export class TransactionSearchService {
     ];
   }
 
-  searchTransactions(payload: TransactionSearchRequest) {
-    return of(TRANSACTION_SEARCH_RES_DEV_ONLY).pipe(delay(200));
-    // return this.http.post<TransactionSearchResponse>(
-    //   '/api/transactions/search',
-    //   payload,
+  searchTransactions(searchParams: TransactionSearchRequest) {
+    // return of(TRANSACTION_SEARCH_RES_DEV_ONLY).pipe(delay(200));
+    return this.http.post<TransactionSearchResponse>(
+      '/api/transaction/search',
+      searchParams,
+    );
+  }
+
+  private cachedObservablesGetAccountInfo = new Map<
+    string,
+    Observable<GetAccountInfoRes>
+  >();
+
+  getAccountInfo(accountNumber: string | number) {
+    // return timer(1000).pipe(
+    //   map(() => ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE),
     // );
+
+    if (!this.cachedObservablesGetAccountInfo.has(String(accountNumber))) {
+      const request$ = this.http
+        .get<GetAccountInfoRes>(`/api/aml/accountinfo/${accountNumber}`)
+        .pipe(shareReplay(1));
+
+      this.cachedObservablesGetAccountInfo.set(String(accountNumber), request$);
+    }
+
+    return this.cachedObservablesGetAccountInfo.get(String(accountNumber))!;
   }
 }
 
-export interface SourceSys {
-  value: string;
+export interface GetAccountInfoRes {
+  id: string;
+  fiuNo: string;
+  branch: string;
+  account: string;
+  accountType: string;
+  accountTypeOther: null;
+  accountOpen: string;
+  accountClose: string;
+  accountStatus: string;
+  accountCurrency: string;
+  accountHolders: {
+    partyKey: string;
+  }[];
 }
 
-export interface SourceSysRefreshTime {
-  value: string;
-  refresh?: string | Date;
-  isDisabled: boolean;
-}
-
-export interface AccountNumber {
-  value: string;
-}
-
-export interface PartyKey {
-  value: string;
+export interface AccountNumberSelection {
+  transit: string;
+  account: string;
 }
 
 interface TransactionSearchRequest {
   partyKeysSelection: string[];
-  accountNumbersSelection: string[];
+  accountNumbersSelection: AccountNumberSelection[];
   sourceSystemsSelection: string[];
   productTypesSelection: string[];
   reviewPeriodSelection: ReviewPeriod[];
 }
+
+export type SEARCH_SOURCE_ID = TransactionSearchResponse[number]['sourceId'];
 
 export type TransactionSearchResponse = (
   | {
@@ -155,9 +210,14 @@ export type TransactionSearchResponse = (
       sourceData: EmtSourceData[];
     }
   | {
-      sourceId: 'Wires';
+      sourceId: 'Wire';
       status: 'completed' | 'failed';
       sourceData: WireSourceData[];
+    }
+  | {
+      sourceId: 'OTC';
+      status: 'completed' | 'failed';
+      sourceData: OTCSourceData[];
     }
 )[];
 
@@ -266,7 +326,7 @@ export type OlbSourceData = {
   caseEcif: string;
   caseTransitNumber: string;
   channelCd: string;
-  conductor: null;
+  conductor: string | null;
   crdrCode: string;
   creditAmount: number;
   creditedAccount: string;
@@ -277,11 +337,11 @@ export type OlbSourceData = {
   cust2AddrPostalZipCode: null;
   cust2AddrProvStateName: null;
   cust2OrgLegalName: null;
-  customer1AccountHolderCifId: null;
-  customer1AccountStatus: string;
-  customer2AccountCurrencyCode: string;
-  customer2AccountHolderCifId: string;
-  customer2AccountStatus: string;
+  customer1AccountHolderCifId: string | null;
+  customer1AccountStatus: string | null;
+  customer2AccountCurrencyCode: string | null;
+  customer2AccountHolderCifId: string | null;
+  customer2AccountStatus: string | null;
   debitAmount: null;
   debitedAccount: null;
   debitedTransit: null;
@@ -446,9 +506,9 @@ export type AbmSourceData = {
   sourceTransactionId: string;
   splittableColumnValue: number;
   splittingDelimiter: string;
-  strCaAccount: number;
+  strCaAccount: number | null;
   strCaAccountCurrency: string;
-  strCaAccountHolderCifId: string;
+  strCaAccountHolderCifId: string | null;
   strCaAccountStatus: string;
   strCaAmount: number;
   strCaBeneficiaryInd: string;
@@ -463,9 +523,9 @@ export type AbmSourceData = {
   strCaInvolvedInInd: string;
   strReportingEntity: string;
   strReportingEntityOpp: string;
-  strSaAccount: null;
+  strSaAccount: number | null;
   strSaAccountCurrency: null;
-  strSaAccountHoldersCifId: null;
+  strSaAccountHoldersCifId: string | null;
   strSaAccountStatus: null;
   strSaAmount: number;
   strSaBranch: null;
@@ -539,9 +599,9 @@ export interface WireSourceData {
   creditorld: string;
   currencyConversionRate: null;
   custld: null;
-  customer1AccountHolderCifId: string;
+  customer1AccountHolderCifId: string | null;
   customer1AccountStatus: string;
-  customer2AccountHolderCifId: null;
+  customer2AccountHolderCifId: string | null;
   customer2AccountStatus: null;
   deviceType: null;
   ecifMatchLeve1: string;
@@ -646,9 +706,142 @@ export interface WireSourceData {
   wireRole: string;
 }
 
+export interface OTCSourceData {
+  accountCurrency: string;
+  accountNumber: string;
+  acctCurrAmount: number;
+  acctHoldersAll: string;
+  actualCurrencyCD: string;
+  aggregatedCheques: number;
+  amlId: number;
+  branchTransit: number;
+  cardNumber: string;
+  caseAccountNumber: string;
+  caseEcif: string;
+  caseTransitNumber: string;
+  cdtAcctShortName: string;
+  channelCd: string;
+  chequeBreakdown: string;
+  conductor: string;
+  crdrCode: string;
+  creditAmount: number;
+  creditedAccount: string;
+  creditedTransit: string;
+  creditorId: string;
+  customer1AccountHolderCifId: string;
+  customer1AccountStatus: string;
+  customer2AccountCurrencyCode: null;
+  customer2AccountHolderCifId: null;
+  customer2AccountStatus: null;
+  dbtAcctShortName: string;
+  debitAmount: null;
+  debitedAccount: null;
+  debitedTransit: null;
+  flowOfFundsAccountCurrency: string;
+  flowOfFundsAmlId: number;
+  flowOfFundsAmlTransactionId: string;
+  flowOfFundsCasePartyKey: number;
+  flowOfFundsConductorPartyKey: number;
+  flowOfFundsCreditAmount: number;
+  flowOfFundsCreditedAccount: string;
+  flowOfFundsCreditedTransit: string;
+  flowOfFundsDebitAmount: null;
+  flowOfFundsDebitedAccount: null;
+  flowOfFundsDebitedTransit: null;
+  flowOfFundsPostingDate: string;
+  flowOfFundsSource: string;
+  flowOfFundsSourceTransactionId: string;
+  flowOfFundsTransactionCurrency: string;
+  flowOfFundsTransactionCurrencyAmount: number;
+  flowOfFundsTransactionDate: string;
+  flowOfFundsTransactionDesc: string;
+  flowOfFundsTransactionTime: string;
+  executionLocalDateTime: number;
+  holdingBranchKey: string;
+  oppAccountNumber: null;
+  oppProdType: null;
+  oppTransitNumber: null;
+  origCurrAmount: number;
+  origcurrCashAmount: number;
+  origCurrencyCD: string;
+  postingDate: string;
+  processingDate: string;
+  rowUpdateDate: number;
+  sequenceNumberDescr: string;
+  sourceTransactionId: string;
+  splittableColumnValue: number;
+  splittingDelimiter: string;
+  strCaAccount: number;
+  strCaAccountCurrency: string;
+  strCaAccountHolderCifId: string | null;
+  strCaAccountStatus: string;
+  strCaAmount: number;
+  strCaBeneficiaryInd: string;
+  strCaBranch: number;
+  strCaCurrency: string;
+  strCaDispositionType: string;
+  strCaDispositionTypeOpp: null;
+  strCaDispositionTypeOther: null;
+  strCaDispositionTypeOtherOpp: null;
+  strCaFiNumber: string;
+  strCaInvolvedInCifId: null;
+  strCaInvolvedInInd: string;
+  strReportingEntity: string;
+  strReportingEntityOpp: string;
+  strSaAccount: null;
+  strSaAccountCurrency: null;
+  strSaAccountHoldersCifId: string | null;
+  strSaAccountStatus: null;
+  strSaAmount: number;
+  strSaBranch: null;
+  strSaConductorInd: string;
+  strSaCurrency: string;
+  strSaDirection: string;
+  strSaDirectionOpp: null;
+  strSaFiNumber: null;
+  strSaFundingSourceInd: string;
+  strSaFundsType: string;
+  strSaFundsTypeOpp: null;
+  strSaFundsTypeOther: null;
+  strSaFundsTypeOtherOpp: null;
+  strSaOboInd: string;
+  strSaPostingDate: null;
+  strSaPurposeOfTransaction: null;
+  strTransactionStatus: string;
+  systemJournalId: null;
+  tellerId: null;
+  transactionCurrency: string;
+  transactionCurrencyAmount: number;
+  transactionDate: string;
+  transactionDescription: string;
+  transactionExecutionLocalTimestamp: string;
+  transactionId: string;
+  transactionTime: string;
+  sourceId: string;
+}
+
 export type SourceData =
   TransactionSearchResponse[number]['sourceData'][number];
 
 interface TableRecordUiProps {
   _uiPropHighlightColor?: string;
+}
+
+interface GetAmlPartyAccountInfoRes {
+  amlId: string;
+  partyKeys: {
+    partyKey: string;
+    accountModels: {
+      accountTransit?: string;
+      accountNumber: string;
+    }[];
+  }[];
+}
+
+export interface GetPartyInfoRes {
+  partyKey: string;
+  surname: string;
+  givenName: string;
+  otherOrInitial: string;
+  nameOfEntity: string;
 }

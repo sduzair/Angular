@@ -2,14 +2,14 @@ import { MARKED_AS_CLEARED } from '../reporting-ui/edit-form/mark-as-cleared.dir
 import {
   StartingAction,
   StrTransaction,
-  WithVersion,
+  WithETag,
 } from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import { DeepPartial } from '../test-helpers';
 import * as ChangeLog from './change-log';
 
 describe('ChangeLog', () => {
-  let transactionBefore: WithVersion<DeepPartial<StrTransaction>> = null!;
-  let transactionAfter: WithVersion<DeepPartial<StrTransaction>> = null!;
+  let transactionBefore: WithETag<DeepPartial<StrTransaction>> = null!;
+  let transactionAfter: WithETag<DeepPartial<StrTransaction>> = null!;
 
   beforeEach(() => {
     // Mock StrTransaction structure
@@ -20,8 +20,8 @@ describe('ChangeLog', () => {
           currency: 'CAD',
         },
       ],
-      etag: 0,
-    } satisfies WithVersion<DeepPartial<StrTransaction>>;
+      eTag: 0,
+    } satisfies WithETag<DeepPartial<StrTransaction>>;
     transactionBefore = structuredClone(mockTransaction);
     transactionAfter = structuredClone(mockTransaction);
   });
@@ -721,13 +721,13 @@ describe('ChangeLog', () => {
         transactionBefore.startingActions = [
           {
             wasCondInfoObtained: true,
-            conductors: [{ givenName: 'jon' }],
+            conductors: [{ _hiddenGivenName: 'jon' }],
           },
         ];
         transactionAfter.startingActions = [
           {
             wasCondInfoObtained: false,
-            conductors: [{ givenName: 'jon' }],
+            conductors: [{ _hiddenGivenName: 'jon' }],
           },
         ];
 
@@ -742,10 +742,10 @@ describe('ChangeLog', () => {
             hasAccountHolders: true,
             accountHolders: [
               {
-                givenName: 'jon',
+                _hiddenGivenName: 'jon',
               },
               {
-                givenName: 'doe',
+                _hiddenGivenName: 'doe',
               },
             ],
           },
@@ -756,7 +756,7 @@ describe('ChangeLog', () => {
             hasAccountHolders: null,
             accountHolders: [
               {
-                givenName: 'mike',
+                _hiddenGivenName: 'mike',
               },
             ],
           },

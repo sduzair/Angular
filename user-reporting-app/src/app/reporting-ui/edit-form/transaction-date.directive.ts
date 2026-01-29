@@ -3,7 +3,11 @@ import { ControlValueAccessor, NgControl } from '@angular/forms';
 import { MatDatepickerInput } from '@angular/material/datepicker';
 import { format, isValid, parse } from 'date-fns';
 
-const TRANSACTION_DATE_INPUT_FORMATS = ['yyyy/MM/dd', 'MM/dd/yyyy'] as const;
+const TRANSACTION_DATE_INPUT_FORMATS = [
+  'yyyy/MM/dd',
+  'MM/dd/yyyy',
+  'yyyy-MM-dd',
+] as const;
 const TRANSACTION_DATE_OUTPUT_FORMAT = 'yyyy/MM/dd';
 
 @Directive({
@@ -39,6 +43,10 @@ export class TransactionDateDirective implements ControlValueAccessor {
     try {
       parsedDate = TransactionDateDirective.parse(value);
     } catch (error) {
+      console.error(
+        '🚀 ~ TransactionDateDirective ~ writeValue ~ error:',
+        error,
+      );
       this.errorHandler.handleError(error);
     }
 
@@ -66,14 +74,14 @@ export class TransactionDateDirective implements ControlValueAccessor {
       if (!isValid(parsedDate)) continue;
       return parsedDate;
     }
-    throw new ParsingError('Transaction date', dateStr);
+    throw new ParsingError(`Transaction date ${dateStr}`, dateStr);
   }
   static format(date: Date) {
     return format(date, TRANSACTION_DATE_OUTPUT_FORMAT);
   }
 }
 
-class ParsingError extends Error {
+export class ParsingError extends Error {
   constructor(message: string, val: string, name = 'Parsing Error') {
     super(`[${name}]: ${message}`);
     this.name = name;
