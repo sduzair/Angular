@@ -14,9 +14,9 @@ import {
 import {
   FlowOfFundsSourceData,
   GetAccountInfoRes,
-  GetPartyInfoRes,
   OTCSourceData,
 } from '../../transaction-search/transaction-search.service';
+import { PartyGenType } from './party-gen.service';
 
 /**
  * Transform CBFE mixed deposit transaction into StrTransactionWithChangeLogs format
@@ -24,16 +24,18 @@ import {
 export function transformOTCToStrTransaction({
   sourceTxn,
   fofTxn,
-  getPartyInfo,
+  generateParty,
   getAccountInfo,
   caseRecordId,
 }: {
   sourceTxn: OTCSourceData;
   fofTxn: FlowOfFundsSourceData;
-  getPartyInfo: (_hiddenPartyKey: string) => Observable<GetPartyInfoRes>;
+  generateParty: (
+    party: Omit<PartyGenType, 'partyIdentifier'>,
+  ) => Observable<PartyGenType | null>;
   getAccountInfo: (account: string) => Observable<GetAccountInfoRes>;
   caseRecordId: string;
-}): Observable<StrTransactionWithChangeLogs> {
+}) {
   // Collect all party keys and account info we need to fetch
   const partyKeysToFetch = new Set<string>();
   const accountsToFetch = new Set<string>();
@@ -91,49 +93,23 @@ export function transformOTCToStrTransaction({
       // Fetch all party info in parallel
       const partyInfoObservables: Record<
         string,
-        Observable<GetPartyInfoRes | null>
+        Observable<PartyGenType | null>
       > = {};
-      Array.from(partyKeysToFetch).forEach((key) => {
-        partyInfoObservables[key] = getPartyInfo(key);
+
+      Array.from(partyKeysToFetch).forEach((partyKey) => {
+        partyInfoObservables[partyKey] = generateParty({
+          identifiers: { partyKey },
+        });
       });
 
       return forkJoin({
         partiesInfo:
-          partyKeysToFetch.size > 0
+          Object.keys(partyInfoObservables).length > 0
             ? forkJoin(partyInfoObservables)
-            : of({} as Record<string, GetPartyInfoRes | null>),
+            : of({} as Record<string, PartyGenType | null>),
       }).pipe(map(({ partiesInfo }) => ({ partiesInfo, accountsInfo })));
     }),
     map(({ partiesInfo, accountsInfo }) => {
-      // Helper to map party info
-      const mapPartyInfo = (
-        _hiddenPartyKey: string | null,
-      ): {
-        _hiddenPartyKey: string | null;
-        _hiddenSurname: string | null;
-        _hiddenGivenName: string | null;
-        _hiddenOtherOrInitial: string | null;
-        _hiddenNameOfEntity: string | null;
-      } => {
-        if (!_hiddenPartyKey) {
-          return {
-            _hiddenPartyKey: null,
-            _hiddenSurname: null,
-            _hiddenGivenName: null,
-            _hiddenOtherOrInitial: null,
-            _hiddenNameOfEntity: null,
-          };
-        }
-        const info = partiesInfo[_hiddenPartyKey];
-        return {
-          _hiddenPartyKey,
-          _hiddenSurname: info?.surname || null,
-          _hiddenGivenName: info?.givenName || null,
-          _hiddenOtherOrInitial: info?.otherOrInitial || null,
-          _hiddenNameOfEntity: info?.nameOfEntity || null,
-        };
-      };
-
       // Parse cheque amount from chequeBreakdown field
       const parseChequeAmount = (): number => {
         if (!sourceTxn.chequeBreakdown) {
@@ -152,28 +128,33 @@ export function transformOTCToStrTransaction({
 
       // Build conductors (shared between both starting actions)
       const conductors: Conductor[] = [];
-      if (sourceTxn.flowOfFundsConductorPartyKey) {
-        const conductorInfo = mapPartyInfo(
-          String(sourceTxn.flowOfFundsConductorPartyKey),
-        );
-        conductors.push({
-          ...conductorInfo,
-          wasConductedOnBehalf: sourceTxn.strSaOboInd === 'Yes',
-          onBehalfOf: [],
-          npdTypeOfDevice: null,
-          npdTypeOfDeviceOther: null,
-          npdDeviceIdNo: null,
-          npdUsername: null,
-          npdIp: null,
-          npdDateTimeSession: null,
-          npdTimeZone: null,
-        });
-      }
+
+      const conductorPartyKey = String(sourceTxn.flowOfFundsConductorPartyKey);
+
+      conductors.push({
+        linkToSub: partiesInfo[conductorPartyKey]?.partyIdentifier,
+        _hiddenPartyKey: partiesInfo[conductorPartyKey]?.identifiers?.partyKey!,
+        _hiddenGivenName:
+          partiesInfo[conductorPartyKey]?.partyName?.givenName ?? null,
+        _hiddenSurname:
+          partiesInfo[conductorPartyKey]?.partyName?.surname ?? null,
+        _hiddenOtherOrInitial:
+          partiesInfo[conductorPartyKey]?.partyName?.otherOrInitial ?? null,
+        _hiddenNameOfEntity:
+          partiesInfo[conductorPartyKey]?.partyName?.nameOfEntity ?? null,
+        wasConductedOnBehalf: sourceTxn.strSaOboInd === 'Yes',
+        onBehalfOf: [],
+        npdTypeOfDevice: null,
+        npdTypeOfDeviceOther: null,
+        npdDeviceIdNo: null,
+        npdUsername: null,
+        npdIp: null,
+        npdDateTimeSession: null,
+        npdTimeZone: null,
+      });
 
       // Build starting actions - separate for cash and cheque
       const startingActions: StartingAction[] = [];
-
-      //   const saAccountInfo = accountsInfo[sourceTxn.strSaAccount!];
 
       // Add cheque starting action for cheque amount
       startingActions.push({
@@ -193,7 +174,7 @@ export function transformOTCToStrTransaction({
         howFundsObtained: null,
         accountCurrency: null,
         hasAccountHolders: false,
-        accountHolders: undefined,
+        accountHolders: [],
         wasSofInfoObtained: false,
         sourceOfFunds: [],
         wasCondInfoObtained: conductors.length > 0,
@@ -218,7 +199,7 @@ export function transformOTCToStrTransaction({
         howFundsObtained: null,
         accountCurrency: null,
         hasAccountHolders: false,
-        accountHolders: undefined,
+        accountHolders: [],
         wasSofInfoObtained: sourceTxn.strSaFundingSourceInd === 'Yes',
         sourceOfFunds: [],
         wasCondInfoObtained: conductors.length > 0,
@@ -228,16 +209,21 @@ export function transformOTCToStrTransaction({
       // Build completing actions
       const completingActions: CompletingAction[] = [];
 
-      const caAccountInfo = accountsInfo[sourceTxn.strCaAccount!];
-
       // Build account holders from strCaAccountHolderCifId
-      const accountHolders: AccountHolder[] = [];
-      if (sourceTxn.strCaAccountHolderCifId) {
-        const holderKeys = sourceTxn.strCaAccountHolderCifId.split(/[;:]/);
-        holderKeys.forEach((key) => {
-          accountHolders.push(mapPartyInfo(key.trim()));
-        });
-      }
+      const caAccountHolders =
+        sourceTxn.strCaAccountHolderCifId?.split(/[;:]/).reduce((acc, key) => {
+          acc.push({
+            linkToSub: partiesInfo[key]?.partyIdentifier,
+            _hiddenPartyKey: partiesInfo[key]?.identifiers?.partyKey!,
+            _hiddenGivenName: partiesInfo[key]?.partyName?.givenName ?? null,
+            _hiddenSurname: partiesInfo[key]?.partyName?.surname ?? null,
+            _hiddenOtherOrInitial:
+              partiesInfo[key]?.partyName?.otherOrInitial ?? null,
+            _hiddenNameOfEntity:
+              partiesInfo[key]?.partyName?.nameOfEntity ?? null,
+          });
+          return acc;
+        }, [] as AccountHolder[]) ?? [];
 
       completingActions.push({
         detailsOfDispo:
@@ -250,20 +236,26 @@ export function transformOTCToStrTransaction({
         fiuNo: sourceTxn.strCaFiNumber,
         branch: String(sourceTxn.strCaBranch),
         account: String(sourceTxn.strCaAccount),
-        accountType: caAccountInfo?.accountType || null,
+        accountType: accountsInfo[sourceTxn.strCaAccount!]?.accountType || null,
         accountTypeOther: null,
-        accountCurrency: caAccountInfo?.accountCurrency ?? null,
-        accountOpen: caAccountInfo?.accountOpen || null,
-        accountClose: caAccountInfo?.accountClose || null,
+        accountCurrency:
+          accountsInfo[sourceTxn.strCaAccount!]?.accountCurrency ?? null,
+        accountOpen: accountsInfo[sourceTxn.strCaAccount!]?.accountOpen || null,
+        accountClose:
+          accountsInfo[sourceTxn.strCaAccount!]?.accountClose || null,
         accountStatus:
-          caAccountInfo?.accountStatus || sourceTxn.strCaAccountStatus,
-        hasAccountHolders: accountHolders.length > 0,
-        accountHolders: accountHolders.length > 0 ? accountHolders : undefined,
+          accountsInfo[sourceTxn.strCaAccount!]?.accountStatus ||
+          sourceTxn.strCaAccountStatus,
+        hasAccountHolders: caAccountHolders.length > 0,
+        accountHolders:
+          caAccountHolders.length > 0 ? caAccountHolders : undefined,
         wasAnyOtherSubInvolved: sourceTxn.strCaInvolvedInInd === 'Yes',
         involvedIn: sourceTxn.strCaInvolvedInInd === 'Yes' ? [] : undefined,
         wasBenInfoObtained: sourceTxn.strCaBeneficiaryInd === 'Yes',
         beneficiaries:
-          sourceTxn.strCaBeneficiaryInd === 'Yes' ? accountHolders : undefined,
+          sourceTxn.strCaBeneficiaryInd === 'Yes'
+            ? caAccountHolders
+            : undefined,
       });
 
       const { flowOfFundsTransactionDesc } = fofTxn;
@@ -319,7 +311,10 @@ export function transformOTCToStrTransaction({
         _hiddenValidation: [],
       };
 
-      return transformed;
+      return {
+        selection: transformed,
+        parties: Object.values(partiesInfo) as PartyGenType[],
+      };
     }),
   );
 }

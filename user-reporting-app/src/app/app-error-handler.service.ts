@@ -8,13 +8,16 @@ export class AppErrorHandlerService implements ErrorHandler {
   handleError(error: unknown): void {
     if (
       error instanceof HttpErrorResponse &&
+      error.error &&
       error.status === HttpStatusCode.Conflict &&
+      typeof error.error === 'object' &&
       'message' in error.error
     ) {
       this.snackbarQ.open(error.error.message, 'Dismiss');
     } else if (
       error instanceof HttpErrorResponse &&
       error.error &&
+      typeof error.error === 'object' &&
       'message' in error.error
     ) {
       const msg: string = error.error.message;

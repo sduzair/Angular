@@ -1,15 +1,24 @@
 import { of, throwError } from 'rxjs';
-import { GetPartyInfoRes } from '../../transaction-search/transaction-search.service';
 import { FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE } from '../edit-form/form-options.fixture';
 import { ManualTransactionBuilder } from './manual-transaction-builder';
 import { ColumnHeaderLabels } from './manual-upload-stepper.component';
+import {
+  PartyGenService,
+  PartyGenType,
+} from '../../transaction-view/transform-to-str-transaction/party-gen.service';
+import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 
 describe('ManualTransactionBuilder', () => {
-  let mockGetPartyInfo: jasmine.Spy;
+  let mockPartyGenService: jasmine.SpyObj<PartyGenService>;
   let baseValue: Record<ColumnHeaderLabels, string | null>;
 
   beforeEach(() => {
-    mockGetPartyInfo = jasmine.createSpy('getPartyInfo');
+    mockPartyGenService = jasmine.createSpyObj('PartyGenService', [
+      'generateParty',
+    ]);
+
+    // Default mock: return null for parties (no conductor/beneficiary)
+    mockPartyGenService.generateParty.and.returnValue(of(null));
 
     baseValue = {
       'AML Id': '123',
@@ -36,12 +45,12 @@ describe('ManualTransactionBuilder', () => {
       'Credit Account': 'ACC456',
       'Credit Account Type': 'Business',
       'Conductor Party Key': null,
-      'Conductor _hiddenSurname': null,
+      'Conductor Surname': null,
       'Conductor Given Name': null,
       'Conductor Other Name': null,
       'Conductor Entity Name': null,
       'Beneficiary Party Key': null,
-      'Beneficiary _hiddenSurname': null,
+      'Beneficiary Surname': null,
       'Beneficiary Given Name': null,
       'Beneficiary Other Name': null,
       'Beneficiary Entity Name': null,
@@ -53,7 +62,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
 
       expect(builder).toBeTruthy();
@@ -65,12 +74,12 @@ describe('ManualTransactionBuilder', () => {
       const builder1 = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       const builder2 = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
 
       expect(builder1.flowOfFundsAmlTransactionId).toMatch(/^MTXN-/);
@@ -92,7 +101,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         valueWithSpaces,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       builder.trimValues();
 
@@ -107,7 +116,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       builder.trimValues();
 
@@ -118,7 +127,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       const result = builder.trimValues();
 
@@ -131,7 +140,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       builder.withMetadata();
 
@@ -143,7 +152,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       const result = builder.withMetadata();
 
@@ -156,7 +165,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       builder.withBasicInfo();
 
@@ -186,7 +195,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         valueWithPosting,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       builder.withBasicInfo();
 
@@ -203,7 +212,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         valueWithUnknownMethod,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
 
       builder.withBasicInfo();
@@ -217,7 +226,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       const result = builder.withBasicInfo();
 
@@ -230,7 +239,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       builder.withFlowOfFundsInfo();
 
@@ -252,7 +261,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         valueWithoutAmlId,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       builder.withFlowOfFundsInfo();
 
@@ -263,7 +272,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       const result = builder.withFlowOfFundsInfo();
 
@@ -276,7 +285,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       builder.withStartingAction();
 
@@ -308,7 +317,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         valueWithUnknownFields,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
 
       builder.withStartingAction();
@@ -327,7 +336,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       const result = builder.withStartingAction();
 
@@ -338,7 +347,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       const result = builder.withStartingAction();
 
@@ -363,7 +372,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       builder.withCompletingAction();
 
@@ -391,7 +400,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         valueWithUnknownDispo,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
 
       builder.withCompletingAction();
@@ -406,7 +415,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       const result = builder.withCompletingAction();
 
@@ -417,7 +426,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       const result = builder.withCompletingAction();
 
@@ -444,7 +453,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       builder['validationErrors'] = ['invalidDate', 'invalidTime'];
       builder.withValidationErrors();
@@ -457,7 +466,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       builder['validationErrors'] = ['invalidDate'];
       builder.withValidationErrors();
@@ -470,7 +479,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
       const result = builder.withValidationErrors();
 
@@ -480,25 +489,42 @@ describe('ManualTransactionBuilder', () => {
 
   describe('build', () => {
     it('should build complete transaction with conductor and beneficiary from party keys', (done) => {
-      const mockConductorParty: GetPartyInfoRes = {
-        _hiddenPartyKey: 'PARTY001',
-        _hiddenSurname: 'Doe',
-        _hiddenGivenName: 'John',
-        _hiddenOtherOrInitial: 'M',
-        _hiddenNameOfEntity: '',
+      const mockConductorParty: PartyGenType = {
+        partyIdentifier: 'hash-party-001',
+        partyName: {
+          surname: 'Doe',
+          givenName: 'John',
+          otherOrInitial: 'M',
+          nameOfEntity: null,
+        },
+        identifiers: {
+          partyKey: 'PARTY001',
+        },
       };
 
-      const mockBeneficiaryParty: GetPartyInfoRes = {
-        _hiddenPartyKey: 'PARTY002',
-        _hiddenSurname: 'Smith',
-        _hiddenGivenName: 'Jane',
-        _hiddenOtherOrInitial: '',
-        _hiddenNameOfEntity: '',
+      const mockBeneficiaryParty: PartyGenType = {
+        partyIdentifier: 'hash-party-002',
+        partyName: {
+          surname: 'Smith',
+          givenName: 'Jane',
+          otherOrInitial: null,
+          nameOfEntity: null,
+        },
+        identifiers: {
+          partyKey: 'PARTY002',
+        },
       };
 
-      mockGetPartyInfo.and.returnValues(
-        of(mockConductorParty),
-        of(mockBeneficiaryParty),
+      mockPartyGenService.generateParty.and.callFake(
+        (party: Omit<PartyGenType, 'partyIdentifier'>) => {
+          if (party.identifiers?.partyKey === 'PARTY001') {
+            return of(mockConductorParty);
+          }
+          if (party.identifiers?.partyKey === 'PARTY002') {
+            return of(mockBeneficiaryParty);
+          }
+          return of(null);
+        },
       );
 
       const valueWithPartyKeys = {
@@ -510,7 +536,7 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         valueWithPartyKeys,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
 
       builder
@@ -519,7 +545,7 @@ describe('ManualTransactionBuilder', () => {
         .withStartingAction()
         .withCompletingAction()
         .build()
-        .subscribe((transaction) => {
+        .subscribe(({ selection: transaction, parties }) => {
           expect(transaction.startingActions![0].wasCondInfoObtained).toBe(
             true,
           );
@@ -528,6 +554,18 @@ describe('ManualTransactionBuilder', () => {
           expect(
             transaction.startingActions![0].conductors![0]._hiddenPartyKey,
           ).toBe('PARTY001');
+
+          expect(
+            transaction.startingActions![0].conductors![0]._hiddenSurname,
+          ).toBe('Doe');
+
+          expect(
+            transaction.startingActions![0].conductors![0]._hiddenGivenName,
+          ).toBe('John');
+
+          expect(transaction.startingActions![0].conductors![0].linkToSub).toBe(
+            'hash-party-001',
+          );
 
           expect(transaction.completingActions![0].wasBenInfoObtained).toBe(
             true,
@@ -541,22 +579,76 @@ describe('ManualTransactionBuilder', () => {
             transaction.completingActions![0].beneficiaries![0]._hiddenPartyKey,
           ).toBe('PARTY002');
 
+          expect(
+            transaction.completingActions![0].beneficiaries![0]._hiddenSurname,
+          ).toBe('Smith');
+
+          expect(
+            transaction.completingActions![0].beneficiaries![0].linkToSub,
+          ).toBe('hash-party-002');
+
+          expect(parties.length).toBe(2);
+          expect(parties[0]).toEqual(mockConductorParty);
+          expect(parties[1]).toEqual(mockBeneficiaryParty);
+
           done();
         });
     });
 
     it('should build transaction with manual party names when no party keys', (done) => {
-      const valueWithNames = {
+      const valueWithNames: Record<ColumnHeaderLabels, string | null> = {
         ...baseValue,
-        'Conductor _hiddenSurname': 'Doe',
+        'Conductor Surname': 'Doe',
         'Conductor Given Name': 'John',
         'Beneficiary Entity Name': 'Acme Corp',
       };
 
+      // Mock the generateParty responses for conductor and beneficiary
+      const mockConductorParty: PartyGenType = {
+        partyIdentifier: 'hash-conductor-123',
+        discriminatorKey: 'disc-key-1',
+        partyName: {
+          surname: 'Doe',
+          givenName: 'John',
+          otherOrInitial: null,
+          nameOfEntity: null,
+        },
+        identifiers: {
+          partyKey: null,
+        },
+      };
+
+      const mockBeneficiaryParty: PartyGenType = {
+        partyIdentifier: 'hash-beneficiary-456',
+        discriminatorKey: 'disc-key-2',
+        partyName: {
+          surname: null,
+          givenName: null,
+          otherOrInitial: null,
+          nameOfEntity: 'Acme Corp',
+        },
+        identifiers: {
+          partyKey: null,
+        },
+      };
+
+      // Set up spy to return different values based on input
+      mockPartyGenService.generateParty.and.callFake(
+        (party: Omit<PartyGenType, 'partyIdentifier'>) => {
+          if (party.partyName?.surname === 'Doe') {
+            return of(mockConductorParty);
+          }
+          if (party.partyName?.nameOfEntity === 'Acme Corp') {
+            return of(mockBeneficiaryParty);
+          }
+          return of(null as unknown as PartyGenType);
+        },
+      );
+
       const builder = new ManualTransactionBuilder(
         valueWithNames,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
 
       builder
@@ -564,35 +656,48 @@ describe('ManualTransactionBuilder', () => {
         .withStartingAction()
         .withCompletingAction()
         .build()
-        .subscribe((transaction) => {
+        .subscribe(({ selection: transaction, parties }) => {
+          // Verify generateParty was called twice (conductor + beneficiary)
+          expect(mockPartyGenService.generateParty).toHaveBeenCalledTimes(2);
+
+          // Verify conductor
           const conductor = transaction.startingActions![0].conductors![0];
 
           expect(conductor._hiddenSurname).toBe('Doe');
           expect(conductor._hiddenGivenName).toBe('John');
           expect(conductor._hiddenPartyKey).toBeNull();
+          expect(conductor.linkToSub).toBe('hash-conductor-123');
 
+          // Verify beneficiary
           const beneficiary =
             transaction.completingActions![0].beneficiaries![0];
 
           expect(beneficiary._hiddenNameOfEntity).toBe('Acme Corp');
           expect(beneficiary._hiddenPartyKey).toBeNull();
+          expect(beneficiary.linkToSub).toBe('hash-beneficiary-456');
+
+          // Verify parties array
+          expect(parties.length).toBe(2);
+          expect(parties[0]).toEqual(mockConductorParty);
+          expect(parties[1]).toEqual(mockBeneficiaryParty);
 
           done();
         });
     });
 
     it('should handle missing conductor and beneficiary', (done) => {
+      // Default mock already returns null
       const builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
 
       builder
         .withStartingAction()
         .withCompletingAction()
         .build()
-        .subscribe((transaction) => {
+        .subscribe(({ selection: transaction, parties }) => {
           expect(
             transaction.startingActions![0].wasCondInfoObtained,
           ).toBeNull();
@@ -604,13 +709,20 @@ describe('ManualTransactionBuilder', () => {
 
           expect(transaction.completingActions![0].beneficiaries).toEqual([]);
 
+          expect(parties.length).toBe(0);
+
           done();
         });
     });
 
-    it('should add invalidPartyKey error when getPartyInfo fails', (done) => {
-      mockGetPartyInfo.and.returnValue(
-        throwError(() => new Error('Party not found')),
+    it('should add invalidPartyKey error when generateParty fails with 404', (done) => {
+      mockPartyGenService.generateParty.and.returnValue(
+        throwError(
+          () =>
+            ({
+              status: HttpStatusCode.NotFound,
+            }) as HttpErrorResponse,
+        ),
       );
 
       const valueWithInvalidKey = {
@@ -621,16 +733,78 @@ describe('ManualTransactionBuilder', () => {
       const builder = new ManualTransactionBuilder(
         valueWithInvalidKey,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
 
       builder
         .withStartingAction()
         .withCompletingAction()
         .build()
-        .subscribe((transaction) => {
+        .subscribe(({ selection: transaction, parties }) => {
           expect(transaction._hiddenValidation).toContain('invalidPartyKey');
           expect(transaction.startingActions![0].conductors).toEqual([]);
+          expect(parties.length).toBe(0);
+
+          done();
+        });
+    });
+
+    it('should handle both conductor and beneficiary errors independently', (done) => {
+      // Conductor fails, beneficiary succeeds
+      const mockBeneficiaryParty: PartyGenType = {
+        partyIdentifier: 'hash-ben-789',
+        partyName: {
+          surname: 'Valid',
+          givenName: 'Beneficiary',
+          otherOrInitial: null,
+          nameOfEntity: null,
+        },
+        identifiers: {
+          partyKey: 'PARTY-VALID',
+        },
+      };
+
+      let callCount = 0;
+      mockPartyGenService.generateParty.and.callFake(() => {
+        callCount++;
+        if (callCount === 1) {
+          // First call (conductor) fails
+          return throwError(
+            () =>
+              ({
+                status: HttpStatusCode.NotFound,
+              }) as HttpErrorResponse,
+          );
+        }
+        // Second call (beneficiary) succeeds
+        return of(mockBeneficiaryParty);
+      });
+
+      const valueWithMixed = {
+        ...baseValue,
+        'Conductor Party Key': 'INVALID',
+        'Beneficiary Party Key': 'PARTY-VALID',
+      };
+
+      const builder = new ManualTransactionBuilder(
+        valueWithMixed,
+        FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
+      );
+
+      builder
+        .withStartingAction()
+        .withCompletingAction()
+        .build()
+        .subscribe(({ selection: transaction, parties }) => {
+          expect(transaction._hiddenValidation).toContain('invalidPartyKey');
+          expect(transaction.startingActions![0].conductors).toEqual([]);
+          expect(transaction.completingActions![0].beneficiaries!.length).toBe(
+            1,
+          );
+
+          expect(parties.length).toBe(1);
+          expect(parties[0]).toEqual(mockBeneficiaryParty);
 
           done();
         });
@@ -644,7 +818,7 @@ describe('ManualTransactionBuilder', () => {
       builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
     });
 
@@ -675,7 +849,7 @@ describe('ManualTransactionBuilder', () => {
       builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
     });
 
@@ -701,7 +875,7 @@ describe('ManualTransactionBuilder', () => {
       builder = new ManualTransactionBuilder(
         baseValueClone,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
     });
 
@@ -734,7 +908,7 @@ describe('ManualTransactionBuilder', () => {
       builder = new ManualTransactionBuilder(
         baseValueClone,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
     });
 
@@ -760,12 +934,11 @@ describe('ManualTransactionBuilder', () => {
 
   describe('integration: full builder chain', () => {
     it('should build complete transaction using method chaining', (done) => {
-      mockGetPartyInfo.and.returnValues(of(null), of(null));
-
+      // Default mock returns null for parties
       const builder = new ManualTransactionBuilder(
         baseValue,
         FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-        mockGetPartyInfo,
+        mockPartyGenService.generateParty.bind(mockPartyGenService),
       );
 
       builder
@@ -777,7 +950,7 @@ describe('ManualTransactionBuilder', () => {
         .withCompletingAction()
         .withValidationErrors()
         .build()
-        .subscribe((transaction) => {
+        .subscribe(({ selection: transaction, parties }) => {
           expect(transaction.sourceId).toBe('Manual');
           expect(transaction.changeLogs).toEqual([]);
           expect(transaction.dateOfTxn).toBe('2025-01-15');
@@ -786,6 +959,7 @@ describe('ManualTransactionBuilder', () => {
           expect(transaction.completingActions).toBeDefined();
           expect(transaction.startingActions!.length).toBe(1);
           expect(transaction.completingActions!.length).toBe(1);
+          expect(parties.length).toBe(0); // No parties since base values don't have any
 
           done();
         });

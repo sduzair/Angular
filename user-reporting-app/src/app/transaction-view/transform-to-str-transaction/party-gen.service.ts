@@ -1,9 +1,19 @@
 import { inject, Injectable } from '@angular/core';
-import { from, map, Observable, of, switchMap } from 'rxjs';
+import canonicalize from 'canonicalize';
+import {
+  catchError,
+  from,
+  map,
+  Observable,
+  of,
+  switchMap,
+  throwError,
+} from 'rxjs';
 import {
   SEARCH_SOURCE_ID,
   TransactionSearchService,
 } from '../../transaction-search/transaction-search.service';
+import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 
 @Injectable({
   providedIn: 'root',
@@ -19,7 +29,7 @@ export class PartyGenService {
    */
   generateParty(
     party: Omit<PartyGenType, 'partyIdentifier'>,
-  ): Observable<PartyGenType> {
+  ): Observable<PartyGenType | null> {
     return this.enrichPartyData(party).pipe(
       map((enrichedParty) => this.ensureDiscriminatorIfNeeded(enrichedParty)),
       switchMap((partyWithDiscriminator) =>
@@ -30,6 +40,10 @@ export class PartyGenService {
           })),
         ),
       ),
+      catchError((error: HttpErrorResponse) => {
+        if (error.status === HttpStatusCode.NotFound) return of(null);
+        return throwError(() => error);
+      }),
     );
   }
 
@@ -79,7 +93,7 @@ export class PartyGenService {
     }
     // else hash entire party object
     else {
-      hashInput = this.serializeObject(party);
+      hashInput = this.canonicalizeJcs(party);
     }
 
     return this.computeSHA256(hashInput);
@@ -116,38 +130,19 @@ export class PartyGenService {
   }
 
   /**
-   * Serializes entire object into deterministic JSON string.
-   * Sorts keys to ensure consistent hashing regardless of property order.
+   * Canonicalize json string function for repeatable hash generation
    */
-  private serializeObject(obj: unknown): string {
-    return JSON.stringify(obj, this.sortedReplacer());
+  private canonicalizeJcs(obj: unknown): string {
+    const s = canonicalize(obj);
+
+    if (!s) {
+      throw new Error(
+        'Unable to canonicalize object for hashing (non-JSON value?)',
+      );
+    }
+    return s;
   }
 
-  /**
-   * Replacer function that sorts object keys for deterministic JSON.stringify.
-   */
-  private sortedReplacer(): (key: string, value: unknown) => unknown {
-    return (key: string, value: unknown) => {
-      if (value && typeof value === 'object' && !Array.isArray(value)) {
-        return Object.keys(value)
-          .sort()
-          .reduce(
-            (sorted, key) => {
-              // eslint-disable-next-line no-param-reassign
-              sorted[key] = (value as Record<string, unknown>)[key];
-              return sorted;
-            },
-            {} as Record<string, unknown>,
-          );
-      }
-      return value;
-    };
-  }
-
-  /**
-   * Computes SHA-256 hash using Web Crypto API.
-   * Returns observable of hash string.
-   */
   private computeSHA256(input: string): Observable<string> {
     const encoder = new TextEncoder();
     const data = encoder.encode(input);

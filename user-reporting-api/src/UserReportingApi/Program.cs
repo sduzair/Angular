@@ -334,10 +334,15 @@ api.MapGet("/caserecord/{caseRecordId}/selections", async (
     IMongoDatabase database) =>
 {
     var selections = database.GetCollection<Selection>("selections");
-    var filter = Builders<Selection>.Filter.Eq(x => x.CaseRecordId, caseRecordId);
-    var selectionList = await selections.Find(filter).ToListAsync();
+    var parties = database.GetCollection<Party>("parties");
 
-    return Results.Ok(new FetchSelectionsResponse(selectionList));
+    var selectionFilter = Builders<Selection>.Filter.Eq(x => x.CaseRecordId, caseRecordId);
+    var partyFilter = Builders<Party>.Filter.Eq(x => x.CaseRecordId, caseRecordId);
+
+    var selectionList = await selections.Find(selectionFilter).ToListAsync();
+    var partyList = await parties.Find(partyFilter).ToListAsync();
+
+    return Results.Ok(new FetchSelectionsResponse(selectionList, partyList));
 });
 
 api.MapPost("/caserecord/{caseRecordId}/selections/add", async (
@@ -348,8 +353,8 @@ api.MapPost("/caserecord/{caseRecordId}/selections/add", async (
 {
     var caseRecords = database.GetCollection<CaseRecord>("caseRecord");
     var selections = database.GetCollection<Selection>("selections");
+    var parties = database.GetCollection<Party>("parties");
 
-    // Start a session for transaction
     using var session = await mongoClient.StartSessionAsync(cancellationToken: cancellationToken);
 
     var result = await session.WithTransactionAsync(
@@ -366,11 +371,9 @@ api.MapPost("/caserecord/{caseRecordId}/selections/add", async (
 
                 if (caseRecord == null)
                 {
-                    // Return null to signal validation failure
                     return null;
                 }
 
-                // Insert selections within transaction
                 var selectionsToInsert = request.Selections.Select(sel =>
                 {
                     sel.CaseRecordId = caseRecordId;
@@ -379,9 +382,21 @@ api.MapPost("/caserecord/{caseRecordId}/selections/add", async (
                     return sel;
                 }).ToList();
 
-                if (selectionsToInsert.Count != 0)
+                if (selectionsToInsert.Count > 0)
                 {
                     await selections.InsertManyAsync(s, selectionsToInsert, cancellationToken: ct);
+                }
+
+
+                var partiesToInsert = request.Parties.Select(p =>
+                {
+                    p.CaseRecordId = caseRecordId;
+                    return p;
+                }).ToList();
+
+                if (partiesToInsert.Count > 0)
+                {
+                    await parties.InsertManyAsync(s, partiesToInsert, cancellationToken: ct);
                 }
 
                 var currentUser = context.User.Identity?.Name ?? "System";
@@ -402,7 +417,8 @@ api.MapPost("/caserecord/{caseRecordId}/selections/add", async (
 
                 return new AddSelectionsResponse(
                     CaseETag: updatedCase.ETag,
-                    Count: selectionsToInsert.Count,
+                    SelectionCount: selectionsToInsert.Count,
+                    PartyCount: partiesToInsert.Count,
                     LastUpdated: updatedCase.LastUpdated!.Value
                 );
             }, cancellationToken: cancellationToken);

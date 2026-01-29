@@ -41,6 +41,7 @@ export const CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE: CaseRecordState = {
     changeLogs: [],
     caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
   })),
+  parties: [],
 };
 
 export const ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE = {

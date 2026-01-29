@@ -25,10 +25,10 @@ export function transformABMToStrTransaction(
   fofTxn: FlowOfFundsSourceData,
   generateParty: (
     party: Omit<PartyGenType, 'partyIdentifier'>,
-  ) => Observable<PartyGenType>,
+  ) => Observable<PartyGenType | null>,
   getAccountInfo: (account: string) => Observable<GetAccountInfoRes>,
   caseRecordId: string,
-): Observable<StrTransactionWithChangeLogs> {
+) {
   // Collect all party keys and account info we need to fetch
   const partyKeysToFetch = new Set<string>();
   const accountsToFetch = new Set<string>();
@@ -284,7 +284,10 @@ export function transformABMToStrTransaction(
         _hiddenValidation: [],
       };
 
-      return transformed;
+      return {
+        selection: transformed,
+        parties: Object.values(partiesInfo) as PartyGenType[],
+      };
     }),
   );
 }

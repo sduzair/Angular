@@ -10,12 +10,11 @@ using MongoDB.Driver;
 using UserReportingApi.DTOs;
 using UserReportingApi.Entities;
 using UserReportingApi.DTOs.Json;
-using System.Text.Json.Serialization;
 
 namespace UserReportingApi.IntegrationTests;
 
 public class UsersSessionsTests
-    : IClassFixture<CustomWebApplicationFactory>, IDisposable
+    : IClassFixture<CustomWebApplicationFactory>, IAsyncLifetime
 {
     private readonly CustomWebApplicationFactory _factory;
     private readonly IMongoDatabase _testDb;
@@ -38,9 +37,25 @@ public class UsersSessionsTests
         _testDb = client.GetDatabase(_testDbName);
     }
 
-    public void Dispose()
+    public async Task InitializeAsync()
+    {
+        // Create composite unique index on parties collection
+        var parties = _testDb.GetCollection<Party>("parties");
+
+        var indexKeys = Builders<Party>.IndexKeys
+            .Ascending(p => p.PartyIdentifier)
+            .Ascending(p => p.CaseRecordId);
+
+        var indexOptions = new CreateIndexOptions { Unique = true };
+        var indexModel = new CreateIndexModel<Party>(indexKeys, indexOptions);
+
+        await parties.Indexes.CreateOneAsync(indexModel);
+    }
+
+    public Task DisposeAsync()
     {
         _testDb.Client.DropDatabase(_testDbName);
+        return Task.CompletedTask;
     }
 
     #region Transaction Search Tests
@@ -76,7 +91,7 @@ public class UsersSessionsTests
         var sources = JsonSerializer.Deserialize<List<TransactionSourceResponse>>(content, JsonSerializerOptions.Web);
 
         sources.Should().NotBeNull();
-        sources.Should().HaveCount(5); // FlowOfFunds, ABM, OLB, EMT, Wire
+        sources.Should().HaveCount(6); // FlowOfFunds, ABM, OLB, EMT, Wire, OTC
 
         var fofSource = sources!.First(s => s.SourceId == "FlowOfFunds");
         fofSource.Status.Should().Be("completed");
@@ -239,32 +254,47 @@ public class UsersSessionsTests
 
     #endregion
 
-    #region Selections Tests
+    #region Selections and Parties Tests
 
     [Fact]
-    public async Task FetchSelections_ReturnsAllSelectionsForCaseRecord()
+    public async Task FetchSelections_ReturnsAllSelectionsAndPartiesForCaseRecord()
     {
         // Arrange
         var caseRecordId = Guid.NewGuid().ToString();
         var selections = new[]
         {
-            new Selection
-            {
-                CaseRecordId = caseRecordId,
-                FlowOfFundsAmlTransactionId = "txn-1",
-                ETag = 0,
-                ExtraElements = new Dictionary<string, object?> { ["amount"] = 100 }
-            },
-            new Selection
-            {
-                CaseRecordId = caseRecordId,
-                FlowOfFundsAmlTransactionId = "txn-2",
-                ETag = 2,
-                ExtraElements = new Dictionary<string, object?> { ["amount"] = 200 }
-            }
-        };
+        new Selection
+        {
+            CaseRecordId = caseRecordId,
+            FlowOfFundsAmlTransactionId = "txn-1",
+            ETag = 0,
+            ExtraElements = new Dictionary<string, object?> { ["amount"] = 100 }
+        },
+        new Selection
+        {
+            CaseRecordId = caseRecordId,
+            FlowOfFundsAmlTransactionId = "txn-2",
+            ETag = 2,
+            ExtraElements = new Dictionary<string, object?> { ["amount"] = 200 }
+        }
+    };
+
+        var parties = new[]
+        {
+        new Party
+        {
+            CaseRecordId = caseRecordId,
+            PartyIdentifier = "PARTY-001"
+        },
+        new Party
+        {
+            CaseRecordId = caseRecordId,
+            PartyIdentifier = "PARTY-002"
+        }
+    };
 
         await _testDb.GetCollection<Selection>("selections").InsertManyAsync(selections);
+        await _testDb.GetCollection<Party>("parties").InsertManyAsync(parties);
 
         // Act
         var response = await _client.GetAsync($"/api/caserecord/{caseRecordId}/selections");
@@ -274,6 +304,8 @@ public class UsersSessionsTests
 
         var result = await response.Content.ReadFromJsonAsync<FetchSelectionsResponse>(TestOptions);
         result.Should().NotBeNull();
+
+        // Verify Selections
         result!.Selections.Should().HaveCount(2);
         result.Selections.Select(s => s.FlowOfFundsAmlTransactionId)
             .Should().BeEquivalentTo("txn-1", "txn-2");
@@ -288,10 +320,34 @@ public class UsersSessionsTests
         s2.ExtraElements.Should().NotBeNull();
         s2.ExtraElements!.Should().ContainKey("amount");
         s2.ExtraElements!["amount"]!.Should().Be(200);
+
+        // Verify Parties
+        result.Parties.Should().HaveCount(2);
+        result.Parties.Select(p => p.PartyIdentifier)
+            .Should().BeEquivalentTo("PARTY-001", "PARTY-002");
+        result.Parties.All(p => p.CaseRecordId == caseRecordId).Should().BeTrue();
     }
 
     [Fact]
-    public async Task AddSelections_ValidCaseETag_InsertsAndIncrementsETag()
+    public async Task FetchSelections_EmptyCaseRecord_ReturnsEmptyLists()
+    {
+        // Arrange
+        var caseRecordId = Guid.NewGuid().ToString();
+
+        // Act
+        var response = await _client.GetAsync($"/api/caserecord/{caseRecordId}/selections");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var result = await response.Content.ReadFromJsonAsync<FetchSelectionsResponse>(TestOptions);
+        result.Should().NotBeNull();
+        result!.Selections.Should().BeEmpty();
+        result.Parties.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task AddSelections_ValidCaseETag_InsertsSelectionsAndPartiesAndIncrementsETag()
     {
         // Arrange
         var caseRecord = new CaseRecord
@@ -313,15 +369,26 @@ public class UsersSessionsTests
             Selections:
             [
                 new Selection
-                {
-                    FlowOfFundsAmlTransactionId = "new-txn-1",
-                    ExtraElements = new Dictionary<string, object?> { ["data"] = "value1" }
-                },
-                new Selection
-                {
-                    FlowOfFundsAmlTransactionId = "new-txn-2",
-                    ExtraElements = new Dictionary<string, object?> { ["data"] = "value2" }
-                }
+            {
+                FlowOfFundsAmlTransactionId = "new-txn-1",
+                ExtraElements = new Dictionary<string, object?> { ["data"] = "value1" }
+            },
+            new Selection
+            {
+                FlowOfFundsAmlTransactionId = "new-txn-2",
+                ExtraElements = new Dictionary<string, object?> { ["data"] = "value2" }
+            }
+            ],
+            Parties:
+            [
+                new Party
+            {
+                PartyIdentifier = "PARTY-NEW-001"
+            },
+            new Party
+            {
+                PartyIdentifier = "PARTY-NEW-002"
+            }
             ]
         );
 
@@ -334,9 +401,12 @@ public class UsersSessionsTests
 
         var result = await response.Content.ReadFromJsonAsync<AddSelectionsResponse>(TestOptions);
         result.Should().NotBeNull();
-        result!.CaseEtag.Should().Be(3);
-        result.Count.Should().Be(2);
+        result!.CaseETag.Should().Be(3);
+        result.SelectionCount.Should().Be(2);
+        result.PartyCount.Should().Be(2);
+        result.LastUpdated.Should().BeCloseTo(DateTime.UtcNow, TestConstants.DateTimeTolerance);
 
+        // Verify Selections in DB
         var dbSelections = await _testDb.GetCollection<Selection>("selections")
             .Find(s => s.CaseRecordId == caseRecord.CaseRecordId)
             .ToListAsync();
@@ -344,6 +414,16 @@ public class UsersSessionsTests
         dbSelections.Should().HaveCount(2);
         dbSelections.All(s => s.ETag == 0).Should().BeTrue();
         dbSelections.All(s => s.CaseRecordId == caseRecord.CaseRecordId).Should().BeTrue();
+
+        // Verify Parties in DB
+        var dbParties = await _testDb.GetCollection<Party>("parties")
+            .Find(p => p.CaseRecordId == caseRecord.CaseRecordId)
+            .ToListAsync();
+
+        dbParties.Should().HaveCount(2);
+        dbParties.Select(p => p.PartyIdentifier)
+            .Should().BeEquivalentTo("PARTY-NEW-001", "PARTY-NEW-002");
+        dbParties.All(p => p.CaseRecordId == caseRecord.CaseRecordId).Should().BeTrue();
     }
 
     [Fact]
@@ -366,7 +446,8 @@ public class UsersSessionsTests
         var request = new AddSelectionsRequest
         (
             CaseETag: 3, // Wrong ETag
-            Selections: [new Selection { FlowOfFundsAmlTransactionId = "txn-1" }]
+            Selections: [new Selection { FlowOfFundsAmlTransactionId = "txn-1" }],
+            Parties: [new Party { PartyIdentifier = "PARTY-001" }]
         );
 
         // Act
@@ -379,6 +460,7 @@ public class UsersSessionsTests
         var error = await response.Content.ReadFromJsonAsync<Dictionary<string, object>>(TestOptions);
         error!["message"].ToString().Should().Contain("modified");
     }
+
 
     [Fact]
     public async Task RemoveSelections_DeletesSelectionsAndIncrementsETag()
@@ -430,7 +512,7 @@ public class UsersSessionsTests
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var result = await response.Content.ReadFromJsonAsync<RemoveSelectionsResponse>(TestOptions);
-        result!.CaseEtag.Should().Be(2);
+        result!.CaseETag.Should().Be(2);
         result.Count.Should().Be(1);
 
         var remaining = await _testDb.GetCollection<Selection>("selections")
@@ -492,6 +574,150 @@ public class UsersSessionsTests
 
         var error = await response.Content.ReadFromJsonAsync<Dictionary<string, object>>(TestOptions);
         error!["message"].ToString().Should().Contain("modified");
+    }
+
+    [Fact]
+    public async Task AddSelections_DuplicatePartyIdentifier_ReturnsErrorAndRollsBackTransaction()
+    {
+        // Arrange
+        var caseRecord = new CaseRecord
+        {
+            CaseRecordId = Guid.NewGuid().ToString(),
+            AmlId = "11111111",
+            SearchParams = new SearchParams(),
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "User1",
+            Status = "Active",
+            ETag = 0
+        };
+
+        await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
+
+        // Insert existing party
+        var existingParty = new Party
+        {
+            CaseRecordId = caseRecord.CaseRecordId,
+            PartyIdentifier = "DUPLICATE-PARTY-001"
+        };
+        await _testDb.GetCollection<Party>("parties").InsertOneAsync(existingParty);
+
+        // Try to add the same party again along with a selection
+        var request = new AddSelectionsRequest
+        (
+            CaseETag: 0,
+            Selections:
+            [
+                new Selection
+            {
+                FlowOfFundsAmlTransactionId = "txn-should-rollback",
+                ExtraElements = new Dictionary<string, object?> { ["data"] = "test" }
+            }
+            ],
+            Parties:
+            [
+                new Party
+            {
+                PartyIdentifier = "DUPLICATE-PARTY-001" // Duplicate!
+            }
+            ]
+        );
+
+        // Act
+        var response = await _client.PostAsJsonAsync(
+            $"/api/caserecord/{caseRecord.CaseRecordId}/selections/add", request, TestOptions);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+
+        // Verify transaction rolled back - no selections should be added
+        var dbSelections = await _testDb.GetCollection<Selection>("selections")
+            .Find(s => s.CaseRecordId == caseRecord.CaseRecordId)
+            .ToListAsync();
+        dbSelections.Should().BeEmpty("transaction should have rolled back");
+
+        // Verify only the original party exists (no duplicate inserted)
+        var dbParties = await _testDb.GetCollection<Party>("parties")
+            .Find(p => p.CaseRecordId == caseRecord.CaseRecordId)
+            .ToListAsync();
+        dbParties.Should().ContainSingle("only the original party should exist");
+        dbParties[0].Id.Should().Be(existingParty.Id);
+
+        // Verify case record ETag was NOT incremented due to rollback
+        var dbCaseRecord = await _testDb.GetCollection<CaseRecord>("caseRecord")
+            .Find(c => c.CaseRecordId == caseRecord.CaseRecordId)
+            .FirstOrDefaultAsync();
+        dbCaseRecord.ETag.Should().Be(0, "ETag should not increment on failed transaction");
+    }
+
+    [Fact]
+    public async Task AddSelections_DuplicatePartyInDifferentCase_Succeeds()
+    {
+        // Arrange
+        var caseRecord1 = new CaseRecord
+        {
+            CaseRecordId = Guid.NewGuid().ToString(),
+            AmlId = "22222222",
+            SearchParams = new SearchParams(),
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "User1",
+            Status = "Active",
+            ETag = 0
+        };
+
+        var caseRecord2 = new CaseRecord
+        {
+            CaseRecordId = Guid.NewGuid().ToString(),
+            AmlId = "33333333",
+            SearchParams = new SearchParams(),
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "User1",
+            Status = "Active",
+            ETag = 0
+        };
+
+        await _testDb.GetCollection<CaseRecord>("caseRecord").InsertManyAsync([caseRecord1, caseRecord2]);
+
+        // Insert party in first case
+        var party1 = new Party
+        {
+            CaseRecordId = caseRecord1.CaseRecordId,
+            PartyIdentifier = "SHARED-PARTY-001"
+        };
+        await _testDb.GetCollection<Party>("parties").InsertOneAsync(party1);
+
+        // Try to add the same party identifier to a DIFFERENT case record (should succeed)
+        var request = new AddSelectionsRequest
+        (
+            CaseETag: 0,
+            Selections: [],
+            Parties:
+            [
+                new Party
+            {
+                PartyIdentifier = "SHARED-PARTY-001" // Same identifier, different case
+            }
+            ]
+        );
+
+        // Act
+        var response = await _client.PostAsJsonAsync(
+            $"/api/caserecord/{caseRecord2.CaseRecordId}/selections/add", request, TestOptions);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK,
+            "same PartyIdentifier should be allowed in different case records");
+
+        var result = await response.Content.ReadFromJsonAsync<AddSelectionsResponse>(TestOptions);
+        result!.PartyCount.Should().Be(1);
+
+        // Verify both parties exist in database
+        var allParties = await _testDb.GetCollection<Party>("parties")
+            .Find(p => p.PartyIdentifier == "SHARED-PARTY-001")
+            .ToListAsync();
+
+        allParties.Should().HaveCount(2, "same party identifier should exist in two different cases");
+        allParties.Select(p => p.CaseRecordId).Should().BeEquivalentTo(
+            [caseRecord1.CaseRecordId, caseRecord2.CaseRecordId]);
     }
 
     #endregion

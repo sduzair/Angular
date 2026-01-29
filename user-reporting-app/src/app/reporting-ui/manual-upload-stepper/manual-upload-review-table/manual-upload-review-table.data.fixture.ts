@@ -199,7 +199,7 @@ export const MANUAL_TRANSACTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransaction[] = [
         wasCondInfoObtained: true,
         conductors: [
           {
-            _id: 'bacc5c32-7453-4092-b9bd-de2df01aa1df',
+            _id: 'bacc5c32-7453-HttpStatusCode.Conflict2-b9bd-de2df01aa1df',
             _hiddenPartyKey: '1846597320',
             _hiddenSurname: 'Nguyen',
             _hiddenGivenName: 'Laura',
@@ -480,7 +480,7 @@ export const MANUAL_TRANSACTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransaction[] = [
         wasCondInfoObtained: true,
         conductors: [
           {
-            _id: 'c6bfbe19-1d6e-4097-bf08-31e2108fdc33',
+            _id: 'c6bfbe19-1d6e-HttpStatusCode.Conflict7-bf08-31e2108fdc33',
             _hiddenPartyKey: '3415674561',
             _hiddenSurname: 'Carter',
             _hiddenGivenName: 'James',

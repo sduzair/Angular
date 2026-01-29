@@ -37,10 +37,10 @@ export function transformOlbEmtToStrTransaction({
   emtTxn: EmtSourceData;
   generateParty: (
     party: Omit<PartyGenType, 'partyIdentifier'>,
-  ) => Observable<PartyGenType>;
+  ) => Observable<PartyGenType | null>;
   getAccountInfo: (account: string) => Observable<GetAccountInfoRes>;
   caseRecordId: string;
-}): Observable<StrTransactionWithChangeLogs> {
+}) {
   const isIncoming = olbTxn.strSaDirection === 'In';
   const isOutgoing = olbTxn.strSaDirection === 'Out';
   const isSenderCibc = emtTxn.senderFiNumber === 'CA000010';
@@ -544,7 +544,10 @@ export function transformOlbEmtToStrTransaction({
         _hiddenValidation: [],
       };
 
-      return transformed;
+      return {
+        selection: transformed,
+        parties: Object.values(partiesInfo) as PartyGenType[],
+      };
     }),
   );
 }

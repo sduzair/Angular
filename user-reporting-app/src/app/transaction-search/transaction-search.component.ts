@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -900,7 +900,7 @@ export class TransactionSearchComponent implements OnInit {
           this.errorHandler.handleError(error);
 
           // Conflict triggers refresh of local state
-          if (error.status === 409) {
+          if (error.status === HttpStatusCode.Conflict) {
             this.loadClick$.next();
           }
 

@@ -1,4 +1,4 @@
-import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { provideHttpClient } from '@angular/common/http';
 import {
   HttpTestingController,
   provideHttpClientTesting,
@@ -336,7 +336,7 @@ describe('SessionDataService', () => {
   //   //       });
   //   //     });
 
-  //   //     it("should emit conflict$ and refetch session on 409 conflict", (done) => {
+  //   //     it("should emit conflict$ and refetch session on HttpStatusCode.Conflict conflict", (done) => {
   //   //       const conflictSpy = jasmine.createSpy("conflict");
   //   //       service.conflict$.subscribe(conflictSpy);
 
@@ -353,14 +353,14 @@ describe('SessionDataService', () => {
   //   //         changeLogs,
   //   //       ).subscribe({
   //   //         error: (error) => {
-  //   //           expect(error.status).toBe(409);
+  //   //           expect(error.status).toBe(HttpStatusCode.Conflict);
   //   //           expect(conflictSpy).toHaveBeenCalled();
   //   //           done();
   //   //         },
   //   //       });
 
   //   //       const updateReq = httpMock.expectOne(`/api/sessions/${mockAmlId}`);
-  //   //       updateReq.flush("Conflict", { status: 409, statusText: "Conflict" });
+  //   //       updateReq.flush("Conflict", { status: HttpStatusCode.Conflict, statusText: "Conflict" });
 
   //   //       const fetchReq = httpMock.expectOne(`/api/sessions/${mockAmlId}`);
   //   //       fetchReq.flush(mockSessionState);
