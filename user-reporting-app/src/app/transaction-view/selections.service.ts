@@ -1,9 +1,10 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { catchError, map, Observable, throwError } from 'rxjs';
+import { map, Observable } from 'rxjs';
 import { StrTransactionWithChangeLogs } from '../aml/case-record.store';
 import * as ChangeLog from '../change-logging/change-log';
 import { StrTxnFlowOfFunds } from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
+import { PartyGenType } from './transform-to-str-transaction/party-gen.service';
 
 @Injectable({
   providedIn: 'root',
@@ -15,24 +16,20 @@ export class SelectionsService {
   /**
    * Fetch all selections for a case record
    */
-  fetchSelections(
-    caseRecordId: string,
-  ): Observable<StrTransactionWithChangeLogs[]> {
+  fetchSelections(caseRecordId: string) {
     // return of({
     //   selections: CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE.selections,
     // }).pipe(delay(100));
 
-    return this.http
-      .get<FetchSelectionsResponse>(
-        `${this.baseUrl}/${caseRecordId}/selections`,
-      )
-      .pipe(map((response) => response.selections));
+    return this.http.get<FetchSelectionsResponse>(
+      `${this.baseUrl}/${caseRecordId}/selections`,
+    );
   }
 
   /**
    * Add selections to a case record
    */
-  addSelections(
+  addSelectionsAndParties(
     caseRecordId: string,
     request: AddSelectionsRequest,
   ): Observable<AddSelectionsResponse> {
@@ -93,6 +90,7 @@ export interface AddSelectionsRequest {
     StrTransactionWithChangeLogs,
     'caseRecordId' | 'eTag' | 'changeLogs'
   >[];
+  parties: PartyGenType[];
 }
 
 export interface RemoveSelectionsRequest {
@@ -122,7 +120,12 @@ export interface ResetSelectionsRequest {
 // Response DTOs
 export interface FetchSelectionsResponse {
   selections: StrTransactionWithChangeLogs[];
+  parties: WithCaseRecordId<PartyGenType>[];
 }
+
+export type WithCaseRecordId<T = object> = T & {
+  caseRecordId: string;
+};
 
 export interface AddSelectionsResponse {
   caseETag: number;

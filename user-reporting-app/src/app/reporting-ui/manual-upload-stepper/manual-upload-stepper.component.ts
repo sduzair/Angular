@@ -45,7 +45,10 @@ import {
   setRowValidationInfo,
 } from '../../aml/case-record.store';
 import { TransactionSearchService } from '../../transaction-search/transaction-search.service';
-import { PartyGenService } from '../../transaction-view/transform-to-str-transaction/party-gen.service';
+import {
+  PartyGenService,
+  PartyGenType,
+} from '../../transaction-view/transform-to-str-transaction/party-gen.service';
 import {
   FormOptions,
   FormOptionsService,
@@ -161,10 +164,10 @@ import { ManualUploadReviewTableComponent } from './manual-upload-review-table/m
             <div class="py-4">
               <p>Preview of uploaded data:</p>
 
-              @if (parsedData) {
+              @if (parsedSelectionsData) {
                 <div>
                   <app-manual-upload-review-table
-                    [manualStrTransactionData]="parsedData" />
+                    [manualStrTransactionData]="parsedSelectionsData" />
                 </div>
               }
             </div>
@@ -193,8 +196,8 @@ import { ManualUploadReviewTableComponent } from './manual-upload-review-table/m
               <mat-icon class="success-icon">check_circle</mat-icon>
               <h3>Success!</h3>
               <p>Your data has been imported successfully.</p>
-              @if (parsedData) {
-                <p>{{ parsedData.length }} records were processed.</p>
+              @if (parsedSelectionsData) {
+                <p>{{ parsedSelectionsData.length }} records were processed.</p>
               }
             </div>
           </mat-step>
@@ -231,7 +234,11 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
   selectedFile: File | null = null;
   // parsedData: StrTransactionWithChangeLogs[] =
   //   MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE;
-  parsedData: StrTransactionWithChangeLogs[] = [];
+  parsedData: {
+    manualSelection: StrTransactionWithChangeLogs;
+    manualParties: PartyGenType[];
+  }[] = [];
+  parsedSelectionsData: StrTransactionWithChangeLogs[] | null = null;
 
   private _isValidExcelFile = new BehaviorSubject<boolean | null>(null);
   isValidExcelFile$ = this._isValidExcelFile.asObservable();
@@ -371,16 +378,27 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
       )
       // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
       .subscribe({
-        next: (strTxns = []) => {
-          this.parsedData = strTxns;
+        next: (selectionsAndParties = []) => {
+          this.parsedData = selectionsAndParties.map(
+            ({ selection: manualSelection, parties: manualParties }) => ({
+              manualSelection,
+              manualParties,
+            }),
+          );
+          this.parsedSelectionsData = this.parsedData.map(
+            (item) => item.manualSelection,
+          );
+
           this.stepperFormGroup.controls.step2ReviewTableValidationErrors.setValue(
-            this.parsedData.reduce(
-              (acc, { _hiddenValidation = [] }) => [
-                ...acc,
-                ..._hiddenValidation,
-              ],
-              [] as _hiddenValidationType[],
-            ),
+            this.parsedData
+              .map(({ manualSelection }) => manualSelection)
+              .reduce(
+                (acc, { _hiddenValidation = [] }) => [
+                  ...acc,
+                  ..._hiddenValidation,
+                ],
+                [] as _hiddenValidationType[],
+              ),
           );
         },
       });
@@ -413,15 +431,24 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
       switchMap(({ jsonData, formOptions }) =>
         forkJoin(
           jsonData.map((json) =>
-            this.convertSheetJsonToStrTxn(json, formOptions),
+            this.convertSheetJsonToSelectionAndParties(json, formOptions),
           ),
-        ).pipe(map((strTxns) => strTxns.map(setRowValidationInfo))),
+        ).pipe(
+          tap((selectionsAndParties) =>
+            selectionsAndParties.map((item) => {
+              return {
+                ...item,
+                selection: setRowValidationInfo(item.selection),
+              };
+            }),
+          ),
+        ),
       ),
     );
   }
   private partyGenService = inject(PartyGenService);
 
-  convertSheetJsonToStrTxn(
+  convertSheetJsonToSelectionAndParties(
     value: Record<ColumnHeaderLabels, string>,
     formOptions: FormOptions,
   ) {
@@ -440,10 +467,14 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
 
   onUpload(stepper: MatStepper) {
     this.stepperFormGroup.controls.readyForUpload.setValue(true);
-    this.sessionDataService.qAddManualSelections(this.parsedData);
+    this.sessionDataService.qAddManualSelectionsAndParties(this.parsedData);
     // After successful upload, move to next step
     this.sessionDataService
-      .whenCompleted(this.parsedData.map((d) => d.flowOfFundsAmlTransactionId))
+      .whenProcessed(
+        this.parsedSelectionsData!.map(
+          ({ flowOfFundsAmlTransactionId }) => flowOfFundsAmlTransactionId,
+        ),
+      )
       .pipe(
         tap(() => stepper.next()),
         takeUntilDestroyed(this.destroyRef),

@@ -43,7 +43,10 @@ mongoimport --uri "$URI" --db "$DB" --collection wire --file /seed/wireIn.json -
 mongoimport --uri "$URI" --db "$DB" --collection otc --file /seed/cbfeMixedDeposit.json --jsonArray
 
 
-mongosh "$URI/$DB" --quiet --eval 'db.createCollection("selections")'
+echo "Restoring parties collection..."
+mongorestore --uri="$URI" --nsInclude="$DB.parties" /seed/dump/
+
+# todo: composite index for selections
 
 echo "Seed done."
 

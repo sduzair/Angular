@@ -45,9 +45,10 @@ import {
 } from '@angular/router';
 import { isValid } from 'date-fns';
 import { isEqualWith } from 'lodash-es';
-import { Observable, of } from 'rxjs';
+import { debounceTime, Observable, of } from 'rxjs';
 import {
   combineLatestWith,
+  distinctUntilChanged,
   filter,
   finalize,
   map,
@@ -63,8 +64,9 @@ import {
   StrTransactionWithChangeLogs,
 } from '../../aml/case-record.store';
 import * as ChangeLog from '../../change-logging/change-log';
-import { setError } from '../../form-helpers';
+import { getFormErrors, setError } from '../../form-helpers';
 import { SnackbarQueueService } from '../../snackbar-queue.service';
+import { getPartyFullName } from '../../transaction-view/transform-to-str-transaction/party-gen.service';
 import {
   AccountHolder,
   Beneficiary,
@@ -91,6 +93,7 @@ import {
 import { ControlToggleDirective } from './control-toggle.directive';
 import { FormOptions, FormOptionsService } from './form-options.service';
 import { MarkAsClearedDirective } from './mark-as-cleared.directive';
+import { PartySyncDirective } from './party-sync.directive';
 import { ToggleEditFieldDirective } from './toggle-edit-field.directive';
 import { TransactionDateDirective } from './transaction-date.directive';
 import { TransactionDetailsPanelComponent } from './transaction-details-panel/transaction-details-panel.component';
@@ -137,6 +140,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
     MatSelectModule,
     MatBadgeModule,
     ValidateOnParentChangesDirective,
+    PartySyncDirective,
   ],
   template: `
     @let editForm = editForm$ | async;
@@ -1217,7 +1221,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                         </div>
                         <!-- Account Open/Close -->
                         <div
-                          class="row row-cols-1 row-cols-md-2 row-cols-xxl-3">
+                          class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
                           <mat-form-field
                             class="col"
                             [attr.data-testid]="
@@ -1381,7 +1385,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                             track holder.value._id;
                             let holderIndex = $index
                           ) {
-                            <div [formGroupName]="holderIndex" class="w-100">
+                            <div
+                              [formGroupName]="holderIndex"
+                              appPartySync
+                              class="w-100">
                               <mat-expansion-panel [expanded]="true">
                                 <mat-expansion-panel-header class="my-2">
                                   <mat-panel-title
@@ -1410,7 +1417,39 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     </button>
                                   </mat-panel-title>
                                 </mat-expansion-panel-header>
-                                <div class="row row-cols-1 row-cols-md-2">
+                                <div class="row row-cols-1 row-cols-md-3">
+                                  <mat-form-field
+                                    class="col"
+                                    [attr.data-testid]="
+                                      'startingActions-' +
+                                      saIndex +
+                                      '-accountHolders-' +
+                                      holderIndex +
+                                      '-linkToSub'
+                                    ">
+                                    <mat-label>Select Party</mat-label>
+                                    <mat-select formControlName="linkToSub">
+                                      @for (
+                                        option of partiesOptions$ | async;
+                                        track option.value
+                                      ) {
+                                        <mat-option [value]="option.value">
+                                          {{ option.label }}
+                                        </mat-option>
+                                      }
+                                    </mat-select>
+                                    <button
+                                      type="button"
+                                      appClearField
+                                      mat-icon-button
+                                      matSuffix>
+                                      <mat-icon>clear</mat-icon>
+                                    </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
+                                  </mat-form-field>
+
                                   <mat-form-field
                                     class="col"
                                     [attr.data-testid]="
@@ -1425,16 +1464,28 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       matInput
                                       formControlName="_hiddenPartyKey" />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
-                                    <mat-error
-                                      >This field is required</mat-error
-                                    >
+                                    @if (
+                                      holder.controls._hiddenPartyKey.hasError(
+                                        'invalidPartyKey'
+                                      )
+                                    ) {
+                                      <mat-error>
+                                        {{
+                                          holder.controls._hiddenPartyKey
+                                            .errors!['invalidPartyKey']
+                                        }}
+                                      </mat-error>
+                                    } @else {
+                                      <mat-error>
+                                        This field is required
+                                      </mat-error>
+                                    }
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -1445,13 +1496,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       holderIndex +
                                       '-_hiddenSurname'
                                     ">
-                                    <mat-label>_hiddenSurname</mat-label>
+                                    <mat-label>Surname</mat-label>
                                     <input
                                       matInput
                                       formControlName="_hiddenSurname"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -1471,13 +1521,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       holderIndex +
                                       '-_hiddenGivenName'
                                     ">
-                                    <mat-label>_hiddenGivenName</mat-label>
+                                    <mat-label>Given Name</mat-label>
                                     <input
                                       matInput
                                       formControlName="_hiddenGivenName"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -1503,7 +1552,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       formControlName="_hiddenOtherOrInitial"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -1529,7 +1577,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       formControlName="_hiddenNameOfEntity"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -1594,7 +1641,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                             track source.value._id;
                             let fundsIndex = $index
                           ) {
-                            <div [formGroupName]="fundsIndex" class="w-100">
+                            <div
+                              [formGroupName]="fundsIndex"
+                              appPartySync
+                              class="w-100">
                               <mat-expansion-panel [expanded]="true">
                                 <mat-expansion-panel-header class="my-2">
                                   <mat-panel-title
@@ -1619,7 +1669,39 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     </button>
                                   </mat-panel-title>
                                 </mat-expansion-panel-header>
-                                <div class="row row-cols-1 row-cols-md-2">
+                                <div class="row row-cols-1 row-cols-md-3">
+                                  <mat-form-field
+                                    class="col"
+                                    [attr.data-testid]="
+                                      'startingActions-' +
+                                      saIndex +
+                                      '-sourceOfFunds-' +
+                                      fundsIndex +
+                                      '-linkToSub'
+                                    ">
+                                    <mat-label>Select Party</mat-label>
+                                    <mat-select formControlName="linkToSub">
+                                      @for (
+                                        option of partiesOptions$ | async;
+                                        track option.value
+                                      ) {
+                                        <mat-option [value]="option.value">
+                                          {{ option.label }}
+                                        </mat-option>
+                                      }
+                                    </mat-select>
+                                    <button
+                                      type="button"
+                                      appClearField
+                                      mat-icon-button
+                                      matSuffix>
+                                      <mat-icon>clear</mat-icon>
+                                    </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
+                                  </mat-form-field>
+
                                   <mat-form-field
                                     class="col"
                                     [attr.data-testid]="
@@ -1634,16 +1716,28 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       matInput
                                       formControlName="_hiddenPartyKey" />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
-                                    <mat-error
-                                      >This field is required</mat-error
-                                    >
+                                    @if (
+                                      source.controls._hiddenPartyKey.hasError(
+                                        'invalidPartyKey'
+                                      )
+                                    ) {
+                                      <mat-error>
+                                        {{
+                                          source.controls._hiddenPartyKey
+                                            .errors!['invalidPartyKey']
+                                        }}
+                                      </mat-error>
+                                    } @else {
+                                      <mat-error>
+                                        This field is required
+                                      </mat-error>
+                                    }
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -1654,13 +1748,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       fundsIndex +
                                       '-_hiddenSurname'
                                     ">
-                                    <mat-label>_hiddenSurname</mat-label>
+                                    <mat-label>Surname</mat-label>
                                     <input
                                       matInput
                                       formControlName="_hiddenSurname"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -1680,13 +1773,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       fundsIndex +
                                       '-_hiddenGivenName'
                                     ">
-                                    <mat-label>_hiddenGivenName</mat-label>
+                                    <mat-label>Given Name</mat-label>
                                     <input
                                       matInput
                                       formControlName="_hiddenGivenName"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -1712,7 +1804,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       formControlName="_hiddenOtherOrInitial"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -1738,7 +1829,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       formControlName="_hiddenNameOfEntity"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -1763,7 +1853,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       matInput
                                       formControlName="accountNumber" />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -1788,7 +1877,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       matInput
                                       formControlName="identifyingNumber" />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -1853,7 +1941,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                             track conductor.value._id;
                             let condIndex = $index
                           ) {
-                            <div [formGroupName]="condIndex" class="w-100">
+                            <div
+                              [formGroupName]="condIndex"
+                              appPartySync
+                              class="w-100">
                               <mat-expansion-panel [expanded]="true">
                                 <mat-expansion-panel-header class="my-2">
                                   <mat-panel-title
@@ -1876,7 +1967,40 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     </button>
                                   </mat-panel-title>
                                 </mat-expansion-panel-header>
-                                <div class="row row-cols-1 row-cols-md-2">
+
+                                <div class="row row-cols-1 row-cols-md-3">
+                                  <mat-form-field
+                                    class="col"
+                                    [attr.data-testid]="
+                                      'startingActions-' +
+                                      saIndex +
+                                      '-conductors-' +
+                                      condIndex +
+                                      '-linkToSub'
+                                    ">
+                                    <mat-label>Select Party</mat-label>
+                                    <mat-select formControlName="linkToSub">
+                                      @for (
+                                        option of partiesOptions$ | async;
+                                        track option.value
+                                      ) {
+                                        <mat-option [value]="option.value">
+                                          {{ option.label }}
+                                        </mat-option>
+                                      }
+                                    </mat-select>
+                                    <button
+                                      type="button"
+                                      appClearField
+                                      mat-icon-button
+                                      matSuffix>
+                                      <mat-icon>clear</mat-icon>
+                                    </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
+                                  </mat-form-field>
+
                                   <mat-form-field
                                     class="col"
                                     [attr.data-testid]="
@@ -1891,16 +2015,28 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       matInput
                                       formControlName="_hiddenPartyKey" />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
-                                    <mat-error
-                                      >This field is required</mat-error
-                                    >
+                                    @if (
+                                      conductor.controls._hiddenPartyKey.hasError(
+                                        'invalidPartyKey'
+                                      )
+                                    ) {
+                                      <mat-error>
+                                        {{
+                                          conductor.controls._hiddenPartyKey
+                                            .errors!['invalidPartyKey']
+                                        }}
+                                      </mat-error>
+                                    } @else {
+                                      <mat-error>
+                                        This field is required
+                                      </mat-error>
+                                    }
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -1911,13 +2047,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       condIndex +
                                       '-_hiddenSurname'
                                     ">
-                                    <mat-label>_hiddenSurname</mat-label>
+                                    <mat-label>Surname</mat-label>
                                     <input
                                       matInput
                                       formControlName="_hiddenSurname"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -1937,13 +2072,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       condIndex +
                                       '-_hiddenGivenName'
                                     ">
-                                    <mat-label>_hiddenGivenName</mat-label>
+                                    <mat-label>Given Name</mat-label>
                                     <input
                                       matInput
                                       formControlName="_hiddenGivenName"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -1969,7 +2103,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       formControlName="_hiddenOtherOrInitial"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -1995,7 +2128,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       formControlName="_hiddenNameOfEntity"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -2043,6 +2175,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                   ) {
                                     <div
                                       [formGroupName]="behalfIndex"
+                                      appPartySync
                                       class="w-100">
                                       <mat-expansion-panel [expanded]="true">
                                         <mat-expansion-panel-header
@@ -2078,7 +2211,44 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                           </mat-panel-title>
                                         </mat-expansion-panel-header>
                                         <div
-                                          class="row row-cols-1 row-cols-md-2">
+                                          class="row row-cols-1 row-cols-md-3">
+                                          <mat-form-field
+                                            class="col"
+                                            [attr.data-testid]="
+                                              'startingActions-' +
+                                              saIndex +
+                                              '-conductors-' +
+                                              condIndex +
+                                              '-onBehalfOf-' +
+                                              behalfIndex +
+                                              '-linkToSub'
+                                            ">
+                                            <mat-label>Select Party</mat-label>
+                                            <mat-select
+                                              formControlName="linkToSub">
+                                              @for (
+                                                option of partiesOptions$
+                                                  | async;
+                                                track option.value
+                                              ) {
+                                                <mat-option
+                                                  [value]="option.value">
+                                                  {{ option.label }}
+                                                </mat-option>
+                                              }
+                                            </mat-select>
+                                            <button
+                                              type="button"
+                                              appClearField
+                                              mat-icon-button
+                                              matSuffix>
+                                              <mat-icon>clear</mat-icon>
+                                            </button>
+                                            <mat-error
+                                              >This field is required</mat-error
+                                            >
+                                          </mat-form-field>
+
                                           <mat-form-field
                                             class="col"
                                             [attr.data-testid]="
@@ -2095,16 +2265,30 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                               matInput
                                               formControlName="_hiddenPartyKey" />
                                             <button
-                                              [disabled]="this.isBulkEdit"
                                               type="button"
                                               appClearField
                                               mat-icon-button
                                               matSuffix>
                                               <mat-icon>clear</mat-icon>
                                             </button>
-                                            <mat-error
-                                              >This field is required</mat-error
-                                            >
+                                            @if (
+                                              behalf.controls._hiddenPartyKey.hasError(
+                                                'invalidPartyKey'
+                                              )
+                                            ) {
+                                              <mat-error>
+                                                {{
+                                                  behalf.controls
+                                                    ._hiddenPartyKey.errors![
+                                                    'invalidPartyKey'
+                                                  ]
+                                                }}
+                                              </mat-error>
+                                            } @else {
+                                              <mat-error>
+                                                This field is required
+                                              </mat-error>
+                                            }
                                           </mat-form-field>
                                           <mat-form-field
                                             class="col"
@@ -2125,7 +2309,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                               formControlName="_hiddenSurname"
                                               appValidateOnParentChanges />
                                             <button
-                                              [disabled]="this.isBulkEdit"
                                               type="button"
                                               appClearField
                                               mat-icon-button
@@ -2155,7 +2338,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                               formControlName="_hiddenGivenName"
                                               appValidateOnParentChanges />
                                             <button
-                                              [disabled]="this.isBulkEdit"
                                               type="button"
                                               appClearField
                                               mat-icon-button
@@ -2185,7 +2367,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                               formControlName="_hiddenOtherOrInitial"
                                               appValidateOnParentChanges />
                                             <button
-                                              [disabled]="this.isBulkEdit"
                                               type="button"
                                               appClearField
                                               mat-icon-button
@@ -2215,7 +2396,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                               formControlName="_hiddenNameOfEntity"
                                               appValidateOnParentChanges />
                                             <button
-                                              [disabled]="this.isBulkEdit"
                                               type="button"
                                               appClearField
                                               mat-icon-button
@@ -2896,7 +3076,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                         </div>
                         <!-- Account Open/Close -->
                         <div
-                          class="row row-cols-1 row-cols-md-2 row-cols-xxl-3">
+                          class="row row-cols-1 row-cols-md-2 row-cols-xxl-4">
                           <mat-form-field
                             class="col"
                             [attr.data-testid]="
@@ -3024,7 +3204,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                             track holder.value._id;
                             let holderIndex = $index
                           ) {
-                            <div [formGroupName]="holderIndex" class="w-100">
+                            <div
+                              [formGroupName]="holderIndex"
+                              appPartySync
+                              class="w-100">
                               <mat-expansion-panel [expanded]="true">
                                 <mat-expansion-panel-header class="my-2">
                                   <mat-panel-title
@@ -3053,7 +3236,39 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     </button>
                                   </mat-panel-title>
                                 </mat-expansion-panel-header>
-                                <div class="row row-cols-1 row-cols-md-2">
+                                <div class="row row-cols-1 row-cols-md-3">
+                                  <mat-form-field
+                                    class="col"
+                                    [attr.data-testid]="
+                                      'completingActions-' +
+                                      caIndex +
+                                      '-accountHolders-' +
+                                      holderIndex +
+                                      '-linkToSub'
+                                    ">
+                                    <mat-label>Select Party</mat-label>
+                                    <mat-select formControlName="linkToSub">
+                                      @for (
+                                        option of partiesOptions$ | async;
+                                        track option.value
+                                      ) {
+                                        <mat-option [value]="option.value">
+                                          {{ option.label }}
+                                        </mat-option>
+                                      }
+                                    </mat-select>
+                                    <button
+                                      type="button"
+                                      appClearField
+                                      mat-icon-button
+                                      matSuffix>
+                                      <mat-icon>clear</mat-icon>
+                                    </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
+                                  </mat-form-field>
+
                                   <mat-form-field
                                     class="col"
                                     [attr.data-testid]="
@@ -3068,16 +3283,28 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       matInput
                                       formControlName="_hiddenPartyKey" />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
-                                    <mat-error
-                                      >This field is required</mat-error
-                                    >
+                                    @if (
+                                      holder.controls._hiddenPartyKey.hasError(
+                                        'invalidPartyKey'
+                                      )
+                                    ) {
+                                      <mat-error>
+                                        {{
+                                          holder.controls._hiddenPartyKey
+                                            .errors!['invalidPartyKey']
+                                        }}
+                                      </mat-error>
+                                    } @else {
+                                      <mat-error>
+                                        This field is required
+                                      </mat-error>
+                                    }
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -3088,13 +3315,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       holderIndex +
                                       '-_hiddenSurname'
                                     ">
-                                    <mat-label>_hiddenSurname</mat-label>
+                                    <mat-label>Surname</mat-label>
                                     <input
                                       matInput
                                       formControlName="_hiddenSurname"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -3114,13 +3340,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       holderIndex +
                                       '-_hiddenGivenName'
                                     ">
-                                    <mat-label>_hiddenGivenName</mat-label>
+                                    <mat-label>Given Name</mat-label>
                                     <input
                                       matInput
                                       formControlName="_hiddenGivenName"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -3146,7 +3371,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       formControlName="_hiddenOtherOrInitial"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -3172,7 +3396,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       formControlName="_hiddenNameOfEntity"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -3239,7 +3462,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                             track involved.value._id;
                             let invIndex = $index
                           ) {
-                            <div [formGroupName]="invIndex" class="w-100">
+                            <div
+                              [formGroupName]="invIndex"
+                              appPartySync
+                              class="w-100">
                               <mat-expansion-panel [expanded]="true">
                                 <mat-expansion-panel-header class="my-2">
                                   <mat-panel-title
@@ -3264,7 +3490,39 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     </button>
                                   </mat-panel-title>
                                 </mat-expansion-panel-header>
-                                <div class="row row-cols-1 row-cols-md-2">
+                                <div class="row row-cols-1 row-cols-md-3">
+                                  <mat-form-field
+                                    class="col"
+                                    [attr.data-testid]="
+                                      'completingActions-' +
+                                      caIndex +
+                                      '-involvedIn-' +
+                                      invIndex +
+                                      '-linkToSub'
+                                    ">
+                                    <mat-label>Select Party</mat-label>
+                                    <mat-select formControlName="linkToSub">
+                                      @for (
+                                        option of partiesOptions$ | async;
+                                        track option.value
+                                      ) {
+                                        <mat-option [value]="option.value">
+                                          {{ option.label }}
+                                        </mat-option>
+                                      }
+                                    </mat-select>
+                                    <button
+                                      type="button"
+                                      appClearField
+                                      mat-icon-button
+                                      matSuffix>
+                                      <mat-icon>clear</mat-icon>
+                                    </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
+                                  </mat-form-field>
+
                                   <mat-form-field
                                     class="col"
                                     [attr.data-testid]="
@@ -3279,16 +3537,28 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       matInput
                                       formControlName="_hiddenPartyKey" />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
-                                    <mat-error
-                                      >This field is required</mat-error
-                                    >
+                                    @if (
+                                      involved.controls._hiddenPartyKey.hasError(
+                                        'invalidPartyKey'
+                                      )
+                                    ) {
+                                      <mat-error>
+                                        {{
+                                          involved.controls._hiddenPartyKey
+                                            .errors!['invalidPartyKey']
+                                        }}
+                                      </mat-error>
+                                    } @else {
+                                      <mat-error>
+                                        This field is required
+                                      </mat-error>
+                                    }
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -3299,13 +3569,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       invIndex +
                                       '-_hiddenSurname'
                                     ">
-                                    <mat-label>_hiddenSurname</mat-label>
+                                    <mat-label>Surname</mat-label>
                                     <input
                                       matInput
                                       formControlName="_hiddenSurname"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -3325,13 +3594,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       invIndex +
                                       '-_hiddenGivenName'
                                     ">
-                                    <mat-label>_hiddenGivenName</mat-label>
+                                    <mat-label>Given Name</mat-label>
                                     <input
                                       matInput
                                       formControlName="_hiddenGivenName"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -3357,7 +3625,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       formControlName="_hiddenOtherOrInitial"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -3383,7 +3650,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       formControlName="_hiddenNameOfEntity"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -3408,7 +3674,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       matInput
                                       formControlName="accountNumber" />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -3433,7 +3698,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       matInput
                                       formControlName="identifyingNumber" />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -3497,7 +3761,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                             track beneficiary.value._id;
                             let benIndex = $index
                           ) {
-                            <div [formGroupName]="benIndex" class="w-100">
+                            <div
+                              [formGroupName]="benIndex"
+                              appPartySync
+                              class="w-100">
                               <mat-expansion-panel [expanded]="true">
                                 <mat-expansion-panel-header class="my-2">
                                   <mat-panel-title
@@ -3520,7 +3787,39 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     </button>
                                   </mat-panel-title>
                                 </mat-expansion-panel-header>
-                                <div class="row row-cols-1 row-cols-md-2">
+                                <div class="row row-cols-1 row-cols-md-3">
+                                  <mat-form-field
+                                    class="col"
+                                    [attr.data-testid]="
+                                      'completingActions-' +
+                                      caIndex +
+                                      '-beneficiaries-' +
+                                      benIndex +
+                                      '-linkToSub'
+                                    ">
+                                    <mat-label>Select Party</mat-label>
+                                    <mat-select formControlName="linkToSub">
+                                      @for (
+                                        option of partiesOptions$ | async;
+                                        track option.value
+                                      ) {
+                                        <mat-option [value]="option.value">
+                                          {{ option.label }}
+                                        </mat-option>
+                                      }
+                                    </mat-select>
+                                    <button
+                                      type="button"
+                                      appClearField
+                                      mat-icon-button
+                                      matSuffix>
+                                      <mat-icon>clear</mat-icon>
+                                    </button>
+                                    <mat-error
+                                      >This field is required</mat-error
+                                    >
+                                  </mat-form-field>
+
                                   <mat-form-field
                                     class="col"
                                     [attr.data-testid]="
@@ -3535,16 +3834,28 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       matInput
                                       formControlName="_hiddenPartyKey" />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
-                                    <mat-error
-                                      >This field is required</mat-error
-                                    >
+                                    @if (
+                                      beneficiary.controls._hiddenPartyKey.hasError(
+                                        'invalidPartyKey'
+                                      )
+                                    ) {
+                                      <mat-error>
+                                        {{
+                                          beneficiary.controls._hiddenPartyKey
+                                            .errors!['invalidPartyKey']
+                                        }}
+                                      </mat-error>
+                                    } @else {
+                                      <mat-error>
+                                        This field is required
+                                      </mat-error>
+                                    }
                                   </mat-form-field>
                                   <mat-form-field
                                     class="col"
@@ -3555,13 +3866,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       benIndex +
                                       '-_hiddenSurname'
                                     ">
-                                    <mat-label>_hiddenSurname</mat-label>
+                                    <mat-label>Surname</mat-label>
                                     <input
                                       matInput
                                       formControlName="_hiddenSurname"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -3581,13 +3891,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       benIndex +
                                       '-_hiddenGivenName'
                                     ">
-                                    <mat-label>_hiddenGivenName</mat-label>
+                                    <mat-label>Given Name</mat-label>
                                     <input
                                       matInput
                                       formControlName="_hiddenGivenName"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -3613,7 +3922,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       formControlName="_hiddenOtherOrInitial"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -3639,7 +3947,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       formControlName="_hiddenNameOfEntity"
                                       appValidateOnParentChanges />
                                     <button
-                                      [disabled]="this.isBulkEdit"
                                       type="button"
                                       appClearField
                                       mat-icon-button
@@ -3690,6 +3997,19 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
 })
 export class EditFormComponent implements AfterViewChecked {
   private snackbarQ = inject(SnackbarQueueService);
+  protected caseRecordStore = inject(CaseRecordStore);
+  private formOptionsService = inject(FormOptionsService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+
+  protected partiesOptions$ = this.caseRecordStore.state$.pipe(
+    map(({ parties }) =>
+      parties.map((party, index) => ({
+        label: `${index + 1}. ${getPartyFullName(party)}`,
+        value: party.partyIdentifier,
+      })),
+    ),
+  );
 
   readonly editType = input.required<EditFormEditType>();
   protected readonly editType$ = toObservable(this.editType);
@@ -3818,19 +4138,30 @@ export class EditFormComponent implements AfterViewChecked {
   protected readonly editFormHasChanges$ = this.editForm$.pipe(
     switchMap((form) => {
       // Store initial value to detect form changes
-      const editFormValueBefore: EditFormValueType | null = structuredClone(
-        form?.value ?? null,
-      );
+      const editFormValueBefore: EditFormValueType | null =
+        this.editType().type === 'BULK_SAVE'
+          ? structuredClone(form?.value ?? null)
+          : structuredClone(form?.getRawValue() ?? null);
 
       return form.valueChanges.pipe(
-        startWith(form.value),
+        debounceTime(300),
         map(() => {
-          const editFormVal = form.value!;
+          const editFormVal =
+            this.editType().type === 'BULK_SAVE'
+              ? form.value!
+              : form?.getRawValue();
+
           return !isEqualWith(
             editFormVal,
             editFormValueBefore,
             (val1, val2, indexOrKey) => {
               if (indexOrKey === '_id') return true;
+              if (
+                indexOrKey &&
+                typeof indexOrKey === 'string' &&
+                indexOrKey.startsWith('_hidden')
+              )
+                return true;
 
               if (
                 this.editType().type === 'BULK_SAVE' &&
@@ -3842,6 +4173,7 @@ export class EditFormComponent implements AfterViewChecked {
             },
           );
         }),
+        distinctUntilChanged(),
       );
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
@@ -3855,14 +4187,61 @@ export class EditFormComponent implements AfterViewChecked {
   // ----------------------
   // Form Submission
   // ----------------------
-  protected caseRecordStore = inject(CaseRecordStore);
   protected isSaved = false;
+
+  private static obstructiveErrors = new Set(['invalidPartyKey']);
+
+  private static mandatoryFields = [
+    '_hiddenPartyKey',
+    '_hiddenGivenName',
+    '_hiddenOtherOrInitial',
+    '_hiddenSurname',
+    '_hiddenNameOfEntity',
+  ];
 
   protected onSave(): void {
     // console.log(
     //   '🚀 ~ EditFormComponent ~ onSubmit ~ this.userForm!.getRawValue():',
     //   this.editForm!.getRawValue(),
     // );
+    //
+    const formErrors = getFormErrors(this.editForm!);
+
+    const hasObstructiveErrors = Object.values(formErrors)
+      .flatMap((validationErrors) => Object.keys(validationErrors))
+      .some((error) => EditFormComponent.obstructiveErrors.has(error));
+
+    if (hasObstructiveErrors) {
+      this.snackbarQ.open(
+        'Please fix validation errors before saving',
+        'Dismiss',
+        {
+          duration: 5000,
+        },
+      );
+      return;
+    }
+
+    const hasMissingMandatoryFields = Object.keys(formErrors).some((key) =>
+      EditFormComponent.mandatoryFields.some(
+        (m) =>
+          key.endsWith(m) &&
+          Object.keys(formErrors[key]).some(
+            (errorKey) => errorKey === 'required',
+          ),
+      ),
+    );
+
+    if (hasMissingMandatoryFields) {
+      this.snackbarQ.open(
+        'Please enter mandatory fields before saving',
+        'Dismiss',
+        {
+          duration: 5000,
+        },
+      );
+      return;
+    }
 
     if (this.isSaved) {
       this.snackbarQ.open('Edits already saved!', 'Dismiss', {
@@ -3874,19 +4253,20 @@ export class EditFormComponent implements AfterViewChecked {
     this.isSaved = true;
 
     const editType = this.editType();
+
     if (editType.type === 'SINGLE_SAVE') {
       this.caseRecordStore.qSaveEditForm({
         editType: 'SINGLE_SAVE',
         flowOfFundsAmlTransactionId:
           editType.payload.flowOfFundsAmlTransactionId,
-        editFormValue: this.editForm!.getRawValue(),
+        selectionAfter: this.editForm!.getRawValue(),
       });
     }
 
     if (editType.type === 'BULK_SAVE') {
       this.caseRecordStore.qSaveEditForm({
         editType: 'BULK_SAVE',
-        editFormValue: this.editForm!.value,
+        selectionAfter: this.editForm!.value,
         selectionIds: editType.payload,
       });
     }
@@ -4453,22 +4833,34 @@ export class EditFormComponent implements AfterViewChecked {
         value: source?._hiddenPartyKey ?? null,
         disabled,
       }),
-      _hiddenGivenName: new FormControl({
-        value: source?._hiddenGivenName ?? null,
-        disabled,
-      }),
-      _hiddenOtherOrInitial: new FormControl({
-        value: source?._hiddenOtherOrInitial ?? null,
-        disabled,
-      }),
-      _hiddenSurname: new FormControl({
-        value: source?._hiddenSurname ?? null,
-        disabled,
-      }),
-      _hiddenNameOfEntity: new FormControl({
-        value: source?._hiddenNameOfEntity ?? null,
-        disabled,
-      }),
+      _hiddenGivenName: new FormControl(
+        {
+          value: source?._hiddenGivenName ?? null,
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
+      _hiddenOtherOrInitial: new FormControl(
+        {
+          value: source?._hiddenOtherOrInitial ?? null,
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
+      _hiddenSurname: new FormControl(
+        {
+          value: source?._hiddenSurname ?? null,
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
+      _hiddenNameOfEntity: new FormControl(
+        {
+          value: source?._hiddenNameOfEntity ?? null,
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
       accountNumber: new FormControl({
         value: source?.accountNumber ?? null,
         disabled,
@@ -4502,22 +4894,34 @@ export class EditFormComponent implements AfterViewChecked {
         value: conductor?._hiddenPartyKey ?? null,
         disabled,
       }),
-      _hiddenGivenName: new FormControl({
-        value: conductor?._hiddenGivenName ?? null,
-        disabled,
-      }),
-      _hiddenOtherOrInitial: new FormControl({
-        value: conductor?._hiddenOtherOrInitial ?? null,
-        disabled,
-      }),
-      _hiddenSurname: new FormControl({
-        value: conductor?._hiddenSurname ?? null,
-        disabled,
-      }),
-      _hiddenNameOfEntity: new FormControl({
-        value: conductor?._hiddenNameOfEntity ?? null,
-        disabled,
-      }),
+      _hiddenGivenName: new FormControl(
+        {
+          value: conductor?._hiddenGivenName ?? null,
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
+      _hiddenOtherOrInitial: new FormControl(
+        {
+          value: conductor?._hiddenOtherOrInitial ?? null,
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
+      _hiddenSurname: new FormControl(
+        {
+          value: conductor?._hiddenSurname ?? null,
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
+      _hiddenNameOfEntity: new FormControl(
+        {
+          value: conductor?._hiddenNameOfEntity ?? null,
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
       wasConductedOnBehalf: new FormControl({
         value: conductor?.wasConductedOnBehalf ?? false,
         disabled,
@@ -4556,26 +4960,42 @@ export class EditFormComponent implements AfterViewChecked {
         value: behalf?._id ?? getFormGroupId(),
         disabled: false,
       }),
+      linkToSub: new FormControl({
+        value: behalf?.linkToSub ?? null,
+        disabled,
+      }),
       _hiddenPartyKey: new FormControl({
         value: behalf?._hiddenPartyKey ?? null,
         disabled,
       }),
-      _hiddenGivenName: new FormControl({
-        value: behalf?._hiddenGivenName ?? null,
-        disabled,
-      }),
-      _hiddenOtherOrInitial: new FormControl({
-        value: behalf?._hiddenOtherOrInitial ?? null,
-        disabled,
-      }),
-      _hiddenSurname: new FormControl({
-        value: behalf?._hiddenSurname ?? null,
-        disabled,
-      }),
-      _hiddenNameOfEntity: new FormControl({
-        value: behalf?._hiddenNameOfEntity ?? null,
-        disabled,
-      }),
+      _hiddenGivenName: new FormControl(
+        {
+          value: behalf?._hiddenGivenName ?? null,
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
+      _hiddenOtherOrInitial: new FormControl(
+        {
+          value: behalf?._hiddenOtherOrInitial ?? null,
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
+      _hiddenSurname: new FormControl(
+        {
+          value: behalf?._hiddenSurname ?? null,
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
+      _hiddenNameOfEntity: new FormControl(
+        {
+          value: behalf?._hiddenNameOfEntity ?? null,
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
     }) satisfies FormGroup<TypedForm<OnBehalfOf>>;
   }
 
@@ -4600,22 +5020,34 @@ export class EditFormComponent implements AfterViewChecked {
         value: involved?._hiddenPartyKey ?? null,
         disabled,
       }),
-      _hiddenGivenName: new FormControl({
-        value: involved?._hiddenGivenName ?? null,
-        disabled,
-      }),
-      _hiddenOtherOrInitial: new FormControl({
-        value: involved?._hiddenOtherOrInitial ?? null,
-        disabled,
-      }),
-      _hiddenSurname: new FormControl({
-        value: involved?._hiddenSurname ?? null,
-        disabled,
-      }),
-      _hiddenNameOfEntity: new FormControl({
-        value: involved?._hiddenNameOfEntity ?? null,
-        disabled,
-      }),
+      _hiddenGivenName: new FormControl(
+        {
+          value: involved?._hiddenGivenName ?? null,
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
+      _hiddenOtherOrInitial: new FormControl(
+        {
+          value: involved?._hiddenOtherOrInitial ?? null,
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
+      _hiddenSurname: new FormControl(
+        {
+          value: involved?._hiddenSurname ?? null,
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
+      _hiddenNameOfEntity: new FormControl(
+        {
+          value: involved?._hiddenNameOfEntity ?? null,
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
       accountNumber: new FormControl({
         value: involved?.accountNumber ?? null,
         disabled,
@@ -4649,22 +5081,34 @@ export class EditFormComponent implements AfterViewChecked {
         value: beneficiary?._hiddenPartyKey ?? null,
         disabled,
       }),
-      _hiddenGivenName: new FormControl({
-        value: beneficiary?._hiddenGivenName ?? null,
-        disabled,
-      }),
-      _hiddenOtherOrInitial: new FormControl({
-        value: beneficiary?._hiddenOtherOrInitial ?? null,
-        disabled,
-      }),
-      _hiddenSurname: new FormControl({
-        value: beneficiary?._hiddenSurname ?? null,
-        disabled,
-      }),
-      _hiddenNameOfEntity: new FormControl({
-        value: beneficiary?._hiddenNameOfEntity ?? null,
-        disabled,
-      }),
+      _hiddenGivenName: new FormControl(
+        {
+          value: beneficiary?._hiddenGivenName ?? null,
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
+      _hiddenOtherOrInitial: new FormControl(
+        {
+          value: beneficiary?._hiddenOtherOrInitial ?? null,
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
+      _hiddenSurname: new FormControl(
+        {
+          value: beneficiary?._hiddenSurname ?? null,
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
+      _hiddenNameOfEntity: new FormControl(
+        {
+          value: beneficiary?._hiddenNameOfEntity ?? null,
+          disabled,
+        },
+        [personOrEntityValidator()],
+      ),
     }) satisfies FormGroup<TypedForm<Beneficiary>>;
   }
 
@@ -4904,7 +5348,6 @@ export class EditFormComponent implements AfterViewChecked {
     completingAction.controls.beneficiaries!.removeAt(index);
   }
 
-  private formOptionsService = inject(FormOptionsService);
   isFormOptionsLoading = true;
   formOptions$ = this.formOptionsService.formOptions$.pipe(
     finalize(() => {
@@ -5102,9 +5545,6 @@ export class EditFormComponent implements AfterViewChecked {
 
     return null;
   }
-
-  private router = inject(Router);
-  private route = inject(ActivatedRoute);
 
   protected navigateBack() {
     this.router.navigate(['../../'], {
@@ -5324,12 +5764,7 @@ function personOrEntityValidator(): ValidatorFn {
       'Assert parent control is subject group',
     );
 
-    const value = subjectGroupCtrl.value as RecursiveOmit<
-      StartingAction,
-      keyof ConductorNpdData
-    >;
-
-    if (!value) return null;
+    if (!subjectGroupCtrl.value) return null;
 
     if (
       !hasPersonName(subjectGroupCtrl.value as AccountHolder) &&

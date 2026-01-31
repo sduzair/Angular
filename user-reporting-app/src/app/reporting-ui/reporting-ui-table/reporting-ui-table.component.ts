@@ -239,7 +239,8 @@ export class ReportingUiTableComponent implements AfterViewInit {
   private dialog = inject(MatDialog);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
-  selectionsComputed$ = inject(CaseRecordStore).selectionsComputed$.pipe(
+
+  selectionsComputed$ = this.caseRecordStore.selectionsComputed$.pipe(
     tap((txns) => {
       const initHighlightsMap = new Map(
         txns.map((txn) => [
@@ -251,7 +252,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
     }),
   );
 
-  qSavingEdits = toSignal(inject(CaseRecordStore).qActiveSaveIds$, {
+  qSavingEdits = toSignal(this.caseRecordStore.qActiveSaveIds$, {
     initialValue: [],
   });
 
@@ -721,7 +722,7 @@ export interface StartingAction {
   conductors?: Conductor[];
 }
 export interface AccountHolder {
-  linkToSub?: string;
+  linkToSub: string;
   _id?: string;
   _hiddenPartyKey: string | null;
   _hiddenSurname: string | null;
@@ -731,7 +732,7 @@ export interface AccountHolder {
 }
 
 export type Conductor = {
-  linkToSub?: string;
+  linkToSub: string;
   _id?: string;
   _hiddenPartyKey: string | null;
   _hiddenSurname: string | null;
@@ -753,7 +754,7 @@ export interface ConductorNpdData {
 }
 
 export interface SourceOfFunds {
-  linkToSub?: string;
+  linkToSub: string;
   _id?: string;
   _hiddenPartyKey: string | null;
   _hiddenSurname: string | null;
@@ -765,6 +766,7 @@ export interface SourceOfFunds {
 }
 
 export interface OnBehalfOf {
+  linkToSub: string;
   _id?: string;
   _hiddenPartyKey: string | null;
   _hiddenSurname: string | null;
@@ -799,7 +801,7 @@ export interface CompletingAction {
 }
 
 export interface InvolvedIn {
-  linkToSub?: string;
+  linkToSub: string;
   _id?: string;
   _hiddenPartyKey: string | null;
   _hiddenSurname: string | null;
@@ -811,7 +813,7 @@ export interface InvolvedIn {
 }
 
 export interface Beneficiary {
-  linkToSub?: string;
+  linkToSub: string;
   _id?: string;
   _hiddenPartyKey: string | null;
   _hiddenSurname: string | null;

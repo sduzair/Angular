@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  ErrorHandler,
   inject,
   signal,
 } from '@angular/core';
@@ -23,11 +24,9 @@ import {
   catchError,
   combineLatest,
   combineLatestWith,
-  debounceTime,
-  finalize,
+  EMPTY,
   forkJoin,
   map,
-  merge,
   Observable,
   of,
   shareReplay,
@@ -411,8 +410,10 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
           status: 'transforming',
         });
 
-        const transformations: Observable<StrTransactionWithChangeLogs | null>[] =
-          [];
+        const transformations: Observable<{
+          selection: StrTransactionWithChangeLogs;
+          parties: PartyGenType[];
+        } | null>[] = [];
 
         for (const {
           flowOfFundsAmlTransactionId: selectionId,
@@ -534,22 +535,27 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
 
         return transformations$.pipe(
           map((results) => {
-            const transformedTxns = results.filter(
-              (txn): txn is StrTransactionWithChangeLogs => txn !== null,
+            const transformations = results.filter(
+              (
+                item,
+              ): item is {
+                selection: StrTransactionWithChangeLogs;
+                parties: PartyGenType[];
+              } => item !== null,
             );
 
-            if (results.length - transformedTxns.length > 0) {
+            if (results.length - transformations.length > 0) {
               this.snackBar.open('Some transformations have failed', 'Close');
             }
 
             this.saveProgress$.next({
               ...this.saveProgress$.value,
-              completed: transformedTxns.length,
+              completed: transformations.length,
               status: 'saving',
             });
 
             return {
-              transformedTxns,
+              transformations,
               removedSelectionIds,
             };
           }),
@@ -557,37 +563,40 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
       },
     ),
     // Save transformed transactions
-    switchMap(({ transformedTxns, removedSelectionIds }) => {
-      return this._caseRecordStore.addSelections(transformedTxns).pipe(
-        switchMap(({ count: addedSelectionsCount }) => {
-          this.saveProgress$.next({
-            ...this.saveProgress$.value,
-            completed: transformedTxns.length + addedSelectionsCount,
-            status: 'saving',
-          });
-          return this._caseRecordStore
-            .removeSelections(removedSelectionIds)
-            .pipe(
-              tap(({ count: removedSelectionsCount }) => {
-                this.saveProgress$.next({
-                  ...this.saveProgress$.value,
-                  completed:
-                    transformedTxns.length +
-                    addedSelectionsCount +
-                    removedSelectionsCount,
-                  status: 'complete',
-                });
-              }),
-            );
-        }),
-        finalize(() => {
-          this.saveProgress$.next({
-            ...this.saveProgress$.value,
-            completed: 0,
-            status: 'error',
-          });
-        }),
-      );
+    switchMap(({ transformations, removedSelectionIds }) => {
+      return this._caseRecordStore
+        .addSelectionsAndParties(transformations)
+        .pipe(
+          switchMap(({ count: addedSelectionsCount }) => {
+            this.saveProgress$.next({
+              ...this.saveProgress$.value,
+              completed: transformations.length + addedSelectionsCount,
+              status: 'saving',
+            });
+            return this._caseRecordStore
+              .removeSelections(removedSelectionIds)
+              .pipe(
+                tap(({ count: removedSelectionsCount }) => {
+                  this.saveProgress$.next({
+                    ...this.saveProgress$.value,
+                    completed:
+                      transformations.length +
+                      addedSelectionsCount +
+                      removedSelectionsCount,
+                    status: 'complete',
+                  });
+                }),
+              );
+          }),
+          catchError((error) => {
+            this.saveProgress$.next({
+              ...this.saveProgress$.value,
+              status: 'error',
+            });
+
+            return EMPTY;
+          }),
+        );
     }),
   );
 
@@ -598,7 +607,7 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     abmTxn: AbmSourceData,
     fofTxn: FlowOfFundsSourceData,
     caseRecordId: string,
-  ): Observable<StrTransactionWithChangeLogs> {
+  ) {
     return transformABMToStrTransaction(
       abmTxn,
       fofTxn,
@@ -614,7 +623,7 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     fofTxn: FlowOfFundsSourceData,
     emtTxn: EmtSourceData,
     caseRecordId: string,
-  ): Observable<StrTransactionWithChangeLogs> {
+  ) {
     return transformOlbEmtToStrTransaction({
       olbTxn,
       fofTxn,
@@ -630,7 +639,7 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     wireTxn: WireSourceData,
     fofTxn: FlowOfFundsSourceData,
     caseRecordId: string,
-  ): Observable<StrTransactionWithChangeLogs> {
+  ) {
     return transformWireToStrTransaction({
       wireTxn,
       fofTxn,
@@ -645,12 +654,12 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     otcTxn: OTCSourceData,
     fofTxn: FlowOfFundsSourceData,
     caseRecordId: string,
-  ): Observable<StrTransactionWithChangeLogs> {
+  ) {
     return transformOTCToStrTransaction({
       sourceTxn: otcTxn,
       fofTxn,
-      getPartyInfo: (_hiddenPartyKey) =>
-        this.searchService.getPartyInfo(_hiddenPartyKey),
+      generateParty: (party: Omit<PartyGenType, 'partyIdentifier'>) =>
+        this.partyGenService.generateParty(party),
       getAccountInfo: (account) => this.searchService.getAccountInfo(account),
       caseRecordId,
     });
@@ -662,6 +671,7 @@ export const searchResultResolver: ResolveFn<boolean> = (
   _state: RouterStateSnapshot,
 ) => {
   const caseRecordStore = inject(CaseRecordStore);
+  const errorHandler = inject(ErrorHandler);
 
   const routeExtras = inject(Router).currentNavigation()?.extras.state as
     | RouteExtrasFromSearch
@@ -681,10 +691,13 @@ export const searchResultResolver: ResolveFn<boolean> = (
 
   return forkJoin([
     caseRecordStore.fetchCaseRecordByAmlId(amlId),
-    caseRecordStore.fetchSelections(),
+    caseRecordStore.fetchSelectionsAndParties(),
   ]).pipe(
     map(() => true),
-    catchError(() => of(false)),
+    catchError((error) => {
+      errorHandler.handleError(error);
+      return of(false);
+    }),
   );
 };
 

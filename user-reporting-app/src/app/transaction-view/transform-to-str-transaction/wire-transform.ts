@@ -33,10 +33,13 @@ export function transformWireToStrTransaction({
   fofTxn: FlowOfFundsSourceData;
   generateParty: (
     party: Omit<PartyGenType, 'partyIdentifier'>,
-  ) => Observable<PartyGenType>;
+  ) => Observable<PartyGenType | null>;
   getAccountInfo: (account: string) => Observable<GetAccountInfoRes>;
   caseRecordId: string;
-}): Observable<StrTransactionWithChangeLogs> {
+}): Observable<{
+  selection: StrTransactionWithChangeLogs;
+  parties: PartyGenType[];
+}> {
   if (wireTxn.wireRole !== 'RECEIVER') {
     throw new Error(
       'This function only handles incoming wire transfers (RECEIVER role)',
@@ -133,7 +136,7 @@ export function transformWireToStrTransaction({
         wasCondInfoObtained: true,
         conductors: [
           {
-            linkToSub: partiesInfo[wireTxn.msgTag50]?.partyIdentifier,
+            linkToSub: partiesInfo[wireTxn.msgTag50]?.partyIdentifier!,
             _hiddenPartyKey: null,
             _hiddenGivenName:
               partiesInfo[wireTxn.msgTag50]?.partyName?.givenName ?? null,
@@ -152,16 +155,12 @@ export function transformWireToStrTransaction({
       // Build completing actions - INCOMING WIRE
       const completingActions: CompletingAction[] = [];
 
-      // Receiver (beneficiary) - CIBC account
-      const caAccountInfo = accountsInfo[wireTxn.strCaAccount];
-
-      // Receiver account holders
       const caAccountHolders =
         wireTxn.customer1AccountHolderCifId
           ?.split(/[;:]/)
           .reduce((acc, key) => {
             acc.push({
-              linkToSub: partiesInfo[key]?.partyIdentifier,
+              linkToSub: partiesInfo[key]?.partyIdentifier!,
               _hiddenPartyKey: partiesInfo[key]?.identifiers?.partyKey!,
               _hiddenGivenName: partiesInfo[key]?.partyName?.givenName ?? null,
               _hiddenSurname: partiesInfo[key]?.partyName?.surname ?? null,
@@ -184,12 +183,13 @@ export function transformWireToStrTransaction({
         fiuNo: wireTxn.strCaFiNumber,
         branch: String(wireTxn.strCaBranch ?? ''),
         account: String(wireTxn.strCaAccount ?? ''),
-        accountType: caAccountInfo?.accountType || null,
+        accountType: accountsInfo[wireTxn.strCaAccount]?.accountType || null,
         accountTypeOther: null,
-        accountCurrency: caAccountInfo?.accountCurrency ?? '',
-        accountOpen: caAccountInfo?.accountOpen || null,
-        accountClose: caAccountInfo?.accountClose || null,
-        accountStatus: caAccountInfo?.accountStatus ?? '',
+        accountCurrency:
+          accountsInfo[wireTxn.strCaAccount]?.accountCurrency ?? '',
+        accountOpen: accountsInfo[wireTxn.strCaAccount]?.accountOpen || null,
+        accountClose: accountsInfo[wireTxn.strCaAccount]?.accountClose || null,
+        accountStatus: accountsInfo[wireTxn.strCaAccount]?.accountStatus ?? '',
         hasAccountHolders: true,
         accountHolders: caAccountHolders,
         wasAnyOtherSubInvolved: false,
@@ -257,7 +257,10 @@ export function transformWireToStrTransaction({
         _hiddenValidation: [],
       };
 
-      return transformed;
+      return {
+        selection: transformed,
+        parties: Object.values(partiesInfo) as PartyGenType[],
+      };
     }),
   );
 }

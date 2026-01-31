@@ -1,4 +1,9 @@
-import { AbstractControl, ValidationErrors } from '@angular/forms';
+import {
+  AbstractControl,
+  FormArray,
+  FormGroup,
+  ValidationErrors,
+} from '@angular/forms';
 
 /**
  * Set error based on predicate - add if true, remove if false
@@ -7,7 +12,7 @@ import { AbstractControl, ValidationErrors } from '@angular/forms';
 export function setError(
   control: AbstractControl,
   error: ValidationErrors,
-  predicate: () => boolean,
+  predicate: () => boolean = () => true,
   opts?: {
     emitEvent?: boolean;
   },
@@ -44,4 +49,27 @@ export function setError(
       opts,
     );
   }
+}
+
+export function getFormErrors(
+  form: FormGroup | FormArray,
+  path = '',
+): Record<string, ValidationErrors> {
+  const parentErrors: Record<string, ValidationErrors> = {
+    [`${path}`]: form.errors ?? {},
+  };
+
+  const result = Object.keys(form.controls).reduce(
+    (acc, key) => {
+      const control = form.get(key)!;
+      const errors =
+        control instanceof FormGroup || control instanceof FormArray
+          ? getFormErrors(control, path ? `${path}.${key}` : key)
+          : { [path ? `${path}.${key}` : key]: control.errors ?? {} };
+
+      return { ...acc, ...errors };
+    },
+    {} as Record<string, ValidationErrors>,
+  );
+  return { ...parentErrors, ...result };
 }

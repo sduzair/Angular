@@ -30,6 +30,7 @@
     "@hashbrownai/core": "^0.4.1",
     "@hashbrownai/google": "^0.4.1",
     "bootstrap": "^5.3.7",
+    "canonicalize": "^2.1.0",
     "date-fns": "^4.1.0",
     "echarts": "^6.0.0",
     "idb": "^8.0.3",

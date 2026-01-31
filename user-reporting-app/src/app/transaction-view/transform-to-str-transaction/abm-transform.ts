@@ -25,10 +25,10 @@ export function transformABMToStrTransaction(
   fofTxn: FlowOfFundsSourceData,
   generateParty: (
     party: Omit<PartyGenType, 'partyIdentifier'>,
-  ) => Observable<PartyGenType>,
+  ) => Observable<PartyGenType | null>,
   getAccountInfo: (account: string) => Observable<GetAccountInfoRes>,
   caseRecordId: string,
-): Observable<StrTransactionWithChangeLogs> {
+) {
   // Collect all party keys and account info we need to fetch
   const partyKeysToFetch = new Set<string>();
   const accountsToFetch = new Set<string>();
@@ -111,7 +111,7 @@ export function transformABMToStrTransaction(
           ?.split(/[;:]/)
           .reduce((acc, partyKey) => {
             acc.push({
-              linkToSub: partiesInfo[partyKey]?.partyIdentifier,
+              linkToSub: partiesInfo[partyKey]?.partyIdentifier!,
               _hiddenPartyKey: partiesInfo[partyKey]?.identifiers?.partyKey!,
               _hiddenGivenName:
                 partiesInfo[partyKey]?.partyName?.givenName ?? null,
@@ -128,7 +128,7 @@ export function transformABMToStrTransaction(
       conductors.push({
         linkToSub:
           partiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
-            ?.partyIdentifier,
+            ?.partyIdentifier!,
         _hiddenPartyKey:
           partiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
             ?.identifiers?.partyKey!,
@@ -190,7 +190,7 @@ export function transformABMToStrTransaction(
           ?.split(/[;:]/)
           .reduce((acc, partyKey) => {
             acc.push({
-              linkToSub: partiesInfo[partyKey]?.partyIdentifier,
+              linkToSub: partiesInfo[partyKey]?.partyIdentifier!,
               _hiddenPartyKey: partiesInfo[partyKey]?.identifiers?.partyKey!,
               _hiddenGivenName:
                 partiesInfo[partyKey]?.partyName?.givenName ?? null,
@@ -284,7 +284,10 @@ export function transformABMToStrTransaction(
         _hiddenValidation: [],
       };
 
-      return transformed;
+      return {
+        selection: transformed,
+        parties: Object.values(partiesInfo) as PartyGenType[],
+      };
     }),
   );
 }

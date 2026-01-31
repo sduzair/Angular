@@ -37,10 +37,10 @@ export function transformOlbEmtToStrTransaction({
   emtTxn: EmtSourceData;
   generateParty: (
     party: Omit<PartyGenType, 'partyIdentifier'>,
-  ) => Observable<PartyGenType>;
+  ) => Observable<PartyGenType | null>;
   getAccountInfo: (account: string) => Observable<GetAccountInfoRes>;
   caseRecordId: string;
-}): Observable<StrTransactionWithChangeLogs> {
+}) {
   const isIncoming = olbTxn.strSaDirection === 'In';
   const isOutgoing = olbTxn.strSaDirection === 'Out';
   const isSenderCibc = emtTxn.senderFiNumber === 'CA000010';
@@ -163,7 +163,7 @@ export function transformOlbEmtToStrTransaction({
           conductors: [
             {
               linkToSub:
-                partiesInfo[emtTxn.senderCertapayAccount]?.partyIdentifier,
+                partiesInfo[emtTxn.senderCertapayAccount]?.partyIdentifier!,
               _hiddenPartyKey: null,
               _hiddenGivenName:
                 partiesInfo[emtTxn.senderCertapayAccount]?.partyName
@@ -198,7 +198,7 @@ export function transformOlbEmtToStrTransaction({
           emtTxn.senderAccountNumber?.split('-').at(-1)!
         ]?.accountHolders.reduce((acc, holder) => {
           acc.push({
-            linkToSub: partiesInfo[holder.partyKey]?.partyIdentifier,
+            linkToSub: partiesInfo[holder.partyKey]?.partyIdentifier!,
             _hiddenPartyKey:
               partiesInfo[holder.partyKey]?.identifiers?.partyKey!,
             _hiddenGivenName:
@@ -286,7 +286,7 @@ export function transformOlbEmtToStrTransaction({
           .customer1AccountHolderCifId!.split(/[;:]/)
           .reduce((acc, partyKey) => {
             acc.push({
-              linkToSub: partiesInfo[partyKey]?.partyIdentifier,
+              linkToSub: partiesInfo[partyKey]?.partyIdentifier!,
               _hiddenPartyKey: partiesInfo[partyKey]?.identifiers?.partyKey!,
               _hiddenGivenName: partiesInfo[partyKey]?.partyName?.givenName!,
               _hiddenSurname: partiesInfo[partyKey]?.partyName?.surname!,
@@ -302,7 +302,7 @@ export function transformOlbEmtToStrTransaction({
         const conductors = [partiesInfo[olbTxn.conductor!]].map(
           (sub) =>
             ({
-              linkToSub: sub?.partyIdentifier,
+              linkToSub: sub?.partyIdentifier!,
               _hiddenPartyKey: sub?.identifiers?.partyKey!,
               _hiddenGivenName: sub?.partyName?.givenName!,
               _hiddenSurname: sub?.partyName?.surname!,
@@ -359,7 +359,7 @@ export function transformOlbEmtToStrTransaction({
           .customer2AccountHolderCifId!.split(/[;:]/)
           .reduce((acc, partyKey) => {
             acc.push({
-              linkToSub: partiesInfo[partyKey]?.partyIdentifier,
+              linkToSub: partiesInfo[partyKey]?.partyIdentifier!,
               _hiddenPartyKey: partiesInfo[partyKey]?.identifiers?.partyKey!,
               _hiddenGivenName: partiesInfo[partyKey]?.partyName?.givenName!,
               _hiddenSurname: partiesInfo[partyKey]?.partyName?.surname!,
@@ -425,7 +425,7 @@ export function transformOlbEmtToStrTransaction({
           beneficiaries: [
             {
               linkToSub:
-                partiesInfo[emtTxn.recipientCertapayAccount]?.partyIdentifier,
+                partiesInfo[emtTxn.recipientCertapayAccount]?.partyIdentifier!,
               _hiddenPartyKey: null,
               _hiddenGivenName:
                 partiesInfo[emtTxn.recipientCertapayAccount]?.partyName
@@ -453,7 +453,7 @@ export function transformOlbEmtToStrTransaction({
         const recipientAccountHolders =
           recipientAccountInfo!.accountHolders.reduce((acc, holder) => {
             acc.push({
-              linkToSub: partiesInfo[holder.partyKey]?.partyIdentifier,
+              linkToSub: partiesInfo[holder.partyKey]?.partyIdentifier!,
               _hiddenPartyKey:
                 partiesInfo[holder.partyKey]?.identifiers?.partyKey!,
               _hiddenGivenName:
@@ -544,7 +544,10 @@ export function transformOlbEmtToStrTransaction({
         _hiddenValidation: [],
       };
 
-      return transformed;
+      return {
+        selection: transformed,
+        parties: Object.values(partiesInfo) as PartyGenType[],
+      };
     }),
   );
 }

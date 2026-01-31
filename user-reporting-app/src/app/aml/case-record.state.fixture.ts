@@ -1,6 +1,9 @@
 import { TEST_USER_ADMIN } from '../auth.fixture';
 import { TRANSACTION_SEARCH_RES_DEV_ONLY } from '../transaction-search/transaction-search.data.fixture';
-import { SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE } from './case-record.selections.data.fixture';
+import {
+  PARTIES_DEV_OR_TEST_ONLY_FIXTURE,
+  SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+} from './case-record.selections.data.fixture';
 import { CaseRecordState } from './case-record.store';
 
 export const AML_ID_DEV_OR_TEST_ONLY_FIXTURE = 99999999;
@@ -35,10 +38,15 @@ export const CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE: CaseRecordState = {
   status: 'Active',
   eTag: 0,
   lastUpdated: '1996-06-13',
-  selections: SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE.map((txn) => ({
-    ...txn,
-    eTag: 0,
-    changeLogs: [],
+  // selections: SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE.map((txn) => ({
+  //   ...txn,
+  //   eTag: 0,
+  //   changeLogs: [],
+  //   caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
+  // })),
+  selections: SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE,
+  parties: PARTIES_DEV_OR_TEST_ONLY_FIXTURE.map((party) => ({
+    ...party,
     caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
   })),
 };
