@@ -136,7 +136,7 @@ export function transformWireToStrTransaction({
         wasCondInfoObtained: true,
         conductors: [
           {
-            linkToSub: partiesInfo[wireTxn.msgTag50]?.partyIdentifier,
+            linkToSub: partiesInfo[wireTxn.msgTag50]?.partyIdentifier!,
             _hiddenPartyKey: null,
             _hiddenGivenName:
               partiesInfo[wireTxn.msgTag50]?.partyName?.givenName ?? null,
@@ -160,7 +160,7 @@ export function transformWireToStrTransaction({
           ?.split(/[;:]/)
           .reduce((acc, key) => {
             acc.push({
-              linkToSub: partiesInfo[key]?.partyIdentifier,
+              linkToSub: partiesInfo[key]?.partyIdentifier!,
               _hiddenPartyKey: partiesInfo[key]?.identifiers?.partyKey!,
               _hiddenGivenName: partiesInfo[key]?.partyName?.givenName ?? null,
               _hiddenSurname: partiesInfo[key]?.partyName?.surname ?? null,

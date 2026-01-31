@@ -247,7 +247,7 @@ export class ManualTransactionBuilder {
           const { partyKey } = conductor?.identifiers ?? {};
 
           return {
-            linkToSub: conductor?.partyIdentifier,
+            linkToSub: conductor?.partyIdentifier!,
             _hiddenPartyKey: partyKey as string,
             _hiddenGivenName: givenName ?? null,
             _hiddenSurname: surname ?? null,
@@ -273,7 +273,7 @@ export class ManualTransactionBuilder {
             beneficiary?.partyName ?? {};
           const { partyKey } = beneficiary?.identifiers ?? {};
           return {
-            linkToSub: beneficiary?.partyIdentifier,
+            linkToSub: beneficiary?.partyIdentifier!,
             _hiddenPartyKey: partyKey as string,
             _hiddenGivenName: givenName ?? null,
             _hiddenSurname: surname ?? null,
