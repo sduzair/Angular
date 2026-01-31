@@ -691,7 +691,7 @@ export const searchResultResolver: ResolveFn<boolean> = (
 
   return forkJoin([
     caseRecordStore.fetchCaseRecordByAmlId(amlId),
-    caseRecordStore.fetchSelections(),
+    caseRecordStore.fetchSelectionsAndParties(),
   ]).pipe(
     map(() => true),
     catchError((error) => {

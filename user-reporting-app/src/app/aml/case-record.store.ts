@@ -7,6 +7,7 @@ import {
   inject,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { uniqBy } from 'lodash-es';
 import {
   BehaviorSubject,
   EMPTY,
@@ -22,6 +23,7 @@ import {
   catchError,
   concatMap,
   debounceTime,
+  defaultIfEmpty,
   filter,
   finalize,
   pairwise,
@@ -62,9 +64,11 @@ import {
   SelectionsService,
   WithCaseRecordId,
 } from '../transaction-view/selections.service';
-import { PartyGenType } from '../transaction-view/transform-to-str-transaction/party-gen.service';
+import {
+  PartyGenService,
+  PartyGenType,
+} from '../transaction-view/transform-to-str-transaction/party-gen.service';
 import { CaseRecordService } from './case-record.service';
-import { uniqBy } from 'lodash-es';
 
 export const DEFAULT_CASE_RECORD_STATE: CaseRecordState = {
   searchResponse: [],
@@ -179,7 +183,7 @@ export class CaseRecordStore implements OnDestroy {
         switchMap(() => {
           return forkJoin([
             this.fetchCaseRecordByAmlId(this._state$.value.amlId),
-            this.fetchSelections(),
+            this.fetchSelectionsAndParties(),
           ]);
         }),
         takeUntilDestroyed(),
@@ -201,48 +205,66 @@ export class CaseRecordStore implements OnDestroy {
 
   // --- VIEW MODEL FOR REPORTING UI DATA ---
   readonly selectionsComputed$ = this._state$.pipe(
+    // Filter ensures we only proceed if there is work to do
+    filter(
+      ({
+        selectionsWithPendingChanges,
+        selectionsToAdd,
+        selectionsToRemove,
+        selections,
+      }) =>
+        (selectionsWithPendingChanges ?? []).length > 0 ||
+        (selectionsToAdd ?? []).length > 0 ||
+        (selectionsToRemove ?? []).length > 0 ||
+        selections.length === 0, // Allow pass-through for reset/clear scenarios
+    ),
     map(
       ({
         selections: currentSelections,
-        selectionsWithPendingChanges: selectionsToChange = [],
+        selectionsWithPendingChanges = [],
         selectionsToAdd = [],
         selectionsToRemove = [],
+        parties: currentParties,
       }) => {
-        if (selectionsToChange.length > 0) {
-          const _cloneSelections = structuredClone(selectionsToChange);
-          // eslint-disable-next-line no-param-reassign
-          selectionsToChange.length = 0;
-          return computePartialChangesHandler(
-            currentSelections,
-            _cloneSelections,
+        if (selectionsWithPendingChanges.length > 0) {
+          const _cloneSelectionIds = structuredClone(
+            selectionsWithPendingChanges,
           );
+          // eslint-disable-next-line no-param-reassign
+          selectionsWithPendingChanges.length = 0;
+          return computePartialChangesHandler({
+            selections: currentSelections,
+            selectionsToRecompute: _cloneSelectionIds,
+            parties: currentParties,
+          });
         }
 
         if (selectionsToAdd.length > 0) {
-          const _cloneSelections = structuredClone(selectionsToAdd);
+          const _cloneSelectionIds = structuredClone(selectionsToAdd);
           // eslint-disable-next-line no-param-reassign
           selectionsToAdd.length = 0;
-          return computeAddedSelectionsHandler(
-            currentSelections,
-            _cloneSelections,
-          );
+          return addSelectionsHandler({
+            selections: currentSelections,
+            selectionsToAdd: _cloneSelectionIds,
+            parties: currentParties,
+          });
         }
 
         if (selectionsToRemove.length > 0) {
-          const _cloneSelections = structuredClone(selectionsToRemove);
+          const _cloneSelectionIds = structuredClone(selectionsToRemove);
           // eslint-disable-next-line no-param-reassign
           selectionsToRemove.length = 0;
           return (acc: StrTransactionWithChangeLogs[]) => {
             return acc.filter(
               (txn) =>
-                !_cloneSelections.includes(txn.flowOfFundsAmlTransactionId),
+                !_cloneSelectionIds.includes(txn.flowOfFundsAmlTransactionId),
             );
           };
         }
 
         if (currentSelections.length == 0) return () => [];
 
-        return computeFullChangesHandler(currentSelections);
+        throw new Error('Unexpected state selections change');
       },
     ),
     scan((acc, handler) => {
@@ -253,6 +275,10 @@ export class CaseRecordStore implements OnDestroy {
         return acc;
       }
     }, [] as StrTransactionWithChangeLogs[]),
+    catchError((error) => {
+      this.errorHandler.handleError(error);
+      return of();
+    }),
     takeUntilDestroyed(),
     shareReplay({ bufferSize: 1, refCount: false }), // stream never dies in aml component scope
   );
@@ -262,11 +288,11 @@ export class CaseRecordStore implements OnDestroy {
     | {
         editType: 'SINGLE_SAVE';
         flowOfFundsAmlTransactionId: string;
-        editFormValue: EditFormValueType;
+        selectionAfter: EditFormValueType;
       }
     | {
         editType: 'BULK_SAVE';
-        editFormValue: EditFormValueType;
+        selectionAfter: EditFormValueType;
         selectionIds: StrTransaction['flowOfFundsAmlTransactionId'][];
       }
     | { editType: 'HIGHLIGHT'; highlightsMap: Map<string, string> }
@@ -276,6 +302,10 @@ export class CaseRecordStore implements OnDestroy {
           manualSelection: StrTransactionWithChangeLogs;
           manualParties: PartyGenType[];
         }[];
+      }
+    | {
+        editType: 'ADD_PARTIES';
+        parties: PartyGenType[];
       }
     | {
         editType: 'RESET_SELECTIONS';
@@ -306,6 +336,9 @@ export class CaseRecordStore implements OnDestroy {
           ({ manualSelection }) => manualSelection.flowOfFundsAmlTransactionId,
         );
       }
+      if (edit.editType === 'ADD_PARTIES') {
+        /* empty */
+      }
       if (edit.editType === 'RESET_SELECTIONS') {
         incomingSaves = edit.selectionIds;
       }
@@ -323,7 +356,7 @@ export class CaseRecordStore implements OnDestroy {
           const { editType } = edit;
           const pendingChanges: SaveChangesRequest['pendingChanges'] = [];
           const selectionsAndPartiesToAdd: {
-            selection: StrTransactionWithChangeLogs;
+            selection?: StrTransactionWithChangeLogs;
             parties: PartyGenType[];
           }[] = [];
           const selectionsToReset: ResetSelectionsRequest['pendingResets'] = [];
@@ -331,14 +364,17 @@ export class CaseRecordStore implements OnDestroy {
             [];
 
           if (editType === 'SINGLE_SAVE') {
-            const { editFormValue, flowOfFundsAmlTransactionId } = edit;
+            const {
+              selectionAfter: transactionAfter,
+              flowOfFundsAmlTransactionId,
+            } = edit;
             const changeLogs = ChangeLog.generateChangeLogs(
               selectionsComputed.find(
                 (txn) =>
                   txn.flowOfFundsAmlTransactionId ===
                   flowOfFundsAmlTransactionId,
               )!,
-              editFormValue as StrTransactionWithChangeLogs,
+              transactionAfter as StrTransactionWithChangeLogs,
             );
             pendingChanges.push({
               flowOfFundsAmlTransactionId,
@@ -355,7 +391,10 @@ export class CaseRecordStore implements OnDestroy {
           }
 
           if (editType === 'BULK_SAVE') {
-            const { selectionIds: selections, editFormValue } = edit;
+            const {
+              selectionIds: selections,
+              selectionAfter: transactionAfter,
+            } = edit;
             selections.forEach((selection) => {
               const transactionBefore = selectionsComputed.find(
                 (txn) => txn.flowOfFundsAmlTransactionId === selection,
@@ -363,7 +402,7 @@ export class CaseRecordStore implements OnDestroy {
 
               const changeLogs = ChangeLog.generateChangeLogs(
                 transactionBefore,
-                editFormValue as StrTransactionWithChangeLogs,
+                transactionAfter as StrTransactionWithChangeLogs,
                 { isBulkEdit: true },
               );
 
@@ -426,6 +465,11 @@ export class CaseRecordStore implements OnDestroy {
                 parties: item.manualParties,
               })),
             );
+          }
+
+          if (edit.editType === 'ADD_PARTIES') {
+            const { parties } = edit;
+            selectionsAndPartiesToAdd.push({ parties });
           }
 
           if (editType === 'RESET_SELECTIONS') {
@@ -585,10 +629,57 @@ export class CaseRecordStore implements OnDestroy {
     });
   }
 
+  private partyGenService = inject(PartyGenService);
+
   qSaveEditForm(
     edit: ExtractSubjectType<typeof CaseRecordStore.prototype._updateQueue$>,
   ) {
-    this._updateQueue$.next(edit);
+    if (edit.editType !== 'SINGLE_SAVE' && edit.editType !== 'BULK_SAVE')
+      throw new Error();
+
+    const { selectionAfter: editFormValue } = edit;
+
+    const partiesToGenerate = extractAllPartyRefs(editFormValue).filter(
+      (ref) => !ref.linkToSub,
+    );
+
+    forkJoin(
+      partiesToGenerate.map((ref) => {
+        const {
+          _hiddenPartyKey: partyKey,
+          _hiddenGivenName: givenName,
+          _hiddenSurname: surname,
+          _hiddenOtherOrInitial: otherOrInitial,
+          _hiddenNameOfEntity: nameOfEntity,
+        } = ref;
+        return this.partyGenService
+          .generateParty({
+            identifiers: { partyKey },
+            partyName: { givenName, otherOrInitial, surname, nameOfEntity },
+          })
+          .pipe(
+            tap((generatedParty) => {
+              const { partyIdentifier } = generatedParty!;
+              // eslint-disable-next-line no-param-reassign
+              ref.linkToSub = partyIdentifier;
+            }),
+          );
+      }),
+    )
+      .pipe(defaultIfEmpty([] as (PartyGenType | null)[]), take(1))
+      // eslint-disable-next-line rxjs-angular-x/prefer-takeuntil
+      .subscribe((parties) => {
+        console.assert(parties.every((p) => !!p));
+
+        if (parties.length > 0) {
+          this._updateQueue$.next({
+            editType: 'ADD_PARTIES',
+            parties: parties as PartyGenType[],
+          });
+        }
+
+        this._updateQueue$.next(edit);
+      });
   }
 
   qSaveHighlightEdits(
@@ -670,7 +761,7 @@ export class CaseRecordStore implements OnDestroy {
     );
   }
 
-  public fetchSelections() {
+  public fetchSelectionsAndParties() {
     return this.selectionsService
       .fetchSelections(this._state$.value.caseRecordId)
       .pipe(
@@ -679,6 +770,9 @@ export class CaseRecordStore implements OnDestroy {
             ...this._state$.value,
             selections,
             parties,
+            selectionsToAdd: selections.map(
+              (sel) => sel.flowOfFundsAmlTransactionId,
+            ),
           });
         }),
       );
@@ -686,7 +780,7 @@ export class CaseRecordStore implements OnDestroy {
 
   public addSelectionsAndParties(
     selectionsAndParties: {
-      selection: StrTransactionWithChangeLogs;
+      selection?: StrTransactionWithChangeLogs;
       parties: PartyGenType[];
     }[],
   ) {
@@ -695,8 +789,8 @@ export class CaseRecordStore implements OnDestroy {
     return this._state$.pipe(
       take(1),
       switchMap(({ caseRecordId, eTag: caseETag, parties: partiesCurrent }) => {
-        const selections = selectionsAndParties.map(
-          ({ selection }) => selection,
+        const selections = selectionsAndParties.flatMap(({ selection }) =>
+          selection ? [selection] : [],
         );
         const isNotExistingParty = (item: PartyGenType): boolean =>
           partiesCurrent.findIndex(
@@ -730,7 +824,7 @@ export class CaseRecordStore implements OnDestroy {
                       }) satisfies StrTransactionWithChangeLogs,
                   ),
                 ],
-                selectionsWithPendingChanges: selections.map(
+                selectionsToAdd: selections.map(
                   (sel) => sel.flowOfFundsAmlTransactionId,
                 ),
                 parties: [
@@ -742,9 +836,6 @@ export class CaseRecordStore implements OnDestroy {
               });
             }),
             catchError((error: HttpErrorResponse) => {
-              // Handle errors gracefully
-              this.errorHandler.handleError(error);
-
               // Conflict triggers refresh of local state
               if (error.status === HttpStatusCode.Conflict) {
                 this.conflict$.next();
@@ -784,9 +875,6 @@ export class CaseRecordStore implements OnDestroy {
           });
         }),
         catchError((error: HttpErrorResponse) => {
-          // Handle errors gracefully
-          this.errorHandler.handleError(error);
-
           // Conflict triggers refresh of local state
           if (error.status === HttpStatusCode.Conflict) {
             this.conflict$.next();
@@ -834,17 +922,12 @@ export class CaseRecordStore implements OnDestroy {
 
         this._state$.next({
           ...this._state$.value,
-          amlId: this._state$.value.amlId,
-          selections: this._state$.value.selections,
           selectionsWithPendingChanges: pendingChanges.map(
             ({ flowOfFundsAmlTransactionId }) => flowOfFundsAmlTransactionId,
           ),
         });
       }),
       catchError((error: HttpErrorResponse) => {
-        // Handle errors gracefylly
-        this.errorHandler.handleError(error);
-
         // Conflict triggers refresh of local state
         if (error.status === HttpStatusCode.Conflict) {
           this.conflict$.next();
@@ -888,8 +971,6 @@ export class CaseRecordStore implements OnDestroy {
 
           this._state$.next({
             ...this._state$.value,
-            amlId: this._state$.value.amlId,
-            selections: this._state$.value.selections,
             selectionsWithPendingChanges: [...selectionIdsSet.values()],
           });
         }),
@@ -960,28 +1041,42 @@ export interface ReviewPeriod {
   end: string;
 }
 
-const computeFullChangesHandler = (
-  selections: StrTransactionWithChangeLogs[],
-) => {
-  return (_acc: StrTransactionWithChangeLogs[]) => {
-    return selections
-      .map((strTransaction) => {
-        return ChangeLog.applyChangeLogs(
-          strTransaction,
-          strTransaction.changeLogs,
-        );
-      })
-      .map(setRowValidationInfo);
-  };
-};
+// const computeFullChangesHandler = ({
+//   selections,
+//   parties,
+// }: {
+//   selections: StrTransactionWithChangeLogs[];
+//   parties: WithCaseRecordId<PartyGenType>[];
+// }) => {
+//   return (_acc: StrTransactionWithChangeLogs[]) => {
+//     const enrichParties = createTransactionPartyEnricher(parties);
 
-const computePartialChangesHandler = (
-  selections: StrTransactionWithChangeLogs[],
+//     return selections
+//       .map((strTransaction) => {
+//         return ChangeLog.applyChangeLogs(
+//           strTransaction,
+//           strTransaction.changeLogs,
+//         );
+//       })
+//       .map(setRowValidationInfo)
+//       .map(enrichParties);
+//   };
+// };
+
+const computePartialChangesHandler = ({
+  selections,
+  selectionsToRecompute,
+  parties,
+}: {
+  selections: StrTransactionWithChangeLogs[];
   selectionsToRecompute: NonNullable<
     CaseRecordState['selectionsWithPendingChanges']
-  >,
-) => {
+  >;
+  parties: WithCaseRecordId<PartyGenType>[];
+}) => {
   return (acc: StrTransactionWithChangeLogs[]) => {
+    const enrichParties = createTransactionPartyEnricher(parties);
+
     const recomputedSelections = selections
       .filter(({ flowOfFundsAmlTransactionId }) =>
         selectionsToRecompute.includes(flowOfFundsAmlTransactionId),
@@ -992,35 +1087,51 @@ const computePartialChangesHandler = (
           strTransaction.changeLogs,
         );
       })
-      .map(setRowValidationInfo);
+      .map(setRowValidationInfo)
+      .map(enrichParties);
+
+    // todo: preserve index
 
     return [
-      ...recomputedSelections,
-      ...acc.filter(
-        ({ flowOfFundsAmlTransactionId }) =>
-          !selectionsToRecompute.includes(flowOfFundsAmlTransactionId),
-      ),
+      ...acc.map((sel) => {
+        const { flowOfFundsAmlTransactionId } = sel;
+        return selectionsToRecompute.includes(flowOfFundsAmlTransactionId)
+          ? recomputedSelections.find(
+              (sel) =>
+                sel.flowOfFundsAmlTransactionId === flowOfFundsAmlTransactionId,
+            )!
+          : sel;
+      }),
     ];
   };
 };
 
-const computeAddedSelectionsHandler = (
-  selections: StrTransactionWithChangeLogs[],
-  addedSelections: NonNullable<CaseRecordState['selectionsToAdd']>,
-) => {
+const addSelectionsHandler = ({
+  selections,
+  selectionsToAdd,
+  parties,
+}: {
+  selections: StrTransactionWithChangeLogs[];
+  selectionsToAdd: NonNullable<CaseRecordState['selectionsToAdd']>;
+  parties: WithCaseRecordId<PartyGenType>[];
+}) => {
   return (acc: StrTransactionWithChangeLogs[]) => {
-    const newTransactions = selections
-      .filter(({ flowOfFundsAmlTransactionId }) =>
-        addedSelections.includes(flowOfFundsAmlTransactionId),
-      )
-      .map(setRowValidationInfo);
+    const enrichParties = createTransactionPartyEnricher(parties);
 
-    return [...selections, ...newTransactions];
+    return [
+      ...acc,
+      ...selections
+        .filter((sel) =>
+          selectionsToAdd.includes(sel.flowOfFundsAmlTransactionId),
+        )
+        .map(setRowValidationInfo)
+        .map(enrichParties),
+    ];
   };
 };
 
 export function setRowValidationInfo(selection: StrTransactionWithChangeLogs) {
-  const errors: _hiddenValidationType[] = selection._hiddenValidation ?? [];
+  const errors: _hiddenValidationType[] = [];
   if (
     selection.changeLogs.length > 0 &&
     !selection.changeLogs.every((log) => log.path === '/highlightColor')
@@ -1046,6 +1157,92 @@ export function setRowValidationInfo(selection: StrTransactionWithChangeLogs) {
     errors.push('missingCheque');
 
   return { ...selection, _hiddenValidation: errors };
+}
+
+const createPartyDenormalizer =
+  (parties: WithCaseRecordId<PartyGenType>[]) =>
+  <T extends PartyDenormalized>(ref: T): T => {
+    console.assert(!!ref.linkToSub, 'Assert link to sub ref exists');
+
+    const party = parties.find((party) => party.partyIdentifier);
+    const partyName = party?.partyName;
+    if (!partyName) return ref;
+
+    const { surname, givenName, otherOrInitial, nameOfEntity } = partyName;
+
+    return {
+      ...ref,
+      _hiddenSurname: surname,
+      _hiddenGivenName: givenName,
+      _hiddenOtherOrInitial: otherOrInitial,
+      _hiddenNameOfEntity: nameOfEntity,
+    };
+  };
+
+const createTransactionPartyEnricher =
+  (parties: WithCaseRecordId<PartyGenType>[]) =>
+  (txn: StrTransactionWithChangeLogs): StrTransactionWithChangeLogs => {
+    const enrichRef = createPartyDenormalizer(parties);
+
+    const startingActions =
+      txn.startingActions?.map((sa) => ({
+        ...sa,
+        accountHolders: sa.accountHolders?.map(enrichRef),
+        conductors: sa.conductors?.map((c) => ({
+          ...enrichRef(c),
+          onBehalfOf: c.onBehalfOf?.map(enrichRef),
+        })),
+        sourceOfFunds: sa.sourceOfFunds?.map(enrichRef),
+      })) ?? txn.startingActions;
+
+    const completingActions =
+      txn.completingActions?.map((ca) => ({
+        ...ca,
+        accountHolders: ca.accountHolders?.map(enrichRef),
+        involvedIn: ca.involvedIn?.map(enrichRef),
+        beneficiaries: ca.beneficiaries?.map(enrichRef),
+      })) ?? txn.completingActions;
+
+    return {
+      ...txn,
+      startingActions,
+      completingActions,
+    };
+  };
+
+function extractAllPartyRefs(
+  editFormValue: EditFormValueType,
+): PartyDenormalized[] {
+  const partyRefs: PartyDenormalized[] = [];
+
+  // Extract from starting actions
+  editFormValue.startingActions?.forEach((sa) => {
+    partyRefs.push(...(sa.accountHolders || []));
+    partyRefs.push(...(sa.sourceOfFunds || []));
+
+    sa.conductors?.forEach((conductor) => {
+      partyRefs.push(conductor);
+      partyRefs.push(...(conductor.onBehalfOf || []));
+    });
+  });
+
+  // Extract from completing actions
+  editFormValue.completingActions?.forEach((ca) => {
+    partyRefs.push(...(ca.accountHolders || []));
+    partyRefs.push(...(ca.involvedIn || []));
+    partyRefs.push(...(ca.beneficiaries || []));
+  });
+
+  return partyRefs;
+}
+
+interface PartyDenormalized {
+  linkToSub?: string | null;
+  _hiddenPartyKey?: string | null;
+  _hiddenSurname?: string | null;
+  _hiddenGivenName?: string | null;
+  _hiddenOtherOrInitial?: string | null;
+  _hiddenNameOfEntity?: string | null;
 }
 
 type ExtractSubjectType<T> = T extends Subject<infer U> ? U : never;

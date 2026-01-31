@@ -55,7 +55,7 @@ button[appToggleEditField] {
     display: unset;
   }
 
-  button[appClearField] {
+  button[appClearField].mat-mdc-button-disabled {
     display: none;
   }
 

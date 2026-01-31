@@ -53,6 +53,8 @@ import {
 import { createAuthServiceSpy } from '../../auth.service.spec';
 import { LoginComponent } from '../../login/login.component';
 import { activateTabs, findEl } from '../../test-helpers';
+import { WithCaseRecordId } from '../../transaction-view/selections.service';
+import { PartyGenType } from '../../transaction-view/transform-to-str-transaction/party-gen.service';
 import { AppErrorHandlerService } from './../../app-error-handler.service';
 import { NavLayoutComponent } from './../../nav-layout/nav-layout.component';
 import {
@@ -328,6 +330,10 @@ describe('EditFormComponent', () => {
           loader: HarnessLoader,
         ) => {
           const errors = [] as string[];
+          if (isIgnoredField(testId)) {
+            return errors;
+          }
+
           if (isInputField(testId)) {
             const { control } = await getMatField(loader, testId);
             const actualValue = await control.getValue();
@@ -1359,9 +1365,16 @@ function isSelectField(testId: string): testId is SelectField {
     'accountStatus',
     'detailsOfDispo',
     'currency',
+    'linkToSub',
   ];
 
   return selectFields.includes(testId.split('-').at(-1) as SelectField);
+}
+
+function isIgnoredField(testId: string): testId is SelectField {
+  const ignoredFields: SelectField[] = ['linkToSub'];
+
+  return ignoredFields.includes(testId.split('-').at(-1) as SelectField);
 }
 
 function isDateField(testId: string): testId is DateField {
@@ -1393,7 +1406,8 @@ type SelectField =
   | 'accountCurrency'
   | 'accountStatus'
   | 'detailsOfDispo'
-  | 'currency';
+  | 'currency'
+  | 'linkToSub';
 
 type DateField = 'dateOfTxn' | 'dateOfPosting' | 'accountOpen' | 'accountClose';
 
@@ -1424,6 +1438,76 @@ type FieldVerifier = (
   expectedValue: unknown,
   loader: HarnessLoader,
 ) => Promise<string[]>;
+
+const PARTIES_TEST_OR_DEV_ONLY_FIXTURE = [
+  {
+    linkToSub: '5846601320',
+    _hiddenPartyKey: '5846601320',
+    _hiddenSurname: 'Carter',
+    _hiddenGivenName: 'Jimmy',
+    _hiddenOtherOrInitial: 'S',
+    _hiddenNameOfEntity: 'Jimmy Inc',
+    accountNumber: '222222',
+    identifyingNumber: '333333',
+  },
+  {
+    linkToSub: '9414672563',
+    _hiddenPartyKey: '9414672563',
+    _hiddenSurname: 'Smith',
+    _hiddenGivenName: 'James',
+    _hiddenOtherOrInitial: 'L',
+    _hiddenNameOfEntity: 'Jamed Inc',
+  },
+  {
+    linkToSub: '3415674561',
+    _hiddenPartyKey: '3415674561',
+    _hiddenSurname: 'Carter',
+    _hiddenGivenName: 'James',
+    _hiddenOtherOrInitial: 'L',
+    _hiddenNameOfEntity: 'James Inc',
+  },
+  {
+    linkToSub: '2846601320',
+    _hiddenPartyKey: '2846601320',
+    _hiddenSurname: 'Carter',
+    _hiddenGivenName: 'Jimmy',
+    _hiddenOtherOrInitial: 'S',
+    _hiddenNameOfEntity: 'Jimmy Inc',
+    accountNumber: '222222',
+    identifyingNumber: '333333',
+  },
+  {
+    linkToSub: '1846597320',
+    _hiddenPartyKey: '1846597320',
+    _hiddenSurname: 'Nguyen',
+    _hiddenGivenName: 'Laura',
+    _hiddenOtherOrInitial: 'M',
+    _hiddenNameOfEntity: 'James Inc',
+  },
+  {
+    linkToSub: '4415677561',
+    _hiddenPartyKey: '4415677561',
+    _hiddenSurname: 'Fallon',
+    _hiddenGivenName: 'Jimmy',
+    _hiddenOtherOrInitial: 'M',
+    _hiddenNameOfEntity: 'Jimmy Inc',
+  },
+].map(
+  ({
+    linkToSub,
+    _hiddenPartyKey: partyKey,
+    _hiddenGivenName: givenName,
+    _hiddenOtherOrInitial: otherOrInitial,
+    _hiddenSurname: surname,
+    _hiddenNameOfEntity: nameOfEntity,
+  }) =>
+    ({
+      partyIdentifier: linkToSub,
+      identifiers: { partyKey },
+      partyName: { givenName, otherOrInitial, surname, nameOfEntity },
+      caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
+    }) satisfies WithCaseRecordId<PartyGenType>,
+);
 
 const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
   wasTxnAttempted: true,
@@ -1460,6 +1544,7 @@ const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
       accountHolders: [
         {
           _id: '26fad9e3-7a4e-46e6-84d0-f75a2f76468c',
+          linkToSub: '4415677561',
           _hiddenPartyKey: '4415677561',
           _hiddenSurname: 'Fallon',
           _hiddenGivenName: 'Jimmy',
@@ -1468,6 +1553,7 @@ const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
         },
         {
           _id: '67f65447-30ed-420d-870e-30c2567a51f8',
+          linkToSub: '5846601320',
           _hiddenPartyKey: '5846601320',
           _hiddenSurname: 'Carter',
           _hiddenGivenName: 'Jimmy',
@@ -1479,6 +1565,7 @@ const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
       sourceOfFunds: [
         {
           _id: '47f64447-30ed-420d-470e-30c2564a51f8',
+          linkToSub: '5846601320',
           _hiddenPartyKey: '5846601320',
           _hiddenSurname: 'Carter',
           _hiddenGivenName: 'Jimmy',
@@ -1492,6 +1579,7 @@ const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
       conductors: [
         {
           _id: '9855168e-8452-4338-b644-ca73a8b846d2',
+          linkToSub: '3415674561',
           _hiddenPartyKey: '3415674561',
           _hiddenSurname: 'Carter',
           _hiddenGivenName: 'James',
@@ -1501,6 +1589,7 @@ const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
           onBehalfOf: [
             {
               _id: '7055168e-8452-4338-b644-ca73a8b846d2',
+              linkToSub: '9414672563',
               _hiddenPartyKey: '9414672563',
               _hiddenSurname: 'Smith',
               _hiddenGivenName: 'James',
@@ -1534,6 +1623,7 @@ const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
       accountHolders: [
         {
           _id: '26fad9e3-7a4e-46e6-84d0-f75a2f76468c',
+          linkToSub: '3415674561',
           _hiddenPartyKey: '3415674561',
           _hiddenSurname: 'Carter',
           _hiddenGivenName: 'James',
@@ -1542,6 +1632,7 @@ const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
         },
         {
           _id: '67f65447-30ed-420d-870e-30c2567a51f8',
+          linkToSub: '1846597320',
           _hiddenPartyKey: '1846597320',
           _hiddenSurname: 'Nguyen',
           _hiddenGivenName: 'Laura',
@@ -1553,6 +1644,7 @@ const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
       involvedIn: [
         {
           _id: '37f34437-30e3-420d-473e-30c2563a51f8',
+          linkToSub: '2846601320',
           _hiddenPartyKey: '2846601320',
           _hiddenSurname: 'Carter',
           _hiddenGivenName: 'Jimmy',
@@ -1566,6 +1658,7 @@ const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
       beneficiaries: [
         {
           _id: '84413b8a-31c8-4763-acd5-f9a8c3b3b02a',
+          linkToSub: '3415674561',
           _hiddenPartyKey: '3415674561',
           _hiddenSurname: 'Carter',
           _hiddenGivenName: 'James',
@@ -1574,6 +1667,7 @@ const TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE: StrTxnEditForm = {
         },
         {
           _id: '3e1463cb-687e-4846-89ba-5eff6d3639a2',
+          linkToSub: '1846597320',
           _hiddenPartyKey: '1846597320',
           _hiddenSurname: 'Nguyen',
           _hiddenGivenName: 'Laura',
@@ -1631,7 +1725,7 @@ const CASE_RECORD_STATE_FIXTURE: CaseRecordState = {
       eTag: 0,
     };
   }),
-
+  parties: PARTIES_TEST_OR_DEV_ONLY_FIXTURE,
   eTag: 0,
   lastUpdated: '1996-06-13',
 };
@@ -1669,6 +1763,7 @@ const TRANSACTION_BULK_SAVE_FORM_SRUCTURE: StrTxnEditForm = {
       hasAccountHolders: null,
       accountHolders: [
         {
+          linkToSub: '',
           _hiddenPartyKey: null,
           _hiddenSurname: null,
           _hiddenGivenName: null,
@@ -1679,6 +1774,7 @@ const TRANSACTION_BULK_SAVE_FORM_SRUCTURE: StrTxnEditForm = {
       wasSofInfoObtained: null,
       sourceOfFunds: [
         {
+          linkToSub: '',
           _hiddenPartyKey: null,
           _hiddenSurname: null,
           _hiddenGivenName: null,
@@ -1691,6 +1787,7 @@ const TRANSACTION_BULK_SAVE_FORM_SRUCTURE: StrTxnEditForm = {
       wasCondInfoObtained: null,
       conductors: [
         {
+          linkToSub: '',
           _hiddenPartyKey: null,
           _hiddenSurname: null,
           _hiddenGivenName: null,
@@ -1722,6 +1819,7 @@ const TRANSACTION_BULK_SAVE_FORM_SRUCTURE: StrTxnEditForm = {
       hasAccountHolders: null,
       accountHolders: [
         {
+          linkToSub: '',
           _hiddenPartyKey: null,
           _hiddenSurname: null,
           _hiddenGivenName: null,
@@ -1732,6 +1830,7 @@ const TRANSACTION_BULK_SAVE_FORM_SRUCTURE: StrTxnEditForm = {
       wasAnyOtherSubInvolved: null,
       involvedIn: [
         {
+          linkToSub: '',
           _hiddenPartyKey: null,
           _hiddenSurname: null,
           _hiddenGivenName: null,
@@ -1744,6 +1843,7 @@ const TRANSACTION_BULK_SAVE_FORM_SRUCTURE: StrTxnEditForm = {
       wasBenInfoObtained: null,
       beneficiaries: [
         {
+          linkToSub: '',
           _hiddenPartyKey: null,
           _hiddenSurname: null,
           _hiddenGivenName: null,

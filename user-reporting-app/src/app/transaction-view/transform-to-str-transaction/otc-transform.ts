@@ -132,7 +132,7 @@ export function transformOTCToStrTransaction({
       const conductorPartyKey = String(sourceTxn.flowOfFundsConductorPartyKey);
 
       conductors.push({
-        linkToSub: partiesInfo[conductorPartyKey]?.partyIdentifier,
+        linkToSub: partiesInfo[conductorPartyKey]?.partyIdentifier!,
         _hiddenPartyKey: partiesInfo[conductorPartyKey]?.identifiers?.partyKey!,
         _hiddenGivenName:
           partiesInfo[conductorPartyKey]?.partyName?.givenName ?? null,
@@ -213,7 +213,7 @@ export function transformOTCToStrTransaction({
       const caAccountHolders =
         sourceTxn.strCaAccountHolderCifId?.split(/[;:]/).reduce((acc, key) => {
           acc.push({
-            linkToSub: partiesInfo[key]?.partyIdentifier,
+            linkToSub: partiesInfo[key]?.partyIdentifier!,
             _hiddenPartyKey: partiesInfo[key]?.identifiers?.partyKey!,
             _hiddenGivenName: partiesInfo[key]?.partyName?.givenName ?? null,
             _hiddenSurname: partiesInfo[key]?.partyName?.surname ?? null,

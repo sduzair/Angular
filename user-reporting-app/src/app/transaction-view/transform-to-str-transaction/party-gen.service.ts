@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { ErrorHandler, inject, Injectable } from '@angular/core';
 import canonicalize from 'canonicalize';
 import {
   catchError,
@@ -20,9 +20,10 @@ import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 })
 export class PartyGenService {
   private readonly searchService = inject(TransactionSearchService);
+  private errorHandler = inject(ErrorHandler);
 
   /**
-   * Creates or updates a UnifiedParty with a generated hash.
+   * Generates a unified party identified by party identifier, a deterministic hash of obj.
    * Hash generation priority:
    * 1. If partyKey exists, hash only partyKey
    * 2. Otherwise, hash the entire party object
@@ -30,7 +31,8 @@ export class PartyGenService {
   generateParty(
     party: Omit<PartyGenType, 'partyIdentifier'>,
   ): Observable<PartyGenType | null> {
-    return this.enrichPartyData(party).pipe(
+    const partyClone = structuredClone(party);
+    return this.enrichPartyData(partyClone).pipe(
       map((enrichedParty) => this.ensureDiscriminatorIfNeeded(enrichedParty)),
       switchMap((partyWithDiscriminator) =>
         this.generateUnifiedPartyHash(partyWithDiscriminator).pipe(
@@ -41,7 +43,9 @@ export class PartyGenService {
         ),
       ),
       catchError((error: HttpErrorResponse) => {
-        if (error.status === HttpStatusCode.NotFound) return of(null);
+        if (error.status === HttpStatusCode.NotFound) {
+          return of(null);
+        }
         return throwError(() => error);
       }),
     );
@@ -155,6 +159,27 @@ export class PartyGenService {
       ),
     );
   }
+}
+
+// Helper method to extract full name from party
+export function getPartyFullName(party: PartyGenType): string {
+  const name = party.partyName;
+
+  if (!name) {
+    return 'Unknown Party';
+  }
+
+  // For entities
+  if (name.nameOfEntity) {
+    return name.nameOfEntity;
+  }
+
+  // For individuals - combine name parts
+  const parts = [name.givenName, name.otherOrInitial, name.surname].filter(
+    Boolean,
+  );
+
+  return parts.length > 0 ? parts.join(' ') : 'Unknown Party';
 }
 
 export type PartySourceSystem = SEARCH_SOURCE_ID;

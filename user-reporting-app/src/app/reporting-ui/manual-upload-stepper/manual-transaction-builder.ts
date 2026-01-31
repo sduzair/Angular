@@ -247,18 +247,17 @@ export class ManualTransactionBuilder {
           const { partyKey } = conductor?.identifiers ?? {};
 
           return {
-            linkToSub: conductor?.partyIdentifier,
+            linkToSub: conductor?.partyIdentifier!,
             _hiddenPartyKey: partyKey as string,
             _hiddenGivenName: givenName ?? null,
             _hiddenSurname: surname ?? null,
             _hiddenOtherOrInitial: otherOrInitial ?? null,
             _hiddenNameOfEntity: nameOfEntity ?? null,
-            wasConductedOnBehalf: null,
+            wasConductedOnBehalf: false,
             onBehalfOf: [],
           };
         };
 
-        // }
         this.transaction.startingActions![0].wasCondInfoObtained = conductor
           ? true
           : null;
@@ -273,7 +272,7 @@ export class ManualTransactionBuilder {
             beneficiary?.partyName ?? {};
           const { partyKey } = beneficiary?.identifiers ?? {};
           return {
-            linkToSub: beneficiary?.partyIdentifier,
+            linkToSub: beneficiary?.partyIdentifier!,
             _hiddenPartyKey: partyKey as string,
             _hiddenGivenName: givenName ?? null,
             _hiddenSurname: surname ?? null,

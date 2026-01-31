@@ -82,9 +82,9 @@ export default defineConfig([
             },
             // allow test/dev fixtures when developing
             // @ts-ignore
-            // ...(process.env.NODE_ENV === 'production' || true
-            ...(process.env.NODE_ENV === 'production'
-              ? [
+            ...(process.env.NODE_ENV === 'production' || true
+              ? // ...(process.env.NODE_ENV === 'production'
+                [
                   {
                     group: ['**/*.fixture'],
                     message:

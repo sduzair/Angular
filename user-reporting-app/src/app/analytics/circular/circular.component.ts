@@ -500,6 +500,7 @@ export function buildTransactionLinks({
     const addEmptyConductor = conductors.length === 0;
     if (addEmptyConductor) {
       conductors.push({
+        linkToSub: '',
         _hiddenPartyKey: '',
         _hiddenSurname: '',
         _hiddenGivenName: '',

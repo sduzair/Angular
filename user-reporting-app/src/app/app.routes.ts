@@ -22,6 +22,7 @@ import {
   searchResultResolver,
   TransactionViewComponent,
 } from './transaction-view/transaction-view.component';
+// import { CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE } from './aml/case-record.state.fixture';
 
 export const routes: Routes = [
   {
