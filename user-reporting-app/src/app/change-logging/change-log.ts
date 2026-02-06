@@ -247,9 +247,9 @@ function isDependentPropValueEmpty(depProp: DepPropType, val: unknown) {
 }
 
 export type DepPropType = keyof typeof DEP_PROP_TO_TOGGLE_MAP;
-type ToggleType = (typeof DEP_PROP_TO_TOGGLE_MAP)[DepPropType];
+export type ToggleType = (typeof DEP_PROP_TO_TOGGLE_MAP)[DepPropType];
 
-function isBoolToggle(prop: ToggleType) {
+export function isBoolToggle(prop: ToggleType) {
   return (
     [
       'wasTxnAttempted',
@@ -263,7 +263,7 @@ function isBoolToggle(prop: ToggleType) {
   ).some((t) => t === prop);
 }
 
-function isOtherToggle(prop: ToggleType) {
+export function isOtherToggle(prop: ToggleType) {
   return (
     [
       'accountType',

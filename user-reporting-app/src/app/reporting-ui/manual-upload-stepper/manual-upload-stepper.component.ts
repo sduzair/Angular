@@ -438,7 +438,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
             selectionsAndParties.map((item) => {
               return {
                 ...item,
-                selection: setRowValidationInfo(item.selection),
+                selection: [item.selection].map(setRowValidationInfo),
               };
             }),
           ),
@@ -528,7 +528,6 @@ function reviewTableErrorValidation(): (
     'invalidAmountCurrency',
     'invalidAccountCurrency',
     'invalidAccountStatus',
-    'bankInfoMissing',
     'invalidPartyKey',
     'invalidFiu',
   ] as _hiddenValidationType[]);

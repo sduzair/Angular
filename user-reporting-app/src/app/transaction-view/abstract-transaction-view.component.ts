@@ -7,6 +7,7 @@ import {
   shareReplay,
   startWith,
   switchMap,
+  take,
 } from 'rxjs';
 import { CaseRecordStore } from '../aml/case-record.store';
 import { TableSelectionType } from './transaction-view.component';
@@ -15,6 +16,7 @@ import { TableSelectionType } from './transaction-view.component';
 export abstract class AbstractTransactionViewComponent {
   protected _caseRecordStore = inject(CaseRecordStore);
   readonly searchResponse$ = this._caseRecordStore.state$.pipe(
+    take(1),
     map(({ searchResponse }) => searchResponse),
     shareReplay({ bufferSize: 1, refCount: true }),
   );

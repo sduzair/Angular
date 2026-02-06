@@ -30,7 +30,7 @@ import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { StrTransaction } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import {
-  getTransactionType,
+  getTxnType,
   TRANSACTION_TYPE_FRIENDLY_NAME,
 } from '../account-methods.service';
 import { formatCurrencyLocal } from '../circular/circular.component';
@@ -91,7 +91,7 @@ export class TxnMethodBreakdownComponent
 {
   @ViewChild('chartContainer', { static: true }) chartContainer!: ElementRef;
 
-  @Input({ required: true }) filteredSelections: StrTransaction[] = [];
+  @Input({ required: true }) transactions: StrTransaction[] = [];
 
   private myChart: echarts.ECharts | undefined;
   private resizeObserver: ResizeObserver | undefined;
@@ -103,10 +103,7 @@ export class TxnMethodBreakdownComponent
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (
-      changes['filteredSelections'] &&
-      !changes['filteredSelections'].firstChange
-    ) {
+    if (changes['transactions'] && !changes['transactions'].firstChange) {
       this.updateChart();
     }
   }
@@ -135,7 +132,7 @@ export class TxnMethodBreakdownComponent
     });
     this.resizeObserver.observe(this.chartContainer.nativeElement);
 
-    if (this.filteredSelections.length > 0) {
+    if (this.transactions.length > 0) {
       this.updateChart();
     }
   }
@@ -143,7 +140,7 @@ export class TxnMethodBreakdownComponent
   private updateChart(): void {
     if (!this.myChart) return;
 
-    const methodData = this.processMethodData(this.filteredSelections);
+    const methodData = this.processMethodData(this.transactions);
     const mode = this.viewMode();
 
     // Extract relevant data based on view mode
@@ -357,7 +354,7 @@ export class TxnMethodBreakdownComponent
         if (wasTxnAttempted) return;
 
         // Determine txn type
-        const txnTypeKey = getTransactionType(
+        const txnTypeKey = getTxnType(
           startingActions[0].typeOfFunds,
           completingActions[0].detailsOfDispo,
           methodOfTxn,

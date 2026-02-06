@@ -87,7 +87,18 @@ import { CaseRecordStore, ReviewPeriod } from './case-record.store';
               <!-- Selections Count -->
               <mat-chip color="accent" class="info-chip">
                 <mat-icon>checklist</mat-icon>
-                {{ selectedCount$ | async }} selected
+                @if (counts$ | async; as counts) {
+                  <span>
+                    {{ counts.selectionCount }}
+
+                    @if (counts.selectionCount !== counts.startingCount) {
+                      <span class="opacity-75"
+                        >({{ counts.startingCount }})</span
+                      >
+                    }
+                  </span>
+                  <span> selected</span>
+                }
               </mat-chip>
 
               <!-- Review Period(s) -->
@@ -223,8 +234,11 @@ export class AmlComponent implements OnInit {
     return breadcrumbs;
   }
 
-  selectedCount$ = this.caseRecordStore.state$.pipe(
-    map((state) => state.selections.length),
+  counts$ = this.caseRecordStore.selectionsComputed$.pipe(
+    map((selections) => ({
+      selectionCount: selections.length,
+      startingCount: selections.flatMap((sel) => sel.startingActions).length,
+    })),
   );
 
   lastUpdatedBy$ = this.caseRecordStore.state$.pipe(

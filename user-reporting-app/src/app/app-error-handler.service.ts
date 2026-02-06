@@ -32,12 +32,12 @@ export class AppErrorHandlerService implements ErrorHandler {
         duration: undefined,
       });
     } else if (error instanceof Error) {
-      console.log(error);
+      console.error(error);
       this.snackbarQ.open(error.message, 'Dismiss', {
         duration: undefined,
       });
     } else {
-      console.log(error);
+      console.error(error);
       this.snackbarQ.open('Some error occured!', 'Dismiss', {
         duration: undefined,
       });

@@ -208,7 +208,7 @@ export function transformABMToStrTransaction(
         detailsOfDispoOther: null,
         amount: sourceTxn.strCaAmount,
         currency: sourceTxn.strCaCurrency,
-        exchangeRate: null,
+        exchangeRate: sourceTxn.exchangeRateApplied,
         valueInCad: null,
         fiuNo: sourceTxn.strCaFiNumber,
         branch: String(sourceTxn.strCaBranch ?? ''),

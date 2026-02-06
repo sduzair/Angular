@@ -215,7 +215,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
           *matCellDef="let row"
           [class.sticky-cell]="baseTable.isStickyColumn('_hiddenValidation')">
           <mat-chip-set>
-            @for (ch of row._hiddenValidation; track ch) {
+            @for (ch of row._hiddenValidation; track $index) {
               <mat-chip
                 [style.--mat-chip-elevated-container-color]="
                   getColorForValidationChip(ch)
@@ -654,6 +654,7 @@ export type _hiddenValidationType =
   | InvalidTxnDateTimeErrorKeys;
 
 export type StrTransaction = {
+  id?: string;
   sourceId: string;
   wasTxnAttempted: boolean | null;
   wasTxnAttemptedReason: string | null;

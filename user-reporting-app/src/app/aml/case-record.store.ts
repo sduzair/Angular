@@ -205,54 +205,66 @@ export class CaseRecordStore implements OnDestroy {
 
   // --- VIEW MODEL FOR REPORTING UI DATA ---
   readonly selectionsComputed$ = this._state$.pipe(
+    // Filter ensures we only proceed if there is work to do
+    filter(
+      ({
+        selectionsWithPendingChanges,
+        selectionsToAdd,
+        selectionsToRemove,
+        selections,
+      }) =>
+        (selectionsWithPendingChanges ?? []).length > 0 ||
+        (selectionsToAdd ?? []).length > 0 ||
+        (selectionsToRemove ?? []).length > 0 ||
+        selections.length === 0, // Allow pass-through for reset/clear scenarios
+    ),
     map(
       ({
         selections: currentSelections,
-        selectionsWithPendingChanges: selectionsToChange = [],
+        selectionsWithPendingChanges = [],
         selectionsToAdd = [],
         selectionsToRemove = [],
         parties: currentParties,
       }) => {
-        if (selectionsToChange.length > 0) {
-          const _cloneSelections = structuredClone(selectionsToChange);
+        if (selectionsWithPendingChanges.length > 0) {
+          const _cloneSelectionIds = structuredClone(
+            selectionsWithPendingChanges,
+          );
           // eslint-disable-next-line no-param-reassign
-          selectionsToChange.length = 0;
+          selectionsWithPendingChanges.length = 0;
           return computePartialChangesHandler({
             selections: currentSelections,
-            selectionsToRecompute: _cloneSelections,
+            selectionsToRecompute: _cloneSelectionIds,
             parties: currentParties,
           });
         }
 
         if (selectionsToAdd.length > 0) {
-          const _cloneSelections = structuredClone(selectionsToAdd);
+          const _cloneSelectionIds = structuredClone(selectionsToAdd);
           // eslint-disable-next-line no-param-reassign
           selectionsToAdd.length = 0;
-          return computeAddedSelectionsHandler({
+          return addSelectionsHandler({
             selections: currentSelections,
-            addedSelections: _cloneSelections,
+            selectionsToAdd: _cloneSelectionIds,
             parties: currentParties,
           });
         }
 
         if (selectionsToRemove.length > 0) {
-          const _cloneSelections = structuredClone(selectionsToRemove);
+          const _cloneSelectionIds = structuredClone(selectionsToRemove);
           // eslint-disable-next-line no-param-reassign
           selectionsToRemove.length = 0;
           return (acc: StrTransactionWithChangeLogs[]) => {
             return acc.filter(
               (txn) =>
-                !_cloneSelections.includes(txn.flowOfFundsAmlTransactionId),
+                !_cloneSelectionIds.includes(txn.flowOfFundsAmlTransactionId),
             );
           };
         }
 
         if (currentSelections.length == 0) return () => [];
 
-        return computeFullChangesHandler({
-          selections: currentSelections,
-          parties: currentParties,
-        });
+        throw new Error('Unexpected state selections change');
       },
     ),
     scan((acc, handler) => {
@@ -263,6 +275,10 @@ export class CaseRecordStore implements OnDestroy {
         return acc;
       }
     }, [] as StrTransactionWithChangeLogs[]),
+    catchError((error) => {
+      this.errorHandler.handleError(error);
+      return of();
+    }),
     takeUntilDestroyed(),
     shareReplay({ bufferSize: 1, refCount: false }), // stream never dies in aml component scope
   );
@@ -352,25 +368,19 @@ export class CaseRecordStore implements OnDestroy {
               selectionAfter: transactionAfter,
               flowOfFundsAmlTransactionId,
             } = edit;
+            const transactionBefore = selectionsComputed.find(
+              (txn) =>
+                txn.flowOfFundsAmlTransactionId === flowOfFundsAmlTransactionId,
+            )!;
+
             const changeLogs = ChangeLog.generateChangeLogs(
-              selectionsComputed.find(
-                (txn) =>
-                  txn.flowOfFundsAmlTransactionId ===
-                  flowOfFundsAmlTransactionId,
-              )!,
+              transactionBefore,
               transactionAfter as StrTransactionWithChangeLogs,
             );
             pendingChanges.push({
               flowOfFundsAmlTransactionId,
               changeLogs: changeLogs,
-              eTag:
-                selectionsComputed
-                  .find(
-                    (txn) =>
-                      txn.flowOfFundsAmlTransactionId ===
-                      flowOfFundsAmlTransactionId,
-                  )!
-                  .changeLogs.at(-1)?.eTag ?? 0,
+              eTag: transactionBefore.changeLogs.at(-1)?.eTag ?? 0,
             });
           }
 
@@ -754,6 +764,9 @@ export class CaseRecordStore implements OnDestroy {
             ...this._state$.value,
             selections,
             parties,
+            selectionsToAdd: selections.map(
+              (sel) => sel.flowOfFundsAmlTransactionId,
+            ),
           });
         }),
       );
@@ -805,7 +818,7 @@ export class CaseRecordStore implements OnDestroy {
                       }) satisfies StrTransactionWithChangeLogs,
                   ),
                 ],
-                selectionsWithPendingChanges: selections.map(
+                selectionsToAdd: selections.map(
                   (sel) => sel.flowOfFundsAmlTransactionId,
                 ),
                 parties: [
@@ -903,8 +916,6 @@ export class CaseRecordStore implements OnDestroy {
 
         this._state$.next({
           ...this._state$.value,
-          amlId: this._state$.value.amlId,
-          selections: this._state$.value.selections,
           selectionsWithPendingChanges: pendingChanges.map(
             ({ flowOfFundsAmlTransactionId }) => flowOfFundsAmlTransactionId,
           ),
@@ -954,8 +965,6 @@ export class CaseRecordStore implements OnDestroy {
 
           this._state$.next({
             ...this._state$.value,
-            amlId: this._state$.value.amlId,
-            selections: this._state$.value.selections,
             selectionsWithPendingChanges: [...selectionIdsSet.values()],
           });
         }),
@@ -1026,27 +1035,27 @@ export interface ReviewPeriod {
   end: string;
 }
 
-const computeFullChangesHandler = ({
-  selections,
-  parties,
-}: {
-  selections: StrTransactionWithChangeLogs[];
-  parties: WithCaseRecordId<PartyGenType>[];
-}) => {
-  return (_acc: StrTransactionWithChangeLogs[]) => {
-    const enrichParties = createTransactionPartyEnricher(parties);
+// const computeFullChangesHandler = ({
+//   selections,
+//   parties,
+// }: {
+//   selections: StrTransactionWithChangeLogs[];
+//   parties: WithCaseRecordId<PartyGenType>[];
+// }) => {
+//   return (_acc: StrTransactionWithChangeLogs[]) => {
+//     const enrichParties = createTransactionPartyEnricher(parties);
 
-    return selections
-      .map((strTransaction) => {
-        return ChangeLog.applyChangeLogs(
-          strTransaction,
-          strTransaction.changeLogs,
-        );
-      })
-      .map(setRowValidationInfo)
-      .map(enrichParties);
-  };
-};
+//     return selections
+//       .map((strTransaction) => {
+//         return ChangeLog.applyChangeLogs(
+//           strTransaction,
+//           strTransaction.changeLogs,
+//         );
+//       })
+//       .map(setRowValidationInfo)
+//       .map(enrichParties);
+//   };
+// };
 
 const computePartialChangesHandler = ({
   selections,
@@ -1066,54 +1075,55 @@ const computePartialChangesHandler = ({
       .filter(({ flowOfFundsAmlTransactionId }) =>
         selectionsToRecompute.includes(flowOfFundsAmlTransactionId),
       )
-      .map((strTransaction) => {
-        return ChangeLog.applyChangeLogs(
-          strTransaction,
-          strTransaction.changeLogs,
-        );
+      .map((txn) => {
+        return ChangeLog.applyChangeLogs(txn, txn.changeLogs);
       })
       .map(setRowValidationInfo)
       .map(enrichParties);
 
-    // todo: preserve index
-
-    return acc.map((sel) => {
-      const { flowOfFundsAmlTransactionId } = sel;
-      return selectionsToRecompute.includes(flowOfFundsAmlTransactionId)
-        ? recomputedSelections.find(
-            (sel) =>
-              sel.flowOfFundsAmlTransactionId === flowOfFundsAmlTransactionId,
-          )!
-        : sel;
-    });
+    return [
+      ...acc.map((sel) => {
+        const { flowOfFundsAmlTransactionId } = sel;
+        return selectionsToRecompute.includes(flowOfFundsAmlTransactionId)
+          ? recomputedSelections.find(
+              (sel) =>
+                sel.flowOfFundsAmlTransactionId === flowOfFundsAmlTransactionId,
+            )!
+          : sel;
+      }),
+    ];
   };
 };
 
-const computeAddedSelectionsHandler = ({
+const addSelectionsHandler = ({
   selections,
-  addedSelections,
+  selectionsToAdd,
   parties,
 }: {
   selections: StrTransactionWithChangeLogs[];
-  addedSelections: NonNullable<CaseRecordState['selectionsToAdd']>;
+  selectionsToAdd: NonNullable<CaseRecordState['selectionsToAdd']>;
   parties: WithCaseRecordId<PartyGenType>[];
 }) => {
   return (acc: StrTransactionWithChangeLogs[]) => {
     const enrichParties = createTransactionPartyEnricher(parties);
 
-    const newTransactions = selections
-      .filter(({ flowOfFundsAmlTransactionId }) =>
-        addedSelections.includes(flowOfFundsAmlTransactionId),
-      )
-      .map(setRowValidationInfo)
-      .map(enrichParties);
-
-    return [...selections, ...newTransactions];
+    return [
+      ...acc,
+      ...selections
+        .filter((sel) =>
+          selectionsToAdd.includes(sel.flowOfFundsAmlTransactionId),
+        )
+        .map((txn) => {
+          return ChangeLog.applyChangeLogs(txn, txn.changeLogs);
+        })
+        .map(setRowValidationInfo)
+        .map(enrichParties),
+    ];
   };
 };
 
 export function setRowValidationInfo(selection: StrTransactionWithChangeLogs) {
-  const errors: _hiddenValidationType[] = selection._hiddenValidation ?? [];
+  const errors: _hiddenValidationType[] = [];
   if (
     selection.changeLogs.length > 0 &&
     !selection.changeLogs.every((log) => log.path === '/highlightColor')
@@ -1218,7 +1228,7 @@ function extractAllPartyRefs(
   return partyRefs;
 }
 
-interface PartyDenormalized {
+export interface PartyDenormalized {
   linkToSub?: string | null;
   _hiddenPartyKey?: string | null;
   _hiddenSurname?: string | null;

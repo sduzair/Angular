@@ -253,12 +253,11 @@ export class ManualTransactionBuilder {
             _hiddenSurname: surname ?? null,
             _hiddenOtherOrInitial: otherOrInitial ?? null,
             _hiddenNameOfEntity: nameOfEntity ?? null,
-            wasConductedOnBehalf: null,
+            wasConductedOnBehalf: false,
             onBehalfOf: [],
           };
         };
 
-        // }
         this.transaction.startingActions![0].wasCondInfoObtained = conductor
           ? true
           : null;

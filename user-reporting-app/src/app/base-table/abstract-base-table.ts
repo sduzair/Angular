@@ -738,7 +738,7 @@ export abstract class AbstractBaseTable<
   abstract filterFormHighlightSelectFilterKey: THighlightKey;
 
   @Input()
-  highlightedRecords!: WritableSignal<Map<string, string>>;
+  highlightedRecords: WritableSignal<Map<string, string>> | null = null;
 
   filterFormHighlightMap: Record<string, string> = {
     '#FF6B6B': 'Red',
@@ -802,7 +802,7 @@ export abstract class AbstractBaseTable<
     // note: removed because full table update triggers expensive sorting accessor
     // this.dataSource.data = this.dataSource.data.map((row) => { ... })
 
-    this.highlightedRecords.update((current) => {
+    this.highlightedRecords?.update((current) => {
       const newMap = new Map(current);
 
       targetIds.forEach((id) => {
@@ -828,7 +828,7 @@ export abstract class AbstractBaseTable<
 
   getHighlightColor(record: TData): string | undefined {
     const id = this.table.trackBy(0, record);
-    return this.highlightedRecords().get(id);
+    return this.highlightedRecords?.().get(id);
   }
 
   @Input()
@@ -839,6 +839,8 @@ export abstract class AbstractBaseTable<
   };
 
   private syncHighlightsEffect = effect(() => {
+    if (!this.highlightedRecords) return;
+
     const highlightMap = this.highlightedRecords(); // Track the signal
 
     // Use untracked to read dataSource without creating dependency
@@ -909,12 +911,21 @@ export abstract class AbstractBaseTable<
   pageSize: number = this.pageSizeOptions[this.pageSizeOptions.length - 1];
 
   updatePageSizeOptions(dataLength: number): void {
-    const options = [5, 10, 20, 50, 100, 200, 300, 400, 500];
-    this.pageSizeOptions = options.filter((size) => size <= dataLength);
+    const DEF_MAX = 300;
+    const options = [5, 10, 20, 50, 100, 200, DEF_MAX, 400, 500];
 
-    // Set pageSize to max option available limit to 300
-    const maxOption = this.pageSizeOptions[this.pageSizeOptions.length - 1];
-    this.pageSize = maxOption > 300 ? 300 : maxOption;
+    let maxOption = DEF_MAX;
+    let maxOptionIndex = options.length;
+
+    for (let i = 0; i < options.length; i++) {
+      if (options[i] < dataLength) continue;
+      maxOption = options[i];
+      maxOptionIndex = i;
+      break;
+    }
+
+    this.pageSize = maxOption > DEF_MAX ? DEF_MAX : maxOption;
+    this.pageSizeOptions = options.slice(0, maxOptionIndex + 1);
 
     if (this.paginator) {
       this.paginator.pageSize = this.pageSize;
@@ -1150,7 +1161,7 @@ export interface IHighlightable<TData, THighlightKey> {
   ) => void;
 
   filterFormConjunctionControl: FormControl<'OR' | 'AND'>;
-  highlightedRecords: WritableSignal<Map<string, string>>;
+  highlightedRecords: WritableSignal<Map<string, string>> | null;
   getHighlightColor: (record: TData) => string | undefined;
 }
 

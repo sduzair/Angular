@@ -32,6 +32,7 @@ import { TransactionSearchService } from '../transaction-search/transaction-sear
 import { CircularComponent } from './circular/circular.component';
 import { MonthlyTxnVolumeComponent } from './monthly-txn-volume/monthly-txn-volume.component';
 import { TxnMethodBreakdownComponent } from './txn-method-breakdown/txn-method-breakdown.component';
+import { hasManualTransaction } from './account-methods.service';
 
 @Component({
   selector: 'app-analytics',
@@ -182,23 +183,22 @@ import { TxnMethodBreakdownComponent } from './txn-method-breakdown/txn-method-b
 
       <div class="col-6">
         <app-circular
-          [filteredSelections]="
-            (filteredSelectionsByAccountAndPeriod$ | async) || []
-          "
+          [transactions]="(filteredSelectionsByAccountAndPeriod$ | async) || []"
           [accountNumbersSelection]="(accountsSelection$ | async) || []"
-          [partyKeysSelection]="(partyKeysSelection$ | async) || []">
+          [partyKeysSelection]="(partyKeysSelection$ | async) || []"
+          [parties]="(parties$ | async) || []">
         </app-circular>
       </div>
       <div class="col-6">
         <div class="row row-cols-1 g-2">
           <app-monthly-txn-volume
             class="col"
-            [filteredSelections]="(filteredSelectionsByAccount$ | async) || []"
+            [transactions]="(filteredSelectionsByAccount$ | async) || []"
             (zoomChange)="onZoomChange($event)">
           </app-monthly-txn-volume>
           <app-txn-method-breakdown
             class="col"
-            [filteredSelections]="
+            [transactions]="
               (filteredSelectionsByAccountAndPeriod$ | async) || []
             ">
           </app-txn-method-breakdown>
@@ -241,13 +241,17 @@ export class AnalyticsComponent implements AfterViewInit {
       });
   }
 
-  selections$ = this.caseRecord.selectionsComputed$;
+  selections$ = this.caseRecord.selectionsComputed$.pipe(
+    map((txns) => (txns.some(hasManualTransaction) ? [] : txns)),
+  );
 
   partyKeysSelection$ = this.caseRecord$.pipe(
     map(({ searchParams: { partyKeysSelection } }) => {
       return partyKeysSelection;
     }),
   );
+
+  parties$ = this.caseRecord$.pipe(map(({ parties }) => parties));
 
   accountsSelection$ = this.caseRecord$.pipe(
     map(({ searchParams: { accountNumbersSelection } }) => {

@@ -139,7 +139,8 @@ api.MapPost("/transaction/search", async (
 
         var collection = db.GetCollection<BsonDocument>(collectionName);
 
-        var limit = 10;
+        // var limit = 10;
+        var limit = 0;
         string[] nolimit = { "flowOfFunds" };
         if (nolimit.Contains(collectionName))
             limit = 0;
