@@ -368,25 +368,19 @@ export class CaseRecordStore implements OnDestroy {
               selectionAfter: transactionAfter,
               flowOfFundsAmlTransactionId,
             } = edit;
+            const transactionBefore = selectionsComputed.find(
+              (txn) =>
+                txn.flowOfFundsAmlTransactionId === flowOfFundsAmlTransactionId,
+            )!;
+
             const changeLogs = ChangeLog.generateChangeLogs(
-              selectionsComputed.find(
-                (txn) =>
-                  txn.flowOfFundsAmlTransactionId ===
-                  flowOfFundsAmlTransactionId,
-              )!,
+              transactionBefore,
               transactionAfter as StrTransactionWithChangeLogs,
             );
             pendingChanges.push({
               flowOfFundsAmlTransactionId,
               changeLogs: changeLogs,
-              eTag:
-                selectionsComputed
-                  .find(
-                    (txn) =>
-                      txn.flowOfFundsAmlTransactionId ===
-                      flowOfFundsAmlTransactionId,
-                  )!
-                  .changeLogs.at(-1)?.eTag ?? 0,
+              eTag: transactionBefore.changeLogs.at(-1)?.eTag ?? 0,
             });
           }
 
@@ -1081,16 +1075,11 @@ const computePartialChangesHandler = ({
       .filter(({ flowOfFundsAmlTransactionId }) =>
         selectionsToRecompute.includes(flowOfFundsAmlTransactionId),
       )
-      .map((strTransaction) => {
-        return ChangeLog.applyChangeLogs(
-          strTransaction,
-          strTransaction.changeLogs,
-        );
+      .map((txn) => {
+        return ChangeLog.applyChangeLogs(txn, txn.changeLogs);
       })
       .map(setRowValidationInfo)
       .map(enrichParties);
-
-    // todo: preserve index
 
     return [
       ...acc.map((sel) => {
@@ -1124,6 +1113,9 @@ const addSelectionsHandler = ({
         .filter((sel) =>
           selectionsToAdd.includes(sel.flowOfFundsAmlTransactionId),
         )
+        .map((txn) => {
+          return ChangeLog.applyChangeLogs(txn, txn.changeLogs);
+        })
         .map(setRowValidationInfo)
         .map(enrichParties),
     ];
@@ -1236,7 +1228,7 @@ function extractAllPartyRefs(
   return partyRefs;
 }
 
-interface PartyDenormalized {
+export interface PartyDenormalized {
   linkToSub?: string | null;
   _hiddenPartyKey?: string | null;
   _hiddenSurname?: string | null;

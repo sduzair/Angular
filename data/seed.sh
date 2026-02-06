@@ -24,9 +24,11 @@ mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofOut
 mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofOutEmtNonCibcRecipient.json --jsonArray
 mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofWireIn.json                 --jsonArray
 mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofCbfeMixedDeposit.json       --jsonArray
+mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofCashUSDDeposit.json       --jsonArray
 
 mongoimport --uri "$URI" --db "$DB" --collection abm --file /seed/abmCashDeposit.json     --jsonArray
 mongoimport --uri "$URI" --db "$DB" --collection abm --file /seed/abmCashWithdrawal.json  --jsonArray
+mongoimport --uri "$URI" --db "$DB" --collection abm --file /seed/abmCashUSDDeposit.json --jsonArray
 
 mongoimport --uri "$URI" --db "$DB" --collection olb --file /seed/olbInEmtCibcSender.json      --jsonArray
 mongoimport --uri "$URI" --db "$DB" --collection olb --file /seed/olbInEmtNonCibcSender.json   --jsonArray

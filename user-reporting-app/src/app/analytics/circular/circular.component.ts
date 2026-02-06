@@ -29,9 +29,10 @@ import {
 import { StrTransaction } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import { SnackbarQueueService } from '../../snackbar-queue.service';
 import { AccountNumberData } from '../../transaction-search/account-number-selectable-table/account-number-selectable-table.component';
+import { PartyGenType } from '../../transaction-view/transform-to-str-transaction/party-gen.service';
 import {
-  getSubjectIdAndCategory,
-  getTransactionType,
+  getSubjectDisplayNameAndCategory,
+  getTxnType,
   NODE_ENUM,
   TRANSACTION_TYPE_ENUM,
 } from '../account-methods.service';
@@ -73,13 +74,16 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
   private snackbarQ = inject(SnackbarQueueService);
   @ViewChild('chartContainer', { static: true }) chartContainer!: ElementRef;
 
-  @Input({ required: true }) filteredSelections: StrTransaction[] = [];
+  @Input({ required: true }) transactions: StrTransaction[] = [];
 
   @Input({ required: true })
   partyKeysSelection: string[] = [];
 
   @Input({ required: true })
   accountNumbersSelection: AccountNumberData[] = [];
+
+  @Input({ required: true })
+  parties: PartyGenType[] = [];
 
   private myChart: echarts.ECharts | undefined;
   private resizeObserver: ResizeObserver | undefined;
@@ -93,11 +97,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (
-      !changes['filteredSelections'] ||
-      changes['filteredSelections'].firstChange
-    )
-      return;
+    if (!changes['transactions'] || changes['transactions'].firstChange) return;
 
     const focalSubjects = new Set(this.partyKeysSelection);
     const focalAccounts = new Set(
@@ -126,7 +126,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
     });
     this.resizeObserver.observe(this.chartContainer.nativeElement);
 
-    if (this.filteredSelections.length > 0) {
+    if (this.transactions.length > 0) {
       this.updateChart(focalSubjects, focalAccounts);
     }
 
@@ -158,22 +158,24 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
     const nodesMap = new Map<string, GraphNode>();
     const linksMap = new Map<string, Link>();
 
-    this.filteredSelections.forEach((txn) => {
+    this.transactions.forEach((txn) => {
       buildNodesAndAccountHolderLinks({
         transaction: txn,
         nodesMap,
         linksMap,
         focalSubjects,
         focalAccounts,
+        parties: this.parties,
       });
     });
 
-    this.filteredSelections.forEach((txn) => {
+    this.transactions.forEach((txn) => {
       buildTransactionLinks({
         transaction: txn,
         linksMap,
-        focalSubjects,
         nodesMap,
+        focalSubjects,
+        parties: this.parties,
       });
     });
 
@@ -230,6 +232,10 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
           selectorPosition: 'start',
           selectorItemGap: 8,
           selectorButtonGap: 15,
+          selected: {
+            [NODES[NODE_ENUM.Account].name]: false,
+            [NODES[NODE_ENUM.FocalAccount].name]: false,
+          },
 
           // Style the selector buttons
           selectorLabel: {
@@ -269,12 +275,12 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
             formatter: (({ data }) => {
               const node = data as GraphNode;
 
-              if (node.category === NODE_ENUM.Account) return;
+              if (node.category === NODE_ENUM.Account) return node.name;
 
               if (node.category === NODE_ENUM.FocalAccount)
                 return `#${node.name}`;
 
-              if (node.nodeType === 'subject') return node.subjectName;
+              if (node.nodeType === 'subject') return node.displayName;
 
               return node.name;
             }) as LabelFormatter,
@@ -313,12 +319,14 @@ export function buildNodesAndAccountHolderLinks({
   linksMap,
   focalSubjects,
   focalAccounts,
+  parties,
 }: {
   transaction: StrTransaction;
   nodesMap: Map<string | null, GraphNode>;
   linksMap: Map<string, Link>;
   focalSubjects: Set<string>;
   focalAccounts: Set<string>;
+  parties: PartyGenType[];
 }) {
   // SA account and subjects, nodes and links
   for (const {
@@ -340,47 +348,39 @@ export function buildNodesAndAccountHolderLinks({
         transit: saTransit,
         account: saAccount,
         name: saAccount,
-        rawCredit: 0,
-        rawDebit: 0,
-        creditsByMethod: {},
-        debitsByMethod: {},
       });
     }
 
     // Related Subjects - Account holders
-
-    const relatedAccountHolderIds = [] as string[];
-
     for (const accHolder of accountHolders) {
-      const {
-        subjectId: accountHolderId,
-        category,
-        name: accountHolderName,
-      } = getSubjectIdAndCategory(accHolder, focalSubjects);
+      const { linkToSub } = accHolder;
 
-      if (!nodesMap.has(accountHolderId)) {
-        nodesMap.set(accountHolderId, {
-          id: accountHolderId,
+      if (!nodesMap.has(linkToSub)) {
+        const { nodeCategory: category, displayName } =
+          getSubjectDisplayNameAndCategory(
+            parties.find((p) => p.partyIdentifier === linkToSub),
+            focalSubjects,
+          );
+
+        nodesMap.set(linkToSub, {
+          id: linkToSub,
           category,
           nodeType: 'subject',
-          subjectName: accountHolderName,
-          relatedTransit: saTransit,
-          relatedAccount: saAccount,
-          rawCredit: 0,
-          rawDebit: 0,
-          creditsByMethod: {},
-          debitsByMethod: {},
+          displayName,
+          creditsByTxnType: {},
+          debitsByTxnType: {},
+          partyInfo: parties.find((p) => p.partyIdentifier === linkToSub)!,
         });
       }
-
-      relatedAccountHolderIds.push(accountHolderId);
     }
 
     if (!saAccount) continue;
 
-    for (const accountHolderId of relatedAccountHolderIds) {
+    for (const accHolderId of accountHolders.map(
+      ({ linkToSub }) => linkToSub,
+    )) {
       const source = saAccount;
-      const target = accountHolderId;
+      const target = accHolderId;
       const linkId = getLinkId(source, target);
 
       if (linksMap.has(linkId)) continue;
@@ -390,7 +390,7 @@ export function buildNodesAndAccountHolderLinks({
         target,
         linkId,
         linkType: 'accountHolder',
-        rawAmount: 0,
+        _amount: 0,
         symbol: 'none',
       });
     }
@@ -416,47 +416,40 @@ export function buildNodesAndAccountHolderLinks({
         transit: caTransit,
         account: caAccount ?? '',
         name: caAccount ?? '',
-        rawCredit: 0,
-        rawDebit: 0,
-        creditsByMethod: {},
-        debitsByMethod: {},
       });
     }
 
     // Related Subjects - Account holders
 
-    const relatedAccountHoldersIds = [] as string[];
-
     for (const accHolder of accountHolders) {
-      const {
-        subjectId: accountHolderId,
-        category,
-        name: accountHolderName,
-      } = getSubjectIdAndCategory(accHolder, focalSubjects);
+      const { linkToSub } = accHolder;
 
-      if (!nodesMap.has(accountHolderId)) {
-        nodesMap.set(accountHolderId, {
-          id: accountHolderId,
+      if (!nodesMap.has(linkToSub)) {
+        const { nodeCategory: category, displayName } =
+          getSubjectDisplayNameAndCategory(
+            parties.find((p) => p.partyIdentifier === linkToSub),
+            focalSubjects,
+          );
+
+        nodesMap.set(linkToSub, {
+          id: linkToSub,
           category,
           nodeType: 'subject',
-          subjectName: accountHolderName,
-          relatedTransit: caTransit,
-          relatedAccount: caAccount,
-          rawCredit: 0,
-          rawDebit: 0,
-          creditsByMethod: {},
-          debitsByMethod: {},
+          displayName,
+          creditsByTxnType: {},
+          debitsByTxnType: {},
+          partyInfo: parties.find((p) => p.partyIdentifier === linkToSub)!,
         });
       }
-
-      relatedAccountHoldersIds.push(accountHolderId);
     }
 
     if (!caAccount) return;
 
-    for (const accountHolderId of relatedAccountHoldersIds) {
+    for (const accHolderId of accountHolders.map(
+      ({ linkToSub }) => linkToSub,
+    )) {
       const source = caAccount;
-      const target = accountHolderId;
+      const target = accHolderId;
       const linkId = getLinkId(source, target);
 
       if (linksMap.has(linkId)) continue;
@@ -466,7 +459,7 @@ export function buildNodesAndAccountHolderLinks({
         target,
         linkId,
         linkType: 'accountHolder',
-        rawAmount: 0,
+        _amount: 0,
         symbol: 'none',
       });
     }
@@ -480,11 +473,13 @@ export function buildTransactionLinks({
   transaction,
   nodesMap,
   linksMap,
+  parties,
   focalSubjects,
 }: {
   transaction: StrTransaction;
   nodesMap: Map<string, GraphNode>;
   linksMap: Map<string, Link>;
+  parties: PartyGenType[];
   focalSubjects: Set<string>;
 }) {
   const { methodOfTxn, wasTxnAttempted } = transaction;
@@ -496,102 +491,93 @@ export function buildTransactionLinks({
     conductors = [],
     typeOfFunds: saTypeOfFunds,
     amount: saAmount,
+    currency: saAmountCurr,
   } of transaction.startingActions) {
-    const addEmptyConductor = conductors.length === 0;
-    if (addEmptyConductor) {
-      conductors.push({
-        linkToSub: '',
-        _hiddenPartyKey: '',
-        _hiddenSurname: '',
-        _hiddenGivenName: '',
-        _hiddenOtherOrInitial: '',
-        _hiddenNameOfEntity: '',
-        wasConductedOnBehalf: null,
-      });
-    }
-
-    for (const conductor of conductors) {
+    for (const { linkToSub: condId } of conductors) {
       for (const {
         beneficiaries = [],
         detailsOfDispo: caDetailsOfDispo,
       } of transaction.completingActions) {
-        if (!directionOfSA) continue;
-
-        let { subjectId: conductorId } = getSubjectIdAndCategory(
-          conductor,
-          focalSubjects,
+        const txnTypeKey = getTxnType(
+          saTypeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS,
+          caDetailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION,
+          methodOfTxn,
         );
 
-        const txnTypeKey =
-          getTransactionType(
-            saTypeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS,
-            caDetailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION,
-            methodOfTxn,
-          ) ?? TRANSACTION_TYPE_ENUM.Unknown;
-
-        let nodeCon = nodesMap.get(conductorId)!;
-
         const isConductorABeneficiary = (conductorId: string) =>
-          beneficiaries
-            .map((ben) => {
-              let { subjectId: beneficiaryId } = getSubjectIdAndCategory(
-                ben,
+          beneficiaries.some(({ linkToSub: benId }) => benId === conductorId);
+
+        if (!isConductorABeneficiary(condId)) {
+          if (!nodesMap.has(condId)) {
+            const { nodeCategory: category, displayName } =
+              getSubjectDisplayNameAndCategory(
+                parties.find((p) => p.partyIdentifier === condId),
                 focalSubjects,
               );
-              return beneficiaryId;
-            })
-            .some((benId) => benId === conductorId);
 
-        if (!isConductorABeneficiary(conductorId))
-          addToDebits(nodeCon, txnTypeKey, saAmount ?? 0);
+            nodesMap.set(condId, {
+              id: condId,
+              category,
+              nodeType: 'subject',
+              displayName,
+              creditsByTxnType: {},
+              debitsByTxnType: {},
+              partyInfo: parties.find((p) => p.partyIdentifier === condId)!,
+            });
+          }
 
-        for (const beneficiary of beneficiaries) {
-          let { subjectId: beneficiaryId } = getSubjectIdAndCategory(
-            beneficiary,
-            focalSubjects,
-          );
-          let nodeBen = nodesMap.get(beneficiaryId)!;
+          const nodeCon = nodesMap.get(condId) as Extract<
+            GraphNode,
+            { nodeType: 'subject' }
+          >;
 
-          createOrUpdateBidirectionalLink(
-            linksMap,
-            conductorId,
-            beneficiaryId,
-            directionOfSA as DIRECTION_OF_SA,
-            saAmount ?? 0,
-          );
+          (nodeCon.debitsByTxnType[txnTypeKey] ??= []).push({
+            amount: saAmount ?? 0,
+            currency: saAmountCurr!,
+          });
+        }
 
-          addToCredits(nodeBen, txnTypeKey, saAmount ?? 0);
+        for (const { linkToSub: benId } of beneficiaries) {
+          if (benId !== condId) {
+            createOrUpdateBidirectionalLink({
+              linksMap,
+              sourceId: condId,
+              targetId: benId,
+              direction: directionOfSA as DIRECTION_OF_SA,
+              _amount: saAmount ?? 0,
+            });
+          }
+
+          if (!nodesMap.has(benId)) {
+            const { nodeCategory: category, displayName } =
+              getSubjectDisplayNameAndCategory(
+                parties.find((p) => p.partyIdentifier === benId),
+                focalSubjects,
+              );
+
+            nodesMap.set(benId, {
+              id: benId,
+              category,
+              nodeType: 'subject',
+              displayName,
+              creditsByTxnType: {},
+              debitsByTxnType: {},
+              partyInfo: parties.find((p) => p.partyIdentifier === benId)!,
+            });
+          }
+
+          const nodeBen = nodesMap.get(benId) as Extract<
+            GraphNode,
+            { nodeType: 'subject' }
+          >;
+
+          (nodeBen.creditsByTxnType[txnTypeKey] ??= []).push({
+            amount: saAmount ?? 0,
+            currency: saAmountCurr!,
+          });
         }
       }
     }
-  }
-
-  /**
-   * Update node from FOCAL CLIENT perspective
-   */
-  function addToDebits(node: GraphNode, txnMethod: number, txnAmount: number) {
-    // eslint-disable-next-line no-param-reassign
-    node.debitsByMethod[txnMethod] ??= { amount: 0, count: 0 };
-    // eslint-disable-next-line no-param-reassign
-    node.debitsByMethod[txnMethod].amount += txnAmount;
-    // eslint-disable-next-line no-param-reassign
-    node.debitsByMethod[txnMethod]!.count += 1;
-    // eslint-disable-next-line no-param-reassign
-    node.rawDebit += txnAmount;
-  }
-
-  /**
-   * Update node from FOCAL CLIENT perspective
-   */
-  function addToCredits(node: GraphNode, txnMethod: number, txnAmount: number) {
-    // eslint-disable-next-line no-param-reassign
-    node.creditsByMethod[txnMethod] ??= { amount: 0, count: 0 };
-    // eslint-disable-next-line no-param-reassign
-    node.creditsByMethod[txnMethod].amount += txnAmount;
-    // eslint-disable-next-line no-param-reassign
-    node.creditsByMethod[txnMethod]!.count += 1;
-    // eslint-disable-next-line no-param-reassign
-    node.rawCredit += txnAmount;
   }
 }
 
@@ -606,13 +592,19 @@ function getLinkId(source: string, target: string) {
   return source + '$' + target;
 }
 
-function createOrUpdateBidirectionalLink(
-  linksMap: Map<string, Link>,
-  sourceId: string,
-  targetId: string,
-  direction: DIRECTION_OF_SA,
-  amount: number,
-) {
+function createOrUpdateBidirectionalLink({
+  linksMap,
+  sourceId,
+  targetId,
+  direction,
+  _amount,
+}: {
+  linksMap: Map<string, Link>;
+  sourceId: string;
+  targetId: string;
+  direction: DIRECTION_OF_SA;
+  _amount: number;
+}) {
   const forwardLinkId = getLinkId(sourceId, targetId);
   const reverseLinkId = getLinkId(targetId, sourceId);
 
@@ -621,7 +613,7 @@ function createOrUpdateBidirectionalLink(
     const link = linksMap.get(forwardLinkId)!;
     linksMap.set(forwardLinkId, {
       ...link,
-      rawAmount: link.rawAmount + amount,
+      _amount: link._amount + _amount,
     });
     return;
   }
@@ -629,24 +621,24 @@ function createOrUpdateBidirectionalLink(
   // Opposite direction
   if (linksMap.has(reverseLinkId)) {
     const link = linksMap.get(reverseLinkId)!;
-    const newAmount = link.rawAmount - amount;
+    const _newAmount = link._amount - _amount;
 
     // If amount becomes negative flip it
-    if (newAmount < 0) {
+    if (_newAmount < 0) {
       linksMap.delete(reverseLinkId);
       linksMap.set(forwardLinkId, {
         source: sourceId,
         target: targetId,
         linkId: forwardLinkId,
         linkType: direction,
-        rawAmount: Math.abs(newAmount),
+        _amount: Math.abs(_newAmount),
         symbol: ['none', 'arrow'],
       });
     } else {
       // Positive net flow, keep reverse link with reduced amount
       linksMap.set(reverseLinkId, {
         ...link,
-        rawAmount: newAmount,
+        _amount: _newAmount,
       });
     }
     return;
@@ -658,7 +650,7 @@ function createOrUpdateBidirectionalLink(
     target: targetId,
     linkId: forwardLinkId,
     linkType: direction,
-    rawAmount: amount,
+    _amount: _amount,
     symbol: ['none', 'arrow'],
   });
 }
@@ -671,10 +663,34 @@ function normalize(
   let minNodeCredit = Infinity;
   let maxNodeCredit = 0;
 
-  for (const node of nodesMap.values()) {
-    if (node.rawCredit > 0) {
-      if (node.rawCredit < minNodeCredit) minNodeCredit = node.rawCredit;
-      if (node.rawCredit > maxNodeCredit) maxNodeCredit = node.rawCredit;
+  const isSubjectNode = (
+    node: GraphNode,
+  ): node is Extract<GraphNode, { nodeType: 'subject' }> =>
+    node.nodeType === 'subject';
+
+  /**
+   * Calculate total credits for each subject node. **For normalizing ONLY**
+   */
+  const _nodeTotals = new Map<GraphNode, number>();
+
+  for (const node of [...nodesMap.values()].filter(isSubjectNode)) {
+    // note: **For normalizing ONLY**
+    const _totalCredit = Object.values(node.creditsByTxnType).reduce(
+      (total, items) => {
+        const itemsTotal = (items ?? []).reduce(
+          (sum, item) => sum + item.amount,
+          0,
+        );
+        return total + itemsTotal;
+      },
+      0,
+    );
+
+    _nodeTotals.set(node, _totalCredit);
+
+    if (_totalCredit > 0) {
+      if (_totalCredit < minNodeCredit) minNodeCredit = _totalCredit;
+      if (_totalCredit > maxNodeCredit) maxNodeCredit = _totalCredit;
     }
   }
 
@@ -686,9 +702,9 @@ function normalize(
   let maxLinkAmount = 0;
 
   for (const link of linksMap.values()) {
-    if (link.rawAmount > 0) {
-      if (link.rawAmount < minLinkAmount) minLinkAmount = link.rawAmount;
-      if (link.rawAmount > maxLinkAmount) maxLinkAmount = link.rawAmount;
+    if (link._amount > 0) {
+      if (link._amount < minLinkAmount) minLinkAmount = link._amount;
+      if (link._amount > maxLinkAmount) maxLinkAmount = link._amount;
     }
   }
 
@@ -699,31 +715,34 @@ function normalize(
   // Normalize Node Properties (Symbol Size)
   const nodes = Array.from(nodesMap.values()).map((node) => {
     let size = SYMBOL_MIN_SIZE;
+    let value = 0;
 
-    if (node.rawCredit > 0) {
-      const minLog = Math.log(minNodeCredit);
-      const maxLog = Math.log(maxNodeCredit);
-      const valLog = Math.log(node.rawCredit);
+    if (node.nodeType === 'subject') {
+      const _totalCredit = _nodeTotals.get(node) ?? 0;
+      value = _totalCredit;
 
-      // Avoid division by zero if all values are the same
-      const normalized =
-        minLog === maxLog ? 0 : (valLog - minLog) / (maxLog - minLog);
+      if (_totalCredit > 0) {
+        const minLog = Math.log(minNodeCredit);
+        const maxLog = Math.log(maxNodeCredit);
+        const valLog = Math.log(_totalCredit);
 
-      // Map 0..1 to Size Range [20px .. 80px]
-      size = SYMBOL_MIN_SIZE + normalized * SYMBOL_MAX_SIZE;
+        // Avoid division by zero if all values are the same
+        const normalized =
+          minLog === maxLog ? 0 : (valLog - minLog) / (maxLog - minLog);
+
+        // Map 0..1 to Size Range [SYMBOL_MIN_SIZE .. SYMBOL_MAX_SIZE]
+        size = SYMBOL_MIN_SIZE + normalized * SYMBOL_MAX_SIZE;
+      }
     }
 
-    if (node.category === NODE_ENUM.Account) {
+    if (node.nodeType === 'account' && node.category === NODE_ENUM.Account) {
       size = SYMBOL_ACCOUNT_SIZE;
     }
 
     return {
       ...node,
       symbolSize: size,
-      value: node.rawCredit,
-      // Explicitly preserve Maps (they don't spread correctly)
-      creditsByMethod: node.creditsByMethod,
-      debitsByMethod: node.debitsByMethod,
+      value: value,
     } satisfies GraphNode;
   });
 
@@ -731,10 +750,10 @@ function normalize(
   const links = Array.from(linksMap.values()).map((link) => {
     let normalized = 0;
 
-    if (link.rawAmount > 0) {
+    if (link._amount > 0) {
       const minLog = Math.log(minLinkAmount);
       const maxLog = Math.log(maxLinkAmount);
-      const valLog = Math.log(link.rawAmount);
+      const valLog = Math.log(link._amount);
 
       normalized =
         minLog === maxLog ? 0 : (valLog - minLog) / (maxLog - minLog);
@@ -770,11 +789,10 @@ const NODES = [
   { name: 'Account', itemStyle: { color: '#ffa726' } }, // 2 - Warm orange
   { name: 'External Person', itemStyle: { color: '#ab47bc' } }, // 3 - Purple
   { name: 'External Entity', itemStyle: { color: '#26a69a' } }, // 4 - Teal
-  { name: 'Attempted Transaction', itemStyle: { color: '#ef5350' } }, // 5 - Coral red
-  { name: 'Unknown', itemStyle: { color: '#78909c' } }, // 6 - Blue gray
-  { name: 'Focal Person', itemStyle: { color: COLOR_FOCAL_PERSON } }, // 7 - Deep red
-  { name: 'Focal Entity', itemStyle: { color: COLOR_FOCAL_ENTITY } }, // 8 - Bright neon green
-  { name: 'Focal Account', itemStyle: { color: '#ff2f65' } }, // 9 - Deep amber
+  { name: 'Unknown', itemStyle: { color: '#78909c' } }, // 5 - Blue gray
+  { name: 'Focal Person', itemStyle: { color: COLOR_FOCAL_PERSON } }, // 6 - Deep red
+  { name: 'Focal Entity', itemStyle: { color: COLOR_FOCAL_ENTITY } }, // 7 - Bright neon green
+  { name: 'Focal Account', itemStyle: { color: '#ff2f65' } }, // 8 - Deep amber
 ];
 
 export function getNodeName(num: number) {
@@ -787,52 +805,51 @@ export function getNodeName(num: number) {
 export type Link = NonNullable<GraphSeriesOption['links']>[number] &
   LinkAccountHolderOrTransaction;
 
-type LinkAccountHolderOrTransaction =
+type LinkAccountHolderOrTransaction = {
+  /**
+   * **For normalizing ONLY**
+   */
+  _amount: number;
+} & (
   | {
       linkId: string;
       linkType: 'accountHolder';
-      rawAmount: number;
     }
   | {
       linkId: string;
       linkType: 'In';
-      rawAmount: number;
     }
   | {
       linkId: string;
       linkType: 'Out';
-      rawAmount: number;
-    };
-
-export type GraphNode = GraphNodeItemOption & GraphNodeAccountOrSubject;
-
-type GraphNodeAccountOrSubject = {
-  rawCredit: number;
-  rawDebit: number;
-  creditsByMethod: MethodAmount;
-  debitsByMethod: MethodAmount;
-} & (
-  | {
-      nodeType: 'account';
-      transit?: string | null;
-      account?: string | null;
-    }
-  | {
-      nodeType: 'subject';
-      subjectName: string;
-      relatedTransit?: string | null;
-      relatedAccount?: string | null;
     }
 );
 
-export type CategoryKey =
-  | (typeof NODE_ENUM)[keyof typeof NODE_ENUM]
+export type GraphNode = GraphNodeItemOption &
+  (
+    | {
+        nodeType: 'account';
+        transit?: string | null;
+        account?: string | null;
+      }
+    | {
+        nodeType: 'subject';
+        displayName: string;
+        creditsByTxnType: TxnTypeAmount;
+        debitsByTxnType: TxnTypeAmount;
+        partyInfo: PartyGenType;
+      }
+  );
+
+export type TxnTypeKey =
+  | (typeof TRANSACTION_TYPE_ENUM)[keyof typeof TRANSACTION_TYPE_ENUM]
   | (number & {});
 
-export type MethodAmount = Partial<
-  Record<CategoryKey, { amount: number; count: number }>
+export type TxnTypeAmount = Partial<
+  Record<TxnTypeKey, { amount: number; currency: string }[]>
 >;
 
+// indirectly extracts type GraphNodeItemOption (not exported)
 type GraphNodeItemOption = Extract<
   NonNullable<GraphSeriesOption['data']>[number],
   { name?: string }
@@ -841,7 +858,7 @@ type GraphNodeItemOption = Extract<
 type DIRECTION_OF_SA = 'In' | 'Out';
 
 const SYMBOL_MIN_SIZE = 20;
-const SYMBOL_MAX_SIZE = 40;
+const SYMBOL_MAX_SIZE = 30;
 const SYMBOL_ACCOUNT_SIZE = 20;
 const LINK_OPACITY = 0.8;
 

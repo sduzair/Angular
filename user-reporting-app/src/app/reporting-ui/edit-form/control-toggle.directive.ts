@@ -2,6 +2,7 @@ import {
   DestroyRef,
   Directive,
   EventEmitter,
+  HostBinding,
   Input,
   OnInit,
   Output,
@@ -15,22 +16,26 @@ import {
   NgControl,
 } from '@angular/forms';
 import { startWith } from 'rxjs';
+import { MARKED_AS_CLEARED, SET_AS_EMPTY } from './mark-as-cleared.directive';
 
 @Directive({
-  selector: '[appControlToggle]',
+  selector: '[appToggleControl]',
 })
 export class ControlToggleDirective implements OnInit {
   private formGroupDirective = inject(FormGroupDirective);
   private controlContainer = inject(ControlContainer);
   private ngControl = inject(NgControl, { optional: true });
 
-  @Input({ required: true }) appControlToggle!: string;
+  @Input({ required: true }) appToggleControl!: string;
   @Input() isBulkEdit = false;
-  @Input({ required: false }) appControlToggleValue?: unknown;
+  get isSingleEdit() {
+    return !this.isBulkEdit;
+  }
+  @Input({ required: false }) appToggleControlValue?: unknown;
   @Output() readonly addControlGroup = new EventEmitter();
 
-  get controlToWatch() {
-    return this.formGroupDirective.form.get(this.appControlToggle);
+  get toggleControl() {
+    return this.formGroupDirective.form.get(this.appToggleControl);
   }
 
   get dependentControl() {
@@ -41,67 +46,79 @@ export class ControlToggleDirective implements OnInit {
     return dependentControl!;
   }
 
+  @HostBinding('attr.readonly')
+  get readonly() {
+    return this.dependentControl.value === MARKED_AS_CLEARED ? '' : null;
+  }
+
   private destroyRef = inject(DestroyRef);
   ngOnInit() {
-    if (!this.controlToWatch || !this.dependentControl) {
+    if (!this.toggleControl || !this.dependentControl) {
       throw new Error(
         'ControlToggleDirective: controls not found in the form group',
       );
     }
 
     // Subscribe to value changes of the control to watch
-    this.controlToWatch.valueChanges
+    this.toggleControl.valueChanges
       .pipe(
         takeUntilDestroyed(this.destroyRef),
-        startWith(this.controlToWatch.value),
+        startWith(this.toggleControl.value),
       )
-      .subscribe((value) => {
+      .subscribe((toggleValue) => {
         const isDepControlAFormArray =
           this.dependentControl instanceof FormArray;
-        const isDepControlAFormControl = !isDepControlAFormArray;
+        const isDependentCtrlAFormControl = !isDepControlAFormArray;
 
-        const toggleIsReset = value == null;
-        const toggleIsSetToFalse = value === false;
-        const toggleHasValue = Boolean(value);
+        const toggleIsReset = toggleValue == null;
+        const toggleIsSetToFalse = toggleValue === false;
+        const toggleHasValue = Boolean(toggleValue);
+
+        if (isDependentCtrlAFormControl && this.toggleControl!.disabled) {
+          this.dependentControl.reset();
+          this.dependentControl.disable();
+          return;
+        }
 
         // field that depends on control toggle's value
-        // like other method of txn field depnds on method of txn field "Other" value
-        // only needs to be enabled as validator required set by default
         if (
-          isDepControlAFormControl &&
-          this.appControlToggleValue &&
-          this.appControlToggleValue === String(value ?? '')
+          isDependentCtrlAFormControl &&
+          this.appToggleControlValue &&
+          this.appToggleControlValue === String(toggleValue ?? '')
         ) {
           this.dependentControl.enable({ emitEvent: false });
+          this.dependentControl.setValue(SET_AS_EMPTY);
           return;
         }
 
         if (
-          isDepControlAFormControl &&
-          this.appControlToggleValue &&
-          this.appControlToggleValue !== String(value ?? '')
+          isDependentCtrlAFormControl &&
+          this.appToggleControlValue &&
+          this.appToggleControlValue !== String(toggleValue ?? '')
         ) {
-          this.dependentControl.reset();
-          this.dependentControl.disable({ emitEvent: false });
+          this.dependentControl.enable({ emitEvent: false });
+          this.dependentControl.setValue(MARKED_AS_CLEARED);
           return;
         }
 
         // field that depends on checkbox toggle's value
-        // only needs to be enabled as validator required set by default
-        if (isDepControlAFormControl && toggleHasValue) {
+        if (isDependentCtrlAFormControl && toggleHasValue) {
           this.dependentControl.enable({ emitEvent: false });
+          this.dependentControl.setValue(SET_AS_EMPTY);
           return;
         }
 
-        if (isDepControlAFormControl && (toggleIsReset || toggleIsSetToFalse)) {
-          this.dependentControl.reset();
-          this.dependentControl.disable({ emitEvent: false });
+        if (
+          isDependentCtrlAFormControl &&
+          (toggleIsReset || toggleIsSetToFalse)
+        ) {
+          this.dependentControl.enable({ emitEvent: false });
+          this.dependentControl.setValue(MARKED_AS_CLEARED);
           return;
         }
 
         // array field depends on checkbox toggle's value
-        // only needs to be enabled as field validators set as required by default
-        if (isDepControlAFormArray && toggleHasValue && !this.isBulkEdit) {
+        if (isDepControlAFormArray && toggleHasValue) {
           this.dependentControl.enable({ emitEvent: false });
 
           if (this.dependentControl.value.length === 0)
@@ -109,26 +126,18 @@ export class ControlToggleDirective implements OnInit {
           return;
         }
 
-        if (isDepControlAFormArray && toggleHasValue && this.isBulkEdit) {
-          this.dependentControl.enable({ emitEvent: false });
-
-          this.dependentControl.clear({ emitEvent: false });
-          this.addControlGroup.emit();
-          return;
-        }
-
         if (isDepControlAFormArray && toggleIsSetToFalse) {
-          this.dependentControl.clear({ emitEvent: false });
+          this.dependentControl.clear();
           return;
         }
 
         if (isDepControlAFormArray && toggleIsReset) {
-          this.dependentControl.reset({ emitEvent: false });
+          this.dependentControl.reset();
           this.dependentControl.disable({ emitEvent: false });
           return;
         }
 
-        console.assert(this.controlToWatch!.disabled);
+        console.assert(this.toggleControl!.disabled);
       });
   }
 }

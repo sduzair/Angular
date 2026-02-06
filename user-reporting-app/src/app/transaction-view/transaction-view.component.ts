@@ -32,6 +32,7 @@ import {
   shareReplay,
   Subject,
   switchMap,
+  take,
   tap,
   withLatestFrom,
 } from 'rxjs';
@@ -218,6 +219,7 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
   private highlightsService = inject(LocalHighlightsService);
 
   private highlights$ = this._caseRecordStore.state$.pipe(
+    take(1),
     switchMap(({ caseRecordId }) => {
       return this.highlightsService.getHighlights(caseRecordId);
     }),
