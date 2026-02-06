@@ -162,22 +162,31 @@ export class PartyGenService {
 }
 
 // Helper method to extract full name from party
-export function getPartyFullName(party: PartyGenType): string {
-  const name = party.partyName;
-
-  if (!name) {
+export function getPartyFullName(
+  partyName:
+    | {
+        surname?: string | null;
+        givenName?: string | null;
+        otherOrInitial?: string | null;
+        nameOfEntity?: string | null;
+      }
+    | undefined,
+): string {
+  if (!partyName) {
     return 'Unknown Party';
   }
 
   // For entities
-  if (name.nameOfEntity) {
-    return name.nameOfEntity;
+  if (partyName.nameOfEntity) {
+    return partyName.nameOfEntity;
   }
 
-  // For individuals - combine name parts
-  const parts = [name.givenName, name.otherOrInitial, name.surname].filter(
-    Boolean,
-  );
+  // For individuals - combine partyName parts
+  const parts = [
+    partyName.givenName,
+    partyName.otherOrInitial,
+    partyName.surname,
+  ].filter(Boolean);
 
   return parts.length > 0 ? parts.join(' ') : 'Unknown Party';
 }

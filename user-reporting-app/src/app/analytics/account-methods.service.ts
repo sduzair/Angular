@@ -10,7 +10,10 @@ import {
   shareReplay,
   switchMap,
 } from 'rxjs';
-import { CaseRecordStore } from '../aml/case-record.store';
+import {
+  CaseRecordStore,
+  StrTransactionWithChangeLogs,
+} from '../aml/case-record.store';
 import {
   FORM_OPTIONS_DETAILS_OF_DISPOSITION,
   FORM_OPTIONS_METHOD_OF_TXN,
@@ -18,6 +21,10 @@ import {
 } from '../reporting-ui/edit-form/form-options.service';
 import { TransactionDateDirective } from '../reporting-ui/edit-form/transaction-date.directive';
 import { TransactionSearchService } from '../transaction-search/transaction-search.service';
+import {
+  getPartyFullName,
+  PartyGenType,
+} from '../transaction-view/transform-to-str-transaction/party-gen.service';
 import { fiuMap } from './fiu';
 
 @Injectable()
@@ -26,10 +33,9 @@ export class AccountMethodsService {
   private caseRecord = inject(CaseRecordStore);
   private searchService = inject(TransactionSearchService);
 
-  private selections$ = this.caseRecord.state$.pipe(
-    map(({ selections }) => selections),
-    takeUntilDestroyed(),
-  );
+  private selections$ =
+    this.caseRecord.selectionsComputed$.pipe(takeUntilDestroyed());
+  private parties$ = this.caseRecord.state$.pipe(map(({ parties }) => parties));
 
   private partyKeysSelection$ = this.caseRecord.state$.pipe(
     map(({ searchParams: { partyKeysSelection } }) => partyKeysSelection),
@@ -69,232 +75,304 @@ export class AccountMethodsService {
     this.accountsInfo$,
     this.partyKeysSelection$,
     this.selections$,
+    this.parties$,
   ]).pipe(
-    map(([accountsInfo, partyKeysSelection, transactionSelections]) => {
-      const focalSubjects = new Set(partyKeysSelection);
+    // todo: verify basic info validation - amt, currency, typeoffunds, dispodetails
+    map(
+      ([accountsInfo, partyKeysSelection, transactionSelections, parties]) => {
+        const focalSubjects = new Set(partyKeysSelection);
 
-      // fix: ignores manuals
-      // fix: attempted txns ignore
-      const transactionsCredit = transactionSelections.filter(
-        (txn) => txn.flowOfFundsCreditedAccount,
-      );
-      const transactionsDebit = transactionSelections.filter(
-        (txn) => txn.flowOfFundsDebitedAccount,
-      );
+        if (transactionSelections.some(hasManualTransaction)) return [];
 
-      const accountMethods: AccountTransactionActivity[] = [];
+        // fix: attempted txns ignore
+        const getDebitsFilter =
+          (selectedAccount: string) =>
+          (txn: StrTransactionWithChangeLogs): boolean =>
+            !!txn.flowOfFundsDebitedAccount &&
+            txn.flowOfFundsDebitedAccount === selectedAccount &&
+            txn.wasTxnAttempted === false;
 
-      for (const {
-        account: selectedAccount,
-        currency: accountCurrency,
-        transit,
-      } of accountsInfo) {
-        // CREDITS - funds received into this account
-        const methodMapCredits: Partial<
-          Record<TransactionTypeKey, TransactionTypeTotals>
-        > = {};
+        const getCreditsFilter =
+          (selectedAccount: string) =>
+          (txn: StrTransactionWithChangeLogs): boolean =>
+            !!txn.flowOfFundsCreditedAccount &&
+            txn.flowOfFundsCreditedAccount === selectedAccount &&
+            txn.wasTxnAttempted === false;
 
-        for (const {
-          flowOfFundsCreditedAccount,
-          flowOfFundsCreditAmount,
-          flowOfFundsTransactionDate,
-          dateOfTxn,
-          methodOfTxn,
-          startingActions,
-          completingActions,
-          flowOfFundsTransactionDesc,
-        } of transactionsCredit) {
-          if (flowOfFundsCreditedAccount !== selectedAccount) continue;
-
-          const { typeOfFunds: saTypeOfFunds } = startingActions[0];
-          const { detailsOfDispo: caDetailsOfDispo } = completingActions[0];
-
-          const txnTypeKey =
-            getTransactionType(saTypeOfFunds, caDetailsOfDispo, methodOfTxn) ??
-            TRANSACTION_TYPE_ENUM.Unknown;
-
-          const amount = flowOfFundsCreditAmount ?? 0;
-          const date = TransactionDateDirective.format(
-            TransactionDateDirective.parse(
-              flowOfFundsTransactionDate ?? (dateOfTxn || ''),
-            ),
-          );
-
-          // Initialize method entry if not exists
-          if (!methodMapCredits[txnTypeKey]) {
-            methodMapCredits[txnTypeKey] = {
-              type:
-                TRANSACTION_TYPE_FRIENDLY_NAME[txnTypeKey] ?? 'Unknown Method',
-              amount: 0,
-              count: 0,
-              dates: [],
-              subjects: [],
-            } satisfies TransactionTypeTotals;
-          }
-
-          const methodEntry = methodMapCredits[txnTypeKey];
-          methodEntry.amount += amount;
-          methodEntry.count += 1;
-          if (date && !methodEntry.dates.includes(date)) {
-            methodEntry.dates.push(date);
-            methodEntry.dates.sort();
-          }
-
-          // Extract conductors and account holders from starting actions
-          for (const sa of startingActions) {
-            const {
-              conductors = [],
-              accountHolders = [],
-              fiuNo,
-              branch,
-              account,
-            } = sa;
-            // Add conductors
-            for (const conductor of conductors) {
-              addSubject({
-                subject: conductor,
-                focalSubjects,
-                methodEntry,
-                subjectRelation: 'conductor',
-                fiu: fiuNo ?? '',
-                transit: branch ?? '',
-                account: account ?? '',
-                methodKey: txnTypeKey,
-                flowOfFundsTransactionDesc,
-              });
-            }
-
-            // Add account holders
-            for (const holder of accountHolders) {
-              addSubject({
-                subject: holder,
-                focalSubjects,
-                methodEntry,
-                subjectRelation: 'accountholder',
-                fiu: fiuNo ?? '',
-                transit: branch ?? '',
-                account: account ?? '',
-                methodKey: txnTypeKey,
-                flowOfFundsTransactionDesc,
-              });
-            }
-          }
-        }
-
-        // Add credits entry
-        accountMethods.push({
-          account: selectedAccount,
-          currency: accountCurrency ?? '',
-          transit,
-          type: 'credits',
-          methodMap: methodMapCredits,
-        });
-
-        // DEBITS - funds sent from this account
-        const methodMapDebits: Partial<
-          Record<TransactionTypeKey, TransactionTypeTotals>
-        > = {};
+        const accountMethods: AccountTransactionActivity[] = [];
 
         for (const {
-          flowOfFundsDebitedAccount,
-          flowOfFundsDebitAmount,
-          flowOfFundsTransactionDate,
-          dateOfTxn,
-          methodOfTxn,
-          startingActions,
-          completingActions,
-          flowOfFundsTransactionDesc,
-        } of transactionsDebit) {
-          if (flowOfFundsDebitedAccount !== selectedAccount) continue;
+          account: selectedAccount,
+          currency: accountCurrency,
+          transit,
+        } of accountsInfo) {
+          // CREDITS - funds received into this account
+          const txnTypeMapCredits: Partial<
+            Record<TransactionTypeKey, TransactionTypeTotals>
+          > = {};
 
-          const { typeOfFunds: saTypeOfFunds } = startingActions[0];
-          const { detailsOfDispo: caDetailsOfDispo } = completingActions[0];
+          for (const {
+            flowOfFundsCreditAmount,
+            flowOfFundsTransactionDate,
+            dateOfTxn,
+            methodOfTxn,
+            startingActions,
+            completingActions,
+            flowOfFundsTransactionDesc,
+          } of transactionSelections.filter(
+            getCreditsFilter(selectedAccount),
+          )) {
+            const { typeOfFunds: saTypeOfFunds } = startingActions[0];
+            const { detailsOfDispo: caDetailsOfDispo } = completingActions[0];
 
-          const txnTypeKey =
-            getTransactionType(saTypeOfFunds, caDetailsOfDispo, methodOfTxn) ??
-            TRANSACTION_TYPE_ENUM.Unknown;
+            const txnTypeKey =
+              getTxnType(saTypeOfFunds, caDetailsOfDispo, methodOfTxn) ??
+              TRANSACTION_TYPE_ENUM.Unknown;
 
-          const amount = flowOfFundsDebitAmount ?? 0;
-          const date = TransactionDateDirective.format(
-            TransactionDateDirective.parse(
-              flowOfFundsTransactionDate ?? (dateOfTxn || ''),
-            ),
-          );
+            const date = TransactionDateDirective.format(
+              TransactionDateDirective.parse(
+                flowOfFundsTransactionDate ?? (dateOfTxn || ''),
+              ),
+            );
 
-          // Initialize method entry if not exists
-          if (!methodMapDebits[txnTypeKey]) {
-            methodMapDebits[txnTypeKey] = {
-              type:
-                TRANSACTION_TYPE_FRIENDLY_NAME[txnTypeKey] ?? 'Unknown Method',
-              amount: 0,
-              count: 0,
-              dates: [],
-              subjects: [],
-            } satisfies TransactionTypeTotals;
-          }
-
-          const methodEntry = methodMapDebits[txnTypeKey];
-          methodEntry.amount += amount;
-          methodEntry.count += 1;
-          if (date && !methodEntry.dates.includes(date)) {
-            methodEntry.dates.push(date);
-            methodEntry.dates.sort();
-          }
-
-          // Extract beneficiaries and account holders from completing actions
-          for (const ca of completingActions) {
-            const {
-              beneficiaries = [],
-              accountHolders = [],
-              fiuNo,
-              branch,
-              account,
-            } = ca;
-
-            // Add beneficiaries
-            for (const beneficiary of beneficiaries) {
-              addSubject({
-                subject: beneficiary,
-                focalSubjects,
-                methodEntry,
-                subjectRelation: 'beneficiary',
-                fiu: fiuNo ?? '',
-                transit: branch ?? '',
-                account: account ?? '',
-                methodKey: txnTypeKey,
-                flowOfFundsTransactionDesc,
-              });
+            // Initialize method entry if not exists
+            if (!txnTypeMapCredits[txnTypeKey]) {
+              txnTypeMapCredits[txnTypeKey] = {
+                type:
+                  TRANSACTION_TYPE_FRIENDLY_NAME[txnTypeKey] ??
+                  'Unknown Method',
+                amount: 0,
+                count: 0,
+                dates: [],
+                subjects: [],
+              } satisfies TransactionTypeTotals;
             }
 
-            // Add account holders
-            for (const holder of accountHolders) {
-              addSubject({
-                subject: holder,
-                focalSubjects,
-                methodEntry,
-                subjectRelation: 'accountholder',
-                fiu: fiuNo ?? '',
-                transit: branch ?? '',
-                account: account ?? '',
-                methodKey: txnTypeKey,
-                flowOfFundsTransactionDesc,
-              });
+            const txnTypeEntry = txnTypeMapCredits[txnTypeKey];
+            txnTypeEntry.amount += flowOfFundsCreditAmount ?? 0;
+            txnTypeEntry.count += 1;
+            if (date && !txnTypeEntry.dates.includes(date)) {
+              txnTypeEntry.dates.push(date);
+              txnTypeEntry.dates.sort();
+            }
+
+            // Extract conductors and account holders from starting actions
+            for (const sa of startingActions) {
+              const {
+                conductors = [],
+                accountHolders = [],
+                fiuNo,
+                branch,
+                account,
+              } = sa;
+              // Add conductors
+              for (const conductor of conductors) {
+                const {
+                  displayName,
+                  subType,
+                  subTypeLabel,
+                  fiu,
+                  subjectPhrase,
+                } = getSubject({
+                  party: parties.find(
+                    (p) => p.partyIdentifier === conductor.linkToSub,
+                  )!,
+                  focalSubjects,
+                  fiu: fiuNo ?? '',
+                  transit: branch ?? '',
+                  account: account ?? '',
+                  methodKey: txnTypeKey,
+                  flowOfFundsTransactionDesc,
+                });
+
+                txnTypeEntry.subjects.push({
+                  displayName,
+                  subType,
+                  subTypeLabel,
+                  subjectRelation: 'conductor',
+                  fiu,
+                  account: account ?? '',
+                  subjectPhrase,
+                } satisfies TransactionTypeSubject);
+              }
+
+              // Add account holders
+              for (const holder of accountHolders) {
+                const {
+                  displayName,
+                  subType,
+                  subTypeLabel,
+                  fiu,
+                  subjectPhrase,
+                } = getSubject({
+                  party: parties.find(
+                    (p) => p.partyIdentifier === holder.linkToSub,
+                  )!,
+                  focalSubjects,
+                  fiu: fiuNo ?? '',
+                  transit: branch ?? '',
+                  account: account ?? '',
+                  methodKey: txnTypeKey,
+                  flowOfFundsTransactionDesc,
+                });
+
+                txnTypeEntry.subjects.push({
+                  displayName,
+                  subType,
+                  subTypeLabel,
+                  subjectRelation: 'accountholder',
+                  fiu,
+                  account: account ?? '',
+                  subjectPhrase,
+                } satisfies TransactionTypeSubject);
+              }
             }
           }
+
+          // Add credits entry
+          accountMethods.push({
+            account: selectedAccount,
+            currency: accountCurrency ?? '',
+            transit,
+            type: 'credits',
+            methodMap: txnTypeMapCredits,
+          });
+
+          // DEBITS - funds sent from this account
+          const txnTypeMapDebits: Partial<
+            Record<TransactionTypeKey, TransactionTypeTotals>
+          > = {};
+
+          for (const {
+            flowOfFundsDebitAmount,
+            flowOfFundsTransactionDate,
+            dateOfTxn,
+            methodOfTxn,
+            startingActions,
+            completingActions,
+            flowOfFundsTransactionDesc,
+          } of transactionSelections.filter(getDebitsFilter(selectedAccount))) {
+            const { typeOfFunds: saTypeOfFunds } = startingActions[0];
+            const { detailsOfDispo: caDetailsOfDispo } = completingActions[0];
+
+            const txnTypeKey =
+              getTxnType(saTypeOfFunds, caDetailsOfDispo, methodOfTxn) ??
+              TRANSACTION_TYPE_ENUM.Unknown;
+
+            const date = TransactionDateDirective.format(
+              TransactionDateDirective.parse(
+                flowOfFundsTransactionDate ?? (dateOfTxn || ''),
+              ),
+            );
+
+            // Initialize method entry if not exists
+            if (!txnTypeMapDebits[txnTypeKey]) {
+              txnTypeMapDebits[txnTypeKey] = {
+                type:
+                  TRANSACTION_TYPE_FRIENDLY_NAME[txnTypeKey] ??
+                  'Unknown Method',
+                amount: 0,
+                count: 0,
+                dates: [],
+                subjects: [],
+              } satisfies TransactionTypeTotals;
+            }
+
+            const txnTypeEntry = txnTypeMapDebits[txnTypeKey];
+            txnTypeEntry.amount += flowOfFundsDebitAmount ?? 0;
+            txnTypeEntry.count += 1;
+            if (date && !txnTypeEntry.dates.includes(date)) {
+              txnTypeEntry.dates.push(date);
+              txnTypeEntry.dates.sort();
+            }
+
+            // Extract beneficiaries and account holders from completing actions
+            for (const ca of completingActions) {
+              const {
+                beneficiaries = [],
+                accountHolders = [],
+                fiuNo,
+                branch,
+                account,
+              } = ca;
+
+              // Add beneficiaries
+              for (const beneficiary of beneficiaries) {
+                const {
+                  displayName,
+                  subType,
+                  subTypeLabel,
+                  fiu,
+                  subjectPhrase,
+                } = getSubject({
+                  party: parties.find(
+                    (p) => p.partyIdentifier === beneficiary.linkToSub,
+                  )!,
+                  focalSubjects,
+                  fiu: fiuNo ?? '',
+                  transit: branch ?? '',
+                  account: account ?? '',
+                  methodKey: txnTypeKey,
+                  flowOfFundsTransactionDesc,
+                });
+
+                txnTypeEntry.subjects.push({
+                  displayName,
+                  subType,
+                  subTypeLabel,
+                  subjectRelation: 'beneficiary',
+                  fiu,
+                  account: account ?? '',
+                  subjectPhrase,
+                } satisfies TransactionTypeSubject);
+              }
+
+              // Add account holders
+              for (const holder of accountHolders) {
+                const {
+                  displayName,
+                  subType,
+                  subTypeLabel,
+                  fiu,
+                  subjectPhrase,
+                } = getSubject({
+                  party: parties.find(
+                    (p) => p.partyIdentifier === holder.linkToSub,
+                  )!,
+                  focalSubjects,
+                  fiu: fiuNo ?? '',
+                  transit: branch ?? '',
+                  account: account ?? '',
+                  methodKey: txnTypeKey,
+                  flowOfFundsTransactionDesc,
+                });
+
+                txnTypeEntry.subjects.push({
+                  displayName,
+                  subType,
+                  subTypeLabel,
+                  subjectRelation: 'accountholder',
+                  fiu,
+                  account: account ?? '',
+                  subjectPhrase,
+                } satisfies TransactionTypeSubject);
+              }
+            }
+          }
+
+          // Add debits entry
+          accountMethods.push({
+            account: selectedAccount,
+            currency: accountCurrency ?? '',
+            transit,
+            type: 'debits',
+            methodMap: txnTypeMapDebits,
+          });
         }
 
-        // Add debits entry
-        accountMethods.push({
-          account: selectedAccount,
-          currency: accountCurrency ?? '',
-          transit,
-          type: 'debits',
-          methodMap: methodMapDebits,
-        });
-      }
-
-      return accountMethods;
-    }),
+        return accountMethods;
+      },
+    ),
     takeUntilDestroyed(),
     shareReplay({ bufferSize: 1, refCount: false }),
   );
@@ -327,9 +405,9 @@ interface TransactionTypeTotals {
 }
 
 interface TransactionTypeSubject {
-  name: string;
-  category: SUBJECT_TYPE;
-  categoryLabel: string;
+  displayName: string;
+  subType: SUBJECT_TYPE;
+  subTypeLabel: string;
   subjectRelation: 'accountholder' | 'beneficiary' | 'conductor';
   fiu?: string;
   account?: string;
@@ -338,50 +416,32 @@ interface TransactionTypeSubject {
 
 type SUBJECT_TYPE = keyof typeof NODE_ENUM;
 
-function addSubject({
-  subject,
-  focalSubjects,
-  methodEntry,
-  subjectRelation,
+function getSubject({
+  party,
   fiu,
   account,
-  methodKey,
+  methodKey: typeKey,
   flowOfFundsTransactionDesc,
+  focalSubjects,
 }: {
-  subject: {
-    _hiddenPartyKey: string | null;
-    _hiddenSurname: string | null;
-    _hiddenGivenName: string | null;
-    _hiddenOtherOrInitial: string | null;
-    _hiddenNameOfEntity: string | null;
-  };
-  focalSubjects: Set<string>;
-  methodEntry: TransactionTypeTotals;
-  subjectRelation: 'accountholder' | 'beneficiary' | 'conductor';
+  party: PartyGenType;
   fiu?: string;
   transit?: string;
   account?: string;
   methodKey: keyof typeof TRANSACTION_TYPE_FRIENDLY_NAME;
   flowOfFundsTransactionDesc: string;
-}) {
-  const { category, name } = getSubjectIdAndCategory(subject, focalSubjects);
+  focalSubjects: Set<string>;
+}): Omit<TransactionTypeSubject, 'subjectRelation'> {
+  const { nodeCategory: category, displayName } =
+    getSubjectDisplayNameAndCategory(party, focalSubjects);
 
-  const subjectType = Object.keys(NODE_ENUM).find(
+  const subType = Object.keys(NODE_ENUM).find(
     (key) => NODE_ENUM[key as keyof typeof NODE_ENUM] === category,
   ) as SUBJECT_TYPE;
 
-  const categoryLabel = CATEGORY_LABEL[category];
+  const categoryLabel = NODE_CATEGORY_LABEL[category];
 
-  const exists = methodEntry.subjects.some(
-    (sub) =>
-      sub.name === name &&
-      sub.category === subjectType &&
-      sub.subjectRelation === subjectRelation &&
-      sub.fiu === fiu &&
-      sub.account === account,
-  );
-
-  if (!exists && TRANSACTION_TYPE_ENUM.EMT === methodKey) {
+  if (TRANSACTION_TYPE_ENUM.EMT === typeKey) {
     const isEmail = EMAIL_RE.test(account ?? '');
 
     const bankPhrase = fiu ? `a customer of ${fiuMap[fiu ?? '']} bank` : '';
@@ -392,48 +452,48 @@ function addSubject({
         : `with account #${account}`
       : '';
 
-    methodEntry.subjects.push({
-      name,
-      category: subjectType,
-      categoryLabel,
-      subjectRelation,
+    const subjectPhrase = (bankPhrase + ' ' + accountPhrase).trim();
+
+    return {
+      displayName,
+      subType,
+      subTypeLabel: categoryLabel,
       fiu,
       account,
-      subjectPhrase: (bankPhrase + ' ' + accountPhrase).trim(),
-    });
-    return;
+      subjectPhrase,
+    };
   }
 
-  if (!exists && TRANSACTION_TYPE_ENUM.Wires === methodKey) {
+  // todo: read address from party gen type
+  if (TRANSACTION_TYPE_ENUM.Wires === typeKey) {
     const subjectPhrase = `from address ${flowOfFundsTransactionDesc
       .split('@')[1]
       ?.trim()
       .replace(/[\r\n]+/g, ' ')}`;
 
-    methodEntry.subjects.push({
-      name,
-      category: subjectType,
-      categoryLabel,
-      subjectRelation,
-      subjectPhrase,
-    });
-    return;
-  }
-
-  if (!exists) {
-    const bankPhrase = fiu ? `a customer of ${fiuMap[fiu ?? '']} bank` : '';
-    const accountPhrase = account ? `with account #${account}` : '';
-
-    methodEntry.subjects.push({
-      name,
-      category: subjectType,
-      categoryLabel,
-      subjectRelation,
+    return {
+      displayName,
+      subType,
+      subTypeLabel: categoryLabel,
       fiu,
       account,
-      subjectPhrase: (bankPhrase + ' ' + accountPhrase).trim(),
-    });
+      subjectPhrase,
+    };
   }
+
+  const bankPhrase = fiu ? `a customer of ${fiuMap[fiu ?? '']} bank` : '';
+  const accountPhrase = account ? `with account #${account}` : '';
+
+  const subjectPhrase = (bankPhrase + ' ' + accountPhrase).trim();
+
+  return {
+    displayName,
+    subType,
+    subTypeLabel: categoryLabel,
+    fiu,
+    account,
+    subjectPhrase,
+  };
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address
@@ -451,56 +511,69 @@ export const TRANSACTION_TYPE_ENUM = {
 
 export const TRANSACTION_TYPE_FRIENDLY_NAME = {
   0: 'Unknown' as const,
-  1: 'ABM Cash' as const,
+  1: 'Cash' as const,
   2: 'Cheque' as const,
   3: 'Online Banking' as const,
   4: 'Email Transfer (EMT)' as const,
   5: 'Wire Transfer' as const,
 };
 
-export function getTransactionType(
+export function getTxnType(
   typeOfFunds: FORM_OPTIONS_TYPE_OF_FUNDS | (string & {}) | null,
   detailsOfDispo: FORM_OPTIONS_DETAILS_OF_DISPOSITION | (string & {}) | null,
   methodOfTxn: string | null,
 ) {
-  const typeOfFundsType = typeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS | null;
-  const detailsOfDispoType =
-    detailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION | null;
-  // note: method of txn may not be identical to txn method which is used for purposes of charting
-  const methodOfTxnType = methodOfTxn as FORM_OPTIONS_METHOD_OF_TXN | null;
-
   let method;
-
-  if (typeOfFundsType === 'Cash' && detailsOfDispoType === 'Deposit to account')
-    method = TRANSACTION_TYPE_ENUM.ABM;
+  method = TRANSACTION_TYPE_ENUM.Unknown;
 
   if (
-    typeOfFundsType === 'Funds Withdrawal' &&
-    detailsOfDispoType === 'Cash Withdrawal (account based)'
+    (typeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS | null) === 'Cash' &&
+    (detailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION | null) ===
+      'Deposit to account'
   )
     method = TRANSACTION_TYPE_ENUM.ABM;
 
   if (
-    typeOfFundsType === 'Cheque' &&
-    detailsOfDispoType === 'Deposit to account'
+    (typeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS | null) === 'Funds Withdrawal' &&
+    (detailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION | null) ===
+      'Cash Withdrawal (account based)'
+  )
+    method = TRANSACTION_TYPE_ENUM.ABM;
+
+  if (
+    (typeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS | null) === 'Cheque' &&
+    (detailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION | null) ===
+      'Deposit to account'
   )
     method = TRANSACTION_TYPE_ENUM.Cheque;
 
-  if (typeOfFundsType === 'Cheque' && detailsOfDispoType === 'Issued Cheque')
+  if (
+    (typeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS | null) === 'Cheque' &&
+    (detailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION | null) ===
+      'Issued Cheque'
+  )
     method = TRANSACTION_TYPE_ENUM.Cheque;
 
-  if (methodOfTxnType === 'Online') method = TRANSACTION_TYPE_ENUM.OLB;
+  if ((methodOfTxn as FORM_OPTIONS_METHOD_OF_TXN | null) === 'Online')
+    method = TRANSACTION_TYPE_ENUM.OLB;
 
-  if (typeOfFundsType === 'Email money transfer')
+  if (
+    (typeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS | null) ===
+    'Email money transfer'
+  )
     method = TRANSACTION_TYPE_ENUM.EMT;
 
   if (
-    typeOfFundsType === 'Funds Withdrawal' &&
-    detailsOfDispoType === 'Outgoing email money transfer'
+    (typeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS | null) === 'Funds Withdrawal' &&
+    (detailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION | null) ===
+      'Outgoing email money transfer'
   )
     method = TRANSACTION_TYPE_ENUM.EMT;
 
-  if (typeOfFundsType === 'International Funds Transfer')
+  if (
+    (typeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS | null) ===
+    'International Funds Transfer'
+  )
     method = TRANSACTION_TYPE_ENUM.Wires;
 
   return method;
@@ -512,14 +585,13 @@ export const NODE_ENUM = {
   Account: 2,
   PersonSubject: 3,
   EntitySubject: 4,
-  AttemptedTxn: 5,
-  UnknownNode: 6,
-  FocalPersonSubject: 7,
-  FocalEntitySubject: 8,
-  FocalAccount: 9,
+  UnknownNode: 5,
+  FocalPersonSubject: 6,
+  FocalEntitySubject: 7,
+  FocalAccount: 8,
 } as const;
 
-export const CATEGORY_LABEL: Record<number, string> = {
+export const NODE_CATEGORY_LABEL: Record<number, string> = {
   7: 'an individual',
   8: 'a business/entity',
   3: 'an individual',
@@ -528,78 +600,74 @@ export const CATEGORY_LABEL: Record<number, string> = {
   1: 'a business/entity',
 };
 
-export function getSubjectIdAndCategory(
-  subject: Subject | undefined,
+export function getSubjectDisplayNameAndCategory(
+  party: PartyGenType | undefined,
   focalSubjects: Set<string>,
 ) {
-  let category = NODE_ENUM.UnknownNode as number;
-  let name = 'Unknown Subject';
+  let nodeCategory = NODE_ENUM.UnknownNode as number;
+  let displayName = 'Unknown Subject';
   let isFocal = false;
 
-  if (!subject) {
+  if (!party) {
     return {
-      subjectId: generateUnknownNodeKey(),
-      category,
-      name,
+      nodeCategory,
+      displayName,
       isFocal,
     };
   }
 
-  if (
-    !subject._hiddenPartyKey &&
-    !subject._hiddenGivenName &&
-    !subject._hiddenOtherOrInitial &&
-    !subject._hiddenSurname &&
-    !subject._hiddenNameOfEntity
-  ) {
+  const { partyKey } = party.identifiers ?? {};
+
+  const { givenName, otherOrInitial, surname, nameOfEntity } =
+    party.partyName ?? {};
+
+  if (!partyKey && !givenName && !otherOrInitial && !surname && !nameOfEntity) {
     return {
-      subjectId: generateUnknownNodeKey(),
-      category,
-      name,
+      nodeCategory,
+      displayName,
       isFocal,
     };
   }
 
-  const isClient = !!subject._hiddenPartyKey;
-  const isPerson = !!subject._hiddenSurname && !!subject._hiddenGivenName;
-  const isEntity = !!subject._hiddenNameOfEntity;
-  isFocal =
-    !!subject._hiddenPartyKey && focalSubjects.has(subject._hiddenPartyKey);
+  const isClient = !!partyKey;
+  const isPerson = !!surname && !!givenName;
+  const isEntity = !!nameOfEntity;
+  isFocal = !!partyKey && focalSubjects.has(partyKey);
+
+  displayName = getPartyFullName({
+    givenName,
+    otherOrInitial,
+    surname,
+    nameOfEntity,
+  });
 
   if (isFocal && isPerson) {
-    category = NODE_ENUM.FocalPersonSubject;
-    name = `${subject._hiddenGivenName} ${subject._hiddenOtherOrInitial ? subject._hiddenOtherOrInitial + ' ' : ''}${subject._hiddenSurname}`;
+    nodeCategory = NODE_ENUM.FocalPersonSubject;
   }
 
   if (isFocal && isEntity) {
-    category = NODE_ENUM.FocalEntitySubject;
-    name = `${subject._hiddenNameOfEntity}`;
+    nodeCategory = NODE_ENUM.FocalEntitySubject;
   }
 
   if (!isFocal && isClient && isPerson) {
-    category = NODE_ENUM.CibcPersonSubject;
-    name = `${subject._hiddenGivenName} ${subject._hiddenOtherOrInitial ? subject._hiddenOtherOrInitial + ' ' : ''}${subject._hiddenSurname}`;
+    nodeCategory = NODE_ENUM.CibcPersonSubject;
   }
 
   if (!isFocal && isClient && isEntity) {
-    category = NODE_ENUM.CibcEntitySubject;
-    name = `${subject._hiddenNameOfEntity}`;
+    nodeCategory = NODE_ENUM.CibcEntitySubject;
   }
 
   if (!isFocal && !isClient && isPerson) {
-    category = NODE_ENUM.PersonSubject;
-    name = `${subject._hiddenGivenName} ${subject._hiddenOtherOrInitial ? subject._hiddenOtherOrInitial + ' ' : ''}${subject._hiddenSurname}`;
+    nodeCategory = NODE_ENUM.PersonSubject;
   }
 
   if (!isFocal && !isClient && isEntity) {
-    category = NODE_ENUM.EntitySubject;
-    name = `${subject._hiddenNameOfEntity}`;
+    nodeCategory = NODE_ENUM.EntitySubject;
   }
 
   return {
-    subjectId: `SUBJECT-${subject._hiddenPartyKey ?? ''}-${subject._hiddenSurname ?? ''}-${subject._hiddenGivenName ?? ''}-${subject._hiddenOtherOrInitial ?? ''}-${subject._hiddenNameOfEntity ?? ''}`,
-    category,
-    name,
+    nodeCategory,
+    displayName,
     isFocal,
   };
 }
@@ -608,10 +676,5 @@ export function generateUnknownNodeKey() {
   return `UNKNOWN-${crypto.randomUUID()}`;
 }
 
-export interface Subject {
-  _hiddenPartyKey: string | null;
-  _hiddenSurname: string | null;
-  _hiddenGivenName: string | null;
-  _hiddenOtherOrInitial: string | null;
-  _hiddenNameOfEntity: string | null;
-}
+export const hasManualTransaction = (sel: StrTransactionWithChangeLogs): boolean =>
+  sel.sourceId === 'Manual';

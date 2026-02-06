@@ -113,6 +113,7 @@ export function transformOlbEmtToStrTransaction({
           identifiers: { certapayAccount: emtTxn.senderCertapayAccount },
           contact: { email: emtTxn.senderEmail },
           partyName: { ...parsePartyNameFromEmt(emtTxn.senderName) },
+          account: { fiNumber: emtTxn.senderFi },
         });
       }
 
@@ -121,6 +122,7 @@ export function transformOlbEmtToStrTransaction({
           identifiers: { certapayAccount: emtTxn.recipientCertapayAccount },
           contact: { email: emtTxn.recipientEmail },
           partyName: { ...parsePartyNameFromEmt(emtTxn.recipientName) },
+          account: { fiNumber: emtTxn.recipientFi },
         });
       }
 

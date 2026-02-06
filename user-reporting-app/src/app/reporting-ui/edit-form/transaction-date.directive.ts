@@ -2,6 +2,7 @@ import { Directive, ErrorHandler, inject } from '@angular/core';
 import { ControlValueAccessor, NgControl } from '@angular/forms';
 import { MatDatepickerInput } from '@angular/material/datepicker';
 import { format, isValid, parse } from 'date-fns';
+import { SET_AS_EMPTY } from './mark-as-cleared.directive';
 
 const TRANSACTION_DATE_INPUT_FORMATS = [
   'yyyy/MM/dd',
@@ -55,7 +56,9 @@ export class TransactionDateDirective implements ControlValueAccessor {
 
   registerOnChange(fn: (_: unknown) => void): void {
     this._onChange = (date: Date | null) => {
-      const formatted = date ? TransactionDateDirective.format(date) : null;
+      const formatted = date
+        ? TransactionDateDirective.format(date)
+        : SET_AS_EMPTY;
       fn(formatted);
     };
     this.datepickerInput.registerOnChange(this._onChange);

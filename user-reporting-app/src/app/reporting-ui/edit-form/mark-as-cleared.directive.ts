@@ -3,7 +3,6 @@ import {
   DestroyRef,
   Directive,
   ElementRef,
-  HostBinding,
   HostListener,
   inject,
   Renderer2,
@@ -13,6 +12,7 @@ import { NgControl, ValidatorFn } from '@angular/forms';
 import { MatFormField } from '@angular/material/form-field';
 
 export const MARKED_AS_CLEARED = null;
+export const SET_AS_EMPTY = '';
 
 @Directive({
   selector: '[appMarkAsCleared]',
@@ -80,7 +80,8 @@ export class MarkAsClearedDirective implements AfterViewInit {
 
     if (!this.control!.disabled && this.control!.value === MARKED_AS_CLEARED) {
       this.renderer.addClass(matIconElement, 'mat-warn');
-    } else {
+      // eslint-disable-next-line no-constant-condition
+    } else if (true || this.control!.value === SET_AS_EMPTY) {
       this.renderer.removeClass(matIconElement, 'mat-warn');
     }
   }

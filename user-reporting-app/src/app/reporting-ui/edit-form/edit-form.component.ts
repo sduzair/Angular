@@ -91,8 +91,12 @@ import {
   hasPersonName,
 } from './common-validation';
 import { ControlToggleDirective } from './control-toggle.directive';
+import { DatepickerReadonlyDirective } from './datepicker-readonly.directive';
 import { FormOptions, FormOptionsService } from './form-options.service';
-import { MarkAsClearedDirective } from './mark-as-cleared.directive';
+import {
+  MarkAsClearedDirective,
+  SET_AS_EMPTY,
+} from './mark-as-cleared.directive';
 import { PartySyncDirective } from './party-sync.directive';
 import { ToggleEditFieldDirective } from './toggle-edit-field.directive';
 import { TransactionDateDirective } from './transaction-date.directive';
@@ -141,6 +145,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
     MatBadgeModule,
     ValidateOnParentChangesDirective,
     PartySyncDirective,
+    DatepickerReadonlyDirective,
   ],
   template: `
     @let editForm = editForm$ | async;
@@ -354,7 +359,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                         </button>
                         <mat-error>This field is required</mat-error>
                       </mat-form-field>
-                      <div class="col-xl-4 d-flex">
+                      <div class="col-xl-4 d-flex gap-2">
                         <mat-checkbox
                           formControlName="hasPostingDate"
                           class="col-auto"
@@ -381,7 +386,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [matDatepicker]="dateOfPostingPicker"
                           [max]="maxDate"
                           appTransactionDate
-                          appControlToggle="hasPostingDate" />
+                          appToggleControl="hasPostingDate" />
                         <mat-datepicker-toggle
                           matIconSuffix
                           [for]="dateOfPostingPicker"></mat-datepicker-toggle>
@@ -404,7 +409,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           type="time"
                           step="1"
                           appTransactionTime
-                          appControlToggle="hasPostingDate" />
+                          appToggleControl="hasPostingDate" />
                         <button
                           [disabled]="this.isBulkEdit"
                           type="button"
@@ -475,8 +480,16 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                         <input
                           matInput
                           formControlName="methodOfTxnOther"
-                          appControlToggle="methodOfTxn"
-                          appControlToggleValue="Other" />
+                          appToggleControl="methodOfTxn"
+                          appToggleControlValue="Other" />
+                        <button
+                          [disabled]="!this.isBulkEdit"
+                          type="button"
+                          appMarkAsCleared
+                          mat-icon-button
+                          matSuffix>
+                          <mat-icon>backspace</mat-icon>
+                        </button>
                         <button
                           [disabled]="this.isBulkEdit"
                           type="button"
@@ -489,7 +502,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                       </mat-form-field>
                     </div>
                     <div class="row row-cols-1">
-                      <div class="col-12 col-xl-4 d-flex">
+                      <div class="col-12 col-xl-4 d-flex gap-2">
                         <mat-checkbox
                           formControlName="wasTxnAttempted"
                           class="col-auto"
@@ -515,7 +528,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                         <input
                           matInput
                           formControlName="wasTxnAttemptedReason"
-                          appControlToggle="wasTxnAttempted" />
+                          appToggleControl="wasTxnAttempted" />
                         <button
                           [disabled]="this.isBulkEdit"
                           type="button"
@@ -791,10 +804,18 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                             <input
                               matInput
                               formControlName="typeOfFundsOther"
-                              [appControlToggle]="
+                              [appToggleControl]="
                                 'startingActions.' + saIndex + '.typeOfFunds'
                               "
-                              appControlToggleValue="Other" />
+                              appToggleControlValue="Other" />
+                            <button
+                              [disabled]="!this.isBulkEdit"
+                              type="button"
+                              appMarkAsCleared
+                              mat-icon-button
+                              matSuffix>
+                              <mat-icon>backspace</mat-icon>
+                            </button>
                             <button
                               [disabled]="this.isBulkEdit"
                               type="button"
@@ -1094,10 +1115,18 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                             <input
                               matInput
                               formControlName="accountTypeOther"
-                              [appControlToggle]="
+                              [appToggleControl]="
                                 'startingActions.' + saIndex + '.accountType'
                               "
-                              appControlToggleValue="Other" />
+                              appToggleControlValue="Other" />
+                            <button
+                              [disabled]="!this.isBulkEdit"
+                              type="button"
+                              appMarkAsCleared
+                              mat-icon-button
+                              matSuffix>
+                              <mat-icon>backspace</mat-icon>
+                            </button>
                             <button
                               [disabled]="this.isBulkEdit"
                               type="button"
@@ -1373,7 +1402,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                         <div
                           formArrayName="accountHolders"
                           class="d-flex flex-column align-items-end gap-3"
-                          [appControlToggle]="
+                          [appToggleControl]="
                             'startingActions.' + saIndex + '.hasAccountHolders'
                           "
                           [isBulkEdit]="isBulkEdit"
@@ -1631,7 +1660,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                         <div
                           formArrayName="sourceOfFunds"
                           class="d-flex flex-column align-items-end gap-3"
-                          [appControlToggle]="
+                          [appToggleControl]="
                             'startingActions.' + saIndex + '.wasSofInfoObtained'
                           "
                           [isBulkEdit]="isBulkEdit"
@@ -1929,7 +1958,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                         <div
                           formArrayName="conductors"
                           class="d-flex flex-column align-items-end gap-3"
-                          [appControlToggle]="
+                          [appToggleControl]="
                             'startingActions.' +
                             saIndex +
                             '.wasCondInfoObtained'
@@ -2157,7 +2186,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                 <div
                                   formArrayName="onBehalfOf"
                                   class="d-flex flex-column align-items-end gap-3"
-                                  [appControlToggle]="
+                                  [appToggleControl]="
                                     'startingActions.' +
                                     saIndex +
                                     '.conductors.' +
@@ -2567,12 +2596,20 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                             <input
                               matInput
                               formControlName="detailsOfDispoOther"
-                              [appControlToggle]="
+                              [appToggleControl]="
                                 'completingActions.' +
                                 caIndex +
                                 '.detailsOfDispo'
                               "
-                              appControlToggleValue="Other" />
+                              appToggleControlValue="Other" />
+                            <button
+                              [disabled]="!this.isBulkEdit"
+                              type="button"
+                              appMarkAsCleared
+                              mat-icon-button
+                              matSuffix>
+                              <mat-icon>backspace</mat-icon>
+                            </button>
                             <button
                               [disabled]="this.isBulkEdit"
                               type="button"
@@ -2946,10 +2983,18 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                             <input
                               matInput
                               formControlName="accountTypeOther"
-                              [appControlToggle]="
+                              [appToggleControl]="
                                 'completingActions.' + caIndex + '.accountType'
                               "
-                              appControlToggleValue="Other" />
+                              appToggleControlValue="Other" />
+                            <button
+                              [disabled]="!this.isBulkEdit"
+                              type="button"
+                              appMarkAsCleared
+                              mat-icon-button
+                              matSuffix>
+                              <mat-icon>backspace</mat-icon>
+                            </button>
                             <button
                               [disabled]="this.isBulkEdit"
                               type="button"
@@ -2958,7 +3003,6 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
-                            <mat-error>This field is required</mat-error>
                             <mat-error>This field is required</mat-error>
                           </mat-form-field>
                           <div
@@ -3190,7 +3234,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                         <div
                           formArrayName="accountHolders"
                           class="d-flex flex-column align-items-end gap-3"
-                          [appControlToggle]="
+                          [appToggleControl]="
                             'completingActions.' +
                             caIndex +
                             '.hasAccountHolders'
@@ -3450,7 +3494,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                         <div
                           formArrayName="involvedIn"
                           class="d-flex flex-column align-items-end gap-3"
-                          [appControlToggle]="
+                          [appToggleControl]="
                             'completingActions.' +
                             caIndex +
                             '.wasAnyOtherSubInvolved'
@@ -3748,7 +3792,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                         <div
                           formArrayName="beneficiaries"
                           class="d-flex flex-column align-items-end gap-3"
-                          [appControlToggle]="
+                          [appToggleControl]="
                             'completingActions.' +
                             caIndex +
                             '.wasBenInfoObtained'
@@ -4004,10 +4048,14 @@ export class EditFormComponent implements AfterViewChecked {
 
   protected partiesOptions$ = this.caseRecordStore.state$.pipe(
     map(({ parties }) =>
-      parties.map((party, index) => ({
-        label: `${index + 1}. ${getPartyFullName(party)}`,
-        value: party.partyIdentifier,
-      })),
+      parties.map(({ partyIdentifier, partyName }, index) => {
+        const { givenName, surname, otherOrInitial, nameOfEntity } =
+          partyName ?? {};
+        return {
+          label: `${index + 1}. ${getPartyFullName({ givenName, otherOrInitial, surname, nameOfEntity })}`,
+          value: partyIdentifier,
+        };
+      }),
     ),
   );
 
@@ -4287,6 +4335,10 @@ export class EditFormComponent implements AfterViewChecked {
 
     const editForm = new FormGroup(
       {
+        id: new FormControl({
+          value: txn?.id ?? '',
+          disabled,
+        }),
         eTag: new FormControl<number>({
           value: txn?.changeLogs.at(-1)?.eTag ?? 0,
           disabled,
@@ -4300,15 +4352,15 @@ export class EditFormComponent implements AfterViewChecked {
           disabled,
         }),
         wasTxnAttemptedReason: new FormControl(
-          { value: txn?.wasTxnAttemptedReason ?? null, disabled },
-          Validators.required,
+          { value: txn?.wasTxnAttemptedReason ?? SET_AS_EMPTY, disabled },
+          [dependentPropValidator('wasTxnAttempted')],
         ),
         dateOfTxn: new FormControl(
-          { value: txn?.dateOfTxn ?? null, disabled },
+          { value: txn?.dateOfTxn ?? SET_AS_EMPTY, disabled },
           [Validators.required, dateValidator()],
         ),
         timeOfTxn: new FormControl(
-          { value: txn?.timeOfTxn ?? null, disabled },
+          { value: txn?.timeOfTxn ?? SET_AS_EMPTY, disabled },
           Validators.required,
         ),
         hasPostingDate: new FormControl({
@@ -4320,32 +4372,32 @@ export class EditFormComponent implements AfterViewChecked {
           disabled,
         }),
         dateOfPosting: new FormControl(
-          { value: txn?.dateOfPosting ?? null, disabled },
-          [Validators.required, dateValidator()],
+          { value: txn?.dateOfPosting ?? SET_AS_EMPTY, disabled },
+          [dateValidator(), dependentPropValidator('hasPostingDate')],
         ),
         timeOfPosting: new FormControl(
-          { value: txn?.timeOfPosting ?? null, disabled },
-          Validators.required,
+          { value: txn?.timeOfPosting ?? SET_AS_EMPTY, disabled },
+          [dependentPropValidator('hasPostingDate')],
         ),
         methodOfTxn: new FormControl(
-          { value: txn?.methodOfTxn ?? null, disabled },
-          Validators.required,
+          { value: txn?.methodOfTxn ?? SET_AS_EMPTY, disabled },
+          [Validators.required],
           this.methodOfTxnValidator(),
         ),
         methodOfTxnOther: new FormControl(
-          { value: txn?.methodOfTxnOther ?? null, disabled },
-          Validators.required,
+          { value: txn?.methodOfTxnOther ?? SET_AS_EMPTY, disabled },
+          [dependentPropValidator('methodOfTxn')],
         ),
         reportingEntityTxnRefNo: new FormControl({
           value: txn?.reportingEntityTxnRefNo!,
           disabled,
         }),
         purposeOfTxn: new FormControl({
-          value: txn?.purposeOfTxn ?? null,
+          value: txn?.purposeOfTxn ?? SET_AS_EMPTY,
           disabled,
         }),
         reportingEntityLocationNo: new FormControl(
-          { value: txn?.reportingEntityLocationNo ?? null, disabled },
+          { value: txn?.reportingEntityLocationNo ?? SET_AS_EMPTY, disabled },
           [
             Validators.required,
             Validators.minLength(5),
@@ -4417,11 +4469,11 @@ export class EditFormComponent implements AfterViewChecked {
       {
         _id: new FormControl({
           value: action?._id ?? getFormGroupId(),
-          disabled: false,
+          disabled,
         }),
         directionOfSA: new FormControl(
           {
-            value: action?.directionOfSA ?? null,
+            value: action?.directionOfSA ?? SET_AS_EMPTY,
             disabled,
           },
           [Validators.required],
@@ -4429,72 +4481,75 @@ export class EditFormComponent implements AfterViewChecked {
         ),
         typeOfFunds: new FormControl(
           {
-            value: action?.typeOfFunds ?? null,
+            value: action?.typeOfFunds ?? SET_AS_EMPTY,
             disabled,
           },
           [Validators.required],
           this.typeOfFundsValidator(),
         ),
         typeOfFundsOther: new FormControl(
-          { value: action?.typeOfFundsOther ?? null, disabled },
-          Validators.required,
+          { value: action?.typeOfFundsOther ?? SET_AS_EMPTY, disabled },
+          [dependentPropValidator('typeOfFunds')],
         ),
         amount: new FormControl(
-          { value: action?.amount ?? null, disabled },
+          { value: action?.amount ?? NaN, disabled },
           Validators.required,
         ),
         currency: new FormControl(
-          { value: action?.currency ?? null, disabled },
+          { value: action?.currency ?? SET_AS_EMPTY, disabled },
           [],
           this.amountCurrencyValidator(),
         ),
-        fiuNo: new FormControl({ value: action?.fiuNo ?? null, disabled }, [
-          accountInfoValidator(),
-          fiuValidator(),
-        ]),
-        branch: new FormControl({ value: action?.branch ?? null, disabled }, [
-          Validators.minLength(5),
-          Validators.maxLength(5),
-        ]),
-        account: new FormControl({ value: action?.account ?? null, disabled }),
+        fiuNo: new FormControl(
+          { value: action?.fiuNo ?? SET_AS_EMPTY, disabled },
+          [accountInfoValidator(), fiuValidator()],
+        ),
+        branch: new FormControl(
+          { value: action?.branch ?? SET_AS_EMPTY, disabled },
+          [Validators.minLength(5), Validators.maxLength(5)],
+        ),
+        account: new FormControl({
+          value: action?.account ?? SET_AS_EMPTY,
+          disabled,
+        }),
         accountType: new FormControl(
           {
-            value: action?.accountType ?? null,
+            value: action?.accountType ?? SET_AS_EMPTY,
             disabled,
           },
-          [],
+          [Validators.required],
           this.accountTypeValidator(),
         ),
         accountTypeOther: new FormControl(
-          { value: action?.accountTypeOther ?? null, disabled },
-          Validators.required,
+          { value: action?.accountTypeOther ?? SET_AS_EMPTY, disabled },
+          [dependentPropValidator('accountType')],
         ),
         accountOpen: new FormControl({
-          value: action?.accountOpen ?? null,
+          value: action?.accountOpen ?? SET_AS_EMPTY,
           disabled,
         }),
         accountClose: new FormControl(
           {
-            value: action?.accountClose ?? null,
+            value: action?.accountClose ?? SET_AS_EMPTY,
             disabled,
           },
           [accountCloseDateValidator()],
         ),
         accountStatus: new FormControl(
           {
-            value: action?.accountStatus ?? null,
+            value: action?.accountStatus ?? SET_AS_EMPTY,
             disabled,
           },
           [],
           [this.accountStatusValidator()],
         ),
         howFundsObtained: new FormControl({
-          value: action?.howFundsObtained ?? null,
+          value: action?.howFundsObtained ?? SET_AS_EMPTY,
           disabled,
         }),
         accountCurrency: new FormControl(
           {
-            value: action?.accountCurrency ?? null,
+            value: action?.accountCurrency ?? SET_AS_EMPTY,
             disabled,
           },
           [],
@@ -4604,80 +4659,83 @@ export class EditFormComponent implements AfterViewChecked {
     const caGroup = new FormGroup({
       _id: new FormControl({
         value: action?._id ?? getFormGroupId(),
-        disabled: false,
+        disabled,
       }),
       detailsOfDispo: new FormControl(
         {
-          value: action?.detailsOfDispo ?? null,
+          value: action?.detailsOfDispo ?? SET_AS_EMPTY,
           disabled,
         },
-        [],
+        [Validators.required],
         this.detailsOfDispositionValidator(),
       ),
       detailsOfDispoOther: new FormControl(
-        { value: action?.detailsOfDispoOther ?? null, disabled },
-        Validators.required,
+        { value: action?.detailsOfDispoOther ?? SET_AS_EMPTY, disabled },
+        [dependentPropValidator('detailsOfDispo')],
       ),
       amount: new FormControl(
-        { value: action?.amount ?? null, disabled },
+        { value: action?.amount ?? NaN, disabled },
         Validators.required,
       ),
       currency: new FormControl(
-        { value: action?.currency ?? null, disabled },
+        { value: action?.currency ?? SET_AS_EMPTY, disabled },
         [],
         this.amountCurrencyValidator(),
       ),
       exchangeRate: new FormControl({
-        value: action?.exchangeRate ?? null,
+        value: action?.exchangeRate ?? NaN,
         disabled,
       }),
       valueInCad: new FormControl({
-        value: action?.valueInCad ?? null,
+        value: action?.valueInCad ?? NaN,
         disabled,
       }),
-      fiuNo: new FormControl({ value: action?.fiuNo ?? null, disabled }, [
-        accountInfoValidator(),
-        fiuValidator(),
-      ]),
-      branch: new FormControl({ value: action?.branch ?? null, disabled }, [
-        Validators.minLength(5),
-        Validators.maxLength(5),
-      ]),
-      account: new FormControl({ value: action?.account ?? null, disabled }),
+      fiuNo: new FormControl(
+        { value: action?.fiuNo ?? SET_AS_EMPTY, disabled },
+        [accountInfoValidator(), fiuValidator()],
+      ),
+      branch: new FormControl(
+        { value: action?.branch ?? SET_AS_EMPTY, disabled },
+        [Validators.minLength(5), Validators.maxLength(5)],
+      ),
+      account: new FormControl({
+        value: action?.account ?? SET_AS_EMPTY,
+        disabled,
+      }),
       accountType: new FormControl(
         {
-          value: action?.accountType ?? null,
+          value: action?.accountType ?? SET_AS_EMPTY,
           disabled,
         },
-        [],
+        [Validators.required],
         this.accountTypeValidator(),
       ),
       accountTypeOther: new FormControl(
-        { value: action?.accountTypeOther ?? null, disabled },
-        Validators.required,
+        { value: action?.accountTypeOther ?? SET_AS_EMPTY, disabled },
+        [dependentPropValidator('accountType')],
       ),
       accountCurrency: new FormControl(
         {
-          value: action?.accountCurrency ?? null,
+          value: action?.accountCurrency ?? SET_AS_EMPTY,
           disabled,
         },
         [],
         this.accountCurrencyValidator(),
       ),
       accountOpen: new FormControl({
-        value: action?.accountOpen ?? null,
+        value: action?.accountOpen ?? SET_AS_EMPTY,
         disabled,
       }),
       accountClose: new FormControl(
         {
-          value: action?.accountClose ?? null,
+          value: action?.accountClose ?? SET_AS_EMPTY,
           disabled,
         },
         [accountCloseDateValidator()],
       ),
       accountStatus: new FormControl(
         {
-          value: action?.accountStatus ?? null,
+          value: action?.accountStatus ?? SET_AS_EMPTY,
           disabled,
         },
         [],
@@ -5634,7 +5692,7 @@ function accountInfoValidator(): ValidatorFn {
       'Assert parent control is action group',
     );
 
-    if (hasMissingAccountInfo(actionControl.value)) {
+    if (hasMissingAccountInfo(actionControl.getRawValue())) {
       return { missingAccountInfo: 'Missing account info' };
     }
     return null;
@@ -5767,6 +5825,42 @@ function fiuValidator(): ValidatorFn {
   };
 }
 
+export function dependentPropValidator(
+  toggleControlName: ChangeLog.ToggleType,
+): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    if (!control.parent) {
+      return null;
+    }
+
+    const toggleControl = control.parent.get(toggleControlName);
+
+    if (!toggleControl) {
+      return null;
+    }
+
+    const toggleValue = toggleControl.value;
+    let isRequired = false;
+
+    // Determine if field is required based on toggle type
+    if (ChangeLog.isBoolToggle(toggleControlName)) {
+      isRequired = toggleValue === true;
+    } else if (ChangeLog.isOtherToggle(toggleControlName)) {
+      isRequired = toggleValue === 'Other';
+    }
+
+    if (!isRequired) {
+      return null;
+    }
+
+    const value = control.value;
+    const isEmpty =
+      !value || (typeof value === 'string' && value.trim().length === 0);
+
+    return isEmpty ? { required: true } : null;
+  };
+}
+
 export const singleEditTypeResolver: ResolveFn<EditFormEditType> = (
   route: ActivatedRouteSnapshot,
   _: RouterStateSnapshot,
@@ -5782,9 +5876,7 @@ export const singleEditTypeResolver: ResolveFn<EditFormEditType> = (
 
       return {
         type: 'SINGLE_SAVE',
-        payload: structuredClone(
-          strTransaction,
-        ) as StrTransactionWithChangeLogs,
+        payload: structuredClone(strTransaction),
       };
     }),
   );

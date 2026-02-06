@@ -1,6 +1,7 @@
 import { Directive, ElementRef, HostListener, inject } from '@angular/core';
 import { ControlValueAccessor, NgControl } from '@angular/forms';
 import { format, isValid, parse } from 'date-fns';
+import { SET_AS_EMPTY } from './mark-as-cleared.directive';
 
 @Directive({
   selector: '[appTransactionTime]',
@@ -34,7 +35,9 @@ export class TransactionTimeDirective implements ControlValueAccessor {
   @HostListener('input', ['$event'])
   onInput(event: Event) {
     const value = (event.target as HTMLInputElement).value;
-    this.onChange(TransactionTimeDirective.parseAndFormatTime(value)!);
+    this.onChange(
+      TransactionTimeDirective.parseAndFormatTime(value) ?? SET_AS_EMPTY,
+    );
   }
 
   @HostListener('blur')

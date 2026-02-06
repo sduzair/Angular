@@ -17,7 +17,7 @@ import {
   SEARCH_SOURCE_ID,
   WireSourceData,
 } from '../../transaction-search/transaction-search.service';
-import { PartyGenType, PartyName } from './party-gen.service';
+import { PartyAddress, PartyGenType, PartyName } from './party-gen.service';
 
 /**
  * Transform incoming wire transfer into StrTransactionWithChangeLogs format
@@ -96,6 +96,9 @@ export function transformWireToStrTransaction({
         identifiers: { msgTag50: wireTxn.msgTag50 },
         partyName: {
           ...parseOCPartyName(wireTxn),
+        },
+        address: {
+          ...parseOCAddress(wireTxn),
         },
       });
 
@@ -320,4 +323,24 @@ function isBusiness(ocName: string) {
   const entityPatterns =
     /\b(Inc|Ltd|LLC|Corp|Corporation|Limited|Company|Bank|Trust|Credit Union|Plc)\b/i;
   return entityPatterns.test(ocName);
+}
+function parseOCAddress(wireTxn: WireSourceData): PartyAddress {
+  const [street, city, countryOrPostalCountry] =
+    wireTxn.flowOfFundsTransactionDesc
+      .split('@')[1]
+      .trim()
+      .split(/,?[\r\n]+/)
+      .slice(1);
+
+  const [country, postalCode] = countryOrPostalCountry
+    .trim()
+    .split(/\s/)
+    .reverse();
+
+  return {
+    street,
+    city,
+    country,
+    postalCode,
+  };
 }

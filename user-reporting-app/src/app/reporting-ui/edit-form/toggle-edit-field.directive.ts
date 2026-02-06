@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { ControlContainer, FormArray } from '@angular/forms';
 import { MatFormField } from '@angular/material/form-field';
+import { SET_AS_EMPTY } from './mark-as-cleared.directive';
 
 @Directive({
   selector: '[appToggleEditField]',
@@ -48,14 +49,28 @@ export class ToggleEditFieldDirective implements AfterViewChecked {
     if (this.control.disabled && this.isCheckboxControl) {
       this.control.enable({ emitEvent: false });
       this.control.setValue(true);
-    } else if (this.control.disabled) {
+      this.updateIcon();
+      return;
+    }
+    if (this.control.disabled && !this.isCheckboxControl) {
       this.control.enable();
-    } else {
-      this.control.disable({ emitEvent: false });
-      this.control.reset();
+      this.updateIcon();
+      return;
     }
 
-    this.updateIcon();
+    if (this.control.enabled && this.isCheckboxControl) {
+      this.control.disable({ emitEvent: false });
+      this.control.reset();
+      this.updateIcon();
+      return;
+    }
+
+    if (this.control.enabled && !this.isCheckboxControl) {
+      this.control.disable({ emitEvent: false });
+      this.control.reset(SET_AS_EMPTY);
+      this.updateIcon();
+      return;
+    }
   }
 
   private updateIcon() {
