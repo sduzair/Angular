@@ -9,6 +9,7 @@ import {
   FORM_OPTIONS_DETAILS_OF_DISPOSITION,
   FORM_OPTIONS_TYPE_OF_FUNDS,
 } from './form-options.service';
+import { StrTransactionWithChangeLogs } from '../../aml/case-record.store';
 
 export const hasPersonName = (cond: {
   _hiddenSurname?: string | null;
@@ -119,4 +120,74 @@ function hasMissingHolderInfo(value: {
   _hiddenNameOfEntity?: string | null;
 }): boolean {
   return !hasPersonName(value) && !hasEntityName(value);
+}
+
+export function hasMissingBasicInfo(
+  txn: StrTransactionWithChangeLogs,
+): boolean {
+  // Validate methodOfTxn
+  if (!txn.methodOfTxn) {
+    return true;
+  }
+
+  // Validate startingActions array exists and has at least one action
+  if (!txn.startingActions || txn.startingActions.length === 0) {
+    return true;
+  }
+
+  // Validate each starting action
+  for (const sa of txn.startingActions) {
+    // Validate starting action required fields
+    if (sa.amount == null || isNaN(sa.amount)) {
+      return true;
+    }
+
+    if (!sa.currency) {
+      return true;
+    }
+
+    if (!sa.typeOfFunds) {
+      return true;
+    }
+
+    // Validate conductors (each starting action needs exactly one conductor)
+    if (!sa.conductors || sa.conductors.length !== 1) {
+      return true;
+    }
+
+    if (!sa.conductors[0].linkToSub) {
+      return true;
+    }
+  }
+
+  // Validate completingActions array structure
+  if (!txn.completingActions || txn.completingActions.length === 0) {
+    return true;
+  }
+
+  // Validate completingActions array structure
+  if (!txn.completingActions || txn.completingActions.length !== 1) {
+    return true;
+  }
+
+  const ca = txn.completingActions[0];
+
+  // Validate completing action required fields
+  if (ca.amount == null || isNaN(ca.amount)) {
+    return true;
+  }
+
+  if (!ca.currency) {
+    return true;
+  }
+
+  if (!ca.detailsOfDispo) {
+    return true;
+  }
+
+  if (txn.wasTxnAttempted === false && (ca.beneficiaries ?? []).length === 0)
+    return true;
+
+  // All validations passed
+  return false;
 }

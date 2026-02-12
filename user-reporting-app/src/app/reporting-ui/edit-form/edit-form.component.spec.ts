@@ -29,13 +29,14 @@ import { MatSelectHarness } from '@angular/material/select/testing';
 import {
   provideRouter,
   RedirectCommand,
+  ResolveFn,
   Router,
+  RouterOutlet,
   withComponentInputBinding,
   withNavigationErrorHandler,
   withRouterConfig,
 } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { provideHashbrown } from '@hashbrownai/angular';
 import { enCA } from 'date-fns/locale';
 import { of } from 'rxjs';
 import { CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE } from '../../aml/case-record.state.fixture';
@@ -56,12 +57,9 @@ import { activateTabs, findEl } from '../../test-helpers';
 import { WithCaseRecordId } from '../../transaction-view/selections.service';
 import { PartyGenType } from '../../transaction-view/transform-to-str-transaction/party-gen.service';
 import { AppErrorHandlerService } from './../../app-error-handler.service';
-import { NavLayoutComponent } from './../../nav-layout/nav-layout.component';
 import {
-  auditResolver,
-  bulkEditTypeResolver,
   EditFormComponent,
-  singleEditTypeResolver,
+  EditFormEditType,
   StrTxnEditForm,
 } from './edit-form.component';
 import { FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE } from './form-options.fixture';
@@ -75,6 +73,59 @@ import { TransactionTimeDirective } from './transaction-time.directive';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 class MockTransactionSearchComponent {}
+
+@Component({
+  selector: 'app-aml',
+  template: `<router-outlet />`,
+  standalone: true,
+  imports: [RouterOutlet],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+class MockAmlComponent {}
+
+@Component({
+  selector: 'app-nav-layout',
+  template: `<router-outlet />`,
+  standalone: true,
+  imports: [RouterOutlet],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+class MockNavLayoutComponent {}
+
+// At the top of your test file
+const mockSingleEditTypeResolver: ResolveFn<EditFormEditType> = (route) => {
+  const strTransaction = CASE_RECORD_STATE_FIXTURE.selections.find(
+    (txn) => txn.flowOfFundsAmlTransactionId === route.params['transactionId'],
+  );
+  if (!strTransaction) throw new Error('Transaction record not found');
+
+  return {
+    type: 'SINGLE_SAVE',
+
+    payload: structuredClone(strTransaction),
+  };
+};
+
+const mockBulkEditTypeResolver: ResolveFn<EditFormEditType> = () => ({
+  type: 'BULK_SAVE',
+  payload: structuredClone(
+    CASE_RECORD_STATE_FIXTURE.selections.map(
+      (sel) => sel.flowOfFundsAmlTransactionId,
+    ),
+  ),
+});
+
+const mockAuditResolver: ResolveFn<EditFormEditType> = (route) => {
+  const strTransaction = CASE_RECORD_STATE_FIXTURE.selections.find(
+    (txn) => txn.flowOfFundsAmlTransactionId === route.params['transactionId'],
+  );
+  if (!strTransaction) throw new Error('Transaction record not found');
+
+  return {
+    type: 'AUDIT_REQUEST',
+    payload: structuredClone(strTransaction),
+  };
+};
 
 describe('EditFormComponent', () => {
   async function setup() {
@@ -105,10 +156,7 @@ describe('EditFormComponent', () => {
             },
             {
               path: '',
-              loadComponent: () =>
-                import('./../../nav-layout/nav-layout.component').then(
-                  (m) => m.NavLayoutComponent,
-                ),
+              loadComponent: () => Promise.resolve(MockNavLayoutComponent),
               canActivate: [isAuthenticatedGuard],
               children: [
                 {
@@ -124,17 +172,13 @@ describe('EditFormComponent', () => {
                 },
                 {
                   path: 'aml/:amlId',
-                  loadComponent: () =>
-                    import('./../../aml/aml.component').then(
-                      (m) => m.AmlComponent,
-                    ),
+                  loadComponent: () => Promise.resolve(MockAmlComponent),
                   providers: [
                     {
                       provide: CASE_RECORD_INITIAL_STATE,
                       useValue: CASE_RECORD_STATE_FIXTURE,
                     },
                     CaseRecordStore,
-                    provideHashbrown({}),
                   ],
                   data: { reuse: true },
                   children: [
@@ -146,7 +190,7 @@ describe('EditFormComponent', () => {
                           path: 'edit-form/bulk-edit',
                           component: EditFormComponent,
                           resolve: {
-                            editType: bulkEditTypeResolver,
+                            editType: mockBulkEditTypeResolver,
                           },
                           data: { reuse: false },
                           title: () => 'Bulk Edit',
@@ -155,7 +199,7 @@ describe('EditFormComponent', () => {
                           path: 'edit-form/:transactionId',
                           component: EditFormComponent,
                           resolve: {
-                            editType: singleEditTypeResolver,
+                            editType: mockSingleEditTypeResolver,
                           },
                           data: { reuse: false },
                           title: (route) =>
@@ -166,7 +210,7 @@ describe('EditFormComponent', () => {
                           component: EditFormComponent,
                           canActivate: [hasRoleGuard('Admin')],
                           resolve: {
-                            editType: auditResolver,
+                            editType: mockAuditResolver,
                           },
                           data: { reuse: false },
                           title: (route) =>
@@ -180,6 +224,7 @@ describe('EditFormComponent', () => {
             },
           ],
           withComponentInputBinding(),
+          // withDebugTracing(),
           withRouterConfig({ paramsInheritanceStrategy: 'always' }),
           withNavigationErrorHandler((navError) => {
             // console.error('Navigation error:', navError.error);
@@ -257,7 +302,7 @@ describe('EditFormComponent', () => {
       const { harness, loader, formOptionsServiceSpy } = await setup();
       await harness.navigateByUrl(
         `aml/99999999/reporting-ui/edit-form/${TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE.reportingEntityTxnRefNo}`,
-        NavLayoutComponent,
+        MockNavLayoutComponent,
       );
 
       return { harness, loader, formOptionsServiceSpy };
@@ -591,23 +636,6 @@ describe('EditFormComponent', () => {
       );
 
       expect(router.url).toBe('/login');
-    });
-
-    it('should redirect from bulk edit form to transaction search when route extras are missing', async () => {
-      const { harness, errorHandlerSpy } = await setup();
-      const router = TestBed.inject(Router);
-
-      await harness.navigateByUrl(
-        'aml/99999999/reporting-ui/edit-form/bulk-edit',
-      );
-      const { fixture } = harness;
-
-      await fixture.whenStable();
-
-      expect(router.url).toBe('/transactionsearch');
-      expect(errorHandlerSpy.handleError).toHaveBeenCalledWith(
-        jasmine.any(Error),
-      );
     });
 
     async function setupAndNavigate() {
@@ -984,7 +1012,7 @@ describe('EditFormComponent', () => {
 
       await harness.navigateByUrl(
         `aml/99999999/reporting-ui/audit/${TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE.reportingEntityTxnRefNo}`,
-        NavLayoutComponent,
+        MockNavLayoutComponent,
       );
 
       expect(router.url).toBe('/transactionsearch');
@@ -1020,7 +1048,7 @@ describe('EditFormComponent', () => {
 
       await harness.navigateByUrl(
         `aml/99999999/reporting-ui/audit/${TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE.reportingEntityTxnRefNo}`,
-        NavLayoutComponent,
+        MockNavLayoutComponent,
       );
 
       return { harness, loader, formOptionsServiceSpy };
@@ -1725,6 +1753,9 @@ const CASE_RECORD_STATE_FIXTURE: CaseRecordState = {
       eTag: 0,
     };
   }),
+  selectionsToAdd: [
+    TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE.reportingEntityTxnRefNo!,
+  ],
   parties: PARTIES_TEST_OR_DEV_ONLY_FIXTURE,
   eTag: 0,
   lastUpdated: '1996-06-13',

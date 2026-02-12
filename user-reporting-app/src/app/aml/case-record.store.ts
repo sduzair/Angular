@@ -41,6 +41,7 @@ import * as ChangeLog from '../change-logging/change-log';
 import {
   hasInvalidFiu,
   hasMissingAccountInfo,
+  hasMissingBasicInfo,
   hasMissingCheque,
   hasMissingConductorInfo,
 } from '../reporting-ui/edit-form/common-validation';
@@ -1148,15 +1149,19 @@ export function setRowValidationInfo(selection: StrTransactionWithChangeLogs) {
   if (selection.startingActions.some(hasMissingCheque))
     errors.push('missingCheque');
 
+  if (hasMissingBasicInfo(selection)) errors.push('missingBasicInfo');
+
   return { ...selection, _hiddenValidation: errors };
 }
 
-const createPartyDenormalizer =
+const createPartyEnricher =
   (parties: WithCaseRecordId<PartyGenType>[]) =>
   <T extends PartyDenormalized>(ref: T): T => {
     console.assert(!!ref.linkToSub, 'Assert link to sub ref exists');
 
-    const party = parties.find((party) => party.partyIdentifier);
+    const party = parties.find(
+      (party) => party.partyIdentifier === ref.linkToSub,
+    );
     const partyName = party?.partyName;
     if (!partyName) return ref;
 
@@ -1174,26 +1179,40 @@ const createPartyDenormalizer =
 const createTransactionPartyEnricher =
   (parties: WithCaseRecordId<PartyGenType>[]) =>
   (txn: StrTransactionWithChangeLogs): StrTransactionWithChangeLogs => {
-    const enrichRef = createPartyDenormalizer(parties);
+    const enrichParty = createPartyEnricher(parties);
 
-    const startingActions =
-      txn.startingActions?.map((sa) => ({
-        ...sa,
-        accountHolders: sa.accountHolders?.map(enrichRef),
-        conductors: sa.conductors?.map((c) => ({
-          ...enrichRef(c),
-          onBehalfOf: c.onBehalfOf?.map(enrichRef),
-        })),
-        sourceOfFunds: sa.sourceOfFunds?.map(enrichRef),
-      })) ?? txn.startingActions;
+    const startingActions = txn.startingActions.map((sa) => ({
+      ...sa,
+      accountHolders: sa.accountHolders?.map((ah) => ({
+        ...ah,
+        ...enrichParty(ah),
+      })),
+      conductors: sa.conductors?.map((c) => ({
+        ...c,
+        ...enrichParty(c),
+        onBehalfOf: c.onBehalfOf?.map(enrichParty),
+      })),
+      sourceOfFunds: sa.sourceOfFunds?.map((sof) => ({
+        ...sof,
+        ...enrichParty(sof),
+      })),
+    }));
 
-    const completingActions =
-      txn.completingActions?.map((ca) => ({
-        ...ca,
-        accountHolders: ca.accountHolders?.map(enrichRef),
-        involvedIn: ca.involvedIn?.map(enrichRef),
-        beneficiaries: ca.beneficiaries?.map(enrichRef),
-      })) ?? txn.completingActions;
+    const completingActions = txn.completingActions.map((ca) => ({
+      ...ca,
+      accountHolders: ca.accountHolders?.map((ah) => ({
+        ...ah,
+        ...enrichParty(ah),
+      })),
+      involvedIn: ca.involvedIn?.map((inv) => ({
+        ...inv,
+        ...enrichParty(inv),
+      })),
+      beneficiaries: ca.beneficiaries?.map((ben) => ({
+        ...ben,
+        ...enrichParty(ben),
+      })),
+    }));
 
     return {
       ...txn,

@@ -72,3 +72,11 @@ mat-drawer {
   flex: 0 0 auto;
   white-space: nowrap;
 }
+
+.chatbot-drawer {
+  --mat-sidenav-container-width: 600px;
+  position: fixed;
+  top: 7vh;
+  right: 0;
+  max-height: 80dvh;
+}

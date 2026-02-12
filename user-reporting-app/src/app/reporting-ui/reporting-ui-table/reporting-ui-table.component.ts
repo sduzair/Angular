@@ -510,26 +510,8 @@ export class ReportingUiTableComponent implements AfterViewInit {
   }
 
   static getColorForValidationChip(error: _hiddenValidationType): string {
-    const colors: Record<_hiddenValidationType, string> = {
-      conductorMissing: '#dc3545',
-      bankInfoMissing: '#ba005c',
-      edited: '#0d6efd',
-      invalidMethodOfTxn: '#0d6efd',
-      invalidTypeOfFunds: '#0d6efd',
-      invalidAccountType: '#0d6efd',
-      invalidAmountCurrency: '#dc3545',
-      invalidAccountCurrency: '#dc3545',
-      invalidAccountStatus: '#dc3545',
-      invalidDirectionOfSA: '#dc3545',
-      invalidDetailsOfDisposition: '#0d6efd',
-      invalidDate: '#dc3545',
-      invalidTime: '#dc3545',
-      invalidPartyKey: '#dc3545',
-      invalidFiu: '#dc3545',
-      missingCheque: '#0d6efd',
-    };
     if (!error) return '#007bff'; // fallback color
-    return colors[error];
+    return validationColors[error];
   }
 
   static getFontColorForValidationChip(error: _hiddenValidationType): string {
@@ -643,6 +625,30 @@ export const selectionsComputedResolver: ResolveFn<
   return inject(CaseRecordStore).selectionsComputed$;
 };
 
+const validationColors: Record<_hiddenValidationType, string> = {
+  conductorMissing: '#dc3545',
+  bankInfoMissing: '#ba005c',
+  edited: '#0d6efd',
+  invalidMethodOfTxn: '#0d6efd',
+  invalidTypeOfFunds: '#0d6efd',
+  invalidAccountType: '#0d6efd',
+  invalidAmountCurrency: '#dc3545',
+  invalidAccountCurrency: '#dc3545',
+  invalidAccountStatus: '#dc3545',
+  invalidDirectionOfSA: '#dc3545',
+  invalidDetailsOfDisposition: '#0d6efd',
+  invalidDate: '#dc3545',
+  invalidTime: '#dc3545',
+  invalidPartyKey: '#dc3545',
+  invalidFiu: '#dc3545',
+  missingCheque: '#0d6efd',
+  missingBasicInfo: '#dc3545',
+};
+
+export const validationKeys = Object.keys(validationColors).filter(
+  (k) => k !== 'edited',
+) as _hiddenValidationType[];
+
 export type _hiddenValidationType =
   | 'edited'
   | 'conductorMissing'
@@ -650,6 +656,7 @@ export type _hiddenValidationType =
   | 'invalidPartyKey'
   | 'invalidFiu'
   | 'missingCheque'
+  | 'missingBasicInfo'
   | InvalidFormOptionsErrorKeys
   | InvalidTxnDateTimeErrorKeys;
 

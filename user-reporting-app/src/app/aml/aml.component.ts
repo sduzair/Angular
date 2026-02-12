@@ -134,8 +134,7 @@ import { CaseRecordStore, ReviewPeriod } from './case-record.store';
         <mat-drawer
           position="end"
           #drawer
-          class="shadow-lg border my-5"
-          style="max-height: 80dvh;">
+          class="shadow-lg border my-5 chatbot-drawer">
           <app-chatbot />
         </mat-drawer>
         <mat-drawer-content class="overflow-hidden">

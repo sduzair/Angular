@@ -29,10 +29,10 @@ import { CaseRecordStore } from '../aml/case-record.store';
 import { TransactionDateDirective } from '../reporting-ui/edit-form/transaction-date.directive';
 import { StrTransaction } from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import { TransactionSearchService } from '../transaction-search/transaction-search.service';
+import { hasManualTransaction } from './account-transaction-totals.service';
 import { CircularComponent } from './circular/circular.component';
 import { MonthlyTxnVolumeComponent } from './monthly-txn-volume/monthly-txn-volume.component';
-import { TxnMethodBreakdownComponent } from './txn-method-breakdown/txn-method-breakdown.component';
-import { hasManualTransaction } from './account-methods.service';
+import { TxnTypeBreakdownComponent } from './txn-type-breakdown/txn-type-breakdown.component';
 
 @Component({
   selector: 'app-analytics',
@@ -40,7 +40,7 @@ import { hasManualTransaction } from './account-methods.service';
     CommonModule,
     CircularComponent,
     MonthlyTxnVolumeComponent,
-    TxnMethodBreakdownComponent,
+    TxnTypeBreakdownComponent,
     MatToolbar,
     MatFormField,
     MatSelect,
@@ -196,12 +196,12 @@ import { hasManualTransaction } from './account-methods.service';
             [transactions]="(filteredSelectionsByAccount$ | async) || []"
             (zoomChange)="onZoomChange($event)">
           </app-monthly-txn-volume>
-          <app-txn-method-breakdown
+          <app-txn-type-breakdown
             class="col"
             [transactions]="
               (filteredSelectionsByAccountAndPeriod$ | async) || []
             ">
-          </app-txn-method-breakdown>
+          </app-txn-type-breakdown>
         </div>
       </div>
     </div>

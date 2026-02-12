@@ -32,7 +32,7 @@ import { StrTransaction } from '../../reporting-ui/reporting-ui-table/reporting-
 import {
   getTxnType,
   TRANSACTION_TYPE_FRIENDLY_NAME,
-} from '../account-methods.service';
+} from '../account-transaction-totals.service';
 import { formatCurrencyLocal } from '../circular/circular.component';
 
 echarts.use([
@@ -53,7 +53,7 @@ type ECOption = echarts.ComposeOption<
 >;
 
 @Component({
-  selector: 'app-txn-method-breakdown',
+  selector: 'app-txn-type-breakdown',
   imports: [
     CommonModule,
     MatButtonToggleModule,
@@ -83,12 +83,10 @@ type ECOption = echarts.ComposeOption<
       <div #chartContainer class="w-100 h-100"></div>
     </div>
   `,
-  styleUrl: 'txn-method-breakdown.component.scss',
+  styleUrl: 'txn-type-breakdown.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TxnMethodBreakdownComponent
-  implements OnInit, OnChanges, OnDestroy
-{
+export class TxnTypeBreakdownComponent implements OnInit, OnChanges, OnDestroy {
   @ViewChild('chartContainer', { static: true }) chartContainer!: ElementRef;
 
   @Input({ required: true }) transactions: StrTransaction[] = [];
@@ -140,11 +138,11 @@ export class TxnMethodBreakdownComponent
   private updateChart(): void {
     if (!this.myChart) return;
 
-    const methodData = this.processMethodData(this.transactions);
+    const typeData = this.processTypeData(this.transactions);
     const mode = this.viewMode();
 
     // Extract relevant data based on view mode
-    const chartData = methodData
+    const chartData = typeData
       .map(
         (m) =>
           ({
@@ -157,7 +155,7 @@ export class TxnMethodBreakdownComponent
             debits: m.debits,
           }) satisfies ChartData,
       )
-      .filter((d) => d.value > 0); // Only show methods with transactions
+      .filter((d) => d.value > 0); // Only show types with transactions
 
     const totalValue = chartData.reduce((sum, m) => sum + m.value, 0);
 
@@ -176,11 +174,11 @@ export class TxnMethodBreakdownComponent
 
     const option: ECOption = {
       title: {
-        text: `Transaction Method Breakdown - ${mode === 'credits' ? 'Credits' : 'Debits'}`,
+        text: `Transaction Type Breakdown - ${mode === 'credits' ? 'Credits' : 'Debits'}`,
         subtext:
           mode === 'credits'
-            ? 'Incoming Funds by Method'
-            : 'Outgoing Funds by Method',
+            ? 'Incoming Funds by Type'
+            : 'Outgoing Funds by Type',
         left: 'left',
         top: 10,
       },
@@ -212,10 +210,10 @@ export class TxnMethodBreakdownComponent
         top: 'middle',
         itemGap: 15,
         formatter: (name: string) => {
-          const method = chartData.find((m) => m.name === name);
-          if (!method) return name;
+          const type = chartData.find((m) => m.name === name);
+          if (!type) return name;
 
-          return `${name}: ${formatCurrencyLocal(method.value)}`;
+          return `${name}: ${formatCurrencyLocal(type.value)}`;
         },
         textStyle: {
           fontSize: 13,
@@ -223,19 +221,19 @@ export class TxnMethodBreakdownComponent
       },
       series: [
         {
-          name: 'Transaction Methods',
+          name: 'Transaction Types',
           type: 'pie',
           radius: ['45%', '70%'],
           center: ['60%', '50%'],
-          data: chartData.map((method) => ({
-            name: method.name,
-            value: method.value,
-            count: method.count,
-            avgValue: method.avgValue,
-            credits: method.credits,
-            debits: method.debits,
+          data: chartData.map((type) => ({
+            name: type.name,
+            value: type.value,
+            count: type.count,
+            avgValue: type.avgValue,
+            credits: type.credits,
+            debits: type.debits,
             itemStyle: {
-              color: getColorByMode(method.avgValue, mode),
+              color: getColorByMode(type.avgValue, mode),
               borderColor: '#fff',
               borderWidth: 2,
             },
@@ -331,8 +329,8 @@ export class TxnMethodBreakdownComponent
     this.myChart.setOption(option, { notMerge: true });
   }
 
-  private processMethodData(data: StrTransaction[]): MethodData[] {
-    const methodMap = new Map<
+  private processTypeData(data: StrTransaction[]): TypeData[] {
+    const typeMap = new Map<
       string,
       {
         credits: number;
@@ -366,8 +364,8 @@ export class TxnMethodBreakdownComponent
         const creditAmount = flowOfFundsCreditAmount || 0;
         const debitAmount = flowOfFundsDebitAmount || 0;
 
-        if (!methodMap.has(friendlyName)) {
-          methodMap.set(friendlyName, {
+        if (!typeMap.has(friendlyName)) {
+          typeMap.set(friendlyName, {
             credits: 0,
             debits: 0,
             creditCount: 0,
@@ -375,23 +373,23 @@ export class TxnMethodBreakdownComponent
           });
         }
 
-        const methodData = methodMap.get(friendlyName)!;
+        const typeData = typeMap.get(friendlyName)!;
 
         if (creditAmount > 0) {
-          methodData.credits += creditAmount;
-          methodData.creditCount += 1;
+          typeData.credits += creditAmount;
+          typeData.creditCount += 1;
         }
 
         if (debitAmount > 0) {
-          methodData.debits += debitAmount;
-          methodData.debitCount += 1;
+          typeData.debits += debitAmount;
+          typeData.debitCount += 1;
         }
       },
     );
 
     // Convert to array and calculate averages
-    const result: MethodData[] = [];
-    methodMap.forEach((data, name) => {
+    const result: TypeData[] = [];
+    typeMap.forEach((data, name) => {
       result.push({
         name: name,
         credits: data.credits,
@@ -409,7 +407,7 @@ export class TxnMethodBreakdownComponent
   }
 }
 
-interface MethodData {
+interface TypeData {
   name: string;
   credits: number;
   debits: number;

@@ -68,6 +68,8 @@ export interface FormOptions {
     'Cash Withdrawal (account based)': string;
     'Issued Cheque': string;
     'Outgoing email money transfer': string;
+    'Purchase of / Payment for services': string;
+    'Purchase of / Payment for goods': string;
     Other: string;
   };
 }

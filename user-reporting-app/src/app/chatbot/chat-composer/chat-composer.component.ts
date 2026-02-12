@@ -13,7 +13,7 @@ import { MatIconModule } from '@angular/material/icon';
   selector: 'app-chat-composer',
   imports: [MatIconModule, MatButtonModule, TextFieldModule],
   template: `
-    <div class="composer-container d-flex align-items-center">
+    <div class="composer-container d-flex align-items-center rounded-5">
       <div class="textareaWrapper d-flex flex-grow-1">
         <textarea
           name="Message"

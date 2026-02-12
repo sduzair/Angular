@@ -7,7 +7,7 @@ import {
   CaseRecordStore,
   DEFAULT_CASE_RECORD_STATE,
 } from './aml/case-record.store';
-import { AccountMethodsService } from './analytics/account-methods.service';
+import { AccountTransactionTotalsService } from './analytics/account-transaction-totals.service';
 import { hasRoleGuard, isAuthenticatedGuard } from './auth.service';
 import { LoginComponent } from './login/login.component';
 import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
@@ -65,7 +65,7 @@ export const routes: Routes = [
             // useValue: CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE,
           },
           CaseRecordStore,
-          AccountMethodsService,
+          AccountTransactionTotalsService,
           provideHashbrown({
             baseUrl: '/api/chat',
             middleware: [

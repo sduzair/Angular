@@ -86,6 +86,7 @@ import {
   hasEntityName,
   hasInvalidFiu,
   hasMissingAccountInfo,
+  hasMissingBasicInfo,
   hasMissingCheque,
   hasMissingConductorInfo,
   hasPersonName,
@@ -103,6 +104,7 @@ import { TransactionDateDirective } from './transaction-date.directive';
 import { TransactionDetailsPanelComponent } from './transaction-details-panel/transaction-details-panel.component';
 import { TransactionTimeDirective } from './transaction-time.directive';
 import { ValidateOnParentChangesDirective } from './validate-on-parent-changes.directive';
+import { ControlToggleReadonlyDirective } from './control-toggle-readonly.directive';
 
 export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
   isErrorState(
@@ -146,6 +148,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
     ValidateOnParentChangesDirective,
     PartySyncDirective,
     DatepickerReadonlyDirective,
+    ControlToggleReadonlyDirective,
   ],
   template: `
     @let editForm = editForm$ | async;
@@ -4442,7 +4445,7 @@ export class EditFormComponent implements AfterViewChecked {
           txn?.changeLogs.at(-1)?.updatedAt ?? '',
         ),
       },
-      { updateOn: 'change' },
+      { validators: [basicInfoValidator()], updateOn: 'change' },
     ) satisfies FormGroup<TypedForm<WithETag<StrTxnEditForm>>>;
 
     return editForm;
@@ -4469,7 +4472,8 @@ export class EditFormComponent implements AfterViewChecked {
       {
         _id: new FormControl({
           value: action?._id ?? getFormGroupId(),
-          disabled,
+          // enabled to allow nth starting action bulk edit
+          disabled: false,
         }),
         directionOfSA: new FormControl(
           {
@@ -4659,7 +4663,8 @@ export class EditFormComponent implements AfterViewChecked {
     const caGroup = new FormGroup({
       _id: new FormControl({
         value: action?._id ?? getFormGroupId(),
-        disabled,
+        // enabled to allow nth starting action bulk edit
+        disabled: false,
       }),
       detailsOfDispo: new FormControl(
         {
@@ -5858,6 +5863,23 @@ export function dependentPropValidator(
       !value || (typeof value === 'string' && value.trim().length === 0);
 
     return isEmpty ? { required: true } : null;
+  };
+}
+
+export function basicInfoValidator(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    if (!(control instanceof FormGroup)) {
+      return null;
+    }
+
+    const value = control.getRawValue() as FormGroup<
+      TypedForm<WithETag<StrTxnEditForm>>
+    >['value'];
+
+    if (hasMissingBasicInfo(value as StrTransactionWithChangeLogs))
+      return { missingBasicInfo: true };
+
+    return null;
   };
 }
 

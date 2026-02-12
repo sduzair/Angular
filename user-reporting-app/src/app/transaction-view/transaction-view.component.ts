@@ -48,6 +48,7 @@ import {
   FlowOfFundsSourceData,
   OlbSourceData,
   OTCSourceData,
+  POSSourceData,
   TransactionSearchService,
   WireSourceData,
 } from '../transaction-search/transaction-search.service';
@@ -67,6 +68,8 @@ import {
 } from './transform-to-str-transaction/party-gen.service';
 import { transformWireToStrTransaction } from './transform-to-str-transaction/wire-transform';
 import { WiresTableComponent } from './wires-table/wires-table.component';
+import { PosTableComponent } from './pos-table/pos-table.component';
+import { transformPOSToStrTransaction } from './transform-to-str-transaction/pos-transform';
 
 @Component({
   selector: 'app-transaction-view',
@@ -84,6 +87,7 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
     WiresTableComponent,
     MatIconModule,
     OtcTableComponent,
+    PosTableComponent,
   ],
   template: `
     <div class="row row-cols-1 mx-0">
@@ -205,6 +209,19 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [masterSelection]="selectionModel"
             [highlightedRecords]="highlightedRecords" />
         </mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            POS
+            <mat-chip class="ms-1" disableRipple>
+              {{ posSourceDataSelectionCount$ | async }}
+            </mat-chip>
+          </ng-template>
+          <app-pos-table
+            [posSourceData]="(posSourceData$ | async) || []"
+            [selectionCount]="(posSourceDataSelectionCount$ | async) ?? 0"
+            [masterSelection]="selectionModel"
+            [highlightedRecords]="highlightedRecords" />
+        </mat-tab>
       </mat-tab-group>
     }
   `,
@@ -213,10 +230,11 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
 })
 export class TransactionViewComponent extends AbstractTransactionViewComponent {
   private snackBar = inject(SnackbarQueueService);
+  private highlightsService = inject(LocalHighlightsService);
+  private errorHandler = inject(ErrorHandler);
   protected qIsSaving$ = this._caseRecordStore.qIsSaving$;
 
   highlightedRecords = signal<Map<string, string>>(new Map());
-  private highlightsService = inject(LocalHighlightsService);
 
   private highlights$ = this._caseRecordStore.state$.pipe(
     take(1),
@@ -301,6 +319,19 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     map(([search, higlightsMap]) =>
       search
         .find((res) => res.sourceId === 'OTC')
+        ?.sourceData!.map((row) => ({
+          ...row,
+          _uiPropHighlightColor: higlightsMap.get(
+            row.flowOfFundsAmlTransactionId,
+          ),
+        })),
+    ),
+  );
+
+  posSourceData$ = combineLatest([this.searchResponse$, this.highlights$]).pipe(
+    map(([search, higlightsMap]) =>
+      search
+        .find((res) => res.sourceId === 'POS')
         ?.sourceData!.map((row) => ({
           ...row,
           _uiPropHighlightColor: higlightsMap.get(
@@ -469,6 +500,17 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
               (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
             );
 
+          const posTxn = searchResponse
+            .find((src) => src.sourceId === 'POS')
+            ?.sourceData.find(
+              (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
+            );
+          const posFofTxn = searchResponse
+            .find((src) => src.sourceId === 'FlowOfFunds')
+            ?.sourceData.find(
+              (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
+            );
+
           if (abmTxn && abmFofTxn) {
             transformations.push(
               this.transformABM(abmTxn, abmFofTxn, caseRecordId).pipe(
@@ -522,6 +564,20 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
                 catchError((err) => {
                   console.error(
                     `Failed to transform OTC transaction ${selectionId}:`,
+                    err,
+                  );
+                  return of(null);
+                }),
+              ),
+            );
+          }
+
+          if (posTxn && posFofTxn) {
+            transformations.push(
+              this.transformPOS(posTxn, posFofTxn, caseRecordId).pipe(
+                catchError((err) => {
+                  console.error(
+                    `Failed to transform POS transaction ${selectionId}:`,
                     err,
                   );
                   return of(null);
@@ -595,7 +651,7 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
               ...this.saveProgress$.value,
               status: 'error',
             });
-
+            this.errorHandler.handleError(error);
             return EMPTY;
           }),
         );
@@ -659,6 +715,21 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
   ) {
     return transformOTCToStrTransaction({
       sourceTxn: otcTxn,
+      fofTxn,
+      generateParty: (party: Omit<PartyGenType, 'partyIdentifier'>) =>
+        this.partyGenService.generateParty(party),
+      getAccountInfo: (account) => this.searchService.getAccountInfo(account),
+      caseRecordId,
+    });
+  }
+
+  private transformPOS(
+    posTxn: POSSourceData,
+    fofTxn: FlowOfFundsSourceData,
+    caseRecordId: string,
+  ) {
+    return transformPOSToStrTransaction({
+      posTxn,
       fofTxn,
       generateParty: (party: Omit<PartyGenType, 'partyIdentifier'>) =>
         this.partyGenService.generateParty(party),

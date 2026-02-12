@@ -293,12 +293,12 @@ export class WiresTableComponent<
     'selfTransfer',
     'settledAmt',
     'sourceClientId',
-    'sourceTransaction1d',
+    // 'sourceTransaction1d',
     'swiftTag20SendersReference',
     'swiftTag52OrderingInstitution',
     'swiftTag57AccountWithInstitution',
     'transactionld',
-    'uniqueReferenceNo',
+    // 'uniqueReferenceNo',
     'wireRole',
     'amlld',
     'caseEcif',
@@ -310,7 +310,7 @@ export class WiresTableComponent<
     'processingDate',
   ];
 
-  dateFiltersValuesIgnore: (keyof WireSourceData)[] = [];
+  dateFiltersValuesIgnore: (keyof WireSourceData)[] = ['transactionTime'];
 
   displayedColumnsTime: (keyof WireSourceData)[] = ['transactionTime'];
 

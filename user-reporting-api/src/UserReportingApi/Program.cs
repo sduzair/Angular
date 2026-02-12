@@ -130,6 +130,7 @@ api.MapPost("/transaction/search", async (
         ("EMT", "emt"),
         ("Wire", "wire"),
         ("OTC", "otc"),
+        ("POS", "pos"),
     };
 
     foreach (var (sourceId, collectionName) in sources)
@@ -139,8 +140,7 @@ api.MapPost("/transaction/search", async (
 
         var collection = db.GetCollection<BsonDocument>(collectionName);
 
-        // var limit = 10;
-        var limit = 0;
+        var limit = 10;
         string[] nolimit = { "flowOfFunds" };
         if (nolimit.Contains(collectionName))
             limit = 0;
@@ -195,8 +195,8 @@ api.MapPost("/transaction/search", async (
         await writer.FlushAsync(cancellationToken);
 
         // Random delay between 500ms and 1500ms
-        int delayMs = new Random().Next(500, 1501);
-        await Task.Delay(delayMs, cancellationToken);
+        // int delayMs = new Random().Next(500, 1501);
+        // await Task.Delay(delayMs, cancellationToken);
     }
 
     await writer.WriteAsync("]");

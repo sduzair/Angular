@@ -3,11 +3,8 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  EventEmitter,
   inject,
   Input,
-  Output,
-  signal,
   TrackByFunction,
   ViewChild,
   WritableSignal,
@@ -95,7 +92,6 @@ export class OtcTableComponent<
     'acctHoldersAll',
     'actualCurrencyCD',
     'branchTransit',
-    'cardNumber',
     'caseAccountNumber',
     'caseTransitNumber',
     'cdtAcctShortName',
@@ -157,10 +153,11 @@ export class OtcTableComponent<
     'strSaFundsType',
     'strSaOboInd',
     'strTransactionStatus',
-    'transactionCurrency',
     'transactionCurrencyAmount',
+    'transactionCurrency',
     'transactionDescription',
     'transactionExecutionLocalTimestamp',
+    'cardNumber',
     'amlId',
     'transactionId',
     'sequenceNumberDescr',
@@ -237,6 +234,9 @@ export class OtcTableComponent<
     'splittingDelimiter',
     'systemJournalId',
     'tellerId',
+    'transactionExecutionLocalTimestamp',
+    'transactionCurrencyAmount',
+    'transactionCurrency',
   ];
 
   displayedColumns = ['select' as const];
@@ -346,13 +346,13 @@ export class OtcTableComponent<
     'dbtAcctShortName',
     'debitedAccount',
     'debitedTransit',
-    'flowOfFundsAmlTransactionId',
+    // 'flowOfFundsAmlTransactionId',
     'flowOfFundsSource',
-    'flowOfFundsSourceTransactionId',
+    // 'flowOfFundsSourceTransactionId',
     'flowOfFundsTransactionCurrency',
     'origCurrencyCD',
-    'sequenceNumberDescr',
-    'sourceTransactionId',
+    // 'sequenceNumberDescr',
+    // 'sourceTransactionId',
     'strCaDispositionType',
     'strReportingEntity',
     'strSaDirection',
@@ -360,6 +360,8 @@ export class OtcTableComponent<
     'strTransactionStatus',
     'transactionCurrency',
     'transactionId',
+    'creditAmount',
+    'debitAmount',
   ];
 
   dateFiltersValues: (keyof OTCSourceData)[] = [
@@ -370,7 +372,10 @@ export class OtcTableComponent<
     'flowOfFundsTransactionDate',
   ];
 
-  dateFiltersValuesIgnore: (keyof OTCSourceData)[] = [];
+  dateFiltersValuesIgnore: (keyof OTCSourceData)[] = [
+    'transactionTime',
+    'flowOfFundsTransactionTime',
+  ];
 
   displayedColumnsTime: (keyof OTCSourceData)[] = [
     'transactionTime',

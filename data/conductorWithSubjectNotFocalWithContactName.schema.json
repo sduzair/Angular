@@ -1,0 +1,203 @@
+{
+  "id": 719444,
+  "num_rows": 20,
+  "file_format": "json",
+  "name": "conductorWithSubjectNotFocalWithContactName",
+  "array": true,
+  "columns": [
+    {
+      "name": "partyKey",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "partyKey",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "this.to_s"
+    },
+    {
+      "name": "nameOfEntity",
+      "null_percentage": 0,
+      "type": "Blank",
+      "formula": ""
+    },
+    {
+      "name": "surname",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "surname",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "givenName",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "givenName",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "otherOrInitial",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "wasConductedOnBehalf",
+      "null_percentage": 0,
+      "type": "Boolean",
+      "formula": "false"
+    },
+    {
+      "name": "onBehalfOf[0]",
+      "null_percentage": 99,
+      "type": "JSON Array",
+      "minItems": 0,
+      "maxItems": 10,
+      "formula": null
+    },
+    {
+      "name": "accountOpen",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "accountOpen",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "accountClose",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "accountClose",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "accountNo",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "accountNo",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "accountBranch",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "accountBranch",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "accountType",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": "if nameOfEntity then 'Business'\nelse 'Personal' end"
+    },
+    {
+      "name": "accountCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "CAD"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "accountStatus",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Active"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "certapayAccount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "certapayAccount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "mobile",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "mobile",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "contactName",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "Cases Bets",
+        "Allys Lines",
+        "Dmitris Book",
+        "Alicea Odds",
+        "Sheffys Picks",
+        "Vernons Action",
+        "Devs Parlays",
+        "Salems Sportsbook",
+        "Tallias Casino",
+        "Pernells Bets",
+        "Lowrance Lines",
+        "Scarletts Poker",
+        "Coras Slots",
+        "Welchs Book",
+        "Belindas Action",
+        "Nomis Picks",
+        "Staces Odds",
+        "Livs Bets",
+        "Robertos Lines",
+        "Lazares Book"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "contactEmail",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocal",
+      "column": "contactEmail",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    }
+  ]
+}

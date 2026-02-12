@@ -228,7 +228,7 @@ export class EmtTableComponent<
     'contactName',
     'cur',
     'etFwdFlag',
-    'originalFiRefCode',
+    // 'originalFiRefCode',
     'recipientAccountName',
     'recipientAccountNumber',
     'recipientCertapayAccount',

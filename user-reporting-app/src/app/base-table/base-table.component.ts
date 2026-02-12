@@ -46,6 +46,7 @@ import {
   ISelectionMasterToggle,
 } from './abstract-base-table';
 import { ClickOutsideTableDirective } from './click-outside-table.directive';
+import { ScrollingModule } from '@angular/cdk/scrolling';
 
 @Component({
   selector: 'app-base-table',
@@ -80,6 +81,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
     ClickOutsideTableDirective,
     ScrollPositionPreserveDirective,
     CamelToTitlePipe,
+    ScrollingModule,
   ],
   template: `
     @if (showToolbar) {
@@ -383,8 +385,9 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
       </mat-drawer>
 
       <mat-drawer-content>
-        <div
-          class="col px-0 overflow-auto scroll-position-preserve base-table-container"
+        <cdk-virtual-scroll-viewport
+          class="col px-0 base-table-container"
+          [itemSize]="36"
           (appClickOutsideTable)="filterFormHighlightSelectedColor = undefined">
           <table
             mat-table
@@ -411,7 +414,8 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                 <td
                   mat-cell
                   *matCellDef="let row"
-                  [class.sticky-cell]="isStickyColumn(column)">
+                  [class.sticky-cell]="isStickyColumn(column)"
+                  tabindex="-1">
                   <div>
                     @if (this.displayedColumnsTime.includes(column)) {
                       {{
@@ -458,7 +462,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                   : 'default'
               "></tr>
           </table>
-        </div>
+        </cdk-virtual-scroll-viewport>
       </mat-drawer-content>
     </mat-drawer-container>
 

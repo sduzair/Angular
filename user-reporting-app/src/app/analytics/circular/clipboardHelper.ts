@@ -9,7 +9,7 @@ import {
 import {
   NODE_ENUM,
   TRANSACTION_TYPE_FRIENDLY_NAME,
-} from '../account-methods.service';
+} from '../account-transaction-totals.service';
 import {
   formatCurrencyLocal,
   getNodeName,
@@ -106,18 +106,18 @@ function aggregateCurrencyTotalsByTxnType({
 }): TxnTypeCurrencyTotals[] {
   const creditKeys = Object.keys(creditsByTxnType).map(Number);
   const debitKeys = Object.keys(debitsByTxnType).map(Number);
-  const allMethods = new Set([...creditKeys, ...debitKeys]);
+  const allTypes = new Set([...creditKeys, ...debitKeys]);
 
-  if (allMethods.size === 0) return [];
+  if (allTypes.size === 0) return [];
 
-  return Array.from(allMethods)
-    .map((method) => {
+  return Array.from(allTypes)
+    .map((type) => {
       // Group credits by currency
       const receivedMapByCurr = new Map<
         string,
         { amount: number; count: number }
       >();
-      (creditsByTxnType[method] ?? []).forEach((item) => {
+      (creditsByTxnType[type] ?? []).forEach((item) => {
         const existing = receivedMapByCurr.get(item.currency) ?? {
           amount: 0,
           count: 0,
@@ -132,7 +132,7 @@ function aggregateCurrencyTotalsByTxnType({
         string,
         { amount: number; count: number }
       >();
-      (debitsByTxnType[method] ?? []).forEach((item) => {
+      (debitsByTxnType[type] ?? []).forEach((item) => {
         const existing = sentMapByCurr.get(item.currency) ?? {
           amount: 0,
           count: 0,
@@ -155,7 +155,7 @@ function aggregateCurrencyTotalsByTxnType({
       return {
         txnType:
           TRANSACTION_TYPE_FRIENDLY_NAME[
-            method as keyof typeof TRANSACTION_TYPE_FRIENDLY_NAME
+            type as keyof typeof TRANSACTION_TYPE_FRIENDLY_NAME
           ] ?? 'Unknown',
         receivedByCurrency: Array.from(receivedMapByCurr.entries()).map(
           ([currency, data]) => ({
@@ -343,14 +343,14 @@ export function formatNodeDataAsHtml(data: NodeDisplayData): string {
 
   if (data.currencyTotalsByTxnType && data.currencyTotalsByTxnType.length > 0) {
     html += `<hr style="margin: 6px 0; border-color: #ddd"/>`;
-    html += `<strong>Transaction Method Breakdown:</strong><br/>`;
+    html += `<strong>Transaction Type Breakdown:</strong><br/>`;
 
-    data.currencyTotalsByTxnType.forEach((methodData) => {
+    data.currencyTotalsByTxnType.forEach((typeData) => {
       html += `<div style="margin-top: 6px; padding-left: 8px; border-left: 2px solid #e8e8e8;">`;
-      html += `<strong style="font-size: 13px; color: #333;">${methodData.txnType}</strong><br/>`;
+      html += `<strong style="font-size: 13px; color: #333;">${typeData.txnType}</strong><br/>`;
 
-      if (methodData.receivedByCurrency.length > 0) {
-        methodData.receivedByCurrency.forEach((currencyData) => {
+      if (typeData.receivedByCurrency.length > 0) {
+        typeData.receivedByCurrency.forEach((currencyData) => {
           html += `<span style="font-size: 13px; color: #52c41a;">`;
           html += `  ← Received: ${currencyData.amount} ${currencyData.currency}`;
           html += ` (${currencyData.count} tx)`;
@@ -358,8 +358,8 @@ export function formatNodeDataAsHtml(data: NodeDisplayData): string {
         });
       }
 
-      if (methodData.sentByCurrency.length > 0) {
-        methodData.sentByCurrency.forEach((currencyData) => {
+      if (typeData.sentByCurrency.length > 0) {
+        typeData.sentByCurrency.forEach((currencyData) => {
           html += `<span style="font-size: 13px; color: #f5222d;">`;
           html += `  → Sent: ${currencyData.amount} ${currencyData.currency}`;
           html += ` (${currencyData.count} tx)`;
@@ -457,16 +457,16 @@ function formatNodeDataAsText(data: NodeDisplayData | undefined): string {
   }
 
   if (data.currencyTotalsByTxnType && data.currencyTotalsByTxnType.length > 0) {
-    text += `\nTransaction Method Breakdown:\n`;
+    text += `\nTransaction Type Breakdown:\n`;
 
-    data.currencyTotalsByTxnType.forEach((methodData) => {
-      text += `\n${methodData.txnType}:\n`;
+    data.currencyTotalsByTxnType.forEach((typeData) => {
+      text += `\n${typeData.txnType}:\n`;
 
-      methodData.receivedByCurrency.forEach((currencyData) => {
+      typeData.receivedByCurrency.forEach((currencyData) => {
         text += `  ← Received: ${currencyData.amount} ${currencyData.currency} (${currencyData.count} tx)\n`;
       });
 
-      methodData.sentByCurrency.forEach((currencyData) => {
+      typeData.sentByCurrency.forEach((currencyData) => {
         text += `  → Sent: ${currencyData.amount} ${currencyData.currency} (${currencyData.count} tx)\n`;
       });
     });

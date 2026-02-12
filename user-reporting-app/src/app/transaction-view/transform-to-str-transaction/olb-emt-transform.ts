@@ -120,7 +120,10 @@ export function transformOlbEmtToStrTransaction({
       if (isOutgoing && !isRecipientCibc) {
         partyInfoObservables[emtTxn.recipientCertapayAccount] = generateParty({
           identifiers: { certapayAccount: emtTxn.recipientCertapayAccount },
-          contact: { email: emtTxn.recipientEmail },
+          contact: {
+            email: emtTxn.recipientEmail,
+            contactName: emtTxn.contactName,
+          },
           partyName: { ...parsePartyNameFromEmt(emtTxn.recipientName) },
           account: { fiNumber: emtTxn.recipientFi },
         });

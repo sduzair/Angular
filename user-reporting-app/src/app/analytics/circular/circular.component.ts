@@ -35,7 +35,7 @@ import {
   getTxnType,
   NODE_ENUM,
   TRANSACTION_TYPE_ENUM,
-} from '../account-methods.service';
+} from '../account-transaction-totals.service';
 import {
   extractNodeDisplayData,
   formatNodeDataAsHtml,

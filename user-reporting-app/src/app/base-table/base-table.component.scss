@@ -54,6 +54,15 @@ mat-toolbar-row.header-toolbar-row {
     text-overflow: unset;
   }
 
+  /* Subtle focus styling for table cells */
+
+  .mat-mdc-cell:focus,
+  .mat-mdc-cell:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: -2px;
+    position: relative;
+  }
+
   .mat-column-flowOfFundsTransactionDesc {
     max-width: 400px;
   }

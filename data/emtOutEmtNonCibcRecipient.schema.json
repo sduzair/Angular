@@ -105,13 +105,12 @@
     {
       "name": "contactName",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "Trace Investigation Service"
-      ],
+      "type": "Dataset Column",
+      "dataset": "emtNonFocalNonCibc",
+      "column": "contactName",
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "lower(_hiddenFullName.split(\" \")[0])"
+      "formula": ""
     },
     {
       "name": "cur",

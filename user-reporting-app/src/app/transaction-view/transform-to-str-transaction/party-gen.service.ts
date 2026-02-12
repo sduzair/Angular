@@ -236,6 +236,7 @@ export interface PartyAddress {
   city?: string | null;
   postalCode?: string | null;
   provinceState?: string | null;
+  provinceCode?: string | null;
   country?: string | null;
   rawAddress?: string | null; // e.g., wire payerAddress/payeeAddress if not parsed
 }

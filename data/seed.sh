@@ -25,6 +25,7 @@ mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofOut
 mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofWireIn.json                 --jsonArray
 mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofCbfeMixedDeposit.json       --jsonArray
 mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofCashUSDDeposit.json       --jsonArray
+mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofPosOut.json       --jsonArray
 
 mongoimport --uri "$URI" --db "$DB" --collection abm --file /seed/abmCashDeposit.json     --jsonArray
 mongoimport --uri "$URI" --db "$DB" --collection abm --file /seed/abmCashWithdrawal.json  --jsonArray
@@ -43,6 +44,8 @@ mongoimport --uri "$URI" --db "$DB" --collection emt --file /seed/emtOutEmtNonCi
 mongoimport --uri "$URI" --db "$DB" --collection wire --file /seed/wireIn.json --jsonArray
 
 mongoimport --uri "$URI" --db "$DB" --collection otc --file /seed/cbfeMixedDeposit.json --jsonArray
+
+mongoimport --uri "$URI" --db "$DB" --collection pos --file /seed/posOut.json --jsonArray
 
 
 echo "Restoring parties collection..."
