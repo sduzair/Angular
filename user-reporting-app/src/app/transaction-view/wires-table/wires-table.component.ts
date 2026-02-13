@@ -31,6 +31,7 @@ import { LocalHighlightsService } from '../local-highlights.service';
       [displayedColumns]="displayedColumns"
       [displayColumnHeaderMap]="displayColumnHeaderMap"
       [stickyColumns]="stickyColumns"
+      [columnWidthsMap]="columnWidthsMap"
       [selectFiltersValues]="selectFiltersValues"
       [dateFiltersValues]="dateFiltersValues"
       [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
@@ -269,6 +270,13 @@ export class WiresTableComponent<
       string
     >
   >;
+
+  columnWidthsMap: Partial<
+    Record<Extract<keyof WireSourceData, string> | 'select', string>
+  > = {
+    flowOfFundsAmlTransactionId: '300px',
+    uniqueReferenceNo: '300px',
+  };
 
   stickyColumns: ('select' | keyof WireSourceData)[] = [
     'select',

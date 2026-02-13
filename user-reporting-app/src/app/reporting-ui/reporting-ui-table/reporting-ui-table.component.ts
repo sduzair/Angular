@@ -55,6 +55,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
       [displayedColumns]="displayedColumns"
       [displayColumnHeaderMap]="displayColumnHeaderMap"
       [stickyColumns]="stickyColumns"
+      [columnWidthsMap]="columnWidthsMap"
       [selectFiltersValues]="selectFiltersValues"
       [dateFiltersValues]="dateFiltersValues"
       [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
@@ -420,6 +421,13 @@ export class ReportingUiTableComponent implements AfterViewInit {
   } satisfies Partial<
     Record<'fullTextFilterKey' | StrTransactionDataColumnKey, unknown>
   >;
+
+  columnWidthsMap: Partial<
+    Record<Extract<StrTransactionDataColumnKey, string> | 'select', string>
+  > = {
+    reportingEntityTxnRefNo: '300px',
+    flowOfFundsTransactionDesc: '400px',
+  };
 
   stickyColumns: (StrTransactionDataColumnKey | 'actions' | 'select')[] = [
     'actions',

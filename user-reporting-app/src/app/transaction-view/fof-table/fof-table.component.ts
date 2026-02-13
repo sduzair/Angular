@@ -3,10 +3,8 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  EventEmitter,
   inject,
   Input,
-  Output,
   TrackByFunction,
   ViewChild,
   WritableSignal,
@@ -33,6 +31,7 @@ import { TableSelectionType } from '../transaction-view.component';
       [displayedColumns]="displayedColumns"
       [displayColumnHeaderMap]="displayColumnHeaderMap"
       [stickyColumns]="stickyColumns"
+      [columnWidthsMap]="columnWidthsMap"
       [selectFiltersValues]="selectFiltersValues"
       [dateFiltersValues]="dateFiltersValues"
       [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
@@ -43,8 +42,8 @@ import { TableSelectionType } from '../transaction-view.component';
       [highlightedRecords]="highlightedRecords"
       [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'"
       [filterFormHighlightSideEffect]="filterFormHighlightSideEffect"
-      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
-      [sortedBy]="'flowOfFundsTransactionDate'">
+      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples">
+      <!-- [sortedBy]="'flowOfFundsTransactionDate'"> -->
       <!-- Selection Model -->
       <ng-container
         matColumnDef="select"
@@ -84,7 +83,7 @@ export class FofTableComponent<
     [K in keyof TableSelectionType]: string;
   },
 > {
-  dataColumnsValues: (keyof FlowOfFundsSourceData)[] = [
+  dataColumnsValues: ('select' | keyof FlowOfFundsSourceData)[] = [
     'flowOfFundsPostingDate',
     'flowOfFundsTransactionDate',
     'flowOfFundsTransactionTime',
@@ -108,7 +107,9 @@ export class FofTableComponent<
 
   dataColumnsIgnoreValues: (keyof FlowOfFundsSourceData)[] = [];
 
-  displayedColumns = ['select' as const];
+  displayedColumns: ('select' | keyof FlowOfFundsSourceData)[] = [
+    'select' as const,
+  ];
 
   displayColumnHeaderMap: Partial<
     Record<
@@ -139,6 +140,13 @@ export class FofTableComponent<
     flowOfFundsTransactionTime: 'Transaction Time',
     fullTextFilterKey: 'Full Text',
     _uiPropHighlightColor: 'Highlight',
+  };
+
+  columnWidthsMap: Partial<
+    Record<Extract<keyof FlowOfFundsSourceData, string> | 'select', string>
+  > = {
+    flowOfFundsAmlTransactionId: '300px',
+    flowOfFundsTransactionDesc: '400px',
   };
 
   stickyColumns: ('select' | keyof FlowOfFundsSourceData)[] = [

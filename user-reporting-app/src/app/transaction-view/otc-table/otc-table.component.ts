@@ -31,6 +31,7 @@ import { TableSelectionType } from '../transaction-view.component';
       [displayedColumns]="displayedColumns"
       [displayColumnHeaderMap]="displayColumnHeaderMap"
       [stickyColumns]="stickyColumns"
+      [columnWidthsMap]="columnWidthsMap"
       [selectFiltersValues]="selectFiltersValues"
       [dateFiltersValues]="dateFiltersValues"
       [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
@@ -41,8 +42,8 @@ import { TableSelectionType } from '../transaction-view.component';
       [highlightedRecords]="highlightedRecords"
       [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'"
       [filterFormHighlightSideEffect]="filterFormHighlightSideEffect"
-      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
-      [sortedBy]="'transactionDate'">
+      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples">
+      <!-- [sortedBy]="'transactionDate'"> -->
       <!-- Selection Model -->
       <ng-container
         matColumnDef="select"
@@ -316,6 +317,12 @@ export class OtcTableComponent<
       string
     >
   >;
+
+  columnWidthsMap: Partial<
+    Record<Extract<keyof OTCSourceData, string> | 'select', string>
+  > = {
+    flowOfFundsAmlTransactionId: '300px',
+  };
 
   stickyColumns: ('select' | keyof OTCSourceData)[] = [
     'select',

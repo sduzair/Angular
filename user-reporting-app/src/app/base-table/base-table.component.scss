@@ -10,13 +10,12 @@ mat-toolbar-row.header-toolbar-row {
 :host ::ng-deep {
   /* Excel-like Table Styling */
   .base-table-container {
-    min-height: 80dvh;
     height: 80dvh;
-    // border: 1px solid var(--mat-sys-outline-variant);
   }
 
   mat-drawer-content table {
-    width: 100%;
+    // width: 100%;
+    table-layout: auto; // overrides 'fixed' used conventionally with virtual scrolling
     border-collapse: separate;
     border-spacing: 0px;
 
@@ -42,16 +41,12 @@ mat-toolbar-row.header-toolbar-row {
     border-bottom: 1px solid var(--mat-sys-outline-variant);
   }
 
-  .mat-mdc-header-cell,
-  .mat-mdc-cell {
-    max-width: 300px;
-  }
-
   .mat-mdc-cell {
     white-space: nowrap;
-    overflow-x: scroll;
+    overflow-x: auto;
     scrollbar-width: none;
-    text-overflow: unset;
+    text-overflow: ellipsis;
+    min-width: 0;
   }
 
   /* Subtle focus styling for table cells */
@@ -63,10 +58,6 @@ mat-toolbar-row.header-toolbar-row {
     position: relative;
   }
 
-  .mat-column-flowOfFundsTransactionDesc {
-    max-width: 400px;
-  }
-
   .mat-mdc-header-row {
     z-index: 1;
   }
@@ -74,7 +65,7 @@ mat-toolbar-row.header-toolbar-row {
   .mat-mdc-row {
     transform: translateZ(0); /* Triggers GPU layer creation */
     will-change: transform; /* Hint for future changes */
-    transition: background-color 0.3s;
+    transition: background-color 0.2s;
   }
 
   .mat-mdc-row:hover .mat-mdc-cell {

@@ -59,6 +59,7 @@ import { FofTableComponent } from './fof-table/fof-table.component';
 import { LocalHighlightsService } from './local-highlights.service';
 import { OlbTableComponent } from './olb-table/olb-table.component';
 import { OtcTableComponent } from './otc-table/otc-table.component';
+import { PosTableComponent } from './pos-table/pos-table.component';
 import { transformABMToStrTransaction } from './transform-to-str-transaction/abm-transform';
 import { transformOlbEmtToStrTransaction } from './transform-to-str-transaction/olb-emt-transform';
 import { transformOTCToStrTransaction } from './transform-to-str-transaction/otc-transform';
@@ -66,10 +67,9 @@ import {
   PartyGenService,
   PartyGenType,
 } from './transform-to-str-transaction/party-gen.service';
+import { transformPOSToStrTransaction } from './transform-to-str-transaction/pos-transform';
 import { transformWireToStrTransaction } from './transform-to-str-transaction/wire-transform';
 import { WiresTableComponent } from './wires-table/wires-table.component';
-import { PosTableComponent } from './pos-table/pos-table.component';
-import { transformPOSToStrTransaction } from './transform-to-str-transaction/pos-transform';
 
 @Component({
   selector: 'app-transaction-view',

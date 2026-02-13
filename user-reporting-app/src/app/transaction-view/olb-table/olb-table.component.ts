@@ -3,23 +3,21 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  EventEmitter,
   inject,
   Input,
-  Output,
   TrackByFunction,
   ViewChild,
   WritableSignal,
 } from '@angular/core';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
+import { map, take } from 'rxjs';
+import { CaseRecordStore } from '../../aml/case-record.store';
 import { IFilterForm } from '../../base-table/abstract-base-table';
 import { BaseTableComponent } from '../../base-table/base-table.component';
 import { OlbSourceData } from '../../transaction-search/transaction-search.service';
-import { TableSelectionType } from '../transaction-view.component';
-import { map, take } from 'rxjs';
-import { CaseRecordStore } from '../../aml/case-record.store';
 import { LocalHighlightsService } from '../local-highlights.service';
+import { TableSelectionType } from '../transaction-view.component';
 
 @Component({
   selector: 'app-olb-table',
@@ -33,6 +31,7 @@ import { LocalHighlightsService } from '../local-highlights.service';
       [displayedColumns]="displayedColumns"
       [displayColumnHeaderMap]="displayColumnHeaderMap"
       [stickyColumns]="stickyColumns"
+      [columnWidthsMap]="columnWidthsMap"
       [selectFiltersValues]="selectFiltersValues"
       [dateFiltersValues]="dateFiltersValues"
       [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
@@ -43,8 +42,8 @@ import { LocalHighlightsService } from '../local-highlights.service';
       [highlightedRecords]="highlightedRecords"
       [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'"
       [filterFormHighlightSideEffect]="filterFormHighlightSideEffect"
-      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
-      [sortedBy]="'transactionDate'">
+      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples">
+      <!-- [sortedBy]="'transactionDate'"> -->
       <!-- Selection Model -->
       <ng-container
         matColumnDef="select"
@@ -334,6 +333,12 @@ export class OlbTableComponent<
     flowOfFundsAmlTransactionId: 'Aml Transaction ID',
     fullTextFilterKey: 'Full Text',
     _uiPropHighlightColor: 'Highlight',
+  };
+
+  columnWidthsMap: Partial<
+    Record<Extract<keyof OlbSourceData, string> | 'select', string>
+  > = {
+    flowOfFundsAmlTransactionId: '300px',
   };
 
   stickyColumns: ('select' | keyof OlbSourceData)[] = [

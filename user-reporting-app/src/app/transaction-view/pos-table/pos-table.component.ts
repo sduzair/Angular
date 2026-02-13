@@ -31,6 +31,7 @@ import { TableSelectionType } from '../transaction-view.component';
       [displayedColumns]="displayedColumns"
       [displayColumnHeaderMap]="displayColumnHeaderMap"
       [stickyColumns]="stickyColumns"
+      [columnWidthsMap]="columnWidthsMap"
       [selectFiltersValues]="selectFiltersValues"
       [dateFiltersValues]="dateFiltersValues"
       [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
@@ -342,6 +343,12 @@ export class PosTableComponent<
       string
     >
   >;
+
+  columnWidthsMap: Partial<
+    Record<Extract<keyof POSSourceData, string> | 'select', string>
+  > = {
+    flowOfFundsAmlTransactionId: '300px',
+  };
 
   stickyColumns: ('select' | keyof POSSourceData)[] = [
     'select',

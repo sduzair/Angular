@@ -1,3 +1,4 @@
+import { ScrollingModule } from '@angular/cdk/scrolling';
 import { CommonModule, DatePipe } from '@angular/common';
 import {
   AfterContentInit,
@@ -8,6 +9,7 @@ import {
   OnInit,
   QueryList,
   TrackByFunction,
+  AfterViewInit,
 } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatAutocomplete } from '@angular/material/autocomplete';
@@ -46,7 +48,6 @@ import {
   ISelectionMasterToggle,
 } from './abstract-base-table';
 import { ClickOutsideTableDirective } from './click-outside-table.directive';
-import { ScrollingModule } from '@angular/cdk/scrolling';
 
 @Component({
   selector: 'app-base-table',
@@ -153,7 +154,7 @@ import { ScrollingModule } from '@angular/cdk/scrolling';
           [formGroup]="filterFormFormGroup"
           class="h-100 d-flex flex-column container px-0">
           <mat-toolbar class="flex-shrink-0 row row-cols-1 filter-form-toolbar">
-            <mat-toolbar-row class="col">
+            <mat-toolbar-row class="col my-2">
               <button
                 mat-stroked-button
                 color="primary"
@@ -181,7 +182,7 @@ import { ScrollingModule } from '@angular/cdk/scrolling';
           </mat-toolbar>
           <mat-divider></mat-divider>
           <div
-            class="flex-grow-1 overflow-auto row row-cols-1 mx-0 pt-3 scroll-position-preserve">
+            class="flex-grow-1 overflow-auto row row-cols-1 mx-0 mt-3 scroll-position-preserve">
             @for (filterKey of filterFormFilterKeys; track filterKey) {
               <!-- Full Text Filter -->
               @if (this.filterFormFullTextFilterKey === filterKey) {
@@ -387,7 +388,9 @@ import { ScrollingModule } from '@angular/cdk/scrolling';
       <mat-drawer-content>
         <cdk-virtual-scroll-viewport
           class="col px-0 base-table-container"
-          [itemSize]="36"
+          [itemSize]="ROW_HEIGHT"
+          [maxBufferPx]="BUFFER_PAGES"
+          [minBufferPx]="BUFFER_PAGES_THRESHOLD"
           (appClickOutsideTable)="filterFormHighlightSelectedColor = undefined">
           <table
             mat-table
@@ -406,7 +409,9 @@ import { ScrollingModule } from '@angular/cdk/scrolling';
                   mat-header-cell
                   *matHeaderCellDef
                   [mat-sort-header]="column"
-                  [class.sticky-cell]="isStickyColumn(column)">
+                  [class.sticky-cell]="isStickyColumn(column)"
+                  [style.width]="getColumnWidth(column)"
+                  [style.max-width]="getColumnWidth(column)">
                   <div>
                     {{ this.displayedColumnsTransform(column) }}
                   </div>
@@ -415,7 +420,9 @@ import { ScrollingModule } from '@angular/cdk/scrolling';
                   mat-cell
                   *matCellDef="let row"
                   [class.sticky-cell]="isStickyColumn(column)"
-                  tabindex="-1">
+                  tabindex="-1"
+                  [style.width]="getColumnWidth(column)"
+                  [style.max-width]="getColumnWidth(column)">
                   <div>
                     @if (this.displayedColumnsTime.includes(column)) {
                       {{
@@ -493,7 +500,7 @@ export class BaseTableComponent<
     THighlightKey,
     TSelection
   >
-  implements OnInit, ISelectionMasterToggle, AfterContentInit
+  implements OnInit, ISelectionMasterToggle, AfterContentInit, AfterViewInit
 {
   @Input({ required: true })
   override dataColumnsValues!: TDataColumn[];
@@ -517,6 +524,9 @@ export class BaseTableComponent<
 
   @Input({ required: true })
   override stickyColumns!: TDisplayColumn[];
+
+  @Input({ required: true })
+  override columnWidthsMap: Partial<Record<TDataColumn, string>> = {};
 
   @Input({ required: true })
   override selectFiltersValues!: TDataColumn[];
@@ -547,6 +557,10 @@ export class BaseTableComponent<
   @Input()
   showToolbar = true;
 
+  protected PAGE_ROWS = 24;
+  protected ROW_HEIGHT = 36;
+  protected BUFFER_PAGES = 6 * 2 * this.PAGE_ROWS * this.ROW_HEIGHT;
+  protected BUFFER_PAGES_THRESHOLD = 2 * this.PAGE_ROWS * this.ROW_HEIGHT;
   ngAfterContentInit(): void {
     this.columnDefs.forEach((colDef) => this.table.addColumnDef(colDef));
   }

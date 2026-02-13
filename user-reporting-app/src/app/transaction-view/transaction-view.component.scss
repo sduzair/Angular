@@ -10,8 +10,7 @@ mat-toolbar-row.header-toolbar-row {
   @include mat.button-density(5);
 }
 
-::ng-deep .tab-group div.base-table-container {
-  min-height: 70dvh;
+::ng-deep .tab-group .cdk-virtual-scroll-viewport.base-table-container {
   height: 70dvh;
 }
 

@@ -34,6 +34,7 @@ import {
       [displayedColumns]="displayedColumns"
       [displayColumnHeaderMap]="displayColumnHeaderMap"
       [stickyColumns]="stickyColumns"
+      [columnWidthsMap]="columnWidthsMap"
       [selectFiltersValues]="selectFiltersValues"
       [dateFiltersValues]="dateFiltersValues"
       [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
@@ -156,6 +157,13 @@ export class ManualUploadReviewTableComponent {
   displayColumnHeaderMap: Partial<
     Record<'fullTextFilterKey' | StrTransactionDataColumnKey, string>
   > = ReportingUiTableComponent.displayColumnHeaderMap;
+
+  columnWidthsMap: Partial<
+    Record<Extract<StrTransactionDataColumnKey, string> | 'select', string>
+  > = {
+    reportingEntityTxnRefNo: '300px',
+    flowOfFundsTransactionDesc: '400px',
+  };
 
   stickyColumns: (StrTransactionDataColumnKey | 'actions' | 'select')[] = [
     // "actions",

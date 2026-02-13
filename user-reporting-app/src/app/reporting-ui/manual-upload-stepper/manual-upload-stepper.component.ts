@@ -500,7 +500,10 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
         );
         break;
       case 1: // Step 2: Preview data
-        this.dialogRef.updateSize('920px', ''); // Wider for table
+        this.dialogRef.updateSize(
+          ADD_SELECTIONS_MANUAL_STEPPER_WIDTH_TABLE,
+          '',
+        ); // Wider for table
         break;
       case 2: // Step 3: Success
         this.dialogRef.updateSize(
@@ -513,6 +516,8 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
 }
 
 export const ADD_SELECTIONS_MANUAL_STEPPER_WIDTH_DEFAULT = '600px';
+// const ADD_SELECTIONS_MANUAL_STEPPER_WIDTH_TABLE = '920px';
+const ADD_SELECTIONS_MANUAL_STEPPER_WIDTH_TABLE = '70vw';
 
 export type ColumnHeaderLabels =
   (typeof ReportingUiTableComponent.displayColumnHeaderMap)[keyof typeof ReportingUiTableComponent.displayColumnHeaderMap];

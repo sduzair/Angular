@@ -3,10 +3,8 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  EventEmitter,
   inject,
   Input,
-  Output,
   TrackByFunction,
   ViewChild,
   WritableSignal,
@@ -33,6 +31,7 @@ import { LocalHighlightsService } from '../local-highlights.service';
       [displayedColumns]="displayedColumns"
       [displayColumnHeaderMap]="displayColumnHeaderMap"
       [stickyColumns]="stickyColumns"
+      [columnWidthsMap]="columnWidthsMap"
       [selectFiltersValues]="selectFiltersValues"
       [dateFiltersValues]="dateFiltersValues"
       [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
@@ -43,8 +42,8 @@ import { LocalHighlightsService } from '../local-highlights.service';
       [highlightedRecords]="highlightedRecords"
       [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'"
       [filterFormHighlightSideEffect]="filterFormHighlightSideEffect"
-      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
-      [sortedBy]="'depositedTimeDate'">
+      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples">
+      <!-- [sortedBy]="'depositedTimeDate'"> -->
       <!-- Selection Model -->
       <ng-container
         matColumnDef="select"
@@ -209,6 +208,12 @@ export class EmtTableComponent<
     flowOfFundsAmlTransactionId: 'Flow of Funds ID',
     fullTextFilterKey: 'Full Text',
     _uiPropHighlightColor: 'Highlight',
+  };
+
+  columnWidthsMap: Partial<
+    Record<Extract<keyof EmtSourceData, string> | 'select', string>
+  > = {
+    flowOfFundsAmlTransactionId: '300px',
   };
 
   stickyColumns: ('select' | keyof EmtSourceData)[] = [

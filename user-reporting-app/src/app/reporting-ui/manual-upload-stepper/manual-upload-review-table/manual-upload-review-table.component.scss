@@ -1,7 +1,6 @@
 ::ng-deep
   .manual-upload-review-table
-  mat-drawer-content.mat-drawer-content
-  > div {
+  .cdk-virtual-scroll-viewport.base-table-container {
   min-height: 39dvh;
   height: 39dvh;
 }
