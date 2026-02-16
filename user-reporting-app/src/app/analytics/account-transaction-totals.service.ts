@@ -15,8 +15,11 @@ import {
   StrTransactionWithChangeLogs,
 } from '../aml/case-record.store';
 import {
+  hasMissingBasicInfo,
+  isCibcFi,
+} from '../reporting-ui/edit-form/common-validation';
+import {
   FORM_OPTIONS_DETAILS_OF_DISPOSITION,
-  FORM_OPTIONS_METHOD_OF_TXN,
   FORM_OPTIONS_TYPE_OF_FUNDS,
 } from '../reporting-ui/edit-form/form-options.service';
 import { TransactionDateDirective } from '../reporting-ui/edit-form/transaction-date.directive';
@@ -25,8 +28,8 @@ import {
   getPartyFullName,
   PartyGenType,
 } from '../transaction-view/transform-to-str-transaction/party-gen.service';
+import { DIRECTION_OF_SA } from './circular/circular.component';
 import { fiuMap } from './fiu';
-import { hasMissingBasicInfo } from '../reporting-ui/edit-form/common-validation';
 
 @Injectable()
 export class AccountTransactionTotalsService {
@@ -78,7 +81,6 @@ export class AccountTransactionTotalsService {
     this.transactionSelections$,
     this.parties$,
   ]).pipe(
-    // todo: verify basic info validation - amt, currency, typeoffunds, dispodetails
     map(
       ([
         selectedFocalAccountsInfo,
@@ -109,29 +111,34 @@ export class AccountTransactionTotalsService {
             methodOfTxn,
             startingActions,
             completingActions,
-            purposeOfTxn,
+            purposeOfTxn = '',
           } of transactionSelections.filter(
             createCreditsFilter(selectedFocalAccount),
           )) {
             // Extract conductors and account holders from starting actions
             for (const sa of startingActions) {
               const {
+                directionOfSA: direction,
                 amount: saAmount,
                 currency: saCurrency,
                 typeOfFunds: saTypeOfFunds,
-                fiuNo,
-                account,
+                fiuNo = '',
+                account = '',
 
                 conductors = [],
                 accountHolders = [],
               } = sa;
 
               console.assert(completingActions.length === 1);
-              const { detailsOfDispo: caDetailsOfDispo } = completingActions[0];
+              const { detailsOfDispo, detailsOfDispoOther } =
+                completingActions[0];
 
               const txnTypeKey =
-                getTxnType(saTypeOfFunds, caDetailsOfDispo, methodOfTxn) ??
-                TRANSACTION_TYPE_ENUM.Unknown;
+                getTxnType({
+                  typeOfFunds: saTypeOfFunds,
+                  detailsOfDispo,
+                  detailsOfDispoOther,
+                }) ?? TRANSACTION_TYPE_ENUM.Unknown;
 
               const date = TransactionDateDirective.format(
                 TransactionDateDirective.parse(flowOfFundsTransactionDate!),
@@ -139,7 +146,7 @@ export class AccountTransactionTotalsService {
 
               // Initialize txn type entry if not exists
               const totalsEntry = creditTotalsByType.get(txnTypeKey) ?? {
-                type:
+                transactionType:
                   TRANSACTION_TYPE_FRIENDLY_NAME[txnTypeKey] ??
                   'Unknown Txn Type',
                 amountsMap: new Map<CurrKey, CurrAmount>(),
@@ -155,29 +162,7 @@ export class AccountTransactionTotalsService {
               totalsEntry.dates.push(date);
               totalsEntry.dates.sort();
 
-              // Add conductor
-              console.assert(conductors.length === 1);
-              const { displayName, subType, subTypeLabel, subjectPhrase } =
-                createSubjectMetadata({
-                  txnTypeKey: txnTypeKey,
-                  party: parties.find(
-                    (p) => p.partyIdentifier === conductors[0].linkToSub,
-                  )!,
-                  focalSubjects,
-                  fiu: fiuNo ?? '',
-                  account: account ?? '',
-                  purposeOfTxn: purposeOfTxn ?? '',
-                });
-
-              totalsEntry.subjects.push({
-                displayName,
-                subType,
-                subTypeLabel,
-                subjectRelation: 'conductor',
-                subjectPhrase,
-              } satisfies TransactionTypeSubject);
-
-              if (TRANSACTION_TYPE_ENUM.Cheque === txnTypeKey) {
+              if (txnTypeKey === TRANSACTION_TYPE_ENUM.Cheque) {
                 // Add account holders
                 for (const holder of accountHolders) {
                   const { displayName, subType, subTypeLabel, subjectPhrase } =
@@ -187,20 +172,45 @@ export class AccountTransactionTotalsService {
                         (p) => p.partyIdentifier === holder.linkToSub,
                       )!,
                       focalSubjects,
-                      fiu: fiuNo ?? '',
-                      account: account ?? '',
-                      purposeOfTxn: purposeOfTxn ?? '',
+                      fiuNo,
+                      account,
+                      purposeOfTxn,
+                      direction,
                     });
 
                   totalsEntry.subjects.push({
                     displayName,
                     subType,
                     subTypeLabel,
-                    subjectRelation: 'accountholder',
                     subjectPhrase,
                   } satisfies TransactionTypeSubject);
                 }
+
+                creditTotalsByType.set(txnTypeKey, totalsEntry);
+                continue;
               }
+
+              // Add conductor
+              console.assert(conductors.length === 1);
+              const { displayName, subType, subTypeLabel, subjectPhrase } =
+                createSubjectMetadata({
+                  txnTypeKey: txnTypeKey,
+                  party: parties.find(
+                    (p) => p.partyIdentifier === conductors[0].linkToSub,
+                  )!,
+                  focalSubjects,
+                  fiuNo,
+                  account,
+                  purposeOfTxn,
+                  direction,
+                });
+
+              totalsEntry.subjects.push({
+                displayName,
+                subType,
+                subTypeLabel,
+                subjectPhrase,
+              } satisfies TransactionTypeSubject);
 
               creditTotalsByType.set(txnTypeKey, totalsEntry);
             }
@@ -210,7 +220,7 @@ export class AccountTransactionTotalsService {
             account: selectedFocalAccount,
             currency: selectedFocalAccountCurrency ?? '',
             transit,
-            type: 'credits',
+            totalsType: 'credits',
             totalsMap: creditTotalsByType,
           });
 
@@ -232,20 +242,24 @@ export class AccountTransactionTotalsService {
           )) {
             console.assert(startingActions.length === 1);
             console.assert(completingActions.length === 1);
-            const { typeOfFunds: saTypeOfFunds } = startingActions[0];
+            const { directionOfSA: direction, typeOfFunds: saTypeOfFunds } =
+              startingActions[0];
             const {
-              detailsOfDispo: caDetailsOfDispo,
+              detailsOfDispo,
+              detailsOfDispoOther,
               amount: caAmount,
               currency: caCurrency,
               beneficiaries = [],
-              accountHolders = [],
               fiuNo,
               account,
             } = completingActions[0];
 
             const txnTypeKey =
-              getTxnType(saTypeOfFunds, caDetailsOfDispo, methodOfTxn) ??
-              TRANSACTION_TYPE_ENUM.Unknown;
+              getTxnType({
+                typeOfFunds: saTypeOfFunds,
+                detailsOfDispo,
+                detailsOfDispoOther,
+              }) ?? TRANSACTION_TYPE_ENUM.Unknown;
 
             const date = TransactionDateDirective.format(
               TransactionDateDirective.parse(
@@ -255,7 +269,7 @@ export class AccountTransactionTotalsService {
 
             // Initialize method entry if not exists
             const totalsEntry = debitTotalsByType.get(txnTypeKey) ?? {
-              type:
+              transactionType:
                 TRANSACTION_TYPE_FRIENDLY_NAME[txnTypeKey] ?? 'Unknown Method',
               amountsMap: new Map<CurrKey, CurrAmount>(),
               count: 0,
@@ -279,39 +293,16 @@ export class AccountTransactionTotalsService {
                     (p) => p.partyIdentifier === beneficiary.linkToSub,
                   )!,
                   focalSubjects,
-                  fiu: fiuNo ?? '',
-                  account: account ?? '',
-                  purposeOfTxn: purposeOfTxn ?? '',
+                  fiuNo,
+                  account,
+                  purposeOfTxn,
+                  direction,
                 });
 
               totalsEntry.subjects.push({
                 displayName,
                 subType,
                 subTypeLabel,
-                subjectRelation: 'beneficiary',
-                subjectPhrase,
-              } satisfies TransactionTypeSubject);
-            }
-
-            // Add account holders
-            for (const holder of accountHolders) {
-              const { displayName, subType, subTypeLabel, subjectPhrase } =
-                createSubjectMetadata({
-                  txnTypeKey: txnTypeKey,
-                  party: parties.find(
-                    (p) => p.partyIdentifier === holder.linkToSub,
-                  )!,
-                  focalSubjects,
-                  fiu: fiuNo ?? '',
-                  account: account ?? '',
-                  purposeOfTxn: purposeOfTxn ?? '',
-                });
-
-              totalsEntry.subjects.push({
-                displayName,
-                subType,
-                subTypeLabel,
-                subjectRelation: 'accountholder',
                 subjectPhrase,
               } satisfies TransactionTypeSubject);
             }
@@ -324,7 +315,7 @@ export class AccountTransactionTotalsService {
             account: selectedFocalAccount,
             currency: selectedFocalAccountCurrency ?? '',
             transit,
-            type: 'debits',
+            totalsType: 'debits',
             totalsMap: debitTotalsByType,
           });
         }
@@ -345,7 +336,7 @@ interface AccountTotals {
   account: string;
   transit: string;
   currency: string;
-  type: 'credits' | 'debits';
+  totalsType: 'credits' | 'debits';
   totalsMap: Map<TransactionTypeKey, TransactionTypeTotals>;
 }
 
@@ -354,7 +345,7 @@ export type TransactionTypeKey =
   | (number & {});
 
 interface TransactionTypeTotals {
-  type: (typeof TRANSACTION_TYPE_FRIENDLY_NAME)[keyof typeof TRANSACTION_TYPE_FRIENDLY_NAME];
+  transactionType: (typeof TRANSACTION_TYPE_FRIENDLY_NAME)[keyof typeof TRANSACTION_TYPE_FRIENDLY_NAME];
   amountsMap: Map<CurrKey, CurrAmount>;
   count: number;
   dates: string[];
@@ -368,50 +359,98 @@ interface TransactionTypeSubject {
   displayName: string;
   subType: SUBJECT_TYPE;
   subTypeLabel: string;
-  subjectRelation: 'accountholder' | 'beneficiary' | 'conductor';
   subjectPhrase: string;
 }
-
-type SUBJECT_TYPE = keyof typeof NODE_ENUM;
 
 function createSubjectMetadata({
   txnTypeKey: typeKey,
   party,
-  fiu,
+  fiuNo,
   account,
   purposeOfTxn,
   focalSubjects,
+  direction,
 }: {
   txnTypeKey: keyof typeof TRANSACTION_TYPE_FRIENDLY_NAME;
   party: PartyGenType;
-  fiu?: string;
-  account?: string;
-  purposeOfTxn?: string;
+  fiuNo?: string | null;
+  account?: string | null;
+  purposeOfTxn?: string | null;
   focalSubjects: Set<string>;
+  direction: string | null;
 }): Omit<TransactionTypeSubject, 'subjectRelation'> {
-  const { nodeCategory: category, displayName } =
-    getSubjectDisplayNameAndCategory(party, focalSubjects);
+  const { nodeCategory, displayName } = getSubjectDisplayNameAndCategory(
+    party,
+    focalSubjects,
+  );
 
   const subType = Object.keys(NODE_ENUM).find(
-    (key) => NODE_ENUM[key as keyof typeof NODE_ENUM] === category,
+    (key) => NODE_ENUM[key as keyof typeof NODE_ENUM] === nodeCategory,
   ) as SUBJECT_TYPE;
 
-  const categoryLabel = NODE_CATEGORY_LABEL[category];
+  const categoryLabel = NODE_CATEGORY_LABEL[nodeCategory];
 
-  if (TRANSACTION_TYPE_ENUM.EMT === typeKey) {
-    const isEmail = EMAIL_RE.test(account ?? '');
+  if (
+    (direction as DIRECTION_OF_SA) === 'Out' &&
+    TRANSACTION_TYPE_ENUM.EMT === typeKey
+  ) {
+    const bankPhrase = fiuNo ? `a customer of ${fiuMap[fiuNo]} bank` : '';
 
-    const bankPhrase = fiu ? `a customer of ${fiuMap[fiu]} bank` : '';
+    let subjectPhrase = '';
 
-    const accountPhrase = account && !isEmail ? `with account #${account}` : '';
+    if (isCibcFi(fiuNo)) {
+      const accountPhrase = account ? `with account #${account}` : '';
 
-    const subjectPhrase = bankPhrase + accountPhrase ? ' ' + accountPhrase : '';
+      subjectPhrase = bankPhrase + (accountPhrase ? ' ' + accountPhrase : '');
+    }
+
+    if (!isCibcFi(fiuNo)) {
+      const { contactName } = party.contact ?? {};
+
+      const contactPhrase = contactName
+        ? `with contact name ${contactName}`
+        : '';
+
+      subjectPhrase = bankPhrase + (contactPhrase ? ' ' + contactPhrase : '');
+    }
 
     return {
       displayName,
       subType,
       subTypeLabel: categoryLabel,
       subjectPhrase,
+    };
+  }
+
+  if (
+    (direction as DIRECTION_OF_SA) === 'In' &&
+    TRANSACTION_TYPE_ENUM.EMT === typeKey
+  ) {
+    const bankPhrase = fiuNo ? `a customer of ${fiuMap[fiuNo]} bank` : '';
+
+    let subjectPhrase = '';
+
+    if (isCibcFi(fiuNo)) {
+      const accountPhrase = account ? `with account #${account}` : '';
+
+      subjectPhrase = bankPhrase + (accountPhrase ? ' ' + accountPhrase : '');
+    }
+
+    return {
+      displayName,
+      subType,
+      subTypeLabel: categoryLabel,
+      subjectPhrase,
+    };
+  }
+
+  if (typeKey === TRANSACTION_TYPE_ENUM.POS) {
+    // display name is merchant name
+    return {
+      displayName,
+      subType,
+      subTypeLabel: categoryLabel,
+      subjectPhrase: '',
     };
   }
 
@@ -425,7 +464,7 @@ function createSubjectMetadata({
     const addressPhrase = `located in ${address}`;
     const memoPhrase = purposeOfTxn ? `with memo ${purposeOfTxn}` : '';
 
-    const subjectPhrase = addressPhrase + memoPhrase ? ' ' + memoPhrase : '';
+    const subjectPhrase = addressPhrase + (memoPhrase ? ' ' + memoPhrase : '');
 
     return {
       displayName,
@@ -435,12 +474,25 @@ function createSubjectMetadata({
     };
   }
 
-  // todo: add cheque
+  if (TRANSACTION_TYPE_ENUM.Cheque === typeKey) {
+    const bankPhrase = fiuNo ? `a customer of ${fiuMap[fiuNo]} bank` : '';
+    const accountPhrase = account ? `with account #${account}` : '';
 
-  const bankPhrase = fiu ? `a customer of ${fiuMap[fiu]} bank` : '';
+    const subjectPhrase =
+      bankPhrase + (accountPhrase ? ' ' + accountPhrase : '');
+
+    return {
+      displayName,
+      subType,
+      subTypeLabel: categoryLabel,
+      subjectPhrase,
+    };
+  }
+
+  const bankPhrase = fiuNo ? `a customer of ${fiuMap[fiuNo]} bank` : '';
   const accountPhrase = account ? `with account #${account}` : '';
 
-  const subjectPhrase = bankPhrase + accountPhrase ? ' ' + accountPhrase : '';
+  const subjectPhrase = bankPhrase + (accountPhrase ? ' ' + accountPhrase : '');
 
   return {
     displayName,
@@ -450,10 +502,6 @@ function createSubjectMetadata({
   };
 }
 
-// https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address
-const EMAIL_RE =
-  /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-
 export const TRANSACTION_TYPE_ENUM = {
   Unknown: 0,
   ABM: 1,
@@ -461,6 +509,8 @@ export const TRANSACTION_TYPE_ENUM = {
   OLB: 3,
   EMT: 4,
   Wires: 5,
+  POS: 6,
+  Mixed: 7,
 } as const;
 
 export const TRANSACTION_TYPE_FRIENDLY_NAME = {
@@ -470,13 +520,21 @@ export const TRANSACTION_TYPE_FRIENDLY_NAME = {
   3: 'Online Banking' as const,
   4: 'Email Transfer (EMT)' as const,
   5: 'Wire Transfer' as const,
+  6: 'Retail Purchase' as const,
+  7: 'Mixed Deposit' as const,
 };
 
-export function getTxnType(
-  typeOfFunds: FORM_OPTIONS_TYPE_OF_FUNDS | (string & {}) | null,
-  detailsOfDispo: FORM_OPTIONS_DETAILS_OF_DISPOSITION | (string & {}) | null,
-  methodOfTxn: string | null,
-) {
+export function getTxnType({
+  typeOfFunds,
+  detailsOfDispo,
+  detailsOfDispoOther,
+  startingActionsLength = 1,
+}: {
+  typeOfFunds: FORM_OPTIONS_TYPE_OF_FUNDS | (string & {}) | null;
+  detailsOfDispo: FORM_OPTIONS_DETAILS_OF_DISPOSITION | (string & {}) | null;
+  detailsOfDispoOther: string | null;
+  startingActionsLength?: number;
+}) {
   let type;
   type = TRANSACTION_TYPE_ENUM.Unknown;
 
@@ -502,14 +560,26 @@ export function getTxnType(
     type = TRANSACTION_TYPE_ENUM.Cheque;
 
   if (
-    (typeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS | null) === 'Cheque' &&
+    (typeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS | null) === 'Funds Withdrawal' &&
     (detailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION | null) ===
       'Issued Cheque'
   )
     type = TRANSACTION_TYPE_ENUM.Cheque;
 
-  if ((methodOfTxn as FORM_OPTIONS_METHOD_OF_TXN | null) === 'Online')
-    type = TRANSACTION_TYPE_ENUM.OLB;
+  if (
+    (typeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS | null) === 'Funds Withdrawal' &&
+    ((detailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION | null) ===
+      'Purchase of / Payment for goods' ||
+      (detailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION | null) ===
+        'Purchase of / Payment for services')
+  )
+    type = TRANSACTION_TYPE_ENUM.POS;
+
+  if (
+    (typeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS | null) === 'Funds Withdrawal' &&
+    detailsOfDispoOther === 'Purchase of / Payment for goods (Quasi Cash)'
+  )
+    type = TRANSACTION_TYPE_ENUM.POS;
 
   if (
     (typeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS | null) ===
@@ -530,6 +600,8 @@ export function getTxnType(
   )
     type = TRANSACTION_TYPE_ENUM.Wires;
 
+  if (startingActionsLength > 1) type = TRANSACTION_TYPE_ENUM.Mixed;
+
   return type;
 }
 
@@ -543,6 +615,7 @@ export const NODE_ENUM = {
   FocalPersonSubject: 6,
   FocalEntitySubject: 7,
   FocalAccount: 8,
+  Merchant: 9,
 } as const;
 
 export const NODE_CATEGORY_LABEL: Record<number, string> = {
@@ -552,7 +625,10 @@ export const NODE_CATEGORY_LABEL: Record<number, string> = {
   4: 'a business/entity',
   0: 'an individual',
   1: 'a business/entity',
+  9: '',
 };
+
+type SUBJECT_TYPE = keyof typeof NODE_ENUM;
 
 export function getSubjectDisplayNameAndCategory(
   party: PartyGenType | undefined,
@@ -584,7 +660,7 @@ export function getSubjectDisplayNameAndCategory(
   }
 
   const isClient = !!partyKey;
-  const isPerson = !!surname && !!givenName;
+  const isPerson = !!givenName;
   const isEntity = !!nameOfEntity;
   isFocal = !!partyKey && focalSubjects.has(partyKey);
 
@@ -595,29 +671,23 @@ export function getSubjectDisplayNameAndCategory(
     nameOfEntity,
   });
 
-  if (isFocal && isPerson) {
-    nodeCategory = NODE_ENUM.FocalPersonSubject;
-  }
+  if (isFocal && isPerson) nodeCategory = NODE_ENUM.FocalPersonSubject;
 
-  if (isFocal && isEntity) {
-    nodeCategory = NODE_ENUM.FocalEntitySubject;
-  }
+  if (isFocal && isEntity) nodeCategory = NODE_ENUM.FocalEntitySubject;
 
-  if (!isFocal && isClient && isPerson) {
+  if (!isFocal && isClient && isPerson)
     nodeCategory = NODE_ENUM.CibcPersonSubject;
-  }
 
-  if (!isFocal && isClient && isEntity) {
+  if (!isFocal && isClient && isEntity)
     nodeCategory = NODE_ENUM.CibcEntitySubject;
-  }
 
-  if (!isFocal && !isClient && isPerson) {
-    nodeCategory = NODE_ENUM.PersonSubject;
-  }
+  if (!isFocal && !isClient && isPerson) nodeCategory = NODE_ENUM.PersonSubject;
 
-  if (!isFocal && !isClient && isEntity) {
-    nodeCategory = NODE_ENUM.EntitySubject;
-  }
+  if (!isFocal && !isClient && isEntity) nodeCategory = NODE_ENUM.EntitySubject;
+
+  const isMerchant = !!party.identifiers?.merchantPhone;
+
+  if (isMerchant) nodeCategory = NODE_ENUM.Merchant;
 
   return {
     nodeCategory,

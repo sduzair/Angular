@@ -1,3 +1,4 @@
+import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { ErrorHandler, inject, Injectable } from '@angular/core';
 import canonicalize from 'canonicalize';
 import {
@@ -13,7 +14,6 @@ import {
   SEARCH_SOURCE_ID,
   TransactionSearchService,
 } from '../../transaction-search/transaction-search.service';
-import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 
 @Injectable({
   providedIn: 'root',
@@ -34,10 +34,10 @@ export class PartyGenService {
     const partyClone = structuredClone(party);
     return this.enrichPartyData(partyClone).pipe(
       map((enrichedParty) => this.ensureDiscriminatorIfNeeded(enrichedParty)),
-      switchMap((partyWithDiscriminator) =>
-        this.generateUnifiedPartyHash(partyWithDiscriminator).pipe(
+      switchMap((uniqueParty) =>
+        this.generateUnifiedPartyHash(uniqueParty).pipe(
           map((hash) => ({
-            ...partyWithDiscriminator,
+            ...uniqueParty,
             partyIdentifier: hash,
           })),
         ),
@@ -109,13 +109,14 @@ export class PartyGenService {
   private ensureDiscriminatorIfNeeded(
     party: Omit<PartyGenType, 'partyIdentifier'>,
   ): Omit<PartyGenType, 'partyIdentifier'> {
-    if (!this.hasAnyIdentifiers(party.identifiers) && !party.discriminatorKey) {
-      return {
-        ...party,
-        discriminatorKey: crypto.randomUUID(),
-      };
+    if (this.hasAnyIdentifiers(party.identifiers)) {
+      return party;
     }
-    return party;
+
+    return {
+      ...party,
+      discriminatorKey: crypto.randomUUID(),
+    };
   }
 
   /**
@@ -124,12 +125,13 @@ export class PartyGenService {
   private hasAnyIdentifiers(identifiers?: PartyIdentifiers): boolean {
     if (!identifiers) return false;
 
-    return !!(
+    return (
       (identifiers.partyKey != null && identifiers.partyKey !== '') ||
-      identifiers.certapayAccount ||
-      identifiers.msgTag50 ||
-      identifiers.msgTag59 ||
-      identifiers.cardNumber
+      !!identifiers.certapayAccount ||
+      !!identifiers.msgTag50 ||
+      !!identifiers.msgTag59 ||
+      !!identifiers.cardNumber ||
+      !!identifiers.merchantPhone
     );
   }
 
@@ -200,6 +202,7 @@ export interface PartyIdentifiers {
   msgTag50?: string | null; // Wire Ordering Customer (Payer)
   msgTag59?: string | null; // Wire Beneficiary
   cardNumber?: string | null;
+  merchantPhone?: string | null; // POS Merchant
 }
 
 export interface PartyAccount {

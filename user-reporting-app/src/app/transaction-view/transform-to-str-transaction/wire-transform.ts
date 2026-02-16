@@ -303,9 +303,9 @@ const parseOCPartyName = (wireTxn: WireSourceData): PartyName => {
   }
   if (nameParts.length === 1) {
     return {
-      surname: nameParts[0],
-      givenName: null,
+      givenName: nameParts[0],
       otherOrInitial: null,
+      surname: null,
       nameOfEntity: null,
     };
   }

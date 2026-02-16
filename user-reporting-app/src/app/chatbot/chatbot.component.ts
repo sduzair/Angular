@@ -10,6 +10,9 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { exposeComponent, uiChatResource } from '@hashbrownai/angular';
 import { s } from '@hashbrownai/core';
 import { KnownModelIds } from '@hashbrownai/core/src/utils/llm';
+import { map } from 'rxjs';
+import { AccountTransactionTotalsService } from '../analytics/account-transaction-totals.service';
+import { SnackbarQueueService } from '../snackbar-queue.service';
 import { ChatComposerComponent } from './chat-composer/chat-composer.component';
 import { ChatLayoutComponent } from './chat-layout/chat-layout.component';
 import { ChatMessagesComponent } from './chat-messages/chat-messages.component';
@@ -21,9 +24,8 @@ import {
   getPartyKeysByAccount,
   getReviewPeriod,
   getSubjectInfoByPartyKey,
-  verifyBasicInfo,
+  checkDataIntegrity,
 } from './tools/tools';
-import { SnackbarQueueService } from '../snackbar-queue.service';
 
 @Component({
   selector: 'app-chatbot',
@@ -48,9 +50,12 @@ import { SnackbarQueueService } from '../snackbar-queue.service';
             (retry)="retryMessages()" />
           <app-chat-prompts (selectPrompt)="sendMessage($event)" />
         </div>
-        <app-chat-composer
+        <!-- <app-chat-composer
           [isLoading]="chat.isLoading()"
           (sendMessage)="sendMessage($event)"
+          (abortSearch)="abortRequest()"></app-chat-composer> -->
+        <app-chat-composer
+          [isLoading]="chat.isLoading()"
           (abortSearch)="abortRequest()"></app-chat-composer>
       </app-chat-layout>
     </div>
@@ -78,22 +83,22 @@ export class ChatbotComponent {
     //     map((accountTotals) =>
     //       accountTotals.map((account) => ({
     //         ...account,
-    //         totalsMap: undefined,
-    //         // Convert Map to array of objects
-    //         totals: Array.from(account.totalsMap.entries()).map(
-    //           ([txnTypeKey, totalsData]) => ({
+    //         totalsList: Array.from(account.totalsMap.entries()).map(
+    //           ([
     //             txnTypeKey,
-    //             type: totalsData.type,
-    //             // Convert amounts Map to array
-    //             amounts: Array.from(totalsData.amountsMap.entries()).map(
+    //             { transactionType, amountsMap, count, dates, subjects },
+    //           ]) => ({
+    //             txnTypeKey,
+    //             transactionType,
+    //             amountsList: Array.from(amountsMap.entries()).map(
     //               ([currency, amount]) => ({
     //                 currency,
     //                 amount,
     //               }),
     //             ),
-    //             count: totalsData.count,
-    //             dates: totalsData.dates,
-    //             subjects: totalsData.subjects,
+    //             count,
+    //             dates,
+    //             subjects,
     //           }),
     //         ),
     //       })),
@@ -135,32 +140,48 @@ Write the heading '#### Transaction Activity'.
 
 ##### CREDITS
 
-Process all entries where "type === 'credits'" for this account.
+Process the entry where "totalsType === 'credits'" for this account.
 
-For each transaction type in the 'totals' array, write **one** bullet:
+For each transaction type in the 'totalsList' array, write **one** bullet.
 
-- **Transaction type name**: Use the friendly label from the data (e.g., "Online Banking", "Email Transfer (EMT)")
-- **Total amount(s)**: Format as "$1,234.56 CAD" or "$10,000.00 USD". If multiple currencies, list all (e.g., "$1,234.56 CAD and $500.00 USD")
-- **Transaction count**: "1 transaction" (singular) or "5 transactions" (plural)
-- **Date coverage**: 
+**Bullet template**:
+
+'<transaction_type>: Total credits of <amount(s)> across <count> <date_phrase> from <sub_types_phrase>: <subject_list>.'
+
+**Bullet placeholder definitions**:
+
+- **<transaction_type>**: Use the friendly label from the data (e.g., "Online Banking", "Email Transfer (EMT)")
+- **<credit_or_debit>**:
+  - If this section is CREDITS output: "credits"
+  - Else if this section is DEBITS output: "debits"
+- **<amount(s)>**: Format as "$1,234.56 CAD" or "$10,000.00 USD". If multiple currencies, list all (e.g., "$1,234.56 CAD and $500.00 USD")
+- **<count>**: "1 transaction" (singular) or "5 transactions" (plural)
+- **<date_phrase>**: 
   - Single date: "on 2024/01/15"
   - Multiple dates: "from 2024/01/05 to 2024/03/22"
-  - No dates: "Date range: Not found"
-- **Subjects**: Comma-separated list of people/entities (use displayName directly from the data)
-  - Focal subjects: '<displayName>'
-  - Non-focal subjects: '<displayName>, <subTypeLabel>, <subjectPhrase>'
-  - If no subjects: "Subjects: None identified"
-
-**Bullet format:**
-'**<Type>**: Total credits of **<amount(s)>** across <count> **<date phrase>** from following subjects: <subject list>.'
+- **<sub_types_phrase>**:
+  - If Subject types are merchants only output: "the following merchants"
+  - Else output: "the following subjects"
+- **<subject_list>**: Comma-separated list formatted based on subType:
+  - **Merchant**: "<displayName>" only
+    - Example: "Tim Hortons"
+  - **PersonSubject**: "<displayName>, <subTypeLabel>, <subjectPhrase>"
+    - Example: "Jane Doe, an individual, a customer of TD Bank with account #98765"
+  - **EntitySubject**: "<displayName>, <subTypeLabel>, <subjectPhrase>"
+    - Example: "ACME Corp, a business/entity, located in Toronto, ON"
+  - **Other subTypes**: "<displayName>, <subTypeLabel>, <subjectPhrase>"
 
 ##### DEBITS
 
-Process all entries where "type === 'debits'" for this account.
+Process the entry where "totalsType === 'debits'" for this account.
 
-For each transaction type in the 'totals' array, write **one** bullet following the same format as credits, but:
-- Change "from following subjects" to "to following subjects"
-- Change "Total credits" to "Total debits"
+For each transaction type in the 'totalsList' array, write **one** bullet.
+
+**Bullet template**:
+
+'<transaction_type>: Total debits of <amount(s)> across <count> <date_phrase> to <sub_types_phrase>: <subject_list>.'
+
+(All placeholder definitions identical to CREDITS above)
 
 4. Add a horizontal rule and an empty line before processing the next account.
 
@@ -168,57 +189,47 @@ For each transaction type in the 'totals' array, write **one** bullet following 
 
 # Data structure reference
 
-The tool returns:
+The 'getAccountTransactionTotals()' tool returns:
 
-AccountTotals {
+Array<{
   account: string
   transit: string
   currency: string
-  type: 'credits' | 'debits'
-  totals: Array<{
+  totalsType: 'credits' | 'debits'
+  totalsList: Array<{
     txnTypeKey: string
-    type: string // Use this for display
-    amounts: Array<{ currency: string, amount: number }>
+    transactionType: string // Use this for display
+    amountsList: Array<{ currency: string, amount: number }>
     count: number
     dates: string[] // Already sorted
     subjects: Array<{
       displayName: string
-      subType: string // 'FocalPersonSubject' | 'FocalEntitySubject' | others
+      subType: string // PersonSubject, EntitySubject, Merchant, others
       subTypeLabel: string
       subjectRelation: string
       subjectPhrase: string
     }>
   }>
-}
-
-# Subject formatting examples
-
-**Focal subject (subType = 'FocalPersonSubject' or 'FocalEntitySubject'):**
-- Output: "John Smith"
-
-**Non-focal subject (any other subType):**
-- Output: "Jane Doe, Individual, a customer of TD Bank with account #98765"
-- Output: "ACME Corp, Corporation, located in Toronto, ON"
+}>
 
 # Presentation rules
 
 - Write 'Not found' for any missing placeholder values (do not omit or guess)
-- Never mention technical terms like 'txnTypeKey', 'totals array', 'amounts array' or tool names
-- **If the totals array is empty for credits/debits:**
+- Never mention technical terms like 'txnTypeKey', 'totalsList array', 'amountLists array' or tool names
+- **If the totalsList array is empty for credits/debits:**
   - Still include the section header (##### CREDITS or ##### DEBITS)
-  - Write a single statement: "No <credit/debit> transactions were identified during the review period."
+  - Use this bullet format instead: "No <credit_or_debit> transactions were identified during the review period."
 - Use professional AML reporting tone: factual, concise, formal
 
 # Execute the task
 
-1) **Call 'verifyBasicInfo()' first**
-   - If returns true: Display an error message to the user and STOP. Do not proceed to step 2.
-   - If returns false: Continue to step 2
+1) **Call 'checkDataIntegrity()' first**
+   - If returns false: Display an error message to the user and STOP. Do not proceed to step 2.
+   - If returns true: Continue to step 2
 2) Call 'getReviewPeriod()'
 3) Call 'getAccountTransactionTotals()'
 4) Group results by unique account number
-5) For each account: determine ownership, then write the complete paragraph with credits and debits sections
-6) Use displayName directly from transaction subjects - all subject info is already in the data
+5) For each account: determine ownership, then write a complete paragraph with credits and debits sections
 `,
     components: [
       exposeComponent(MarkdownComponent, {
@@ -229,7 +240,7 @@ AccountTotals {
       }),
     ],
     tools: [
-      verifyBasicInfo,
+      checkDataIntegrity,
       getAccountSelection,
       getReviewPeriod,
       getPartyKeysByAccount,
@@ -239,8 +250,7 @@ AccountTotals {
   });
 
   sendMessage(message: string): void {
-    // this.chat.sendMessage({ role: 'user', content: message });
-    this.snackBar.open('Chat functionality is currently unavailable');
+    this.chat.sendMessage({ role: 'user', content: message });
   }
 
   retryMessages() {

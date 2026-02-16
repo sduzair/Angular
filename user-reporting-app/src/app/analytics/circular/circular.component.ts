@@ -1,4 +1,3 @@
-import { formatCurrency } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -183,9 +182,9 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
 
     const option: ECOption = {
       title: {
-        text: 'Circular Flow of Funds Analysis',
+        text: 'Funds Flow Network Graph',
         subtext:
-          'Interactive relationship mapping between subjects and accounts',
+          'Interactive directional funds flow with account ownership/relationships',
         left: 'left',
         top: 10,
       },
@@ -224,6 +223,14 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
           itemGap: 12,
           itemWidth: 25,
           itemHeight: 14,
+          formatter: (name: string) => {
+            const categoryIndex = NODES.findIndex((c) => c.name === name);
+            const count = nodes.filter(
+              (node) => node.category === categoryIndex,
+            ).length;
+            return `${name} (${count})`;
+          },
+
           // selectors for show/hide all
           selector: [
             { type: 'all', title: 'Select All' },
@@ -489,20 +496,22 @@ export function buildTransactionLinks({
   for (const {
     directionOfSA,
     conductors = [],
-    typeOfFunds: saTypeOfFunds,
+    typeOfFunds,
     amount: saAmount,
     currency: saAmountCurr,
   } of transaction.startingActions) {
+    console.assert(conductors.length === 1);
     for (const { linkToSub: condId } of conductors) {
       for (const {
         beneficiaries = [],
-        detailsOfDispo: caDetailsOfDispo,
+        detailsOfDispo,
+        detailsOfDispoOther,
       } of transaction.completingActions) {
-        const txnTypeKey = getTxnType(
-          saTypeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS,
-          caDetailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION,
-          methodOfTxn,
-        );
+        const txnTypeKey = getTxnType({
+          typeOfFunds: typeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS,
+          detailsOfDispo: detailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION,
+          detailsOfDispoOther,
+        });
 
         const isConductorABeneficiary = (conductorId: string) =>
           beneficiaries.some(({ linkToSub: benId }) => benId === conductorId);
@@ -783,16 +792,19 @@ function normalize(
 
 const COLOR_FOCAL_PERSON = '#d32f2f';
 const COLOR_FOCAL_ENTITY = '#00e676';
+const COLOR_CIBC_RED = '#B00B1C'; // CIBC official brand color
+
 const NODES = [
-  { name: 'CIBC Person', itemStyle: { color: '#1e88e5' } }, // 0 - Modern blue
-  { name: 'CIBC Entity', itemStyle: { color: '#43a047' } }, // 1 - Forest green
+  { name: 'CIBC Person', itemStyle: { color: COLOR_CIBC_RED } }, // 0 - CIBC official red
+  { name: 'CIBC Entity', itemStyle: { color: '#8B0616' } }, // 1 - Darker CIBC red variant
   { name: 'Account', itemStyle: { color: '#ffa726' } }, // 2 - Warm orange
-  { name: 'External Person', itemStyle: { color: '#ab47bc' } }, // 3 - Purple
+  { name: 'External Person', itemStyle: { color: '#9575cd' } }, // 3 - Medium purple
   { name: 'External Entity', itemStyle: { color: '#26a69a' } }, // 4 - Teal
-  { name: 'Unknown', itemStyle: { color: '#78909c' } }, // 5 - Blue gray
+  { name: 'Unknown', itemStyle: { color: '#90a4ae' } }, // 5 - Blue gray
   { name: 'Focal Person', itemStyle: { color: COLOR_FOCAL_PERSON } }, // 6 - Deep red
   { name: 'Focal Entity', itemStyle: { color: COLOR_FOCAL_ENTITY } }, // 7 - Bright neon green
-  { name: 'Focal Account', itemStyle: { color: '#ff2f65' } }, // 8 - Deep amber
+  { name: 'Focal Account', itemStyle: { color: '#ff6f00' } }, // 8 - Deep orange/amber
+  { name: 'Merchant', itemStyle: { color: '#4527a0' } }, // 9 - Indigo purple
 ];
 
 export function getNodeName(num: number) {
@@ -855,16 +867,12 @@ type GraphNodeItemOption = Extract<
   { name?: string }
 >;
 
-type DIRECTION_OF_SA = 'In' | 'Out';
+export type DIRECTION_OF_SA = 'In' | 'Out';
 
 const SYMBOL_MIN_SIZE = 20;
 const SYMBOL_MAX_SIZE = 30;
 const SYMBOL_ACCOUNT_SIZE = 20;
 const LINK_OPACITY = 0.8;
-
-export function formatCurrencyLocal(val: number) {
-  return formatCurrency(val, 'en-US', '$', 'USD', '1.2-2');
-}
 
 type LabelFormatter = Exclude<
   NonNullable<NonNullable<GraphSeriesOption['label']>['formatter']>,

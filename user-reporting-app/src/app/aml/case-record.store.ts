@@ -212,11 +212,13 @@ export class CaseRecordStore implements OnDestroy {
         selectionsWithPendingChanges,
         selectionsToAdd,
         selectionsToRemove,
+        resetAndAddSelections,
         selections,
       }) =>
         (selectionsWithPendingChanges ?? []).length > 0 ||
         (selectionsToAdd ?? []).length > 0 ||
         (selectionsToRemove ?? []).length > 0 ||
+        (resetAndAddSelections ?? []).length > 0 ||
         selections.length === 0, // Allow pass-through for reset/clear scenarios
     ),
     map(
@@ -225,8 +227,19 @@ export class CaseRecordStore implements OnDestroy {
         selectionsWithPendingChanges = [],
         selectionsToAdd = [],
         selectionsToRemove = [],
+        resetAndAddSelections = [],
         parties: currentParties,
       }) => {
+        if (resetAndAddSelections.length > 0) {
+          const _cloneSelectionIds = structuredClone(resetAndAddSelections);
+          // eslint-disable-next-line no-param-reassign
+          resetAndAddSelections.length = 0;
+          return resetAndAddSelectionsHandler({
+            selections: currentSelections,
+            selectionsToAdd: _cloneSelectionIds,
+            parties: currentParties,
+          });
+        }
         if (selectionsWithPendingChanges.length > 0) {
           const _cloneSelectionIds = structuredClone(
             selectionsWithPendingChanges,
@@ -765,7 +778,7 @@ export class CaseRecordStore implements OnDestroy {
             ...this._state$.value,
             selections,
             parties,
-            selectionsToAdd: selections.map(
+            resetAndAddSelections: selections.map(
               (sel) => sel.flowOfFundsAmlTransactionId,
             ),
           });
@@ -1008,6 +1021,7 @@ export interface CaseRecordState {
   selectionsWithPendingChanges?: PendingChange['flowOfFundsAmlTransactionId'][];
   selectionsToAdd?: StrTransactionWithChangeLogs['flowOfFundsAmlTransactionId'][];
   selectionsToRemove?: StrTransactionWithChangeLogs['flowOfFundsAmlTransactionId'][];
+  resetAndAddSelections?: StrTransactionWithChangeLogs['flowOfFundsAmlTransactionId'][];
   searchResponse: TransactionSearchResponse;
 }
 
@@ -1120,6 +1134,31 @@ const addSelectionsHandler = ({
         .map(setRowValidationInfo)
         .map(enrichParties),
     ];
+  };
+};
+
+const resetAndAddSelectionsHandler = ({
+  selections,
+  selectionsToAdd,
+  parties,
+}: {
+  selections: StrTransactionWithChangeLogs[];
+  selectionsToAdd: NonNullable<CaseRecordState['resetAndAddSelections']>;
+  parties: WithCaseRecordId<PartyGenType>[];
+}) => {
+  return (_acc: StrTransactionWithChangeLogs[]) => {
+    // Ignore accumulator - start fresh
+    const enrichParties = createTransactionPartyEnricher(parties);
+
+    return selections
+      .filter((sel) =>
+        selectionsToAdd.includes(sel.flowOfFundsAmlTransactionId),
+      )
+      .map((txn) => {
+        return ChangeLog.applyChangeLogs(txn, txn.changeLogs);
+      })
+      .map(setRowValidationInfo)
+      .map(enrichParties);
   };
 };
 

@@ -1,15 +1,17 @@
+import { formatCurrency, getCurrencySymbol } from '@angular/common';
 import { FormGroup } from '@angular/forms';
+import { StrTransactionWithChangeLogs } from '../../aml/case-record.store';
 import {
   CompletingAction,
   ConductorNpdData,
   StartingAction,
+  VALIDATION_KEYS,
 } from '../reporting-ui-table/reporting-ui-table.component';
 import { RecursiveOmit, TypedForm } from './edit-form.component';
 import {
   FORM_OPTIONS_DETAILS_OF_DISPOSITION,
   FORM_OPTIONS_TYPE_OF_FUNDS,
 } from './form-options.service';
-import { StrTransactionWithChangeLogs } from '../../aml/case-record.store';
 
 export const hasPersonName = (cond: {
   _hiddenSurname?: string | null;
@@ -18,7 +20,7 @@ export const hasPersonName = (cond: {
   _hiddenNameOfEntity?: string | null;
 }) =>
   !!cond._hiddenGivenName &&
-  !!cond._hiddenSurname &&
+  (true || !!cond._hiddenSurname) &&
   (true || !!cond._hiddenOtherOrInitial);
 
 export const hasEntityName = (cond: {
@@ -56,8 +58,9 @@ export function hasMissingAccountInfo(
     (action.detailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION) ===
       'Deposit to account';
 
+  const { fiuNo } = action;
   if (
-    (isDepositToAccount || action.fiuNo === '010') &&
+    (isDepositToAccount || isCibcFi(fiuNo)) &&
     (!action.branch ||
       !action.account ||
       !action.accountType ||
@@ -190,4 +193,39 @@ export function hasMissingBasicInfo(
 
   // All validations passed
   return false;
+}
+
+export function isCibcFi(fiuNo: string | null | undefined): boolean {
+  return fiuNo === '010';
+}
+
+export const hasDataIntegrity = (sel: StrTransactionWithChangeLogs) =>
+  (sel._hiddenValidation ?? []).every((v) => !VALIDATION_KEYS.includes(v));
+
+/**
+ * Formats a number as currency using locale rules and currency symbol
+ * @param value - The numeric value to format
+ * @param currencyCode - ISO 4217 currency code (CAD, USD, INR, etc.)
+ * @param locale - Locale code (default: 'en-CA' for Canadian English)
+ * @param digitsInfo - Decimal representation (default: '1.2-2' means min 1 digit, 2-2 decimal places)
+ * @returns Formatted currency string
+ */
+export function formatCurrencyLocal({
+  value,
+  currencyCode = 'CAD',
+  locale = 'en-CA',
+  digitsInfo = '1.2-2',
+}: {
+  value: number;
+  currencyCode?: string;
+  locale?: string;
+  digitsInfo?: string;
+}): string {
+  return formatCurrency(
+    value,
+    locale,
+    getCurrencySymbol(currencyCode, 'wide'),
+    currencyCode,
+    digitsInfo,
+  );
 }

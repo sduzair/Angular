@@ -1,3 +1,4 @@
+import { formatCurrencyLocal } from '../../reporting-ui/edit-form/common-validation';
 import {
   PartyAccount,
   PartyAddress,
@@ -10,12 +11,7 @@ import {
   NODE_ENUM,
   TRANSACTION_TYPE_FRIENDLY_NAME,
 } from '../account-transaction-totals.service';
-import {
-  formatCurrencyLocal,
-  getNodeName,
-  GraphNode,
-  TxnTypeAmount,
-} from './circular.component';
+import { getNodeName, GraphNode, TxnTypeAmount } from './circular.component';
 
 /**
  * Copy node data to clipboard
@@ -160,14 +156,20 @@ function aggregateCurrencyTotalsByTxnType({
         receivedByCurrency: Array.from(receivedMapByCurr.entries()).map(
           ([currency, data]) => ({
             currency,
-            amount: formatCurrencyLocal(data.amount),
+            amount: formatCurrencyLocal({
+              value: data.amount,
+              currencyCode: currency,
+            }),
             count: data.count,
           }),
         ),
         sentByCurrency: Array.from(sentMapByCurr.entries()).map(
           ([currency, data]) => ({
             currency,
-            amount: formatCurrencyLocal(data.amount),
+            amount: formatCurrencyLocal({
+              value: data.amount,
+              currencyCode: currency,
+            }),
             count: data.count,
           }),
         ),
@@ -223,14 +225,20 @@ function aggregateCurrencyTotals({
     receivedByCurrency: Array.from(receivedMap.entries())
       .map(([currency, data]) => ({
         currency,
-        amount: formatCurrencyLocal(data.amount),
+        amount: formatCurrencyLocal({
+          value: data.amount,
+          currencyCode: currency,
+        }),
         count: data.count,
       }))
       .sort((a, b) => b.count - a.count), // Sort by transaction count
     sentByCurrency: Array.from(sentMap.entries())
       .map(([currency, data]) => ({
         currency,
-        amount: formatCurrencyLocal(data.amount),
+        amount: formatCurrencyLocal({
+          value: data.amount,
+          currencyCode: currency,
+        }),
         count: data.count,
       }))
       .sort((a, b) => b.count - a.count),
@@ -324,7 +332,7 @@ export function formatNodeDataAsHtml(data: NodeDisplayData): string {
     if (receivedByCurrency.length > 0) {
       receivedByCurrency.forEach((currencyData) => {
         html += `<span style="font-size: 13px; color: #52c41a;">`;
-        html += `  ← Received: ${currencyData.amount} ${currencyData.currency}`;
+        html += `  ← Received: ${currencyData.amount}`;
         html += ` (${currencyData.count} tx)`;
         html += `</span><br/>`;
       });
@@ -334,7 +342,7 @@ export function formatNodeDataAsHtml(data: NodeDisplayData): string {
     if (sentByCurrency.length > 0) {
       sentByCurrency.forEach((currencyData) => {
         html += `<span style="font-size: 13px; color: #f5222d;">`;
-        html += `  → Sent: ${currencyData.amount} ${currencyData.currency}`;
+        html += `  → Sent: ${currencyData.amount}`;
         html += ` (${currencyData.count} tx)`;
         html += `</span><br/>`;
       });
@@ -352,7 +360,7 @@ export function formatNodeDataAsHtml(data: NodeDisplayData): string {
       if (typeData.receivedByCurrency.length > 0) {
         typeData.receivedByCurrency.forEach((currencyData) => {
           html += `<span style="font-size: 13px; color: #52c41a;">`;
-          html += `  ← Received: ${currencyData.amount} ${currencyData.currency}`;
+          html += `  ← Received: ${currencyData.amount}`;
           html += ` (${currencyData.count} tx)`;
           html += `</span><br/>`;
         });
@@ -361,7 +369,7 @@ export function formatNodeDataAsHtml(data: NodeDisplayData): string {
       if (typeData.sentByCurrency.length > 0) {
         typeData.sentByCurrency.forEach((currencyData) => {
           html += `<span style="font-size: 13px; color: #f5222d;">`;
-          html += `  → Sent: ${currencyData.amount} ${currencyData.currency}`;
+          html += `  → Sent: ${currencyData.amount}`;
           html += ` (${currencyData.count} tx)`;
           html += `</span><br/>`;
         });
@@ -448,11 +456,11 @@ function formatNodeDataAsText(data: NodeDisplayData | undefined): string {
     }
 
     receivedByCurrency.forEach((currencyData) => {
-      text += `  ← Received: ${currencyData.amount} ${currencyData.currency} (${currencyData.count} tx)\n`;
+      text += `  ← Received: ${currencyData.amount} (${currencyData.count} tx)\n`;
     });
 
     sentByCurrency.forEach((currencyData) => {
-      text += `  → Sent: ${currencyData.amount} ${currencyData.currency} (${currencyData.count} tx)\n`;
+      text += `  → Sent: ${currencyData.amount} (${currencyData.count} tx)\n`;
     });
   }
 
@@ -463,11 +471,11 @@ function formatNodeDataAsText(data: NodeDisplayData | undefined): string {
       text += `\n${typeData.txnType}:\n`;
 
       typeData.receivedByCurrency.forEach((currencyData) => {
-        text += `  ← Received: ${currencyData.amount} ${currencyData.currency} (${currencyData.count} tx)\n`;
+        text += `  ← Received: ${currencyData.amount} (${currencyData.count} tx)\n`;
       });
 
       typeData.sentByCurrency.forEach((currencyData) => {
-        text += `  → Sent: ${currencyData.amount} ${currencyData.currency} (${currencyData.count} tx)\n`;
+        text += `  → Sent: ${currencyData.amount} (${currencyData.count} tx)\n`;
       });
     });
   }

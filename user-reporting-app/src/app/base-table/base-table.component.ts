@@ -90,7 +90,10 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
         <mat-toolbar-row class="px-0 header-toolbar-row">
           <!-- Active Filter Chips -->
           <mat-chip-set aria-label="Active filters" class="filter-chips">
-            @for (filter of filterFormActiveFilters$ | async; track filter) {
+            @for (
+              filter of filterFormActiveFilters$ | async;
+              track filter.sanitizedKey
+            ) {
               <mat-chip
                 removable="true"
                 highlighted="true"

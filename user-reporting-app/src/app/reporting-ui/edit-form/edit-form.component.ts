@@ -585,6 +585,22 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           matInput
                           formControlName="reportingEntityLocationNo" />
                         <button
+                          [disabled]="!this.isBulkEdit"
+                          type="button"
+                          appMarkAsCleared
+                          mat-icon-button
+                          matSuffix>
+                          <mat-icon>backspace</mat-icon>
+                        </button>
+                        <button
+                          [disabled]="!this.isBulkEdit"
+                          type="button"
+                          appToggleEditField
+                          mat-icon-button
+                          matSuffix>
+                          <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
                           [disabled]="this.isBulkEdit"
                           type="button"
                           appClearField

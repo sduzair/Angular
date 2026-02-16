@@ -20,3 +20,7 @@ mat-form-field {
 .risk-display {
   scrollbar-width: thin;
 }
+
+::ng-deep .account-select .mat-mdc-form-field-infix {
+  width: 200px;
+}

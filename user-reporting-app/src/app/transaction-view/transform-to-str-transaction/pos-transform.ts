@@ -9,6 +9,7 @@ import {
 import {
   AccountHolder,
   CompletingAction,
+  Conductor,
   StartingAction,
 } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import {
@@ -95,13 +96,14 @@ export function transformPOSToStrTransaction({
       partyInfoObservables[
         `merchant_${posTxn.merchantName}_${posTxn.merchantCity}`
       ] = generateParty({
-        identifiers: {},
+        identifiers: { merchantPhone: posTxn.merchantCity },
         partyName: {
           ...parseMerchantName(posTxn),
         },
         address: {
           ...parseMerchantAddress(posTxn),
         },
+        sourceSystem: 'POS',
       });
 
       return forkJoin({
@@ -140,6 +142,30 @@ export function transformPOSToStrTransaction({
             return acc;
           }, [] as AccountHolder[]) ?? [];
 
+      const conductors: Conductor[] = [];
+      conductors.push({
+        linkToSub:
+          partiesInfo[String(posTxn.flowOfFundsConductorEcif)]
+            ?.partyIdentifier!,
+        _hiddenPartyKey:
+          partiesInfo[String(posTxn.flowOfFundsConductorEcif)]?.identifiers
+            ?.partyKey!,
+        _hiddenGivenName:
+          partiesInfo[String(posTxn.flowOfFundsConductorEcif)]?.partyName
+            ?.givenName!,
+        _hiddenSurname:
+          partiesInfo[String(posTxn.flowOfFundsConductorEcif)]?.partyName
+            ?.surname!,
+        _hiddenOtherOrInitial:
+          partiesInfo[String(posTxn.flowOfFundsConductorEcif)]?.partyName
+            ?.otherOrInitial!,
+        _hiddenNameOfEntity:
+          partiesInfo[String(posTxn.flowOfFundsConductorEcif)]?.partyName
+            ?.nameOfEntity!,
+        wasConductedOnBehalf: false,
+        onBehalfOf: [],
+      });
+
       startingActions.push({
         directionOfSA: posTxn.strSaDirection || 'Out',
         typeOfFunds:
@@ -164,16 +190,7 @@ export function transformPOSToStrTransaction({
         wasSofInfoObtained: posTxn.strSaFundingSourceInd === 'Yes',
         sourceOfFunds: [],
         wasCondInfoObtained: posTxn.strSaConductorInd === 'Yes',
-        conductors: saAccountHolders.map((holder) => ({
-          linkToSub: holder.linkToSub,
-          _hiddenPartyKey: holder._hiddenPartyKey,
-          _hiddenGivenName: holder._hiddenGivenName,
-          _hiddenSurname: holder._hiddenSurname,
-          _hiddenOtherOrInitial: holder._hiddenOtherOrInitial,
-          _hiddenNameOfEntity: holder._hiddenNameOfEntity,
-          wasConductedOnBehalf: posTxn.strSaOboInd === 'Yes',
-          onBehalfOf: [],
-        })),
+        conductors: conductors,
       });
 
       // Build completing actions - Merchant receiving payment

@@ -32,7 +32,7 @@ import { CanvasRenderer } from 'echarts/renderers';
 import { debounceTime, distinctUntilChanged, Subject } from 'rxjs';
 import { TransactionDateDirective } from '../../reporting-ui/edit-form/transaction-date.directive';
 import { StrTransaction } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
-import { formatCurrencyLocal } from '../circular/circular.component';
+import { formatCurrencyLocal } from '../../reporting-ui/edit-form/common-validation';
 
 // Register only what you need
 echarts.use([
@@ -74,6 +74,11 @@ export class MonthlyTxnVolumeComponent
   private resizeObserver: ResizeObserver | undefined;
 
   @Input({ required: true }) transactions: StrTransaction[] = [];
+  @Input({ required: true }) account: {
+    account: string;
+    currency: string;
+    transit: string;
+  } | null = null;
   @Output() readonly zoomChange = new EventEmitter<{
     start: string;
     end: string;
@@ -108,22 +113,20 @@ export class MonthlyTxnVolumeComponent
     });
     this.resizeObserver.observe(this.chartContainer.nativeElement);
 
-    if (this.transactions.length > 0) {
-      this.updateChart();
-    }
+    if (this.transactions.length <= 0) return;
+
+    this.updateChart();
   }
 
   private updateChart(): void {
     if (!this.myChart) return;
 
-    const { monthlyData, accounts } = this.processMonthlyDataByAccount(
-      this.transactions,
-    );
+    const { monthlyData } = this.groupByMonth(this.transactions);
 
     // Create series for each account (credits and debits)
     const series: ECOption['series'] = [];
 
-    accounts.forEach((accountId, index) => {
+    [this.account!.account].forEach((accountId, index) => {
       const color = this.accountColors[index % this.accountColors.length];
 
       // Credit series for this account (positive, stacked upward)
@@ -131,7 +134,7 @@ export class MonthlyTxnVolumeComponent
         name: `${accountId} (CR)`,
         type: 'bar',
         stack: 'credits',
-        data: monthlyData.map((m) => m.accountCredits.get(accountId) || 0),
+        data: monthlyData.map((m) => m.credits || 0),
         itemStyle: {
           color: color,
           opacity: 0.9,
@@ -146,7 +149,7 @@ export class MonthlyTxnVolumeComponent
         name: `${accountId} (DB)`,
         type: 'bar',
         stack: 'debits',
-        data: monthlyData.map((m) => -(m.accountDebits.get(accountId) || 0)),
+        data: monthlyData.map((m) => -(m.debits || 0)),
         itemStyle: {
           color: color,
           opacity: 0.6,
@@ -174,58 +177,48 @@ export class MonthlyTxnVolumeComponent
           if (!Array.isArray(params)) return '';
 
           const month = 'axisValue' in params[0] ? params[0].axisValue : null;
-          let result = `<strong>${month}</strong><br/><br/>`;
 
-          // Group by account
-          const accountMap = new Map<
-            string,
-            { credit: number; debit: number }
-          >();
+          let credit = 0;
+          let debit = 0;
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           params.forEach((item: any) => {
             const match = item.seriesName.match(/^(.+) \((CR|DB)\)$/);
-            if (match) {
-              const account = match[1];
-              const type = match[2];
+            if (!match) return;
 
-              if (!accountMap.has(account)) {
-                accountMap.set(account, { credit: 0, debit: 0 });
-              }
-
-              const data = accountMap.get(account)!;
-              if (type === 'CR') {
-                data.credit = item.value;
-              } else {
-                data.debit = Math.abs(item.value);
-              }
+            const type = match[2];
+            if (type === 'CR') {
+              credit = item.value;
+            } else {
+              debit = Math.abs(item.value);
             }
           });
 
-          // Display by account
-          let totalCredits = 0;
-          let totalDebits = 0;
+          const currency = this.account!.currency;
 
-          accountMap.forEach((data, account) => {
-            if (data.credit > 0 || data.debit > 0) {
-              result += `<strong>${account}</strong><br/>`;
-              if (data.credit > 0) {
-                result += `  ↑ Credit: ${formatCurrencyLocal(data.credit)}<br/>`;
-                totalCredits += data.credit;
-              }
-              if (data.debit > 0) {
-                result += `  ↓ Debit: ${formatCurrencyLocal(data.debit)}<br/>`;
-                totalDebits += data.debit;
-              }
-              result += '<br/>';
-            }
-          });
+          let result = `<div style="font-size: 13px;">`;
+          result += `<strong>${month}</strong><br/>`;
+          result += `<span>Transit: ${this.account?.transit}</span><br/>`;
+          result += `<span>Account: ${this.account?.account}</span><br/>`;
+          result += '<hr style="margin: 4px 0; border-color: #ddd"/>';
 
-          result += `<hr style="margin: 4px 0"/>`;
-          // result += `<strong>Total Credits: ${formatCurrencyLocal(totalCredits)}</strong><br/>`;
-          // result += `<strong>Total Debits: ${formatCurrencyLocal(totalDebits)}</strong><br/>`;
-          result += `<strong>Net Flow: ${formatCurrencyLocal(totalCredits - totalDebits)}</strong>`;
+          if (credit > 0) {
+            result += `<span style="color: #22c55e;">↑ Credit:</span> ${formatCurrencyLocal({ value: credit, currencyCode: currency })}<br/>`;
+          }
+          if (debit > 0) {
+            result += `<span style="color: #ef4444;">↓ Debit:</span> ${formatCurrencyLocal({ value: credit, currencyCode: currency })}<br/>`;
+          }
 
+          if (credit > 0 && debit > 0) {
+            const netFlow = credit - debit;
+            const netColor = netFlow >= 0 ? '#22c55e' : '#ef4444';
+            const netLabel = netFlow >= 0 ? 'Inflow' : 'Outflow';
+
+            result += '<hr style="margin: 4px 0; border-color: #ddd"/>';
+            result += `<strong style="color: ${netColor};">${netLabel}:</strong> ${formatCurrencyLocal({ value: Math.abs(netFlow), currencyCode: currency })}`;
+          }
+
+          result += `</div>`;
           return result;
         },
       },
@@ -307,12 +300,10 @@ export class MonthlyTxnVolumeComponent
     this.myChart.setOption(option);
   }
 
-  private processMonthlyDataByAccount(data: StrTransaction[]): {
+  private groupByMonth(data: StrTransaction[]): {
     monthlyData: AccountMonthlyData[];
-    accounts: string[];
   } {
     const monthMap = new Map<string, AccountMonthlyData>();
-    const accountsSet = new Set<string>();
 
     data.forEach((txn) => {
       const { wasTxnAttempted } = txn;
@@ -329,37 +320,29 @@ export class MonthlyTxnVolumeComponent
 
       const monthKey = `${year}-${String(month).padStart(2, '0')}`;
 
-      // Initialize month if new
-      if (!monthMap.has(monthKey)) {
-        monthMap.set(monthKey, {
-          month: '',
-          accountCredits: new Map(),
-          accountDebits: new Map(),
-          accountNetFlow: new Map(),
-        });
-      }
+      const monthData = monthMap.get(monthKey) ?? {
+        month: '',
+        credits: 0,
+        debits: 0,
+        netFlow: 0,
+      };
 
-      const monthData = monthMap.get(monthKey)!;
-
-      // Extract account information
-      const creditAccount = txn.flowOfFundsCreditedAccount;
-      const debitAccount = txn.flowOfFundsDebitedAccount;
       const creditAmount = txn.flowOfFundsCreditAmount || 0;
       const debitAmount = txn.flowOfFundsDebitAmount || 0;
 
       // Process credits
-      if (creditAccount && creditAmount > 0) {
-        accountsSet.add(creditAccount);
-        const current = monthData.accountCredits.get(creditAccount) || 0;
-        monthData.accountCredits.set(creditAccount, current + creditAmount);
+      if (creditAmount > 0) {
+        console.assert(!!txn.flowOfFundsCreditedAccount);
+        monthData.credits += creditAmount;
       }
 
       // Process debits
-      if (debitAccount && debitAmount > 0) {
-        accountsSet.add(debitAccount);
-        const current = monthData.accountDebits.get(debitAccount) || 0;
-        monthData.accountDebits.set(debitAccount, current + debitAmount);
+      if (debitAmount > 0) {
+        console.assert(!!txn.flowOfFundsDebitedAccount);
+        monthData.debits += debitAmount;
       }
+
+      monthMap.set(monthKey, monthData);
     });
 
     // Convert to sorted array
@@ -376,23 +359,20 @@ export class MonthlyTxnVolumeComponent
         year: 'numeric',
       });
 
-      for (const account of accountsSet.values()) {
-        const credits = data.accountCredits.get(account) || 0;
-        const debits = data.accountDebits.get(account) || 0;
-        data.accountNetFlow.set(account, credits - debits);
-      }
+      const credits = data.credits;
+      const debits = data.debits;
+      data.netFlow = credits - debits;
 
       monthlyData.push({
         month: monthName,
-        accountCredits: data.accountCredits,
-        accountDebits: data.accountDebits,
-        accountNetFlow: data.accountNetFlow,
+        credits: data.credits,
+        debits: data.debits,
+        netFlow: data.netFlow,
       });
     });
 
     return {
       monthlyData,
-      accounts: Array.from(accountsSet).sort(),
     };
   }
 
@@ -475,9 +455,9 @@ export class MonthlyTxnVolumeComponent
 
 interface AccountMonthlyData {
   month: string;
-  accountCredits: Map<string, number>;
-  accountDebits: Map<string, number>;
-  accountNetFlow: Map<string, number>;
+  credits: number;
+  debits: number;
+  netFlow: number;
 }
 
 type CallbackType = Exclude<

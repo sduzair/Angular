@@ -3,10 +3,9 @@
 }
 
 .copy-btn {
-  position: absolute;
+  position: sticky;
+  margin-left: auto;
   top: 0rem;
-  right: -0.5rem;
-  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -18,6 +17,8 @@
   z-index: 10;
 
   mat-icon {
+    position: absolute;
+    top: 0.2rem;
     color: #666;
   }
 

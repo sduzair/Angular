@@ -653,7 +653,7 @@ const validationColors: Record<_hiddenValidationType, string> = {
   missingBasicInfo: '#dc3545',
 };
 
-export const validationKeys = Object.keys(validationColors).filter(
+export const VALIDATION_KEYS = Object.keys(validationColors).filter(
   (k) => k !== 'edited',
 ) as _hiddenValidationType[];
 

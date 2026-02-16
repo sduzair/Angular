@@ -14,9 +14,11 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatToolbar } from '@angular/material/toolbar';
+import { MatTooltip } from '@angular/material/tooltip';
 import {
   catchError,
   combineLatest,
+  debounceTime,
   filter,
   forkJoin,
   map,
@@ -24,15 +26,23 @@ import {
   shareReplay,
   switchMap,
   take,
+  tap,
 } from 'rxjs';
 import { CaseRecordStore } from '../aml/case-record.store';
+import { formatCurrencyLocal } from '../reporting-ui/edit-form/common-validation';
 import { TransactionDateDirective } from '../reporting-ui/edit-form/transaction-date.directive';
 import { StrTransaction } from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import { TransactionSearchService } from '../transaction-search/transaction-search.service';
-import { hasManualTransaction } from './account-transaction-totals.service';
+import {
+  getTxnType,
+  hasManualTransaction,
+  TRANSACTION_TYPE_ENUM,
+} from './account-transaction-totals.service';
 import { CircularComponent } from './circular/circular.component';
 import { MonthlyTxnVolumeComponent } from './monthly-txn-volume/monthly-txn-volume.component';
 import { TxnTypeBreakdownComponent } from './txn-type-breakdown/txn-type-breakdown.component';
+import { MatIcon } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
 
 @Component({
   selector: 'app-analytics',
@@ -48,6 +58,9 @@ import { TxnTypeBreakdownComponent } from './txn-type-breakdown/txn-type-breakdo
     MatOption,
     ReactiveFormsModule,
     MatChipsModule,
+    MatTooltip,
+    MatButtonModule,
+    MatIcon,
   ],
   template: `
     <div class="row g-2">
@@ -55,91 +68,114 @@ import { TxnTypeBreakdownComponent } from './txn-type-breakdown/txn-type-breakdo
         <div class="d-flex w-100 align-items-center gap-3">
           <!-- Risk Metrics Display -->
           @if (riskMetrics$ | async; as metrics) {
-            <div
-              class="d-flex align-items-center gap-2 overflow-x-auto fs-5 risk-display">
-              <!-- <mat-icon
-                [class.text-danger]="metrics.riskLevel === 'HIGH'"
-                [class.text-warning]="metrics.riskLevel === 'MEDIUM'"
-                [class.text-success]="metrics.riskLevel === 'LOW'">
-                {{
-                  metrics.riskLevel === 'HIGH'
-                    ? 'warning'
-                    : metrics.riskLevel === 'MEDIUM'
-                      ? 'info'
-                      : 'check_circle'
-                }}
-              </mat-icon>
-              <span
-                class="small fw-bold"
-                [class.text-danger]="metrics.riskLevel === 'HIGH'"
-                [class.text-warning]="metrics.riskLevel === 'MEDIUM'">
-                {{ metrics.riskLevel }}
-              </span>
+            @if (currentAccount$ | async; as currentAccount) {
+              <div
+                class="d-flex align-items-center gap-2 overflow-x-auto overflow-y-hidden fs-5 risk-display">
+                <div class="d-flex gap-3 small">
+                  <div>
+                    <span class="text-muted">Flow:</span>
+                    <strong
+                      [class.text-danger]="
+                        metrics.flowThroughRatio > FLOW_THROUGH_HIGH
+                      "
+                      [class.text-warning]="
+                        metrics.flowThroughRatio > FLOW_THROUGH_MEDIUM &&
+                        metrics.flowThroughRatio <= FLOW_THROUGH_HIGH
+                      ">
+                      {{ metrics.flowThroughRatio | number: '1.2-2' }}
+                    </strong>
+                  </div>
 
-              <span class="vr"></span> -->
+                  <span class="vr"></span>
 
-              <div class="d-flex gap-3 small">
-                <div>
-                  <span class="text-muted">Flow:</span>
-                  <strong
-                    [class.text-danger]="metrics.flowThroughRatio > 0.85"
-                    [class.text-warning]="
-                      metrics.flowThroughRatio > 0.7 &&
-                      metrics.flowThroughRatio <= 0.85
-                    ">
-                    {{ metrics.flowThroughRatio | number: '1.2-2' }}
-                  </strong>
+                  <div>
+                    <span class="text-muted">Velocity:</span>
+                    <strong [class.text-danger]="metrics.velocityRatio > 50000">
+                      {{
+                        formatCurrency(
+                          metrics.velocityRatio,
+                          currentAccount.currency
+                        )
+                      }}/d
+                    </strong>
+                  </div>
+
+                  <!-- Structuring per currency -->
+                  @if (Object.keys(metrics.structuringByCurrency).length > 0) {
+                    <span class="vr"></span>
+
+                    @for (
+                      currencyKey of Object.keys(metrics.structuringByCurrency);
+                      track currencyKey
+                    ) {
+                      @let currData =
+                        metrics.structuringByCurrency[currencyKey];
+                      <div class="d-flex align-items-center gap-1">
+                        <span class="text-muted"
+                          >Structure ({{ currData.currency }}):</span
+                        >
+                        <strong
+                          [class.text-danger]="
+                            currData.ratio > STRUCTURING_RATIO_HIGH
+                          "
+                          [class.text-warning]="
+                            currData.ratio > STRUCTURING_RATIO_MEDIUM &&
+                            currData.ratio <= STRUCTURING_RATIO_HIGH
+                          ">
+                          {{ currData.ratio | number: '1.2-2' }}
+                        </strong>
+                        <button
+                          type="button"
+                          mat-icon-button
+                          aria-label="Threshold info"
+                          [matTooltip]="
+                            currData.belowThreshold +
+                            '/' +
+                            currData.totalDeposits +
+                            ' deposits below ' +
+                            formatCurrency(
+                              STRUCTURING_THRESHOLD,
+                              currData.currency
+                            )
+                          "
+                          matTooltipPosition="below">
+                          <mat-icon color="info">info_outline</mat-icon>
+                        </button>
+                      </div>
+                      @if (!$last) {
+                        <span class="vr"></span>
+                      }
+                    }
+                  }
+
+                  <span class="vr"></span>
+
+                  <div>
+                    <span class="text-muted">In:</span>
+                    <strong class="text-success">
+                      {{
+                        formatCurrency(
+                          metrics.totalInflow,
+                          currentAccount.currency
+                        )
+                      }}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span class="text-muted">Out:</span>
+                    <strong class="text-danger">
+                      {{
+                        formatCurrency(
+                          metrics.totalOutflow,
+                          currentAccount.currency
+                        )
+                      }}
+                    </strong>
+                  </div>
                 </div>
 
-                <span class="vr"></span>
-
-                <div>
-                  <span class="text-muted">Velocity:</span>
-                  <strong [class.text-danger]="metrics.velocityRatio > 50000">
-                    {{
-                      metrics.velocityRatio
-                        | currency: 'CAD' : 'symbol' : '1.0-0'
-                    }}/d
-                  </strong>
-                </div>
-
-                <span class="vr"></span>
-
-                <div>
-                  <span class="text-muted">Structure:</span>
-                  <strong
-                    [class.text-danger]="metrics.structuralActivityRatio > 0.7"
-                    [class.text-warning]="
-                      metrics.structuralActivityRatio > 0.5 &&
-                      metrics.structuralActivityRatio <= 0.7
-                    ">
-                    {{ metrics.structuralActivityRatio | number: '1.2-2' }}
-                  </strong>
-                </div>
-
-                <span class="vr"></span>
-
-                <div>
-                  <span class="text-muted">In:</span>
-                  <strong class="text-success">
-                    {{
-                      metrics.totalInflow | currency: 'CAD' : 'symbol' : '1.0-0'
-                    }}
-                  </strong>
-                </div>
-
-                <div>
-                  <span class="text-muted">Out:</span>
-                  <strong class="text-danger">
-                    {{
-                      metrics.totalOutflow
-                        | currency: 'CAD' : 'symbol' : '1.0-0'
-                    }}
-                  </strong>
-                </div>
-              </div>
-
-              <!-- @if (metrics.riskFlags.length > 0) {
+                <!-- @if (metrics.riskFlags.length > 0) {
                 <span class="vr"></span>
                 <mat-chip-set class="d-flex">
                   @for (flag of metrics.riskFlags; track flag) {
@@ -147,18 +183,20 @@ import { TxnTypeBreakdownComponent } from './txn-type-breakdown/txn-type-breakdo
                   }
                 </mat-chip-set>
               } -->
-            </div>
+              </div>
+            }
           }
 
           <div class="flex-grow-1"></div>
 
           <!-- Account Filter -->
           <form [formGroup]="filterForm">
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-form-field
+              class="account-select"
+              appearance="outline"
+              subscriptSizing="dynamic">
               <mat-label>Account</mat-label>
-              <mat-select
-                formControlName="account"
-                (selectionChange)="setSelectedAccountFromSelect($event.value)">
+              <mat-select formControlName="account">
                 @for (
                   account of accountsSelection$ | async;
                   track account.account
@@ -194,13 +232,15 @@ import { TxnTypeBreakdownComponent } from './txn-type-breakdown/txn-type-breakdo
           <app-monthly-txn-volume
             class="col"
             [transactions]="(filteredSelectionsByAccount$ | async) || []"
+            [account]="currentAccount$ | async"
             (zoomChange)="onZoomChange($event)">
           </app-monthly-txn-volume>
           <app-txn-type-breakdown
             class="col"
             [transactions]="
               (filteredSelectionsByAccountAndPeriod$ | async) || []
-            ">
+            "
+            [account]="currentAccount$ | async">
           </app-txn-type-breakdown>
         </div>
       </div>
@@ -281,9 +321,28 @@ export class AnalyticsComponent implements AfterViewInit {
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
+  currentAccount$ = this.filterForm.controls.account.valueChanges.pipe(
+    switchMap((account) =>
+      this.accountsSelection$.pipe(
+        map((sel) => sel.find((a) => a.account === account)!),
+      ),
+    ),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
   filteredSelectionsByAccount$ = combineLatest([
     this.selections$,
-    this.filterForm.controls.account.valueChanges,
+    this.filterForm.controls.account.valueChanges.pipe(
+      tap(() =>
+        this.filterForm.patchValue(
+          {
+            periodStart: '',
+            periodEnd: '',
+          },
+          { emitEvent: true },
+        ),
+      ),
+    ),
   ]).pipe(
     map(([transactions, selectedAccount]) => {
       if (!selectedAccount) return [];
@@ -305,6 +364,7 @@ export class AnalyticsComponent implements AfterViewInit {
     this.filteredSelectionsByAccount$,
     this.filterForm.valueChanges,
   ]).pipe(
+    debounceTime(0),
     map(([transactions, { periodStart, periodEnd }]) => {
       if (transactions.length === 0) return [];
 
@@ -356,11 +416,6 @@ export class AnalyticsComponent implements AfterViewInit {
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  setSelectedAccount(event: Event): void {
-    const select = event.target as HTMLSelectElement;
-    this.filterForm.controls.account.setValue(select.value);
-  }
-
   // Material select version
   setSelectedAccountFromSelect(value: string): void {
     this.filterForm.controls.account.setValue(value);
@@ -380,42 +435,92 @@ export class AnalyticsComponent implements AfterViewInit {
           timeSpanDays: 0,
           flowThroughRatio: 0,
           velocityRatio: 0,
-          structuralActivityRatio: 0,
-          riskLevel: 'LOW',
+          structuringByCurrency: {},
           riskFlags: [],
-        };
+        } satisfies RiskMetrics;
       }
 
-      const REPORTING_THRESHOLD = 10000; // CAD $10,000 threshold
-
+      // Add other thresholds as needed
       let totalInflow = 0;
       let totalOutflow = 0;
-      let belowThresholdCount = 0;
+
+      // Track structuring per currency
+      const structuringByCurrency: Record<
+        string,
+        {
+          totalDeposits: number;
+          belowThreshold: number;
+          currency: string;
+          ratio: number;
+        }
+      > = {};
+
       const dates: Date[] = [];
 
-      // Separate inflows and outflows based on account position
       transactions.forEach((txn) => {
-        const amount =
-          txn.flowOfFundsCreditAmount || txn.flowOfFundsDebitAmount || 0;
-
         // Determine if this is an inflow or outflow for the selected account
-        if (txn.flowOfFundsCreditedAccount === selectedAccount) {
+        const isInFlow = txn.flowOfFundsCreditedAccount === selectedAccount;
+        const isOutFlow = txn.flowOfFundsDebitedAccount === selectedAccount;
+
+        if (isInFlow) {
           // Money coming INTO the selected account (credit)
-          totalInflow += txn.flowOfFundsCreditAmount || 0;
-        } else if (txn.flowOfFundsDebitedAccount === selectedAccount) {
-          // Money going OUT of the selected account (debit)
-          totalOutflow += txn.flowOfFundsDebitAmount || 0;
+          const creditAmount = txn.flowOfFundsCreditAmount || 0;
+          totalInflow += creditAmount;
+
+          txn.startingActions.forEach((sa) => {
+            const saType = getTxnType({
+              typeOfFunds: sa.typeOfFunds,
+              detailsOfDispo: txn.completingActions[0].detailsOfDispo,
+              detailsOfDispoOther: txn.completingActions[0].detailsOfDispoOther,
+            });
+
+            if (
+              saType !== TRANSACTION_TYPE_ENUM.ABM &&
+              saType !== TRANSACTION_TYPE_ENUM.Cheque
+            )
+              return;
+
+            console.assert(!!sa.currency, 'Assert currency exists');
+            const currency = sa.currency!;
+            const amount = sa.amount || 0;
+
+            // Initialize currency tracking if not exists
+            if (!structuringByCurrency[currency]) {
+              structuringByCurrency[currency] = {
+                totalDeposits: 0,
+                belowThreshold: 0,
+                currency,
+                ratio: 0,
+              };
+            }
+
+            structuringByCurrency[currency].totalDeposits++;
+
+            // Check if below threshold
+            if (amount < STRUCTURING_THRESHOLD) {
+              structuringByCurrency[currency].belowThreshold++;
+            }
+          });
         }
 
-        // Check if below threshold (for structuring detection)
-        if (amount < REPORTING_THRESHOLD * 0.9) {
-          belowThresholdCount++;
+        if (isOutFlow) {
+          // Money going OUT of the selected account (debit)
+          totalOutflow += txn.flowOfFundsDebitAmount || 0;
         }
 
         // Collect dates for time span calculation
         const dateStr = txn.dateOfTxn || txn.flowOfFundsTransactionDate;
         if (dateStr) {
           dates.push(TransactionDateDirective.parse(dateStr));
+        }
+      });
+
+      // Calculate ratios per currency
+      Object.values(structuringByCurrency).forEach((currencyData) => {
+        if (currencyData.totalDeposits > 0) {
+          // eslint-disable-next-line no-param-reassign
+          currencyData.ratio =
+            currencyData.belowThreshold / currencyData.totalDeposits;
         }
       });
 
@@ -438,32 +543,36 @@ export class AnalyticsComponent implements AfterViewInit {
       // 2. Velocity Ratio (funds movement per day)
       const velocityRatio = totalOutflow / timeSpanDays;
 
-      // 3. Structural Activity Ratio (threshold avoidance)
-      const structuralActivityRatio =
-        transactions.length > 0 ? belowThresholdCount / transactions.length : 0;
-
       // Risk Assessment
       const riskFlags: string[] = [];
-      let riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' = 'LOW';
 
-      if (flowThroughRatio > 0.85) {
+      if (flowThroughRatio > FLOW_THROUGH_HIGH) {
         riskFlags.push('Potential layering activity');
-        riskLevel = 'HIGH';
       }
 
-      if (velocityRatio > 50000) {
+      if (velocityRatio > VELOCITY_HIGH_THRESHOLD) {
         riskFlags.push('High transaction velocity');
-        riskLevel = 'HIGH';
       }
 
-      if (structuralActivityRatio > 0.7) {
-        riskFlags.push('Potential structuring/threshold avoidance');
-        riskLevel = riskLevel === 'HIGH' ? 'HIGH' : 'MEDIUM';
-      }
+      // Check structuring per currency
+      Object.values(structuringByCurrency).forEach((currencyData) => {
+        if (
+          currencyData.ratio > STRUCTURING_RATIO_HIGH &&
+          currencyData.totalDeposits >= STRUCTURING_MIN_DEPOSITS
+        ) {
+          riskFlags.push(
+            `Potential structuring in ${currencyData.currency} ` +
+              `(${currencyData.belowThreshold}/${currencyData.totalDeposits} ` +
+              `deposits below ${STRUCTURING_THRESHOLD})`,
+          );
+        }
+      });
 
-      if (flowThroughRatio > 0.7 && flowThroughRatio <= 0.85) {
+      if (
+        flowThroughRatio > FLOW_THROUGH_MEDIUM &&
+        flowThroughRatio <= FLOW_THROUGH_HIGH
+      ) {
         riskFlags.push('Moderate flow-through activity');
-        riskLevel = riskLevel === 'LOW' ? 'MEDIUM' : riskLevel;
       }
 
       return {
@@ -473,10 +582,9 @@ export class AnalyticsComponent implements AfterViewInit {
         timeSpanDays,
         flowThroughRatio,
         velocityRatio,
-        structuralActivityRatio,
-        riskLevel,
+        structuringByCurrency,
         riskFlags,
-      } as RiskMetrics;
+      } satisfies RiskMetrics;
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
@@ -501,6 +609,32 @@ export class AnalyticsComponent implements AfterViewInit {
       { emitEvent: true },
     );
   }
+
+  // Currency formatting helper for template
+  formatCurrency(value: number, currency: string): string {
+    return formatCurrencyLocal({
+      value,
+      currencyCode: currency,
+      digitsInfo: '1.0-0',
+    });
+  }
+
+  formatCurrencyWithDecimals(value: number, currency: string): string {
+    return formatCurrencyLocal({
+      value,
+      currencyCode: currency,
+      digitsInfo: '1.2-2',
+    });
+  }
+
+  // Expose module-level constants to template
+  protected readonly Object = Object;
+  protected readonly STRUCTURING_THRESHOLD = STRUCTURING_THRESHOLD;
+  protected readonly FLOW_THROUGH_HIGH = FLOW_THROUGH_HIGH;
+  protected readonly FLOW_THROUGH_MEDIUM = FLOW_THROUGH_MEDIUM;
+  protected readonly VELOCITY_HIGH_THRESHOLD = VELOCITY_HIGH_THRESHOLD;
+  protected readonly STRUCTURING_RATIO_HIGH = STRUCTURING_RATIO_HIGH;
+  protected readonly STRUCTURING_RATIO_MEDIUM = STRUCTURING_RATIO_MEDIUM;
 }
 
 interface RiskMetrics {
@@ -510,7 +644,29 @@ interface RiskMetrics {
   timeSpanDays: number;
   flowThroughRatio: number;
   velocityRatio: number;
-  structuralActivityRatio: number;
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  structuringByCurrency: Record<
+    string,
+    {
+      totalDeposits: number;
+      belowThreshold: number;
+      currency: string;
+      ratio: number;
+    }
+  >;
   riskFlags: string[];
 }
+
+// Risk Assessment Thresholds
+const STRUCTURING_THRESHOLD = 10000; // CAD $10,000 - FINTRAC Large Cash Transaction Report threshold
+
+// Flow-Through Ratio Thresholds (Layering Detection)
+const FLOW_THROUGH_HIGH = 0.85;
+const FLOW_THROUGH_MEDIUM = 0.7;
+
+// Velocity Threshold (Daily Fund Movement)
+const VELOCITY_HIGH_THRESHOLD = 50000;
+
+// Structuring Detection Thresholds
+const STRUCTURING_RATIO_HIGH = 0.7;
+const STRUCTURING_RATIO_MEDIUM = 0.5;
+const STRUCTURING_MIN_DEPOSITS = 3; // Minimum deposits to flag structuring

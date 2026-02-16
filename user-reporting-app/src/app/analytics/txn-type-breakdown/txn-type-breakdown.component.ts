@@ -28,12 +28,12 @@ import {
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
+import { formatCurrencyLocal } from '../../reporting-ui/edit-form/common-validation';
 import { StrTransaction } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import {
   getTxnType,
   TRANSACTION_TYPE_FRIENDLY_NAME,
 } from '../account-transaction-totals.service';
-import { formatCurrencyLocal } from '../circular/circular.component';
 
 echarts.use([
   PieChart,
@@ -90,6 +90,11 @@ export class TxnTypeBreakdownComponent implements OnInit, OnChanges, OnDestroy {
   @ViewChild('chartContainer', { static: true }) chartContainer!: ElementRef;
 
   @Input({ required: true }) transactions: StrTransaction[] = [];
+  @Input({ required: true }) account: {
+    account: string;
+    currency: string;
+    transit: string;
+  } | null = null;
 
   private myChart: echarts.ECharts | undefined;
   private resizeObserver: ResizeObserver | undefined;
@@ -149,27 +154,57 @@ export class TxnTypeBreakdownComponent implements OnInit, OnChanges, OnDestroy {
             name: m.name,
             value: mode === 'credits' ? m.credits : m.debits,
             count: mode === 'credits' ? m.creditCount : m.debitCount,
-            avgValue: mode === 'credits' ? m.avgCreditValue : m.avgDebitValue,
-            // Keep both for tooltip
-            credits: m.credits,
-            debits: m.debits,
+            _avgValue: mode === 'credits' ? m.avgCreditValue : m.avgDebitValue,
           }) satisfies ChartData,
       )
       .filter((d) => d.value > 0); // Only show types with transactions
 
     const totalValue = chartData.reduce((sum, m) => sum + m.value, 0);
 
+    const values = chartData.map((d) => d.value);
+    const minValue = Math.min(...values);
+    const maxValue = Math.max(...values);
+
+    const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+
+    const interpolateRgb = (
+      from: { r: number; g: number; b: number },
+      to: { r: number; g: number; b: number },
+      t: number,
+    ) => {
+      const tt = clamp01(t);
+      const r = Math.round(from.r + (to.r - from.r) * tt);
+      const g = Math.round(from.g + (to.g - from.g) * tt);
+      const b = Math.round(from.b + (to.b - from.b) * tt);
+      return `rgb(${r}, ${g}, ${b})`;
+    };
+
     // Different color schemes for credits vs debits
-    const getColorByMode = (avgValue: number, mode: ViewMode): string => {
-      if (mode === 'credits') {
-        if (avgValue > 5000) return '#52c41a'; // High incoming (Green)
-        if (avgValue > 2000) return '#73d13d'; // Medium incoming
-        return '#95de64'; // Low incoming
-      } else {
-        if (avgValue > 5000) return '#f5222d'; // High outgoing (Red)
-        if (avgValue > 2000) return '#ff4d4f'; // Medium outgoing
-        return '#ff7875'; // Low outgoing
+    const getColorByMode = (value: number, mode: ViewMode): string => {
+      // If all values are the same, just return a mid-ish shade
+      if (maxValue <= 0 || maxValue === minValue) {
+        return mode === 'credits' ? '#73d13d' : '#ff4d4f';
       }
+
+      // Log scale based on real min/max (no “expected max”)
+      const v = Math.max(value, 1);
+      const logMin = Math.log10(Math.max(minValue, 1));
+      const logMax = Math.log10(Math.max(maxValue, 1));
+      const t = (Math.log10(v) - logMin) / (logMax - logMin);
+
+      if (mode === 'credits') {
+        return interpolateRgb(
+          { r: 217, g: 247, b: 190 }, // #d9f7be  (light)
+          { r: 115, g: 209, b: 61 }, // #73d13d  (dark)
+          t,
+        );
+      }
+
+      return interpolateRgb(
+        { r: 255, g: 204, b: 199 }, // #ffccc7  (light)
+        { r: 255, g: 77, b: 79 }, // #ff4d4f  (dark)
+        t,
+      );
     };
 
     const option: ECOption = {
@@ -188,20 +223,21 @@ export class TxnTypeBreakdownComponent implements OnInit, OnChanges, OnDestroy {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         formatter: (params: any) => {
           const data = params.data as ChartData;
-          const percent = ((data.value / totalValue) * 100).toFixed(1);
+          const currency = this.account!.currency;
+          const isCredit = mode === 'credits';
+          const color = isCredit ? '#22c55e' : '#ef4444';
 
-          return `
-            <strong>${params.name}</strong><br/>
-            <hr style="margin: 4px 0; border-color: #ddd"/>
-            ${mode === 'credits' ? 'Credit' : 'Debit'} Amount: ${formatCurrencyLocal(data.value)}<br/>
-            Transaction Count: ${data.count.toLocaleString()}<br/>
-            Percentage: ${percent}%<br/>
-            <hr style="margin: 4px 0; border-color: #ddd"/>
-            <em style="font-size: 11px; color: #999;">
-              Total Credits: ${formatCurrencyLocal(data.credits)}<br/>
-              Total Debits: ${formatCurrencyLocal(data.debits)}
-            </em>
-          `;
+          let result = `<div style="font-size: 13px;">`;
+          result += `<strong>${params.name}</strong><br/>`;
+          result += `<span>Transit: ${this.account?.transit}</span><br/>`;
+          result += `<span>Account: ${this.account?.account}</span><br/>`;
+          result += '<hr style="margin: 4px 0; border-color: #ddd"/>';
+
+          result += `<span>Transactions: ${data.count.toLocaleString()}</span><br/>`;
+          result += `<span style="color: ${color};">${isCredit ? '↑ Credit' : '↓ Debit'}:</span> ${formatCurrencyLocal({ value: data.value, currencyCode: currency })}<br/>`;
+
+          result += `</div>`;
+          return result;
         },
       },
       legend: {
@@ -213,7 +249,7 @@ export class TxnTypeBreakdownComponent implements OnInit, OnChanges, OnDestroy {
           const type = chartData.find((m) => m.name === name);
           if (!type) return name;
 
-          return `${name}: ${formatCurrencyLocal(type.value)}`;
+          return `${name}: ${formatCurrencyLocal({ value: type.value, currencyCode: this.account?.currency })}`;
         },
         textStyle: {
           fontSize: 13,
@@ -229,11 +265,8 @@ export class TxnTypeBreakdownComponent implements OnInit, OnChanges, OnDestroy {
             name: type.name,
             value: type.value,
             count: type.count,
-            avgValue: type.avgValue,
-            credits: type.credits,
-            debits: type.debits,
             itemStyle: {
-              color: getColorByMode(type.avgValue, mode),
+              color: getColorByMode(type.value, mode),
               borderColor: '#fff',
               borderWidth: 2,
             },
@@ -256,8 +289,7 @@ export class TxnTypeBreakdownComponent implements OnInit, OnChanges, OnDestroy {
             position: 'outside',
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             formatter: (params: any) => {
-              // const percent = ((params.value / totalValue) * 100).toFixed(1);
-              return `{name|${params.name}}\n{value|$${(params.value / 1000).toFixed(0)}k}`;
+              return `{name|${params.name}}`;
             },
             rich: {
               name: {
@@ -305,7 +337,7 @@ export class TxnTypeBreakdownComponent implements OnInit, OnChanges, OnDestroy {
           right: '3%',
           top: '50%',
           style: {
-            text: `$${(totalValue / 1000).toFixed(0)}k`,
+            text: `${formatCurrencyLocal({ value: totalValue, currencyCode: this.account?.currency })}`,
             align: 'center',
             fill: mode === 'credits' ? '#52c41a' : '#f5222d',
             fontSize: 22,
@@ -345,18 +377,18 @@ export class TxnTypeBreakdownComponent implements OnInit, OnChanges, OnDestroy {
         wasTxnAttempted,
         flowOfFundsCreditAmount,
         flowOfFundsDebitAmount,
-        methodOfTxn,
         startingActions = [],
         completingActions = [],
       }) => {
         if (wasTxnAttempted) return;
 
         // Determine txn type
-        const txnTypeKey = getTxnType(
-          startingActions[0].typeOfFunds,
-          completingActions[0].detailsOfDispo,
-          methodOfTxn,
-        )!;
+        const txnTypeKey = getTxnType({
+          typeOfFunds: startingActions[0].typeOfFunds,
+          detailsOfDispo: completingActions[0].detailsOfDispo,
+          detailsOfDispoOther: completingActions[0].detailsOfDispoOther,
+          startingActionsLength: startingActions.length,
+        })!;
 
         const friendlyName = TRANSACTION_TYPE_FRIENDLY_NAME[txnTypeKey];
 
@@ -364,16 +396,12 @@ export class TxnTypeBreakdownComponent implements OnInit, OnChanges, OnDestroy {
         const creditAmount = flowOfFundsCreditAmount || 0;
         const debitAmount = flowOfFundsDebitAmount || 0;
 
-        if (!typeMap.has(friendlyName)) {
-          typeMap.set(friendlyName, {
-            credits: 0,
-            debits: 0,
-            creditCount: 0,
-            debitCount: 0,
-          });
-        }
-
-        const typeData = typeMap.get(friendlyName)!;
+        const typeData = typeMap.get(friendlyName) ?? {
+          credits: 0,
+          debits: 0,
+          creditCount: 0,
+          debitCount: 0,
+        };
 
         if (creditAmount > 0) {
           typeData.credits += creditAmount;
@@ -384,6 +412,8 @@ export class TxnTypeBreakdownComponent implements OnInit, OnChanges, OnDestroy {
           typeData.debits += debitAmount;
           typeData.debitCount += 1;
         }
+
+        typeMap.set(friendlyName, typeData);
       },
     );
 
@@ -423,7 +453,5 @@ interface ChartData {
   name: string;
   value: number;
   count: number;
-  avgValue: number;
-  credits: number;
-  debits: number;
+  _avgValue: number;
 }
