@@ -56,7 +56,7 @@ export function extractNodeDisplayData(node: GraphNode): NodeDisplayData {
       partyName,
       contact,
       address,
-    } = node.partyInfo;
+    } = node.partyInfo ?? {};
 
     const data: NodeDisplayData = {
       title: node.displayName,

@@ -849,7 +849,7 @@ export type GraphNode = GraphNodeItemOption &
         displayName: string;
         creditsByTxnType: TxnTypeAmount;
         debitsByTxnType: TxnTypeAmount;
-        partyInfo: PartyGenType;
+        partyInfo: PartyGenType | null;
       }
   );
 

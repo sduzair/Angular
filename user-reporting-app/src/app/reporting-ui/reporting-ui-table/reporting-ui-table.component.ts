@@ -651,6 +651,7 @@ const validationColors: Record<_hiddenValidationType, string> = {
   invalidFiu: '#dc3545',
   missingCheque: '#0d6efd',
   missingBasicInfo: '#dc3545',
+  beneficiaryMissing: '#dc3545',
 };
 
 export const VALIDATION_KEYS = Object.keys(validationColors).filter(
@@ -665,6 +666,7 @@ export type _hiddenValidationType =
   | 'invalidFiu'
   | 'missingCheque'
   | 'missingBasicInfo'
+  | 'beneficiaryMissing'
   | InvalidFormOptionsErrorKeys
   | InvalidTxnDateTimeErrorKeys;
 

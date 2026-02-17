@@ -39,11 +39,14 @@ import {
 import { AuthService } from '../auth.service';
 import * as ChangeLog from '../change-logging/change-log';
 import {
+  hasEntityName,
   hasInvalidFiu,
   hasMissingAccountInfo,
   hasMissingBasicInfo,
+  hasMissingBeneficiary,
   hasMissingCheque,
   hasMissingConductorInfo,
+  hasPersonName,
 } from '../reporting-ui/edit-form/common-validation';
 import { EditFormValueType } from '../reporting-ui/edit-form/edit-form.component';
 import {
@@ -648,7 +651,7 @@ export class CaseRecordStore implements OnDestroy {
     const { selectionAfter: editFormValue } = edit;
 
     const partiesToGenerate = extractAllPartyRefs(editFormValue).filter(
-      (ref) => !ref.linkToSub,
+      (ref) => !ref.linkToSub && (hasPersonName(ref) || hasEntityName(ref)),
     );
 
     forkJoin(
@@ -1050,28 +1053,6 @@ export interface ReviewPeriod {
   end: string;
 }
 
-// const computeFullChangesHandler = ({
-//   selections,
-//   parties,
-// }: {
-//   selections: StrTransactionWithChangeLogs[];
-//   parties: WithCaseRecordId<PartyGenType>[];
-// }) => {
-//   return (_acc: StrTransactionWithChangeLogs[]) => {
-//     const enrichParties = createTransactionPartyEnricher(parties);
-
-//     return selections
-//       .map((strTransaction) => {
-//         return ChangeLog.applyChangeLogs(
-//           strTransaction,
-//           strTransaction.changeLogs,
-//         );
-//       })
-//       .map(setRowValidationInfo)
-//       .map(enrichParties);
-//   };
-// };
-
 const computePartialChangesHandler = ({
   selections,
   selectionsToRecompute,
@@ -1093,8 +1074,8 @@ const computePartialChangesHandler = ({
       .map((txn) => {
         return ChangeLog.applyChangeLogs(txn, txn.changeLogs);
       })
-      .map(setRowValidationInfo)
-      .map(enrichParties);
+      .map(enrichParties)
+      .map(setRowValidationInfo);
 
     return [
       ...acc.map((sel) => {
@@ -1131,8 +1112,8 @@ const addSelectionsHandler = ({
         .map((txn) => {
           return ChangeLog.applyChangeLogs(txn, txn.changeLogs);
         })
-        .map(setRowValidationInfo)
-        .map(enrichParties),
+        .map(enrichParties)
+        .map(setRowValidationInfo),
     ];
   };
 };
@@ -1157,8 +1138,8 @@ const resetAndAddSelectionsHandler = ({
       .map((txn) => {
         return ChangeLog.applyChangeLogs(txn, txn.changeLogs);
       })
-      .map(setRowValidationInfo)
-      .map(enrichParties);
+      .map(enrichParties)
+      .map(setRowValidationInfo);
   };
 };
 
@@ -1190,13 +1171,24 @@ export function setRowValidationInfo(selection: StrTransactionWithChangeLogs) {
 
   if (hasMissingBasicInfo(selection)) errors.push('missingBasicInfo');
 
+  if (hasMissingBeneficiary(selection)) errors.push('beneficiaryMissing');
+
   return { ...selection, _hiddenValidation: errors };
 }
 
 const createPartyEnricher =
   (parties: WithCaseRecordId<PartyGenType>[]) =>
   <T extends PartyDenormalized>(ref: T): T => {
-    console.assert(!!ref.linkToSub, 'Assert link to sub ref exists');
+    if (!ref.linkToSub) {
+      return {
+        ...ref,
+        _hiddenPartyKey: null,
+        _hiddenSurname: null,
+        _hiddenGivenName: null,
+        _hiddenOtherOrInitial: null,
+        _hiddenNameOfEntity: null,
+      };
+    }
 
     const party = parties.find(
       (party) => party.partyIdentifier === ref.linkToSub,
@@ -1204,10 +1196,12 @@ const createPartyEnricher =
     const partyName = party?.partyName;
     if (!partyName) return ref;
 
+    const { partyKey } = party.identifiers ?? {};
     const { surname, givenName, otherOrInitial, nameOfEntity } = partyName;
 
     return {
       ...ref,
+      _hiddenPartyKey: partyKey,
       _hiddenSurname: surname,
       _hiddenGivenName: givenName,
       _hiddenOtherOrInitial: otherOrInitial,
@@ -1215,7 +1209,7 @@ const createPartyEnricher =
     };
   };
 
-const createTransactionPartyEnricher =
+export const createTransactionPartyEnricher =
   (parties: WithCaseRecordId<PartyGenType>[]) =>
   (txn: StrTransactionWithChangeLogs): StrTransactionWithChangeLogs => {
     const enrichParty = createPartyEnricher(parties);
@@ -1229,7 +1223,7 @@ const createTransactionPartyEnricher =
       conductors: sa.conductors?.map((c) => ({
         ...c,
         ...enrichParty(c),
-        onBehalfOf: c.onBehalfOf?.map(enrichParty),
+        onBehalfOf: c.onBehalfOf?.map((b) => ({ ...b, ...enrichParty(b) })),
       })),
       sourceOfFunds: sa.sourceOfFunds?.map((sof) => ({
         ...sof,

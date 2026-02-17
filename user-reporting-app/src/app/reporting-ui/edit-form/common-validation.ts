@@ -2,6 +2,7 @@ import { formatCurrency, getCurrencySymbol } from '@angular/common';
 import { FormGroup } from '@angular/forms';
 import { StrTransactionWithChangeLogs } from '../../aml/case-record.store';
 import {
+  Beneficiary,
   CompletingAction,
   ConductorNpdData,
   StartingAction,
@@ -59,20 +60,28 @@ export function hasMissingAccountInfo(
       'Deposit to account';
 
   const { fiuNo } = action;
+
+  if (!isCibcFi(fiuNo) && !isDepositToAccount) {
+    return;
+  }
+
   if (
-    (isDepositToAccount || isCibcFi(fiuNo)) &&
-    (!action.branch ||
-      !action.account ||
-      !action.accountType ||
-      (action.accountType === 'Other' && !action.accountTypeOther) ||
-      !action.accountCurrency ||
-      !action.accountStatus ||
-      !action.accountOpen ||
-      (action.accountStatus === 'Closed' && !action.accountClose))
+    !action.branch ||
+    !action.account ||
+    !action.accountType ||
+    (action.accountType === 'Other' && !action.accountTypeOther) ||
+    !action.accountCurrency ||
+    !action.accountStatus ||
+    !action.accountOpen ||
+    (action.accountStatus === 'Closed' && !action.accountClose)
   )
     return true;
 
-  if ((action.accountHolders ?? []).some(hasMissingHolderInfo)) return true;
+  if (
+    (action.accountHolders ?? []).length === 0 ||
+    action.accountHolders!.some(hasMissingHolderInfo)
+  )
+    return true;
 
   return false;
 }
@@ -192,6 +201,26 @@ export function hasMissingBasicInfo(
     return true;
 
   // All validations passed
+  return false;
+}
+
+export function hasMissingBeneficiary(
+  txn: StrTransactionWithChangeLogs,
+): boolean {
+  if (
+    !txn.wasTxnAttempted &&
+    txn.completingActions.some((cAction) => {
+      const hasNoBeneficiaries = (cAction.beneficiaries ?? []).length === 0;
+      const hasMissingBenInfo = (ben: Beneficiary): boolean =>
+        !ben.linkToSub || (!hasEntityName(ben) && !hasPersonName(ben));
+
+      return (
+        hasNoBeneficiaries || cAction.beneficiaries!.some(hasMissingBenInfo)
+      );
+    })
+  ) {
+    return true;
+  }
   return false;
 }
 
