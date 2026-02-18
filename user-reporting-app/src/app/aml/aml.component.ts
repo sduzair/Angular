@@ -21,6 +21,7 @@ import {
   RouterModule,
   RouterOutlet,
 } from '@angular/router';
+import { format, parse } from 'date-fns';
 import { filter, map, Observable, startWith } from 'rxjs';
 import { Breadcrumb } from '../app.routes';
 import { ChatbotComponent } from '../chatbot/chatbot.component';
@@ -249,16 +250,12 @@ export class AmlComponent implements OnInit {
   );
 
   formatReviewPeriod(period: ReviewPeriod): string {
-    const start = new Date(period.start).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-    const end = new Date(period.end).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    const parseDate = (dateStr: string) =>
+      parse(dateStr, 'yyyy/MM/dd', new Date());
+
+    const start = format(parseDate(period.start), 'MMM d, yyyy');
+    const end = format(parseDate(period.end), 'MMM d, yyyy');
+
     return `${start} - ${end}`;
   }
 }

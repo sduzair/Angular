@@ -209,7 +209,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
           *matHeaderCellDef
           mat-sort-header="_hiddenValidation"
           [class.sticky-cell]="baseTable.isStickyColumn('_hiddenValidation')">
-          <div></div>
+          <div>Validation Info</div>
         </th>
         <td
           mat-cell

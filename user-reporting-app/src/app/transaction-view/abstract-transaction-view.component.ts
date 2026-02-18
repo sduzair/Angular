@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import {
   combineLatestWith,
   debounceTime,
+  distinctUntilChanged,
   map,
   shareReplay,
   startWith,
@@ -16,7 +17,7 @@ import { TableSelectionType } from './transaction-view.component';
 export abstract class AbstractTransactionViewComponent {
   protected _caseRecordStore = inject(CaseRecordStore);
   readonly searchResponse$ = this._caseRecordStore.state$.pipe(
-    take(1),
+    distinctUntilChanged(),
     map(({ searchResponse }) => searchResponse),
     shareReplay({ bufferSize: 1, refCount: true }),
   );

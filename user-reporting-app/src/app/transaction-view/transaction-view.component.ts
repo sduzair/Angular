@@ -93,6 +93,9 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
     <div class="row row-cols-1 mx-0">
       <mat-toolbar class="col px-0">
         <mat-toolbar-row class="px-0 header-toolbar-row">
+          <button type="button" color="primary" mat-flat-button>
+            {{ 'Export Data' }}
+          </button>
           <div class="flex-fill"></div>
           <button
             type="button"
@@ -389,6 +392,7 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
 
   constructor() {
     super();
+
     // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
     this.onSave$.pipe(takeUntilDestroyed()).subscribe();
   }
@@ -608,7 +612,8 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
 
             this.saveProgress$.next({
               ...this.saveProgress$.value,
-              completed: transformations.length,
+              completed:
+                this.saveProgress$.value.completed + transformations.length,
               status: 'saving',
             });
 
@@ -625,10 +630,11 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
       return this._caseRecordStore
         .addSelectionsAndParties(transformations)
         .pipe(
-          switchMap(({ count: addedSelectionsCount }) => {
+          switchMap(({ selectionCount: addedSelectionsCount }) => {
             this.saveProgress$.next({
               ...this.saveProgress$.value,
-              completed: transformations.length + addedSelectionsCount,
+              completed:
+                this.saveProgress$.value.completed + addedSelectionsCount,
               status: 'saving',
             });
             return this._caseRecordStore
@@ -638,8 +644,7 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
                   this.saveProgress$.next({
                     ...this.saveProgress$.value,
                     completed:
-                      transformations.length +
-                      addedSelectionsCount +
+                      this.saveProgress$.value.completed +
                       removedSelectionsCount,
                     status: 'complete',
                   });
@@ -739,6 +744,7 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
   }
 }
 
+// fix: search result reset
 export const searchResultResolver: ResolveFn<boolean> = (
   route: ActivatedRouteSnapshot,
   _state: RouterStateSnapshot,

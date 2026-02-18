@@ -2,10 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { WithETag } from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import { AccountNumberSelection } from '../transaction-search/transaction-search.service';
-import {
-  ReviewPeriod,
-  StrTransactionWithChangeLogs,
-} from './case-record.store';
+import { ReviewPeriod } from './case-record.store';
 
 @Injectable({
   providedIn: 'root',
@@ -28,9 +25,23 @@ export class CaseRecordService {
       payload,
     );
   }
+
+  closeCaseRecord(caseRecordId: string, payload: CloseCaseRecordReq) {
+    return this.http.post<CaseRecordRes>(
+      `/api/caserecord/${caseRecordId}/close`,
+      payload,
+    );
+  }
+
+  activateCaseRecord(caseRecordId: string, payload: ActivateCaseRecordReq) {
+    return this.http.post<CaseRecordRes>(
+      `/api/caserecord/${caseRecordId}/activate`,
+      payload,
+    );
+  }
 }
 
-export interface FetchCaseRecordRes {
+export interface CaseRecordRes {
   caseRecordId: string;
   amlId: string;
   searchParams: {
@@ -42,11 +53,16 @@ export interface FetchCaseRecordRes {
   } | null;
   createdAt: string;
   createdBy: string;
-  lastUpdatedBy?: string;
+  lastUpdatedBy?: string | null;
   status: string;
+  isClosed: boolean;
+  closedAt?: string | null;
+  closedBy?: string | null;
   eTag: number;
-  lastUpdated: string;
+  lastUpdated?: string | null;
 }
+
+export type FetchCaseRecordRes = CaseRecordRes;
 
 type UpdateCaseRecordReq = WithETag<{
   searchParams: {
@@ -58,4 +74,7 @@ type UpdateCaseRecordReq = WithETag<{
   };
 }>;
 
-type UpdateCaseRecordRes = FetchCaseRecordRes;
+type UpdateCaseRecordRes = CaseRecordRes;
+
+type CloseCaseRecordReq = WithETag<Record<never, never>>;
+type ActivateCaseRecordReq = WithETag<Record<never, never>>;

@@ -22,11 +22,12 @@ import {
 } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-import { MAT_DATE_FORMATS, MatDateFormats } from '@angular/material/core';
 import {
-  MatDatepicker,
-  MatDatepickerModule,
-} from '@angular/material/datepicker';
+  ErrorStateMatcher,
+  MAT_DATE_FORMATS,
+  MatDateFormats,
+} from '@angular/material/core';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import {
   MAT_FORM_FIELD_DEFAULT_OPTIONS,
   MatFormFieldDefaultOptions,
@@ -39,14 +40,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router } from '@angular/router';
-import {
-  getMonth,
-  getYear,
-  isAfter,
-  isBefore,
-  setMonth,
-  setYear,
-} from 'date-fns';
+import { isAfter, isBefore } from 'date-fns';
 import { isEqual, xorWith } from 'lodash-es';
 import {
   BehaviorSubject,
@@ -64,9 +58,11 @@ import {
   switchMap,
   tap,
 } from 'rxjs';
+import { AmlClosingService } from '../aml/aml-closing.service';
 import { CaseRecordService } from '../aml/case-record.service';
 import { CaseRecordState, ReviewPeriod } from '../aml/case-record.store';
 import { setError } from '../form-helpers';
+import { PreemptiveErrorStateMatcher } from '../reporting-ui/edit-form/edit-form.component';
 import { SnackbarQueueService } from '../snackbar-queue.service';
 import {
   AccountNumberData,
@@ -111,8 +107,7 @@ const AMLID_TEST = '99999999';
     PartyKeySelectableTableComponent,
   ],
   template: `
-    <div
-      class="transaction-search container h-100 my-1 overflow-x-hidden overflow-y-auto px-0 my-1">
+    <div class="transaction-search container my-1 px-0 my-1">
       <div class="row row-cols-1 gap-3 px-3 pb-3">
         <mat-toolbar class="col">
           <span>Transaction Search</span>
@@ -382,41 +377,22 @@ const AMLID_TEST = '99999999';
                                   false
                                 ">
                                 <mat-form-field class="col">
-                                  <mat-label>Start MM/YYYY</mat-label>
+                                  <mat-label>Start MM/DD/YYYY</mat-label>
                                   <input
                                     matInput
                                     [matDatepicker]="startPicker"
                                     formControlName="start"
-                                    readonly
                                     appReviewPeriodDate
                                     [max]="maxDate" />
                                   <mat-datepicker-toggle
                                     matSuffix
                                     [for]="startPicker"></mat-datepicker-toggle>
-                                  <mat-datepicker
-                                    #startPicker
-                                    startView="multi-year"
-                                    (yearSelected)="
-                                      chosenYearHandler(
-                                        $event,
-                                        startPicker,
-                                        'start',
-                                        i
-                                      )
-                                    "
-                                    (monthSelected)="
-                                      chosenMonthHandler(
-                                        $event,
-                                        startPicker,
-                                        'start',
-                                        i
-                                      )
-                                    "></mat-datepicker>
+                                  <mat-datepicker #startPicker></mat-datepicker>
                                   @if (
                                     period.controls.start.hasError('required')
                                   ) {
                                     <mat-error>
-                                      *Start month is required
+                                      *Start date is required
                                     </mat-error>
                                   }
                                   @if (
@@ -425,48 +401,29 @@ const AMLID_TEST = '99999999';
                                     )
                                   ) {
                                     <mat-error>
-                                      *Start month must be before end month
+                                      *Start date must be before end date
                                     </mat-error>
                                   }
                                 </mat-form-field>
                                 <span
                                   class="sk skw-6 skh-7 col-auto flex-grow-1 mx-3"></span>
                                 <mat-form-field class="col">
-                                  <mat-label>End MM/YYYY</mat-label>
+                                  <mat-label>End MM/DD/YYYY</mat-label>
                                   <input
                                     matInput
                                     [matDatepicker]="endPicker"
                                     formControlName="end"
-                                    readonly
                                     appReviewPeriodDate
                                     [max]="maxDate" />
                                   <mat-datepicker-toggle
                                     matSuffix
                                     [for]="endPicker"></mat-datepicker-toggle>
-                                  <mat-datepicker
-                                    #endPicker
-                                    startView="multi-year"
-                                    (yearSelected)="
-                                      chosenYearHandler(
-                                        $event,
-                                        endPicker,
-                                        'end',
-                                        i
-                                      )
-                                    "
-                                    (monthSelected)="
-                                      chosenMonthHandler(
-                                        $event,
-                                        endPicker,
-                                        'end',
-                                        i
-                                      )
-                                    "></mat-datepicker>
+                                  <mat-datepicker #endPicker></mat-datepicker>
                                   @if (
                                     period.controls.end.hasError('required')
                                   ) {
                                     <mat-error>
-                                      *End month is required
+                                      *End date is required
                                     </mat-error>
                                   }
                                 </mat-form-field>
@@ -546,6 +503,12 @@ const AMLID_TEST = '99999999';
           </div>
         </form>
       </div>
+      <div class="row row-cols-1">
+        <pre class="overlay-pre">
+          Form values: {{ searchParamsForm.value | json }}
+        </pre
+        >
+      </div>
     </div>
   `,
   styleUrl: './transaction-search.component.scss',
@@ -554,15 +517,15 @@ const AMLID_TEST = '99999999';
       provide: MAT_DATE_FORMATS,
       useValue: {
         parse: {
-          dateInput: 'MM/yyyy', // e.g. 09/2025
+          dateInput: 'MM/dd/yyyy',
         },
         display: {
-          dateInput: 'MM/yyyy',
+          dateInput: 'MM/dd/yyyy',
           monthYearLabel: 'MMM yyyy',
           dateA11yLabel: 'MMMM yyyy',
           monthYearA11yLabel: 'MMMM yyyy',
         },
-      } as MatDateFormats,
+      } satisfies MatDateFormats,
     },
     {
       provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
@@ -571,6 +534,7 @@ const AMLID_TEST = '99999999';
         floatLabel: 'always',
       } as MatFormFieldDefaultOptions,
     },
+    { provide: ErrorStateMatcher, useClass: PreemptiveErrorStateMatcher },
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -581,6 +545,7 @@ export class TransactionSearchComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
   private errorHandler = inject(ErrorHandler);
   private router = inject(Router);
+  private amlClosingService = inject(AmlClosingService);
 
   searchParamsForm = new FormGroup(
     {
@@ -695,7 +660,7 @@ export class TransactionSearchComponent implements OnInit {
                 })),
                 caseRecordId,
                 eTag,
-                lastUpdated,
+                lastUpdated: lastUpdated ?? undefined,
                 lastUpdatedBy: lastUpdatedBy ?? createdBy,
               },
               { emitEvent: false }, // prevents value changes emission on aml id which disables form
@@ -871,6 +836,7 @@ export class TransactionSearchComponent implements OnInit {
       reviewPeriods,
       sourceSystems,
       eTag,
+      amlId,
     } = this.searchParamsForm.value;
 
     this.caseRecordService
@@ -912,13 +878,14 @@ export class TransactionSearchComponent implements OnInit {
       .subscribe(({ lastUpdated, lastUpdatedBy }) => {
         this.snackbarQ.open('Saved changes to search parameters');
         this.searchParamsBefore = structuredClone(this.searchParamsForm.value);
-        this.searchParamsForm.controls.lastUpdated.setValue(lastUpdated, {
+        this.searchParamsForm.controls.lastUpdated.setValue(lastUpdated ?? '', {
           emitEvent: false,
         });
         this.searchParamsForm.controls.lastUpdatedBy.setValue(lastUpdatedBy!, {
           emitEvent: false,
         });
         this.searchParamsForm.updateValueAndValidity();
+        this.amlClosingService.close(amlId!);
       });
   }
 
@@ -1086,67 +1053,6 @@ export class TransactionSearchComponent implements OnInit {
     if (this.searchParamsForm.controls.reviewPeriods.length > 1) {
       this.searchParamsForm.controls.reviewPeriods.removeAt(index);
     }
-  }
-
-  // Month/year selection handlers
-  chosenYearHandler(
-    normalizedYear: Date,
-    _: MatDatepicker<Date>,
-    controlName:
-      | keyof (typeof this.searchParamsForm.controls.reviewPeriods.controls)[number]
-      | string,
-    index: number,
-  ) {
-    const ctrlValue = this.searchParamsForm.controls.reviewPeriods
-      .at(index)
-      .get(controlName)?.value as unknown as string;
-
-    let chosenDate: Date = normalizedYear;
-
-    if (ctrlValue) {
-      chosenDate = setYear(ctrlValue, getYear(normalizedYear));
-    }
-
-    this.searchParamsForm.controls.reviewPeriods
-      .at(index)
-      .get(controlName)
-      ?.setValue(ReviewPeriodDateDirective.format(chosenDate));
-
-    this.searchParamsForm.controls.reviewPeriods
-      .at(index)
-      .get(controlName)
-      ?.updateValueAndValidity();
-  }
-
-  chosenMonthHandler(
-    normalizedMonth: Date,
-    datepicker: MatDatepicker<Date>,
-    controlName:
-      | keyof (typeof this.searchParamsForm.controls.reviewPeriods.controls)[number]
-      | string,
-    index: number,
-  ) {
-    const ctrlValue = this.searchParamsForm.controls.reviewPeriods
-      .at(index)
-      .get(controlName)?.value as unknown as string;
-
-    let chosenDate: Date = normalizedMonth;
-
-    if (ctrlValue) {
-      chosenDate = setMonth(ctrlValue, getMonth(normalizedMonth));
-    }
-
-    this.searchParamsForm.controls.reviewPeriods
-      .at(index)
-      .get(controlName)
-      ?.setValue(ReviewPeriodDateDirective.format(chosenDate));
-
-    this.searchParamsForm.controls.reviewPeriods
-      .at(index)
-      .get(controlName)
-      ?.updateValueAndValidity();
-
-    datepicker.close();
   }
 }
 

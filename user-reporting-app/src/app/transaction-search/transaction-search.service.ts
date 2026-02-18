@@ -104,10 +104,10 @@ export class TransactionSearchService {
 
   static getSourceSystemInfo() {
     return [
-      'Party KYC',
-      'Flow of Funds',
-      'Conductor KYC',
-      'Product Inventory',
+      'PartyKyc',
+      'FlowOfFunds',
+      'ConductorKyc',
+      'ProductInventory',
       'Cheque',
       'ABM',
       'OLB',
@@ -123,8 +123,8 @@ export class TransactionSearchService {
       'GMT',
       'OTC',
       'POS',
-      'Wires',
-    ];
+      'Wire',
+    ] as const;
   }
 
   searchTransactions(searchParams: TransactionSearchRequest) {

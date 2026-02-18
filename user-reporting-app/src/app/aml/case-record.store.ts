@@ -61,10 +61,12 @@ import {
   TransactionSearchResponse,
 } from '../transaction-search/transaction-search.service';
 import {
+  PartyRes,
   PendingChange,
-  RemoveSelectionsRequest,
-  ResetSelectionsRequest,
-  SaveChangesRequest,
+  RemoveSelectionsReq,
+  ResetSelectionsReq,
+  SaveChangesReq,
+  SelectionRes,
   SelectionsService,
   WithCaseRecordId,
 } from '../transaction-view/selections.service';
@@ -88,10 +90,13 @@ export const DEFAULT_CASE_RECORD_STATE: CaseRecordState = {
   createdAt: '',
   createdBy: '',
   status: '',
+  isClosed: false,
+  closedAt: null,
+  closedBy: null,
   eTag: NaN,
   selections: [],
   parties: [],
-  lastUpdated: '',
+  lastUpdated: null,
 };
 
 export const CASE_RECORD_INITIAL_STATE = new InjectionToken<CaseRecordState>(
@@ -103,6 +108,9 @@ export const CASE_RECORD_INITIAL_STATE = new InjectionToken<CaseRecordState>(
 
 @Injectable()
 export class CaseRecordStore implements OnDestroy {
+  ngOnDestroy() {
+    console.info('Closing case record store');
+  }
   private selectionsService = inject(SelectionsService);
   private caseRecordService = inject(CaseRecordService);
   private errorHandler = inject(ErrorHandler);
@@ -110,6 +118,7 @@ export class CaseRecordStore implements OnDestroy {
   private auth = inject(AuthService);
 
   // --- STATE STREAMS ---
+  // NOTE: All state mutations must spread existing state to preserve reference equality on unchanged properties.
   private _state$ = new BehaviorSubject<CaseRecordState>(this.initialState);
 
   public state$ = this._state$.asObservable();
@@ -193,18 +202,6 @@ export class CaseRecordStore implements OnDestroy {
         takeUntilDestroyed(),
       )
       .subscribe();
-  }
-
-  ngOnDestroy(): void {
-    console.info('Service destroyed - cleaning up streams');
-
-    // Complete all Subjects
-    this._state$.complete();
-    this.conflict$.complete();
-    this._qActiveSaveIds$.complete();
-    this._updateQueue$.complete();
-    this.highlightEdits$.complete();
-    this.resetHiglightsAccumulator$.complete();
   }
 
   // --- VIEW MODEL FOR REPORTING UI DATA ---
@@ -371,14 +368,13 @@ export class CaseRecordStore implements OnDestroy {
         ),
         map(([edit, selectionsComputed, selectionsCurrent]) => {
           const { editType } = edit;
-          const pendingChanges: SaveChangesRequest['pendingChanges'] = [];
+          const pendingChanges: SaveChangesReq['pendingChanges'] = [];
           const selectionsAndPartiesToAdd: {
             selection?: StrTransactionWithChangeLogs;
             parties: PartyGenType[];
           }[] = [];
-          const selectionsToReset: ResetSelectionsRequest['pendingResets'] = [];
-          const selectionsToRemove: RemoveSelectionsRequest['selectionIds'] =
-            [];
+          const selectionsToReset: ResetSelectionsReq['pendingResets'] = [];
+          const selectionsToRemove: RemoveSelectionsReq['selectionIds'] = [];
 
           if (editType === 'SINGLE_SAVE') {
             const {
@@ -763,7 +759,7 @@ export class CaseRecordStore implements OnDestroy {
             createdBy,
             status,
             eTag,
-            lastUpdated,
+            lastUpdated: lastUpdated ?? undefined,
           });
         },
       ),
@@ -776,12 +772,12 @@ export class CaseRecordStore implements OnDestroy {
     return this.selectionsService
       .fetchSelections(this._state$.value.caseRecordId)
       .pipe(
-        tap(({ selections, parties }) => {
+        tap(({ selectionList, partyList }) => {
           this._state$.next({
             ...this._state$.value,
-            selections,
-            parties,
-            resetAndAddSelections: selections.map(
+            selections: selectionList as StrTransactionWithChangeLogs[],
+            parties: partyList as WithCaseRecordId<PartyGenType>[],
+            resetAndAddSelections: selectionList.map(
               (sel) => sel.flowOfFundsAmlTransactionId,
             ),
           });
@@ -795,7 +791,8 @@ export class CaseRecordStore implements OnDestroy {
       parties: PartyGenType[];
     }[],
   ) {
-    if (selectionsAndParties.length === 0) return of({ count: 0 });
+    if (selectionsAndParties.length === 0)
+      return of({ selectionCount: 0, lastUpdated: '' });
 
     return this._state$.pipe(
       take(1),
@@ -817,7 +814,7 @@ export class CaseRecordStore implements OnDestroy {
           .addSelectionsAndParties(caseRecordId, {
             caseETag,
             selections,
-            parties,
+            parties: parties as unknown as Omit<PartyRes, 'caseRecordId'>[],
           })
           .pipe(
             tap(({ caseETag: newCaseETag, lastUpdated }) => {
@@ -855,15 +852,16 @@ export class CaseRecordStore implements OnDestroy {
               return throwError(() => error);
             }),
             // access selections directly from state
-            map(({ count }) => ({ count })),
+            map(({ selectionCount, lastUpdated }) => ({
+              selectionCount,
+              lastUpdated,
+            })),
           );
       }),
     );
   }
 
-  public removeSelections(
-    selectionIds: RemoveSelectionsRequest['selectionIds'],
-  ) {
+  public removeSelections(selectionIds: RemoveSelectionsReq['selectionIds']) {
     if (selectionIds.length === 0) return of({ count: 0 });
 
     const { caseRecordId, eTag: caseETag } = this._state$.value;
@@ -897,7 +895,7 @@ export class CaseRecordStore implements OnDestroy {
       );
   }
 
-  private saveChanges(payload: SaveChangesRequest) {
+  private saveChanges(payload: SaveChangesReq) {
     const { caseRecordId } = this._state$.value;
 
     const payloadClone = structuredClone(payload);
@@ -921,12 +919,15 @@ export class CaseRecordStore implements OnDestroy {
 
               txn.eTag = eTag + 1;
               txn.changeLogs.push(
-                ...pendingChangeLogs.map((changeLog) => ({
-                  ...changeLog,
-                  eTag: eTag + 1,
-                  updatedBy,
-                  updatedAt,
-                })),
+                ...pendingChangeLogs.map(
+                  (changeLog) =>
+                    ({
+                      ...changeLog,
+                      eTag: eTag + 1,
+                      updatedBy,
+                      updatedAt,
+                    }) as ChangeLogAudit,
+                ),
               );
             },
           );
@@ -959,9 +960,7 @@ export class CaseRecordStore implements OnDestroy {
     );
   }
 
-  private _resetSelections(
-    pendingResets: ResetSelectionsRequest['pendingResets'],
-  ) {
+  private _resetSelections(pendingResets: ResetSelectionsReq['pendingResets']) {
     const { caseRecordId } = this._state$.value;
 
     return this.selectionsService
@@ -1012,10 +1011,13 @@ export interface CaseRecordState {
   };
   createdAt: string;
   createdBy: string;
-  lastUpdatedBy?: string;
+  lastUpdatedBy?: string | null;
   status: string;
+  isClosed: boolean;
+  closedAt?: string | null;
+  closedBy?: string | null;
   eTag: number;
-  lastUpdated?: string;
+  lastUpdated?: string | null;
 
   selections: StrTransactionWithChangeLogs[];
   parties: WithCaseRecordId<PartyGenType>[];
@@ -1029,13 +1031,10 @@ export interface CaseRecordState {
 }
 
 // Hidden props prefixed with '_hidden' are ignored by the change logging service.
-export type StrTransactionWithChangeLogs = StrTransaction & {
-  eTag: number;
-  caseRecordId: string;
-  changeLogs: ChangeLogAudit[];
-  _hiddenValidation?: _hiddenValidationType[];
-  // [key: string]: unknown;
-};
+export type StrTransactionWithChangeLogs = StrTransaction &
+  SelectionRes & {
+    _hiddenValidation?: _hiddenValidationType[];
+  };
 
 export type ChangeLogAudit = WithETag<ChangeLog.ChangeLogType> & {
   updatedAt: string;

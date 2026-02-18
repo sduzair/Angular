@@ -1,16 +1,17 @@
 import { ArrayDataSource } from '@angular/cdk/collections';
 import { CommonModule } from '@angular/common';
 import {
+  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
-  ViewChild,
+  DestroyRef,
   inject,
   TrackByFunction,
-  AfterViewInit,
-  DestroyRef,
+  ViewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -26,7 +27,12 @@ import {
   RouterLinkActive,
   RouterOutlet,
 } from '@angular/router';
-import { filter } from 'rxjs';
+import { filter, take } from 'rxjs';
+import {
+  AmlCloseConfirmDialogComponent,
+  ConfirmDialogData,
+} from '../aml/aml-close-confirm-dialog.component';
+import { AmlClosingService } from '../aml/aml-closing.service';
 import { NavTreeService } from './nav-tree.service';
 
 @Component({
@@ -42,9 +48,10 @@ import { NavTreeService } from './nav-tree.service';
     MatIconModule,
     MatButtonModule,
     MatTreeNodePadding,
+    MatDialogModule,
   ],
   template: `
-    <mat-sidenav-container class="d-flex flex-column h-100 overflow-hidden">
+    <mat-sidenav-container class="d-flex flex-column">
       <mat-sidenav
         mode="side"
         opened
@@ -84,6 +91,17 @@ import { NavTreeService } from './nav-tree.service';
               <span class="fw-medium user-select-none">
                 {{ node.name }}
               </span>
+
+              @if (isAmlNode(node)) {
+                <button
+                  type="button"
+                  mat-icon-button
+                  class="ms-auto"
+                  [attr.aria-label]="'Close ' + node.name"
+                  (click)="onCloseAmlCase($event, node)">
+                  <mat-icon>highlight_remove</mat-icon>
+                </button>
+              }
             </div>
           </mat-tree-node>
 
@@ -106,7 +124,7 @@ import { NavTreeService } from './nav-tree.service';
         </mat-tree>
       </mat-sidenav>
 
-      <mat-sidenav-content class="overflow-hidden">
+      <mat-sidenav-content class="vh-100">
         <router-outlet></router-outlet>
       </mat-sidenav-content>
     </mat-sidenav-container>
@@ -120,6 +138,8 @@ export class NavLayoutComponent implements AfterViewInit {
   private readonly navTreeService = inject(NavTreeService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly amlClosingService = inject(AmlClosingService);
+  private readonly dialog = inject(MatDialog);
 
   dataSource!: ArrayDataSource<NavNode>;
 
@@ -128,6 +148,8 @@ export class NavLayoutComponent implements AfterViewInit {
   trackById: TrackByFunction<NavNode> = (_index: number, item: NavNode) =>
     item.id;
 
+  isAmlNode = (node: NavNode): boolean => node.id.startsWith('AML-');
+
   constructor() {
     // Subscribe to tree data changes
     this.navTreeService.treeData$
@@ -135,6 +157,30 @@ export class NavLayoutComponent implements AfterViewInit {
       // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
       .subscribe((data) => {
         this.dataSource = new ArrayDataSource<NavNode>(data);
+      });
+  }
+  onCloseAmlCase(event: MouseEvent, node: NavNode): void {
+    event.stopPropagation();
+
+    const amlId = node.id.replace('AML-', '');
+
+    const dialogRef = this.dialog.open(AmlCloseConfirmDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Close AML Case',
+        message: `Unsaved changes to AML-${amlId} will be lost. Continue?`,
+        confirmLabel: 'Close Case',
+        cancelLabel: 'Cancel',
+      } satisfies ConfirmDialogData,
+    });
+
+    dialogRef
+      .afterClosed()
+      .pipe(take(1))
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
+      .subscribe((confirmed: boolean) => {
+        if (!confirmed) return;
+        this.amlClosingService.close(amlId);
       });
   }
 

@@ -10,20 +10,16 @@ public class CaseRecord
     public ObjectId Id { get; set; }
 
     public string CaseRecordId { get; set; } = null!;
-
     public string AmlId { get; set; } = null!;
-
     public SearchParams SearchParams { get; set; } = null!;
-
     public DateTime CreatedAt { get; set; }
-
     public string CreatedBy { get; set; } = null!;
-    public string? LastUpdatedBy { get; set; } = null!;
-
+    public string? LastUpdatedBy { get; set; }
     public string Status { get; set; } = null!;
-
+    public bool IsClosed { get; set; }
+    public DateTime? ClosedAt { get; set; }
+    public string? ClosedBy { get; set; }
     public int ETag { get; set; }
-
     public DateTime? LastUpdated { get; set; }
 }
 

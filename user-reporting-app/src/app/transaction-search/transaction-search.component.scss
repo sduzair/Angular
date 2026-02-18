@@ -88,3 +88,28 @@ mat-toolbar.card-toolbar .mdc-button {
 .updated-by-row {
   --mat-toolbar-standard-height: auto;
 }
+
+.overlay-pre {
+  // position: fixed;
+  // top: 20px;
+  // right: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  // z-index: 1000;
+  // max-width: 400px;
+  // max-height: 80vh;
+  // pointer-events: none;
+  // overflow: auto;
+  // scrollbar-width: none;
+}
+
+// .bulk-edit-form {
+//   // Override filled container color only on dirty form fields
+//   mat-form-field.ng-dirty {
+//     --mat-form-field-outlined-outline-color: orange;
+//     --mat-form-field-outlined-outline-width: 3px;
+//     --mat-form-field-outlined-hover-outline-color: orange;
+//   }
+// }

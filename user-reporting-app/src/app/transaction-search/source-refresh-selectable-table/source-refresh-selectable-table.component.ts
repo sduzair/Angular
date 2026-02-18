@@ -14,6 +14,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTableModule } from '@angular/material/table';
 import { Observable } from 'rxjs';
 import { AbstractSelectableTableComponent } from '../abstract-selectable-table/abstract-selectable-table.component';
+import { CamelToTitlePipe } from '../../reporting-ui/reporting-ui-table/camel-to-title.pipe';
+import { TransactionSearchService } from '../transaction-search.service';
 
 @Component({
   selector: 'app-source-refresh-selectable-table',
@@ -54,7 +56,7 @@ import { AbstractSelectableTableComponent } from '../abstract-selectable-table/a
         <td mat-cell *matCellDef="let element">
           @if (!isLoading) {
             <span>
-              {{ element.sourceSys }}
+              {{ getSourceSysLabel(element.sourceSys) }}
             </span>
           }
           @if (isLoading) {
@@ -177,6 +179,10 @@ export class SourceRefreshSelectableTableComponent
   @Input({ required: true }) isLoadingSearch$!: Observable<
     'loading' | 'success' | 'fail' | null
   >;
+
+  getSourceSysLabel(code: string): string {
+    return SOURCE_SYS_LABELS[code as SourceSysCode] ?? 'Unknown Label';
+  }
 }
 
 export interface SourceSysRefreshTimeData {
@@ -184,3 +190,30 @@ export interface SourceSysRefreshTimeData {
   refresh?: string | Date | null;
   isDisabled?: boolean | null;
 }
+
+export const SOURCE_SYS_LABELS: Record<SourceSysCode, string> = {
+  PartyKyc: 'Party KYC',
+  FlowOfFunds: 'Flow of Funds',
+  ConductorKyc: 'Conductor KYC',
+  ProductInventory: 'Product Inventory',
+  Cheque: 'Cheque',
+  ABM: 'ABM',
+  OLB: 'OLB',
+  EMT: 'EMT',
+  BPSA: 'BPSA',
+  CI: 'CI',
+  FX: 'FX',
+  TSYS: 'TSYS',
+  EFT: 'EFT',
+  EMTs: 'EMTs',
+  FXCASHPM: 'FXCASHPM',
+  FXMP: 'FXMP',
+  GMT: 'GMT',
+  OTC: 'OTC',
+  POS: 'POS',
+  Wire: 'Wires',
+};
+
+type SourceSysCode = ReturnType<
+  typeof TransactionSearchService.getSourceSystemInfo
+>[number];

@@ -11,6 +11,7 @@ import {
   Router,
   provideRouter,
   withComponentInputBinding,
+  withExperimentalAutoCleanupInjectors,
   withNavigationErrorHandler,
   withRouterConfig,
 } from '@angular/router';
@@ -51,6 +52,7 @@ export const appConfig: ApplicationConfig = {
           inject(Router).parseUrl('/transactionsearch'),
         );
       }),
+      withExperimentalAutoCleanupInjectors(),
       // withDebugTracing(), // for debugging router
     ),
     { provide: RouteReuseStrategy, useClass: CachedRouteReuseStrategy },
