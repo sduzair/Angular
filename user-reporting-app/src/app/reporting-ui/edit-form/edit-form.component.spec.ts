@@ -795,7 +795,7 @@ describe('EditFormComponent', () => {
 
       const actionAddBtnTestIds = [
         'startingActions-add',
-        'completingActions-add',
+        // 'completingActions-add', one ca only
       ];
 
       for (const btnTestId of actionAddBtnTestIds) {
@@ -1718,9 +1718,12 @@ const CASE_RECORD_STATE_FIXTURE: CaseRecordState = {
     reviewPeriodSelection: [],
     sourceSystemsSelection: [],
   },
+  searchParamsHash: '',
+  lastSearchedParamsHash: '',
   createdAt: '',
   createdBy: '',
   status: 'Active',
+  isClosed: false,
   selections: [TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE].map((txn) => {
     return {
       ...txn,

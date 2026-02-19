@@ -26,15 +26,15 @@ public class CaseRecord
 
 public class SearchParams
 {
-    public List<string> PartyKeysSelection { get; set; } = null!;
+    public List<string> PartyKeysSelection { get; set; } = [];
 
-    public List<AccountNumber> AccountNumbersSelection { get; set; } = null!;
+    public List<AccountNumber> AccountNumbersSelection { get; set; } = [];
 
-    public List<string> SourceSystemsSelection { get; set; } = null!;
+    public List<string> SourceSystemsSelection { get; set; } = [];
 
-    public List<string> ProductTypesSelection { get; set; } = null!;
+    public List<string> ProductTypesSelection { get; set; } = [];
 
-    public List<ReviewPeriod> ReviewPeriodSelection { get; set; } = null!;
+    public List<ReviewPeriod> ReviewPeriodSelection { get; set; } = [];
 }
 
 public class AccountNumber
