@@ -12,6 +12,7 @@ public class CaseRecord
     public string CaseRecordId { get; set; } = null!;
     public string AmlId { get; set; } = null!;
     public SearchParams SearchParams { get; set; } = null!;
+    public string SearchParamsHash { get; set; } = null!;
     public DateTime CreatedAt { get; set; }
     public string CreatedBy { get; set; } = null!;
     public string? LastUpdatedBy { get; set; }

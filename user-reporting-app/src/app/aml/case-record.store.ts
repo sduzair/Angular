@@ -7,7 +7,7 @@ import {
   inject,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { uniqBy } from 'lodash-es';
+import { isEqual, sortBy, uniqBy } from 'lodash-es';
 import {
   BehaviorSubject,
   EMPTY,
@@ -24,6 +24,7 @@ import {
   concatMap,
   debounceTime,
   defaultIfEmpty,
+  distinctUntilChanged,
   filter,
   finalize,
   pairwise,
@@ -87,6 +88,8 @@ export const DEFAULT_CASE_RECORD_STATE: CaseRecordState = {
     reviewPeriodSelection: [],
     sourceSystemsSelection: [],
   },
+  searchParamsHash: '',
+  lastSearchedParamsHash: '',
   createdAt: '',
   createdBy: '',
   status: '',
@@ -123,7 +126,8 @@ export class CaseRecordStore implements OnDestroy {
 
   public state$ = this._state$.asObservable();
 
-  private conflict$ = new Subject<void>();
+  private _conflict$ = new Subject<void>();
+  readonly conflict$ = this._conflict$.asObservable();
   readonly latestCaseRecordVersion$ = this._state$.pipe(
     map((sessionState) => sessionState?.eTag),
   );
@@ -131,6 +135,23 @@ export class CaseRecordStore implements OnDestroy {
   readonly lastUpdated$ = this._state$.pipe(
     map((caseRecordState) => caseRecordState.lastUpdated!),
     startWith(new Date(0).toISOString().split('T')[0]),
+  );
+  readonly status$ = this._state$.pipe(
+    map(({ status }) => status),
+    distinctUntilChanged(),
+  );
+
+  readonly isClosed$ = this._state$.pipe(
+    map(({ isClosed }) => isClosed),
+    distinctUntilChanged(),
+  );
+
+  readonly searchParamsChanged$ = this._state$.pipe(
+    map(
+      ({ searchParamsHash, lastSearchedParamsHash }) =>
+        searchParamsHash === lastSearchedParamsHash,
+    ),
+    distinctUntilChanged(),
   );
 
   // --- SAVING STATUS ---
@@ -191,7 +212,7 @@ export class CaseRecordStore implements OnDestroy {
       },
     });
 
-    this.conflict$
+    this._conflict$
       .pipe(
         switchMap(() => {
           return forkJoin([
@@ -726,43 +747,26 @@ export class CaseRecordStore implements OnDestroy {
   // --- API PROXIES ---
   fetchCaseRecordByAmlId(amlId: string) {
     return this.caseRecordService.fetchCaseRecordByAmlId(amlId).pipe(
-      tap(
-        ({
-          caseRecordId,
-          amlId,
-          searchParams,
-          createdAt,
-          createdBy,
-          status,
-          eTag,
-          lastUpdated,
-        }) => {
-          const {
-            reviewPeriodSelection,
-            partyKeysSelection,
-            accountNumbersSelection,
-            sourceSystemsSelection,
-            productTypesSelection,
-          } = searchParams ?? {};
-          this._state$.next({
-            ...this._state$.value,
-            caseRecordId,
-            amlId,
-            searchParams: {
-              accountNumbersSelection: accountNumbersSelection ?? [],
-              partyKeysSelection: partyKeysSelection ?? [],
-              productTypesSelection: productTypesSelection ?? [],
-              reviewPeriodSelection: reviewPeriodSelection ?? [],
-              sourceSystemsSelection: sourceSystemsSelection ?? [],
-            },
-            createdAt,
-            createdBy,
-            status,
-            eTag,
-            lastUpdated: lastUpdated ?? undefined,
-          });
-        },
-      ),
+      tap(({ searchParams, ...rest }) => {
+        const {
+          reviewPeriodSelection,
+          partyKeysSelection,
+          accountNumbersSelection,
+          sourceSystemsSelection,
+          productTypesSelection,
+        } = searchParams ?? {};
+        this._state$.next({
+          ...this._state$.value,
+          searchParams: {
+            accountNumbersSelection: accountNumbersSelection ?? [],
+            partyKeysSelection: partyKeysSelection ?? [],
+            productTypesSelection: productTypesSelection ?? [],
+            reviewPeriodSelection: reviewPeriodSelection ?? [],
+            sourceSystemsSelection: sourceSystemsSelection ?? [],
+          },
+          ...rest,
+        });
+      }),
       // access case record state from state
       map(() => true),
     );
@@ -846,7 +850,7 @@ export class CaseRecordStore implements OnDestroy {
             catchError((error: HttpErrorResponse) => {
               // Conflict triggers refresh of local state
               if (error.status === HttpStatusCode.Conflict) {
-                this.conflict$.next();
+                this._conflict$.next();
               }
 
               return throwError(() => error);
@@ -886,7 +890,7 @@ export class CaseRecordStore implements OnDestroy {
         catchError((error: HttpErrorResponse) => {
           // Conflict triggers refresh of local state
           if (error.status === HttpStatusCode.Conflict) {
-            this.conflict$.next();
+            this._conflict$.next();
           }
 
           return throwError(() => error);
@@ -942,7 +946,7 @@ export class CaseRecordStore implements OnDestroy {
       catchError((error: HttpErrorResponse) => {
         // Conflict triggers refresh of local state
         if (error.status === HttpStatusCode.Conflict) {
-          this.conflict$.next();
+          this._conflict$.next();
           return EMPTY;
         }
 
@@ -990,7 +994,7 @@ export class CaseRecordStore implements OnDestroy {
 
           // Conflict triggers refresh of local state
           if (error.status === HttpStatusCode.Conflict) {
-            this.conflict$.next();
+            this._conflict$.next();
           }
 
           return throwError(() => error);
@@ -1009,6 +1013,8 @@ export interface CaseRecordState {
     productTypesSelection: string[];
     reviewPeriodSelection: ReviewPeriod[];
   };
+  searchParamsHash: string;
+  lastSearchedParamsHash: string | null;
   createdAt: string;
   createdBy: string;
   lastUpdatedBy?: string | null;

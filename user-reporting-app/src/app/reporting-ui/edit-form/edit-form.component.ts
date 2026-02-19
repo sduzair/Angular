@@ -4886,6 +4886,10 @@ export class EditFormComponent
       relativeTo: this.route,
     });
   }
+  private readonly _conflictSub = this.caseRecordStore.conflict$
+    .pipe(takeUntilDestroyed())
+    // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
+    .subscribe(() => this.navigateBack());
 }
 
 export const singleEditTypeResolver: ResolveFn<EditFormEditType> = (

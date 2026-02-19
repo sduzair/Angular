@@ -8,7 +8,7 @@ import {
   shareReplay,
   startWith,
   switchMap,
-  take,
+  withLatestFrom,
 } from 'rxjs';
 import { CaseRecordStore } from '../aml/case-record.store';
 import { TableSelectionType } from './transaction-view.component';
@@ -17,8 +17,8 @@ import { TableSelectionType } from './transaction-view.component';
 export abstract class AbstractTransactionViewComponent {
   protected _caseRecordStore = inject(CaseRecordStore);
   readonly searchResponse$ = this._caseRecordStore.state$.pipe(
-    distinctUntilChanged(),
     map(({ searchResponse }) => searchResponse),
+    distinctUntilChanged(),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
@@ -128,8 +128,49 @@ export abstract class AbstractTransactionViewComponent {
       ),
     ),
     debounceTime(200),
-    shareReplay({ bufferSize: 1, refCount: true }), // Share among multiple subscribers
+    shareReplay({ bufferSize: 1, refCount: true }),
   );
+
+  protected danglingSelections$ = this.selections$.pipe(
+    debounceTime(200),
+    withLatestFrom(
+      this.searchFlowOfFundsSet$,
+      this.searchAbmSet$,
+      this.searchOlbSet$,
+      this.searchEmtSet$,
+      this.searchWiresSet$,
+      this.searchOtcSet$,
+      this.searchPosSet$,
+    ),
+    map(
+      ([
+        transactionSelections,
+        fofSet,
+        abmSet,
+        olbSet,
+        emtSet,
+        wiresSet,
+        otcSet,
+        posSet,
+      ]) => {
+        const isDanglingSelection = (sel: {
+          flowOfFundsAmlTransactionId: string;
+        }) =>
+          !sel.flowOfFundsAmlTransactionId.startsWith('MTXN') &&
+          !fofSet.has(sel.flowOfFundsAmlTransactionId) &&
+          !abmSet.has(sel.flowOfFundsAmlTransactionId) &&
+          !olbSet.has(sel.flowOfFundsAmlTransactionId) &&
+          !emtSet.has(sel.flowOfFundsAmlTransactionId) &&
+          !wiresSet.has(sel.flowOfFundsAmlTransactionId) &&
+          !otcSet.has(sel.flowOfFundsAmlTransactionId) &&
+          !posSet.has(sel.flowOfFundsAmlTransactionId);
+
+        return transactionSelections.filter(isDanglingSelection);
+      },
+    ),
+  );
+
+  protected searchParamsChanged$ = this._caseRecordStore.searchParamsChanged$;
 
   fofSourceDataSelection$ = this._selectionsCurrent$.pipe(
     combineLatestWith(this.searchFlowOfFundsSet$),

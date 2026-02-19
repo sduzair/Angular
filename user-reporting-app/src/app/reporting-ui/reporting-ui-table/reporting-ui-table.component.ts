@@ -71,7 +71,8 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
         type="button"
         mat-raised-button
         ngProjectAs="table-toolbar-ele"
-        (click)="openManualUploadStepper()">
+        (click)="openManualUploadStepper()"
+        [disabled]="isClosed$ | async">
         <mat-icon>file_upload</mat-icon>
         Manual Upload
       </button>
@@ -92,7 +93,8 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
                 "
                 [indeterminate]="
                   baseTable.selection.hasValue() && !baseTable.isAllSelected()
-                ">
+                "
+                [disabled]="isClosed$ | async">
               </mat-checkbox>
             </div>
           }
@@ -106,7 +108,9 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
               (click)="baseTable.onCheckBoxClickMultiToggle($event, row, i)"
               (change)="$event ? baseTable.toggleRow(row) : null"
               [checked]="baseTable.selection.isSelected(row)"
-              [disabled]="isEditDisabled(row, qSavingEdits())">
+              [disabled]="
+                (isClosed$ | async) || isEditDisabled(row, qSavingEdits())
+              ">
             </mat-checkbox>
           </div>
         </td>
@@ -122,7 +126,9 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
           <div>
             <button
               type="button"
-              [disabled]="isActionHeaderDisabled$ | async"
+              [disabled]="
+                (isClosed$ | async) || (isActionHeaderDisabled$ | async)
+              "
               mat-icon-button
               (click)="navigateToBulkEdit()"
               [matBadge]="baseTable.selection.selected.length"
@@ -138,7 +144,9 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
             </button>
             <button
               type="button"
-              [disabled]="isActionHeaderDisabled$ | async"
+              [disabled]="
+                (isClosed$ | async) || (isActionHeaderDisabled$ | async)
+              "
               mat-icon-button
               (click)="resetSelectedTxns()"
               [matBadge]="baseTable.selection.selected.length"
@@ -151,7 +159,9 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
             </button>
             <button
               type="button"
-              [disabled]="isActionHeaderDisabled$ | async"
+              [disabled]="
+                (isClosed$ | async) || (isActionHeaderDisabled$ | async)
+              "
               mat-icon-button
               (click)="removeSelectedTxns()"
               [matBadge]="baseTable.selection.selected.length"
@@ -173,28 +183,37 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
               type="button"
               mat-icon-button
               (click)="navigateToEditForm(row)"
-              [disabled]="isEditDisabled(row, qSavingEdits())">
+              [disabled]="
+                (isClosed$ | async) || isEditDisabled(row, qSavingEdits())
+              ">
               <mat-icon>edit</mat-icon>
             </button>
             <button
               type="button"
               mat-icon-button
               (click)="navigateToAuditForm(row)"
-              [disabled]="isEditDisabled(row, qSavingEdits())">
+              [disabled]="
+                (false && (isClosed$ | async)) ||
+                isEditDisabled(row, qSavingEdits())
+              ">
               <mat-icon class="text-primary">history</mat-icon>
             </button>
             <button
               type="button"
               mat-icon-button
               (click)="resetTxn(row)"
-              [disabled]="isEditDisabled(row, qSavingEdits())">
+              [disabled]="
+                (isClosed$ | async) || isEditDisabled(row, qSavingEdits())
+              ">
               <mat-icon class="text-danger">restart_alt</mat-icon>
             </button>
             <button
               type="button"
               mat-icon-button
               (click)="removeTxn(row)"
-              [disabled]="isEditDisabled(row, qSavingEdits())">
+              [disabled]="
+                (isClosed$ | async) || isEditDisabled(row, qSavingEdits())
+              ">
               <mat-icon class="text-danger">delete_outline</mat-icon>
             </button>
           </div>
@@ -240,6 +259,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
   private dialog = inject(MatDialog);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  protected isClosed$ = this.caseRecordStore.isClosed$;
 
   selectionsComputed$ = this.caseRecordStore.selectionsComputed$.pipe(
     tap((txns) => {

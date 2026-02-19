@@ -57,7 +57,8 @@ import { TableSelectionType } from '../transaction-view.component';
               (change)="$event ? toggleAllRows() : null"
               [checked]="hasValue() && isAllSelected()"
               [indeterminate]="hasValue() && !isAllSelected()"
-              [class.invisible]="!hasValue()">
+              [class.invisible]="!hasValue()"
+              [disabled]="disabled">
             </mat-checkbox>
           </div>
         </th>
@@ -69,7 +70,8 @@ import { TableSelectionType } from '../transaction-view.component';
             <mat-checkbox
               (click)="baseTable.onCheckBoxClickMultiToggle($event, row, i)"
               (change)="$event ? baseTable.toggleRow(row) : null"
-              [checked]="masterSelection!.isSelected(row)">
+              [checked]="masterSelection!.isSelected(row)"
+              [disabled]="disabled">
             </mat-checkbox>
           </div>
         </td>
@@ -83,6 +85,9 @@ export class OtcTableComponent<
     [K in keyof TableSelectionType]: string;
   },
 > {
+  @Input({ required: true })
+  disabled: boolean | null = false;
+
   dataColumnsValues: (keyof OTCSourceData)[] = [
     'postingDate',
     'transactionDate',

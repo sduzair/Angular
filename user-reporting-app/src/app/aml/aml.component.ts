@@ -77,6 +77,27 @@ import { CaseRecordStore, ReviewPeriod } from './case-record.store';
 
             <!-- Info chips -->
             <div class="info-chips-container">
+              <!-- Params Changes -->
+              @let searchParamsChanged =
+                (searchParamsChanged$ | async) ?? false;
+              <mat-icon
+                color="warn"
+                class="align-self-center"
+                [class.d-none]="!searchParamsChanged"
+                matTooltip="Search criteria has changed. Transaction selections may no longer reflect current search parameters."
+                matTooltipPosition="below"
+                aria-label="Search criteria changed warning">
+                warning_amber
+              </mat-icon>
+
+              <!-- Status -->
+              @if (amlCaseStatus$ | async; as status) {
+                <mat-chip color="accent" class="info-chip">
+                  <mat-icon>label_important_outline</mat-icon>
+                  {{ status }}
+                </mat-chip>
+              }
+
               <!-- Last Updated By -->
               @if (lastUpdatedBy$ | async; as updatedBy) {
                 <mat-chip color="accent" class="info-chip">
@@ -165,6 +186,7 @@ export class AmlComponent implements OnInit {
   lastUpdated$ = this.caseRecordStore.lastUpdated$;
 
   savingStatus$ = this.caseRecordStore.qIsSaving$;
+  protected searchParamsChanged$ = this.caseRecordStore.searchParamsChanged$;
 
   breadcrumbs$!: Observable<Breadcrumb[]>;
 
@@ -244,6 +266,7 @@ export class AmlComponent implements OnInit {
   lastUpdatedBy$ = this.caseRecordStore.state$.pipe(
     map((state) => state.lastUpdatedBy ?? state.createdBy),
   );
+  amlCaseStatus$ = this.caseRecordStore.status$;
 
   reviewPeriods$ = this.caseRecordStore.state$.pipe(
     map((state) => state.searchParams.reviewPeriodSelection),

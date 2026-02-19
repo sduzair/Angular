@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { WithETag } from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import { AccountNumberSelection } from '../transaction-search/transaction-search.service';
 import { ReviewPeriod } from './case-record.store';
+import { format, parseISO } from 'date-fns';
 
 @Injectable({
   providedIn: 'root',
@@ -41,6 +42,10 @@ export class CaseRecordService {
   }
 }
 
+export function toCaseRecordIdLabel(i: number, record: CaseRecordRes): string {
+  return `Case-${i + 1}-${format(parseISO(record.createdAt), 'yyyyMMdd')}`;
+}
+
 export interface CaseRecordRes {
   caseRecordId: string;
   amlId: string;
@@ -51,6 +56,7 @@ export interface CaseRecordRes {
     productTypesSelection?: string[] | null;
     reviewPeriodSelection?: ReviewPeriod[] | null;
   } | null;
+  searchParamsHash: string;
   createdAt: string;
   createdBy: string;
   lastUpdatedBy?: string | null;

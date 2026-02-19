@@ -303,6 +303,7 @@ api.MapPost("/caserecord/{caseRecordId}/update", async (
     var currentUser = context.User.Identity?.Name ?? "System";
     var update = Builders<CaseRecord>.Update
         .Set(x => x.SearchParams, request.SearchParams)
+        .Set(x => x.SearchParamsHash, SearchParamsHasher.Compute(request.SearchParams))
         .Set(x => x.LastUpdated, DateTime.UtcNow)
         .Set(x => x.LastUpdatedBy, currentUser)
         .Inc(x => x.ETag, 1);

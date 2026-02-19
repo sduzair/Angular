@@ -7,12 +7,14 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { MatBadgeModule } from '@angular/material/badge';
 import { MatButton } from '@angular/material/button';
 import { MatChip } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import {
   ActivatedRouteSnapshot,
   ResolveFn,
@@ -88,25 +90,66 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
     MatIconModule,
     OtcTableComponent,
     PosTableComponent,
+    MatTooltipModule,
+    MatBadgeModule,
   ],
   template: `
     <div class="row row-cols-1 mx-0">
       <mat-toolbar class="col px-0">
         <mat-toolbar-row class="px-0 header-toolbar-row">
+          @let searchParamsChanged = (searchParamsChanged$ | async) ?? false;
+          <button
+            [class.d-none]="!searchParamsChanged"
+            style="cursor: default"
+            type="button"
+            color="warn"
+            mat-stroked-button
+            class="warning-indicator"
+            [matTooltip]="
+              'Search criteria has changed. Selections may no longer reflect current search parameters.'
+            "
+            matTooltipPosition="below"
+            tabindex="-1"
+            aria-live="polite"
+            aria-label="Search criteria changed warning">
+            <mat-icon class="text-danger">warning_amber</mat-icon>
+            Search Criteria Changed
+          </button>
+
           <button type="button" color="primary" mat-flat-button>
             {{ 'Export Data' }}
           </button>
+
           <div class="flex-fill"></div>
+
+          @let danglingSelections = (danglingSelections$ | async) ?? [];
+          <button
+            type="button"
+            color="warn"
+            mat-stroked-button
+            [class.d-none]="danglingSelections.length === 0"
+            [disabled]="isClosed$ | async"
+            (click)="removeDanglingSelections(danglingSelections)"
+            [matBadge]="danglingSelections.length"
+            aria-label="Remove extra selections">
+            <mat-icon class="text-danger">playlist_remove</mat-icon>
+            Clear Dangling
+          </button>
+
           <button
             type="button"
             color="accent"
             mat-raised-button
-            [disabled]="(selectionControlHasChanges$ | async) === false"
+            [disabled]="
+              (selectionControlHasChanges$ | async) === false ||
+              (isClosed$ | async)
+            "
             (click)="resetSelections()"
             aria-label="Reset selections">
             <mat-icon>refresh</mat-icon>
             Reset
           </button>
+
           <button
             type="button"
             color="primary"
@@ -115,7 +158,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
               (selectionControlHasChanges$ | async) === false ||
               (saveProgress$ | async)?.status === 'transforming' ||
               (saveProgress$ | async)?.status === 'saving' ||
-              (qIsSaving$ | async)
+              (qIsSaving$ | async) ||
+              (isClosed$ | async)
             "
             (click)="onSave()">
             @let isSaving =
@@ -145,7 +189,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [fofSourceData]="(fofSourceData$ | async) || []"
             [selectionCount]="(fofSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
-            [highlightedRecords]="highlightedRecords" />
+            [highlightedRecords]="highlightedRecords"
+            [disabled]="isClosed$ | async" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -158,7 +203,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [abmSourceData]="(abmSourceData$ | async) || []"
             [selectionCount]="(abmSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
-            [highlightedRecords]="highlightedRecords" />
+            [highlightedRecords]="highlightedRecords"
+            [disabled]="isClosed$ | async" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -171,7 +217,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [olbSourceData]="(olbSourceData$ | async) || []"
             [selectionCount]="(olbSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
-            [highlightedRecords]="highlightedRecords" />
+            [highlightedRecords]="highlightedRecords"
+            [disabled]="isClosed$ | async" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -184,7 +231,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [emtSourceData]="(emtSourceData$ | async) || []"
             [selectionCount]="(emtSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
-            [highlightedRecords]="highlightedRecords" />
+            [highlightedRecords]="highlightedRecords"
+            [disabled]="isClosed$ | async" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -197,7 +245,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [wiresSourceData]="(wiresSourceData$ | async) || []"
             [selectionCount]="(wiresSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
-            [highlightedRecords]="highlightedRecords" />
+            [highlightedRecords]="highlightedRecords"
+            [disabled]="isClosed$ | async" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -210,7 +259,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [otcSourceData]="(otcSourceData$ | async) || []"
             [selectionCount]="(otcSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
-            [highlightedRecords]="highlightedRecords" />
+            [highlightedRecords]="highlightedRecords"
+            [disabled]="isClosed$ | async" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -223,7 +273,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [posSourceData]="(posSourceData$ | async) || []"
             [selectionCount]="(posSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
-            [highlightedRecords]="highlightedRecords" />
+            [highlightedRecords]="highlightedRecords"
+            [disabled]="isClosed$ | async" />
         </mat-tab>
       </mat-tab-group>
     }
@@ -236,6 +287,7 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
   private highlightsService = inject(LocalHighlightsService);
   private errorHandler = inject(ErrorHandler);
   protected qIsSaving$ = this._caseRecordStore.qIsSaving$;
+  protected isClosed$ = this._caseRecordStore.isClosed$;
 
   highlightedRecords = signal<Map<string, string>>(new Map());
 
@@ -395,6 +447,22 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
 
     // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
     this.onSave$.pipe(takeUntilDestroyed()).subscribe();
+  }
+
+  removeDanglingSelections(
+    selections: {
+      flowOfFundsAmlTransactionId: string;
+    }[],
+  ) {
+    this._caseRecordStore
+      .removeSelections(
+        selections.map(
+          ({ flowOfFundsAmlTransactionId }) => flowOfFundsAmlTransactionId,
+        ),
+      )
+      .pipe(take(1))
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
+      .subscribe();
   }
 
   protected onSaveSubject = new Subject<void>();
