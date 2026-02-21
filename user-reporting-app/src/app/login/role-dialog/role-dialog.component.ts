@@ -17,18 +17,16 @@ import { UserRole } from '../../auth.service';
 
       <div class="row justify-content-center g-4">
         <!-- Analyst Option -->
-        <div class="col-6 d-flex">
+        <div class="col-4 d-flex">
           <mat-card
             class="role-card w-100 text-center cursor-pointer"
             matRipple
             (click)="selectRole(analystUser, 'Analyst')">
             <mat-card-content class="p-4 d-flex flex-column h-100">
               <mat-icon class="role-icon mb-3 mx-auto">fact_check</mat-icon>
-              <h3 class="mb-1 fw-medium">Analyst</h3>
-              <small class="role-username fw-bold mb-2">{{
-                analystUser
-              }}</small>
-              <p class="text-muted mb-0 mt-auto small">
+              <span matCardTitle class="mb-1">Analyst</span>
+              <span matCardSubtitle class="mb-2">{{ analystUser }}</span>
+              <p class="mb-0 mt-auto">
                 Performs transaction data validation to maintain completeness
                 and reporting readiness.
               </p>
@@ -36,19 +34,43 @@ import { UserRole } from '../../auth.service';
           </mat-card>
         </div>
 
-        <!-- Admin Option -->
-        <div class="col-6 d-flex">
+        <!-- Investigator Option -->
+        <div class="col-4 d-flex">
           <mat-card
-            class="role-card admin-card w-100 text-center cursor-pointer"
+            class="role-card w-100 text-center cursor-pointer"
+            matRipple
+            (click)="selectRole(invUser, 'Inv')">
+            <mat-card-content class="p-4 d-flex flex-column h-100">
+              <mat-icon class="role-icon inv-icon mb-3 mx-auto"
+                >manage_search</mat-icon
+              >
+              <span matCardTitle class="mb-1">Investigator</span>
+              <span matCardSubtitle class="mb-2">
+                {{ invUser }}
+              </span>
+              <p class="mb-0 mt-auto">
+                Reviews and updates case records, manages transaction
+                selections, and drives AML investigations to resolution.
+              </p>
+            </mat-card-content>
+          </mat-card>
+        </div>
+
+        <!-- Admin Option -->
+        <div class="col-4 d-flex">
+          <mat-card
+            class="role-card w-100 text-center cursor-pointer"
             matRipple
             (click)="selectRole(adminUser, 'Admin')">
             <mat-card-content class="p-4 d-flex flex-column h-100">
-              <mat-icon class="role-icon mb-3 mx-auto"
-                >admin_panel_settings</mat-icon
-              >
-              <h3 class="mb-1 fw-medium">Admin</h3>
-              <small class="role-username fw-bold mb-2">{{ adminUser }}</small>
-              <p class="text-muted mb-0 mt-auto small">
+              <mat-icon class="role-icon admin-icon mb-3 mx-auto">
+                admin_panel_settings
+              </mat-icon>
+              <span matCardTitle class="mb-1">Admin</span>
+              <span matCardSubtitle class="mb-2">
+                {{ adminUser }}
+              </span>
+              <p class="mb-0 mt-auto">
                 Performs privileged case administration actions and compliance
                 audits.
               </p>
@@ -63,8 +85,9 @@ import { UserRole } from '../../auth.service';
 })
 export class RoleDialogComponent {
   private dialogRef = inject(MatDialogRef<RoleDialogComponent>);
-  readonly analystUser = 'John Doe';
   readonly adminUser = 'Alice Cooper';
+  readonly invUser = 'Jane Smith';
+  readonly analystUser = 'John Doe';
 
   selectRole(username: string, role: UserRole) {
     this.dialogRef.close({ username, role });

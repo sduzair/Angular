@@ -18,6 +18,7 @@
         - [Import `strTxns` Data](#import-strtxns-data)
     - [TLS Certificate Setup](#tls-certificate-setup)
     - [Certificate Authority Setup (Self-Signed)](#certificate-authority-setup-self-signed)
+    - [Access token generation](#access-token-generation)
     - [Build and run Docker containers](#build-and-run-docker-containers)
       - [Manual Test Connection to Local MongoDB Container with TLS](#manual-test-connection-to-local-mongodb-container-with-tls)
     - [Render Dotnetapi Web Service](#render-dotnetapi-web-service)
@@ -163,6 +164,22 @@ A Certificate Authority (CA) is required to sign/verify server and client certif
 
     mv ca.pem certs/
     ```
+
+### Access token generation
+
+```sh
+# analyst
+dotnet user-jwts create --role analyst --name analyst-user --expires-on 2099-12-31
+
+# inv
+dotnet user-jwts create --role inv --name inv-user --expires-on 2099-12-31
+
+# admin
+dotnet user-jwts create --role admin --name admin-user --expires-on 2099-12-31
+
+# list
+dotnet user-jwts list
+```
 
 ### Build and run Docker containers
 

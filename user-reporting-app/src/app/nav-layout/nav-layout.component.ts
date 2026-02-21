@@ -28,11 +28,12 @@ import {
   RouterOutlet,
 } from '@angular/router';
 import { filter, take } from 'rxjs';
+import { AmlCaseTeardownService } from '../aml/aml-case-teardown.service';
 import {
   AmlCloseConfirmDialogComponent,
   ConfirmDialogData,
 } from '../aml/aml-close-confirm-dialog.component';
-import { AmlClosingService } from '../aml/aml-closing.service';
+import { AuthService } from '../auth.service';
 import { NavTreeService } from './nav-tree.service';
 
 @Component({
@@ -58,8 +59,16 @@ import { NavTreeService } from './nav-tree.service';
         disableClose
         fixedInViewport
         class="app-nav border-end shadow-sm">
-        <mat-toolbar class="px-3 mb-2 border-bottom">
+        <mat-toolbar class="px-3 mb-2 border-bottom justify-content-between">
           <span>Poacher UI</span>
+          <button
+            type="button"
+            mat-icon-button
+            (click)="onLogout()"
+            matTooltip="Logout"
+            aria-label="Logout">
+            <mat-icon>logout</mat-icon>
+          </button>
         </mat-toolbar>
 
         <mat-tree
@@ -98,7 +107,7 @@ import { NavTreeService } from './nav-tree.service';
                   mat-icon-button
                   class="ms-auto"
                   [attr.aria-label]="'Close ' + node.name"
-                  (click)="onCloseAmlCase($event, node)">
+                  (click)="onRemoveAmlCase($event, node)">
                   <mat-icon>highlight_remove</mat-icon>
                 </button>
               }
@@ -138,8 +147,9 @@ export class NavLayoutComponent implements AfterViewInit {
   private readonly navTreeService = inject(NavTreeService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly amlClosingService = inject(AmlClosingService);
+  private readonly amlCaseTeardownService = inject(AmlCaseTeardownService);
   private readonly dialog = inject(MatDialog);
+  private readonly authService = inject(AuthService);
 
   dataSource!: ArrayDataSource<NavNode>;
 
@@ -159,7 +169,8 @@ export class NavLayoutComponent implements AfterViewInit {
         this.dataSource = new ArrayDataSource<NavNode>(data);
       });
   }
-  onCloseAmlCase(event: MouseEvent, node: NavNode): void {
+
+  onRemoveAmlCase(event: MouseEvent, node: NavNode): void {
     event.stopPropagation();
 
     const amlId = node.id.replace('AML-', '');
@@ -167,9 +178,9 @@ export class NavLayoutComponent implements AfterViewInit {
     const dialogRef = this.dialog.open(AmlCloseConfirmDialogComponent, {
       width: '400px',
       data: {
-        title: 'Close AML Case',
+        title: 'Remove AML Case',
         message: `Unsaved changes to AML-${amlId} will be lost. Continue?`,
-        confirmLabel: 'Close Case',
+        confirmLabel: 'Remove',
         cancelLabel: 'Cancel',
       } satisfies ConfirmDialogData,
     });
@@ -180,8 +191,13 @@ export class NavLayoutComponent implements AfterViewInit {
       // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
       .subscribe((confirmed: boolean) => {
         if (!confirmed) return;
-        this.amlClosingService.close(amlId);
+        this.amlCaseTeardownService.remove(amlId);
       });
+  }
+
+  onLogout(): void {
+    this.authService.logout();
+    this.router.navigate(['/login']);
   }
 
   ngAfterViewInit() {

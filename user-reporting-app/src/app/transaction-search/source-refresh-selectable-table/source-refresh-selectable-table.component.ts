@@ -205,7 +205,6 @@ export const SOURCE_SYS_LABELS: Record<SourceSysCode, string> = {
   FX: 'FX',
   TSYS: 'TSYS',
   EFT: 'EFT',
-  EMTs: 'EMTs',
   FXCASHPM: 'FXCASHPM',
   FXMP: 'FXMP',
   GMT: 'GMT',

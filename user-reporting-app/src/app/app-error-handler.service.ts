@@ -23,6 +23,11 @@ export class AppErrorHandlerService implements ErrorHandler {
       const msg: string = error.error.message;
 
       this.snackbarQ.open(msg, 'Dismiss');
+    } else if (
+      error instanceof HttpErrorResponse &&
+      error.status === HttpStatusCode.Unauthorized
+    ) {
+      this.snackbarQ.open(error.message, 'Dismiss');
     } else if (error instanceof HttpErrorResponse) {
       // Show detailed info for any HTTP error
       let msg: string =
@@ -44,15 +49,3 @@ export class AppErrorHandlerService implements ErrorHandler {
     }
   }
 }
-
-// export const errorInterceptor: HttpInterceptorFn = (req, next) => {
-//   const errorHandler = inject(ErrorHandler);
-
-//   return next(req).pipe(
-//     catchError((error: HttpErrorResponse) => {
-//       // Automatically forward all HTTP errors to global handler
-//       errorHandler.handleError(error);
-//       return throwError(() => error);
-//     }),
-//   );
-// };

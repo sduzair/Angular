@@ -3,6 +3,7 @@ import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   DestroyRef,
   ErrorHandler,
   inject,
@@ -59,13 +60,14 @@ import {
   switchMap,
   tap,
 } from 'rxjs';
-import { AmlClosingService } from '../aml/aml-closing.service';
+import { AmlCaseTeardownService } from '../aml/aml-case-teardown.service';
 import {
   CaseRecordRes,
   CaseRecordService,
   toCaseRecordIdLabel,
 } from '../aml/case-record.service';
 import { CaseRecordState, ReviewPeriod } from '../aml/case-record.store';
+import { AuthService } from '../auth.service';
 import { setError } from '../form-helpers';
 import { PreemptiveErrorStateMatcher } from '../reporting-ui/edit-form/edit-form.component';
 import { SnackbarQueueService } from '../snackbar-queue.service';
@@ -215,6 +217,30 @@ const AMLID_TEST = '99999999';
                     {{ lastUpdated | date: 'short' }}
                   </span>
                 </span>
+
+                @let isClosed = searchParamsForm.controls.isClosed.value;
+
+                <span
+                  class="vr"
+                  [class.invisible]="
+                    isClosed === null || !canManageCase()
+                  "></span>
+
+                <button
+                  type="button"
+                  mat-stroked-button
+                  [color]="isClosed ? 'primary' : 'warn'"
+                  (click)="onToggleCaseStatus()"
+                  [disabled]="
+                    (isTogglingStatus$ | async) === true ||
+                    (isLoadingCaseRecord$ | async) ||
+                    (isLoadingSearch$ | async) === 'loading'
+                  "
+                  [class.invisible]="isClosed === null || !canManageCase()"
+                  class="case-toggle-btn me-2">
+                  <mat-icon>{{ isClosed ? 'lock_open' : 'lock' }}</mat-icon>
+                  {{ isClosed ? 'Reopen Case' : 'Close Case' }}
+                </button>
 
                 <div class="flex-fill"></div>
 
@@ -527,12 +553,12 @@ const AMLID_TEST = '99999999';
           </div>
         </form>
       </div>
-      <div class="row row-cols-1">
+      <!-- <div class="row row-cols-1">
         <pre class="overlay-pre">
           Form values: {{ searchParamsForm.value | json }}
         </pre
         >
-      </div>
+      </div> -->
     </div>
   `,
   styleUrl: './transaction-search.component.scss',
@@ -569,7 +595,7 @@ export class TransactionSearchComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
   private errorHandler = inject(ErrorHandler);
   private router = inject(Router);
-  private amlClosingService = inject(AmlClosingService);
+  private amlClosingService = inject(AmlCaseTeardownService);
 
   searchParamsForm = new FormGroup(
     {
@@ -619,6 +645,8 @@ export class TransactionSearchComponent implements OnInit {
       eTag: new FormControl(Number.NaN, { nonNullable: true }),
       lastUpdated: new FormControl('', { nonNullable: true }),
       lastUpdatedBy: new FormControl('', { nonNullable: true }),
+      status: new FormControl('', { nonNullable: true }),
+      isClosed: new FormControl(null as boolean | null),
     },
     {
       updateOn: 'change',
@@ -653,6 +681,8 @@ export class TransactionSearchComponent implements OnInit {
               lastUpdated,
               lastUpdatedBy,
               createdBy,
+              status,
+              isClosed,
             },
           ]) => {
             const {
@@ -689,6 +719,8 @@ export class TransactionSearchComponent implements OnInit {
                 eTag,
                 lastUpdated: lastUpdated ?? undefined,
                 lastUpdatedBy: lastUpdatedBy ?? createdBy,
+                status,
+                isClosed,
               },
               { emitEvent: false }, // prevents value changes emission on aml id which disables form
             );
@@ -929,6 +961,8 @@ export class TransactionSearchComponent implements OnInit {
           lastUpdated,
           lastUpdatedBy,
           createdBy,
+          status,
+          isClosed,
         }) => {
           const {
             reviewPeriodSelection,
@@ -963,6 +997,8 @@ export class TransactionSearchComponent implements OnInit {
               eTag,
               lastUpdated: lastUpdated ?? undefined,
               lastUpdatedBy: lastUpdatedBy ?? createdBy,
+              status,
+              isClosed,
             },
             { emitEvent: false }, // prevents value changes emission on aml id which disables form
           );
@@ -972,7 +1008,7 @@ export class TransactionSearchComponent implements OnInit {
           );
 
           this.searchParamsForm.updateValueAndValidity();
-          this.amlClosingService.close(amlId!);
+          this.amlClosingService.remove(amlId!);
         },
       );
   }
@@ -1072,6 +1108,55 @@ export class TransactionSearchComponent implements OnInit {
           },
         );
       });
+  }
+
+  private readonly authService = inject(AuthService);
+
+  protected readonly canManageCase = computed(
+    () => this.authService.isAdmin() || this.authService.isInvestigator(),
+  );
+  protected isTogglingStatus$ = new BehaviorSubject<boolean>(false);
+  onToggleCaseStatus() {
+    const { caseRecordId, eTag } = this.searchParamsForm.getRawValue();
+    if (!caseRecordId || eTag == null || isNaN(eTag)) return;
+
+    const action$ = this.searchParamsForm.controls.isClosed.value
+      ? this.caseRecordService.activateCaseRecord(caseRecordId, { eTag })
+      : this.caseRecordService.closeCaseRecord(caseRecordId, { eTag });
+
+    this.isTogglingStatus$.next(true);
+
+    action$
+      .pipe(
+        tap(({ isClosed, eTag: newETag }) => {
+          this.searchParamsForm.patchValue(
+            { isClosed, eTag: newETag },
+            { emitEvent: false },
+          );
+
+          // Keep searchParamsBefore eTag in sync to avoid false "unsaved changes"
+          if (this.searchParamsBefore) {
+            this.searchParamsBefore.eTag = newETag;
+          }
+
+          this.snackbarQ.open(
+            isClosed
+              ? 'Case closed successfully'
+              : 'Case reopened successfully',
+          );
+        }),
+        catchError((error: HttpErrorResponse) => {
+          this.errorHandler.handleError(error);
+          if (error.status === HttpStatusCode.Conflict) {
+            this.loadClick$.next();
+          }
+          return EMPTY;
+        }),
+        finalize(() => this.isTogglingStatus$.next(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
+      .subscribe();
   }
 
   createReviewPeriodGroup({

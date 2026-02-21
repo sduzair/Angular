@@ -45,6 +45,10 @@
   @include mat.button-density(0);
 }
 
+.case-toggle-btn {
+  @include mat.button-density(0);
+}
+
 mat-toolbar.card-toolbar {
   --mat-toolbar-standard-height: auto;
   background-color: unset;

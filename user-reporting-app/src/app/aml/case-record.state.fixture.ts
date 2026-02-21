@@ -36,7 +36,7 @@ export const CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE: CaseRecordState = {
   searchParamsHash: '',
   lastSearchedParamsHash: '',
   createdAt: new Date().toISOString(),
-  createdBy: TEST_USER_ADMIN.username,
+  createdBy: TEST_USER_ADMIN!.username,
   lastUpdatedBy: null,
   status: 'Active',
   isClosed: false,

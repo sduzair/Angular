@@ -5,19 +5,18 @@ import { NavTreeService } from '../nav-layout/nav-tree.service';
 import { CachedRouteReuseStrategy } from '../route-cache/preserve-route-reuse-strategy';
 
 @Injectable({ providedIn: 'root' })
-export class AmlClosingService {
+export class AmlCaseTeardownService {
   private router = inject(Router);
   private navTreeService = inject(NavTreeService);
   private reuseStrategy = inject(
     RouteReuseStrategy,
   ) as CachedRouteReuseStrategy;
 
-  close(amlId: string): void {
+  remove(amlId: string): void {
     const amlPath = `/aml/${amlId}`;
     const isInsideScope = this.router.url.startsWith(amlPath);
 
     if (isInsideScope) {
-      // Wait for navigation to complete so store() calls during deactivation
       // finish before we evict — prevents re-caching after eviction
       this.router.events
         .pipe(

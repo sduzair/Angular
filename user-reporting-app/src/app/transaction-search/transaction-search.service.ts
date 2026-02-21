@@ -117,7 +117,6 @@ export class TransactionSearchService {
       'FX',
       'TSYS',
       'EFT',
-      'EMTs',
       'FXCASHPM',
       'FXMP',
       'GMT',

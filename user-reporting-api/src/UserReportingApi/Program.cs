@@ -1,5 +1,9 @@
+using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Logging;
+using Microsoft.IdentityModel.Tokens;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using UserReportingApi;
@@ -17,6 +21,36 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 
 var camelCaseConvention = new MongoDB.Bson.Serialization.Conventions.ConventionPack { new MongoDB.Bson.Serialization.Conventions.CamelCaseElementNameConvention() };
 MongoDB.Bson.Serialization.Conventions.ConventionRegistry.Register("CamelCase", camelCaseConvention, type => true);
+
+// JWT Authentication
+var jwtKey = builder.Configuration["Jwt:Key"]
+    ?? throw new InvalidOperationException("Jwt:Key is missing from configuration");
+// var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("Jwt:Key is missing from configuration");
+// var jwtAudience = builder.Configuration["Jwt:Audience"] ?? throw new InvalidOperationException("Jwt:Key is missing from configuration");
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            IssuerSigningKey = new SymmetricSecurityKey(Convert.FromBase64String(jwtKey)),
+            RoleClaimType = ClaimTypes.Role,   // maps "role" claim → IsInRole()
+            // ValidIssuer = jwtIssuer,
+            // ValidAudience = jwtAudience,
+            ValidateIssuerSigningKey = true,
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateLifetime = false,
+        };
+    });
+
+// Authorization Policies
+// Roles are additive upward: analyst -> inv -> admin
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("AdminPolicy", p => p.RequireRole("admin"))
+    .AddPolicy("InvPolicy", p => p.RequireRole("admin", "inv"))
+    .AddPolicy("AnalystPolicy", p => p.RequireRole("admin", "inv", "analyst"));
 
 // Register IMongoClient as a singleton
 builder.Services.AddSingleton<IMongoClient>(sp =>
@@ -66,8 +100,8 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
     var client = sp.GetRequiredService<IMongoClient>();
     var config = sp.GetRequiredService<IConfiguration>();
     var logger = sp.GetRequiredService<ILogger<Program>>();
-
     var databaseName = config["MongoDB:DatabaseName"];
+
     logger.LogInformation("Using database: {DatabaseName}", databaseName);
 
     try
@@ -93,15 +127,24 @@ builder.Services.AddCors(options =>
     });
 });
 
+if (builder.Environment.IsDevelopment())
+{
+    IdentityModelEventSource.ShowPII = true;
+    IdentityModelEventSource.LogCompleteSecurityArtifact = true;
+}
 
 var app = builder.Build();
 
+// Middleware Order
 app.UseRouting();
 
 if (app.Environment.IsDevelopment())
 {
     app.UseCors("AllowAll");
 }
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 if (app.Environment.IsProduction())
 {
@@ -211,7 +254,7 @@ api.MapPost("/transaction/search", async (
     }
 
     await writer.WriteAsync("]");
-});
+}).RequireAuthorization("AnalystPolicy"); ;
 
 api.MapGet("/aml/{amlId}/partyaccountinfo", async (
     string amlId,
@@ -226,7 +269,7 @@ api.MapGet("/aml/{amlId}/partyaccountinfo", async (
         return Results.NotFound(new { message = $"Party account info not found for AML ID: {amlId}" });
 
     return Results.Ok(partyAccountInfo);
-});
+}).RequireAuthorization("AnalystPolicy"); ;
 
 api.MapGet("/aml/partyinfo/{partyKey}", async (
     string partyKey,
@@ -241,7 +284,7 @@ api.MapGet("/aml/partyinfo/{partyKey}", async (
         return Results.NotFound(new { message = $"Party info not found for Party key: {partyKey}" });
 
     return Results.Ok(partyInfo);
-});
+}).RequireAuthorization("AnalystPolicy"); ;
 
 api.MapGet("/aml/accountinfo/{account}", async (
     string account,
@@ -256,7 +299,7 @@ api.MapGet("/aml/accountinfo/{account}", async (
         return Results.NotFound(new { message = $"Account info not found for Account no: {account}" });
 
     return Results.Ok(accountInfo);
-});
+}).RequireAuthorization("AnalystPolicy"); ;
 
 api.MapGet("/aml/formoptions", async (
     IMongoDatabase database,
@@ -270,7 +313,7 @@ api.MapGet("/aml/formoptions", async (
         return Results.NotFound(new { message = $"Form options not found" });
 
     return Results.Ok(formOptions);
-});
+}).RequireAuthorization("AnalystPolicy"); ;
 
 api.MapGet("/aml/{amlId}/caserecord", async (
     string amlId,
@@ -287,7 +330,7 @@ api.MapGet("/aml/{amlId}/caserecord", async (
     context.Response.Headers.ETag = $"\"{caseRecord.ETag}\"";
 
     return Results.Ok(caseRecord);
-});
+}).RequireAuthorization("AnalystPolicy"); ;
 
 api.MapPost("/caserecord/{caseRecordId}/update", async (
     string caseRecordId,
@@ -320,7 +363,7 @@ api.MapPost("/caserecord/{caseRecordId}/update", async (
 
     context.Response.Headers.ETag = $"\"{updatedRecord.ETag}\"";
     return Results.Ok(updatedRecord);
-});
+}).RequireAuthorization("InvPolicy"); ;
 
 api.MapPost("/caserecord/{caseRecordId}/close", async (
     string caseRecordId,
@@ -377,7 +420,7 @@ api.MapPost("/caserecord/{caseRecordId}/close", async (
 
     context.Response.Headers.ETag = $"\"{result.ETag}\"";
     return Results.Ok(result);
-});
+}).RequireAuthorization("InvPolicy"); ;
 
 api.MapPost("/caserecord/{caseRecordId}/activate", async (
     string caseRecordId,
@@ -438,7 +481,7 @@ api.MapPost("/caserecord/{caseRecordId}/activate", async (
 
     context.Response.Headers.ETag = $"\"{result.ETag}\"";
     return Results.Ok(result);
-});
+}).RequireAuthorization("InvPolicy"); ;
 
 
 api.MapGet("/caserecord/{caseRecordId}/selections", async (
@@ -455,7 +498,7 @@ api.MapGet("/caserecord/{caseRecordId}/selections", async (
     var partyList = await parties.Find(partyFilter).ToListAsync();
 
     return Results.Ok(new FetchSelectionsResponse(selectionList, partyList));
-});
+}).RequireAuthorization("AnalystPolicy"); ;
 
 api.MapPost("/caserecord/{caseRecordId}/selections/add", async (
     string caseRecordId,
@@ -528,7 +571,7 @@ api.MapPost("/caserecord/{caseRecordId}/selections/add", async (
         return await CaseRecordGuard.ResolveFailureAsync(caseRecords, caseRecordId, request.CaseETag);
 
     return Results.Ok(result);
-});
+}).RequireAuthorization("InvPolicy"); ;
 
 api.MapPost("/caserecord/{caseRecordId}/selections/remove", async (
     string caseRecordId,
@@ -584,7 +627,7 @@ api.MapPost("/caserecord/{caseRecordId}/selections/remove", async (
         return await CaseRecordGuard.ResolveFailureAsync(caseRecords, caseRecordId, request.CaseETag);
 
     return Results.Ok(result);
-});
+}).RequireAuthorization("InvPolicy"); ;
 
 api.MapPost("/caserecord/{caseRecordId}/selections/save", async (
     string caseRecordId,
@@ -655,7 +698,7 @@ api.MapPost("/caserecord/{caseRecordId}/selections/save", async (
         UpdatedBy: currentUser,
         UpdatedAt: DateTime.UtcNow
     ));
-});
+}).RequireAuthorization("AnalystPolicy"); ;
 
 api.MapPost("/caserecord/{caseRecordId}/selections/reset", async (
     string caseRecordId,
@@ -707,16 +750,17 @@ api.MapPost("/caserecord/{caseRecordId}/selections/reset", async (
         requested,
         succeeded
     ));
-});
+}).RequireAuthorization("InvPolicy"); ;
+
 
 // Handle unmatched API routes with 404
 app.Map("api/{**slug}", (string slug, HttpContext context) =>
 {
     context.Response.StatusCode = StatusCodes.Status404NotFound;
     return Task.CompletedTask;
-});
+}).AllowAnonymous();
 
-app.MapFallbackToFile("index.html");
+app.MapFallbackToFile("index.html").AllowAnonymous();
 
 app.Run();
 

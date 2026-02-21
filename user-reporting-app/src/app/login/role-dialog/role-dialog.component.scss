@@ -3,7 +3,7 @@
 }
 
 mat-dialog-content {
-  min-width: 500px;
+  min-width: 680px;
   padding: 24px !important;
 }
 
@@ -17,23 +17,17 @@ mat-dialog-content {
   }
 
   .role-icon {
-    font-size: 64px;
-    width: 64px;
-    height: 64px;
+    font-size: 80px;
+    width: 80px;
+    height: 80px;
     margin-inline: auto;
     color: #1976d2;
-  }
 
-  .role-username {
-    color: #1976d2;
+    &.inv-icon {
+      color: #00796b;
+    }
+    &.admin-icon {
+      color: #7b1fa2;
+    }
   }
-
-  h3 {
-    font-size: 20px;
-  }
-}
-
-.admin-card .role-icon,
-.admin-card .role-username {
-  color: #7b1fa2;
 }

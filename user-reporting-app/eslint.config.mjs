@@ -80,11 +80,11 @@ export default defineConfig([
               message:
                 'manual-upload-stepper deps like xlsx are lazily loaded. Use dynamic import() instead.',
             },
-            // allow test/dev fixtures when developing
+            // allow test/dev fixtures in non spec files in dev
             // @ts-ignore
-            ...(process.env.NODE_ENV === 'production' || true
-              ? // ...(process.env.NODE_ENV === 'production'
-                [
+            // ...(process.env.NODE_ENV === 'production' || true
+            ...(process.env.NODE_ENV === 'production'
+              ? [
                   {
                     group: ['**/*.fixture'],
                     message:
