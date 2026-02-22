@@ -122,6 +122,10 @@ export class MonthlyTxnVolumeComponent
     if (!this.myChart) return;
 
     const { monthlyData } = this.groupByMonth(this.transactions);
+    console.log(
+      '🚀 ~ MonthlyTxnVolumeComponent ~ updateChart ~ monthlyData:',
+      monthlyData,
+    );
 
     // Create series for each account (credits and debits)
     const series: ECOption['series'] = [];
@@ -206,7 +210,7 @@ export class MonthlyTxnVolumeComponent
             result += `<span style="color: #22c55e;">↑ Credit:</span> ${formatCurrencyLocal({ value: credit, currencyCode: currency })}<br/>`;
           }
           if (debit > 0) {
-            result += `<span style="color: #ef4444;">↓ Debit:</span> ${formatCurrencyLocal({ value: credit, currencyCode: currency })}<br/>`;
+            result += `<span style="color: #ef4444;">↓ Debit:</span> ${formatCurrencyLocal({ value: debit, currencyCode: currency })}<br/>`;
           }
 
           if (credit > 0 && debit > 0) {
