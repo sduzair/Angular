@@ -29,26 +29,10 @@ export const getReviewPeriod = createTool({
   },
 });
 
-export const getAccountSelection = createTool({
-  name: 'getAccountSelection',
-  description: 'Returns the selected account(s)',
-  schema: s.object('No parameters required.', {}),
-  handler: () => {
-    return firstValueFrom(
-      inject(CaseRecordStore).state$.pipe(
-        map(
-          ({ searchParams: { accountNumbersSelection } }) =>
-            accountNumbersSelection,
-        ),
-      ),
-    );
-  },
-});
-
 export const getPartyKeysByAccount = createTool({
   name: 'getPartyKeysByAccount',
   description:
-    'Given an account number, returns the party key(s) for the account holder(s) so ownership can be determined (e.g., single vs joint).',
+    'Use ONLY to determine account ownership. Given an account number, returns the list of party keys for the account holder(s). ',
   schema: s.object('Account number input', {
     accountNo: s.string('The account number of the account'),
   }),
@@ -61,20 +45,6 @@ export const getPartyKeysByAccount = createTool({
             accountHolders.map(({ partyKey }) => partyKey),
           ),
         ),
-    );
-  },
-});
-
-export const getSubjectInfoByPartyKey = createTool({
-  name: 'getSubjectInfoByPartyKey',
-  description:
-    'Given a party key, returns subject details (at minimum the subject name) for use in narratives and labeling involved parties.',
-  schema: s.object('Party key input', {
-    partyKey: s.string('The party key number of the subject'),
-  }),
-  handler: ({ partyKey }) => {
-    return firstValueFrom(
-      inject(TransactionSearchService).getPartyInfo(partyKey),
     );
   },
 });

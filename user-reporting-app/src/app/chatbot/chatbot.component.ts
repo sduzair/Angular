@@ -10,7 +10,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { exposeComponent, uiChatResource } from '@hashbrownai/angular';
 import { s } from '@hashbrownai/core';
 import { KnownModelIds } from '@hashbrownai/core/src/utils/llm';
-import { map } from 'rxjs';
+import { take, tap } from 'rxjs';
 import { AccountTransactionTotalsService } from '../analytics/account-transaction-totals.service';
 import { SnackbarQueueService } from '../snackbar-queue.service';
 import { ChatComposerComponent } from './chat-composer/chat-composer.component';
@@ -19,12 +19,10 @@ import { ChatMessagesComponent } from './chat-messages/chat-messages.component';
 import { ChatPrompts } from './chat-prompts/chat-prompts.component';
 import { MarkdownComponent } from './markdown/markdown.component';
 import {
-  getAccountSelection,
+  checkDataIntegrity,
   getAccountTransactionTotals,
   getPartyKeysByAccount,
   getReviewPeriod,
-  getSubjectInfoByPartyKey,
-  checkDataIntegrity,
 } from './tools/tools';
 
 @Component({
@@ -65,6 +63,7 @@ import {
 })
 export class ChatbotComponent {
   private snackBar = inject(SnackbarQueueService);
+  private totalsService = inject(AccountTransactionTotalsService);
   readonly contentDiv =
     viewChild.required<ElementRef<HTMLDivElement>>('contentDiv');
   constructor() {
@@ -77,35 +76,6 @@ export class ChatbotComponent {
           this.contentDiv().nativeElement.scrollHeight;
       });
     });
-    // inject(AccountTransactionTotalsService)
-    //   .getAccountTransactionTotals$()
-    //   .pipe(
-    //     map((accountTotals) =>
-    //       accountTotals.map((account) => ({
-    //         ...account,
-    //         totalsList: Array.from(account.totalsMap.entries()).map(
-    //           ([
-    //             txnTypeKey,
-    //             { transactionType, amountsMap, count, dates, subjects },
-    //           ]) => ({
-    //             txnTypeKey,
-    //             transactionType,
-    //             amountsList: Array.from(amountsMap.entries()).map(
-    //               ([currency, amount]) => ({
-    //                 currency,
-    //                 amount,
-    //               }),
-    //             ),
-    //             count,
-    //             dates,
-    //             subjects,
-    //           }),
-    //         ),
-    //       })),
-    //     ),
-    //   )
-    //   // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
-    //   .subscribe(console.log);
   }
 
   chat = uiChatResource({
@@ -116,25 +86,28 @@ export class ChatbotComponent {
 
 You are an AML narrative-writing assistant. Your task is to write a **Transaction Activity** narrative for the currently selected focal account(s) and review period selection in the UI.
 
-# Tools you must use
-
-- Call 'verifyBasicInfo()' to determine if transactions are missing required information to proceed with narrative generation
-- Call 'getReviewPeriod()' to obtain the selected review period range(s)
-- Call 'getAccountTransactionTotals()' to obtain transaction type summaries per account for credits/debits
-
 # Output structure (must follow exactly)
 
-Write the heading '#### Transaction Activity'.
+> **Template conventions**
+> - **[ ]** denotes an optional segment — evaluate the inline condition to determine inclusion; omit entirely (including surrounding whitespace) if the condition is false
 
-**Then, for each unique account in the results from 'getAccountTransactionTotals()':**
+1. Write the heading '#### Transaction Activity'.
 
-1. Determine ownership: Call 'getPartyKeysByAccount({ accountNo: account })' to get party key count
-  - If 1 party key: ownership descriptor is "single ownership"
-  - If 2+ party keys: ownership descriptor is "joint ownership"
+**Then, for each unique account in the results from '${getAccountTransactionTotals.name}()':**
 
 2. Write one paragraph with this structure:
 
+**ACCOUNT NARRATIVE OPENER template**:
+
 > A review of <ownership descriptor> account **#<accountNo>** / <account currency> was conducted for the period(s) from **<review period ranges>**, and the following concerning activity was noted:
+
+
+**ACCOUNT NARRATIVE OPENER placeholder definitions**:
+
+- **<ownership descriptor>**: Call '${getPartyKeysByAccount.name}({ accountNo: account })' to get party key count:
+  - If 1 party key: ownership descriptor is "single ownership"
+  - If 2+ party keys: ownership descriptor is "joint ownership"
+- **<review period ranges>**: Format each range as "YYYY/MM/DD to YYYY/MM/DD"; if multiple ranges, join with ", and"
 
 3. Include two sections with bullets
 
@@ -142,13 +115,13 @@ Write the heading '#### Transaction Activity'.
 
 Process the entry where "totalsType === 'credits'" for this account.
 
-For each transaction type in the 'totalsList' array, write **one** bullet.
+For each transaction type in the 'totalsList' array, write **one** transaction totals bullet.
 
-**Bullet template**:
+**TRANSACTION TOTALS BULLET**:
 
-'<transaction_type>: Total credits of <amount(s)> across <count> <date_phrase> from <sub_types_phrase>: <subject_list>.'
+'<transaction_type>: Total credits of <amount(s)> across <count> <date_phrase>[subjects.length > 0: from <sub_types_phrase>: <subject_list>].'
 
-**Bullet placeholder definitions**:
+**TRANSACTION TOTALS BULLET placeholder definitions**:
 
 - **<transaction_type>**: Use the friendly label from the data (e.g., "Online Banking", "Email Transfer (EMT)")
 - **<credit_or_debit>**:
@@ -156,12 +129,17 @@ For each transaction type in the 'totalsList' array, write **one** bullet.
   - Else if this section is DEBITS output: "debits"
 - **<amount(s)>**: Format as "$1,234.56 CAD" or "$10,000.00 USD". If multiple currencies, list all (e.g., "$1,234.56 CAD and $500.00 USD")
 - **<count>**: "1 transaction" (singular) or "5 transactions" (plural)
-- **<date_phrase>**: 
-  - Single date: "on 2024/01/15"
-  - Multiple dates: "from 2024/01/05 to 2024/03/22"
+- **<date_phrase>**:
+  - If the transaction type is **Cheque**:
+    - Single date: "on 2024/01/15"
+    - Multiple dates: list **every** date individually, comma-separated
+      - Example: "on 2024/01/05, 2024/01/10, 2024/03/22"
+  - All other transaction types:
+    - Single date: "on 2024/01/15"
+    - Multiple dates: "from 2024/01/05 to 2024/03/22"
 - **<sub_types_phrase>**:
-  - If Subject types are merchants only output: "the following merchants"
-  - Else output: "the following subjects"
+  - If Subject types are merchants only output: "the following merchant(s)"
+  - Else output: "the following subject(s)"
 - **<subject_list>**: Comma-separated list formatted based on subType:
   - **Merchant**: "<displayName>" only
     - Example: "Tim Hortons"
@@ -175,11 +153,11 @@ For each transaction type in the 'totalsList' array, write **one** bullet.
 
 Process the entry where "totalsType === 'debits'" for this account.
 
-For each transaction type in the 'totalsList' array, write **one** bullet.
+For each transaction type in the 'totalsList' array, write **one** transaction totals bullet.
 
-**Bullet template**:
+**TRANSACTION TOTALS BULLET**:
 
-'<transaction_type>: Total debits of <amount(s)> across <count> <date_phrase> to <sub_types_phrase>: <subject_list>.'
+'<transaction_type>: Total debits of <amount(s)> across <count> <date_phrase>[subjects.length > 0: to <sub_types_phrase>: <subject_list>].'
 
 (All placeholder definitions identical to CREDITS above)
 
@@ -189,7 +167,7 @@ For each transaction type in the 'totalsList' array, write **one** bullet.
 
 # Data structure reference
 
-The 'getAccountTransactionTotals()' tool returns:
+The '${getAccountTransactionTotals.name}()' tool returns:
 
 Array<{
   account: string
@@ -216,20 +194,18 @@ Array<{
 
 - Write 'Not found' for any missing placeholder values (do not omit or guess)
 - Never mention technical terms like 'txnTypeKey', 'totalsList array', 'amountLists array' or tool names
-- **If the totalsList array is empty for credits/debits:**
+- **Only invoke tools where explicitly instructed within the placeholder definitions in '# Output structure'.**
+- If the totalsList array is empty for credits/debits:
   - Still include the section header (##### CREDITS or ##### DEBITS)
   - Use this bullet format instead: "No <credit_or_debit> transactions were identified during the review period."
 - Use professional AML reporting tone: factual, concise, formal
 
 # Execute the task
 
-1) **Call 'checkDataIntegrity()' first**
+1) **Call '${checkDataIntegrity.name}()' first**
    - If returns false: Display an error message to the user and STOP. Do not proceed to step 2.
    - If returns true: Continue to step 2
-2) Call 'getReviewPeriod()'
-3) Call 'getAccountTransactionTotals()'
-4) Group results by unique account number
-5) For each account: determine ownership, then write a complete paragraph with credits and debits sections
+2) Follow '# Output structure' to produce the narrative.
 `,
     components: [
       exposeComponent(MarkdownComponent, {
@@ -241,16 +217,23 @@ Array<{
     ],
     tools: [
       checkDataIntegrity,
-      getAccountSelection,
       getReviewPeriod,
       getPartyKeysByAccount,
-      getSubjectInfoByPartyKey,
+      // getSubjectInfoByPartyKey,
       getAccountTransactionTotals,
     ],
   });
 
   sendMessage(message: string): void {
     this.chat.sendMessage({ role: 'user', content: message });
+    this.totalsService
+      .getAccountTransactionTotals$()
+      .pipe(
+        take(1),
+        tap((val) => console.log(val)),
+      )
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
+      .subscribe();
   }
 
   retryMessages() {

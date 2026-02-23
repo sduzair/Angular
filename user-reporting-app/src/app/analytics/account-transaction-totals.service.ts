@@ -144,7 +144,6 @@ export class AccountTransactionTotalsService {
                 TransactionDateDirective.parse(flowOfFundsTransactionDate!),
               );
 
-              // Initialize txn type entry if not exists
               const totalsEntry = creditTotalsByType.get(txnTypeKey) ?? {
                 transactionType:
                   TRANSACTION_TYPE_FRIENDLY_NAME[txnTypeKey] ??
@@ -156,7 +155,8 @@ export class AccountTransactionTotalsService {
               };
 
               const currencyAmount =
-                totalsEntry.amountsMap.get(saCurrency!) ?? 0 + (saAmount ?? 0);
+                (totalsEntry.amountsMap.get(saCurrency!) ?? 0) +
+                (saAmount ?? 0);
               totalsEntry.amountsMap.set(saCurrency!, currencyAmount);
               totalsEntry.count += 1;
               totalsEntry.dates.push(date);
@@ -190,6 +190,14 @@ export class AccountTransactionTotalsService {
                 continue;
               }
 
+              if (txnTypeKey === TRANSACTION_TYPE_ENUM.ABM) {
+                // note: no subjects
+                console.assert(totalsEntry.subjects.length === 0);
+
+                creditTotalsByType.set(txnTypeKey, totalsEntry);
+                continue;
+              }
+
               // Add conductor
               console.assert(conductors.length === 1);
               const { displayName, subType, subTypeLabel, subjectPhrase } =
@@ -215,6 +223,7 @@ export class AccountTransactionTotalsService {
               creditTotalsByType.set(txnTypeKey, totalsEntry);
             }
           }
+
           // Add credits entry
           accountTotals.push({
             account: selectedFocalAccount,
@@ -233,12 +242,11 @@ export class AccountTransactionTotalsService {
           for (const {
             flowOfFundsTransactionDate,
             dateOfTxn,
-            methodOfTxn,
             startingActions,
             completingActions,
             purposeOfTxn,
           } of transactionSelections.filter(
-            createtDebitsFilter(selectedFocalAccount),
+            createDebitsFilter(selectedFocalAccount),
           )) {
             console.assert(startingActions.length === 1);
             console.assert(completingActions.length === 1);
@@ -278,11 +286,20 @@ export class AccountTransactionTotalsService {
             };
 
             const currencyAmount =
-              totalsEntry.amountsMap.get(caCurrency!) ?? 0 + (caAmount ?? 0);
+              (totalsEntry.amountsMap.get(caCurrency!) ?? 0) + (caAmount ?? 0);
             totalsEntry.amountsMap.set(caCurrency!, currencyAmount);
+
             totalsEntry.count += 1;
             totalsEntry.dates.push(date);
             totalsEntry.dates.sort();
+
+            if (txnTypeKey === TRANSACTION_TYPE_ENUM.ABM) {
+              // note: no subjects
+              console.assert(totalsEntry.subjects.length === 0);
+
+              debitTotalsByType.set(txnTypeKey, totalsEntry);
+              continue;
+            }
 
             // Add beneficiaries
             for (const beneficiary of beneficiaries) {
@@ -434,6 +451,10 @@ function createSubjectMetadata({
       const accountPhrase = account ? `with account #${account}` : '';
 
       subjectPhrase = bankPhrase + (accountPhrase ? ' ' + accountPhrase : '');
+    }
+
+    if (!isCibcFi(fiuNo)) {
+      subjectPhrase = bankPhrase;
     }
 
     return {
@@ -704,7 +725,7 @@ export const hasManualTransaction = (
   sel: StrTransactionWithChangeLogs,
 ): boolean => sel.sourceId === 'Manual';
 
-const createtDebitsFilter =
+const createDebitsFilter =
   (selectedAccount: string) =>
   (txn: StrTransactionWithChangeLogs): boolean =>
     !!txn.flowOfFundsDebitedAccount &&
