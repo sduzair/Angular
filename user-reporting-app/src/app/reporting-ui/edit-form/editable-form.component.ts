@@ -4,8 +4,46 @@ import {
   inject,
   input,
 } from '@angular/core';
-import * as ChangeLog from '../../change-logging/change-log';
+import { toObservable } from '@angular/core/rxjs-interop';
+import {
+  AbstractControl,
+  AsyncValidatorFn,
+  FormArray,
+  FormControl,
+  FormGroup,
+  isFormGroup,
+  ValidationErrors,
+  ValidatorFn,
+  Validators,
+} from '@angular/forms';
+import { isValid } from 'date-fns';
 import { finalize, map, Observable, of } from 'rxjs';
+import { StrTransactionWithChangeLogs } from '../../aml/case-record.store';
+import * as ChangeLog from '../../change-logging/change-log';
+import { setError } from '../../form-helpers';
+import {
+  AccountHolder,
+  Beneficiary,
+  CompletingAction,
+  Conductor,
+  ConductorNpdData,
+  InvolvedIn,
+  OnBehalfOf,
+  SourceOfFunds,
+  StartingAction,
+  StrTransaction,
+  WithETag,
+} from '../reporting-ui-table/reporting-ui-table.component';
+import {
+  hasEntityName,
+  hasInvalidFiu,
+  hasMissingAccountInfo,
+  hasMissingBasicInfo,
+  hasMissingBeneficiary,
+  hasMissingCheque,
+  hasMissingConductorInfo,
+  hasPersonName,
+} from './common-validation';
 import {
   EditFormComponent,
   EditFormEditType,
@@ -17,47 +55,9 @@ import {
   StrTxnEditForm,
   TypedForm,
 } from './edit-form.component';
-import {
-  FormGroup,
-  FormControl,
-  Validators,
-  FormArray,
-  AsyncValidatorFn,
-  AbstractControl,
-  ValidationErrors,
-  isFormGroup,
-  ValidatorFn,
-} from '@angular/forms';
-import { StrTransactionWithChangeLogs } from '../../aml/case-record.store';
-import {
-  WithETag,
-  StartingAction,
-  ConductorNpdData,
-  CompletingAction,
-  AccountHolder,
-  SourceOfFunds,
-  Conductor,
-  OnBehalfOf,
-  InvolvedIn,
-  Beneficiary,
-  StrTransaction,
-} from '../reporting-ui-table/reporting-ui-table.component';
 import { FormOptions, FormOptionsService } from './form-options.service';
 import { SET_AS_EMPTY } from './mark-as-cleared.directive';
-import { isValid } from 'date-fns';
-import { setError } from '../../form-helpers';
-import {
-  hasMissingAccountInfo,
-  hasMissingConductorInfo,
-  hasMissingCheque,
-  hasPersonName,
-  hasEntityName,
-  hasInvalidFiu,
-  hasMissingBasicInfo,
-  hasMissingBeneficiary,
-} from './common-validation';
 import { TransactionDateDirective } from './transaction-date.directive';
-import { toObservable } from '@angular/core/rxjs-interop';
 
 @Component({
   template: ``,
@@ -593,9 +593,9 @@ export abstract class EditableFormComponent {
         { value: holder?._hiddenGivenName ?? null, disabled },
         [personOrEntityValidator()],
       ),
-      _hiddenOtherOrInitial: new FormControl(
+      _hiddenOtherOrInitialName: new FormControl(
         {
-          value: holder?._hiddenOtherOrInitial ?? null,
+          value: holder?._hiddenOtherOrInitialName ?? null,
           disabled,
         },
         [personOrEntityValidator()],
@@ -644,9 +644,9 @@ export abstract class EditableFormComponent {
         },
         [personOrEntityValidator()],
       ),
-      _hiddenOtherOrInitial: new FormControl(
+      _hiddenOtherOrInitialName: new FormControl(
         {
-          value: source?._hiddenOtherOrInitial ?? null,
+          value: source?._hiddenOtherOrInitialName ?? null,
           disabled,
         },
         [personOrEntityValidator()],
@@ -705,9 +705,9 @@ export abstract class EditableFormComponent {
         },
         [personOrEntityValidator()],
       ),
-      _hiddenOtherOrInitial: new FormControl(
+      _hiddenOtherOrInitialName: new FormControl(
         {
-          value: conductor?._hiddenOtherOrInitial ?? null,
+          value: conductor?._hiddenOtherOrInitialName ?? null,
           disabled,
         },
         [personOrEntityValidator()],
@@ -779,9 +779,9 @@ export abstract class EditableFormComponent {
         },
         [personOrEntityValidator()],
       ),
-      _hiddenOtherOrInitial: new FormControl(
+      _hiddenOtherOrInitialName: new FormControl(
         {
-          value: behalf?._hiddenOtherOrInitial ?? null,
+          value: behalf?._hiddenOtherOrInitialName ?? null,
           disabled,
         },
         [personOrEntityValidator()],
@@ -831,9 +831,9 @@ export abstract class EditableFormComponent {
         },
         [personOrEntityValidator()],
       ),
-      _hiddenOtherOrInitial: new FormControl(
+      _hiddenOtherOrInitialName: new FormControl(
         {
-          value: involved?._hiddenOtherOrInitial ?? null,
+          value: involved?._hiddenOtherOrInitialName ?? null,
           disabled,
         },
         [personOrEntityValidator()],
@@ -892,9 +892,9 @@ export abstract class EditableFormComponent {
         },
         [personOrEntityValidator()],
       ),
-      _hiddenOtherOrInitial: new FormControl(
+      _hiddenOtherOrInitialName: new FormControl(
         {
-          value: beneficiary?._hiddenOtherOrInitial ?? null,
+          value: beneficiary?._hiddenOtherOrInitialName ?? null,
           disabled,
         },
         [personOrEntityValidator()],

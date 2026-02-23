@@ -17,17 +17,17 @@ import {
 export const hasPersonName = (cond: {
   _hiddenSurname?: string | null;
   _hiddenGivenName?: string | null;
-  _hiddenOtherOrInitial?: string | null;
+  _hiddenOtherOrInitialName?: string | null;
   _hiddenNameOfEntity?: string | null;
 }) =>
   !!cond._hiddenGivenName &&
   (true || !!cond._hiddenSurname) &&
-  (true || !!cond._hiddenOtherOrInitial);
+  (true || !!cond._hiddenOtherOrInitialName);
 
 export const hasEntityName = (cond: {
   _hiddenSurname?: string | null;
   _hiddenGivenName?: string | null;
-  _hiddenOtherOrInitial?: string | null;
+  _hiddenOtherOrInitialName?: string | null;
   _hiddenNameOfEntity?: string | null;
 }) => !!cond._hiddenNameOfEntity;
 
@@ -128,7 +128,7 @@ export function hasMissingCheque(action: StartingAction) {
 function hasMissingHolderInfo(value: {
   _hiddenSurname?: string | null;
   _hiddenGivenName?: string | null;
-  _hiddenOtherOrInitial?: string | null;
+  _hiddenOtherOrInitialName?: string | null;
   _hiddenNameOfEntity?: string | null;
 }): boolean {
   return !hasPersonName(value) && !hasEntityName(value);

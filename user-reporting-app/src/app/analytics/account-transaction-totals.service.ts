@@ -25,9 +25,9 @@ import {
 import { TransactionDateDirective } from '../reporting-ui/edit-form/transaction-date.directive';
 import { TransactionSearchService } from '../transaction-search/transaction-search.service';
 import {
-  getPartyFullName,
-  PartyGenType,
-} from '../transaction-view/transform-to-str-transaction/party-gen.service';
+  EntityGenType,
+  getEntityFullName,
+} from '../transaction-view/transform-to-str-transaction/entity-gen.service';
 import { DIRECTION_OF_SA } from './circular/circular.component';
 import { fiuMap } from './fiu';
 
@@ -39,7 +39,9 @@ export class AccountTransactionTotalsService {
 
   private transactionSelections$ =
     this.caseRecord.selectionsComputed$.pipe(takeUntilDestroyed());
-  private parties$ = this.caseRecord.state$.pipe(map(({ parties }) => parties));
+  private entities$ = this.caseRecord.state$.pipe(
+    map(({ entities }) => entities),
+  );
 
   private partyKeysSelection$ = this.caseRecord.state$.pipe(
     map(({ searchParams: { partyKeysSelection } }) => partyKeysSelection),
@@ -79,14 +81,14 @@ export class AccountTransactionTotalsService {
     this.selectedAccountsInfo$,
     this.partyKeysSelection$,
     this.transactionSelections$,
-    this.parties$,
+    this.entities$,
   ]).pipe(
     map(
       ([
         selectedFocalAccountsInfo,
         partyKeysSelection,
         transactionSelections,
-        parties,
+        entities,
       ]) => {
         const focalSubjects = new Set(partyKeysSelection);
 
@@ -168,8 +170,8 @@ export class AccountTransactionTotalsService {
                   const { displayName, subType, subTypeLabel, subjectPhrase } =
                     createSubjectMetadata({
                       txnTypeKey: txnTypeKey,
-                      party: parties.find(
-                        (p) => p.partyIdentifier === holder.linkToSub,
+                      entity: entities.find(
+                        (p) => p.entityIdentifier === holder.linkToSub,
                       )!,
                       focalSubjects,
                       fiuNo,
@@ -203,8 +205,8 @@ export class AccountTransactionTotalsService {
               const { displayName, subType, subTypeLabel, subjectPhrase } =
                 createSubjectMetadata({
                   txnTypeKey: txnTypeKey,
-                  party: parties.find(
-                    (p) => p.partyIdentifier === conductors[0].linkToSub,
+                  entity: entities.find(
+                    (p) => p.entityIdentifier === conductors[0].linkToSub,
                   )!,
                   focalSubjects,
                   fiuNo,
@@ -306,8 +308,8 @@ export class AccountTransactionTotalsService {
               const { displayName, subType, subTypeLabel, subjectPhrase } =
                 createSubjectMetadata({
                   txnTypeKey: txnTypeKey,
-                  party: parties.find(
-                    (p) => p.partyIdentifier === beneficiary.linkToSub,
+                  entity: entities.find(
+                    (p) => p.entityIdentifier === beneficiary.linkToSub,
                   )!,
                   focalSubjects,
                   fiuNo,
@@ -381,7 +383,7 @@ interface TransactionTypeSubject {
 
 function createSubjectMetadata({
   txnTypeKey: typeKey,
-  party,
+  entity,
   fiuNo,
   account,
   purposeOfTxn,
@@ -389,7 +391,7 @@ function createSubjectMetadata({
   direction,
 }: {
   txnTypeKey: keyof typeof TRANSACTION_TYPE_FRIENDLY_NAME;
-  party: PartyGenType;
+  entity: EntityGenType;
   fiuNo?: string | null;
   account?: string | null;
   purposeOfTxn?: string | null;
@@ -397,7 +399,7 @@ function createSubjectMetadata({
   direction: string | null;
 }): Omit<TransactionTypeSubject, 'subjectRelation'> {
   const { nodeCategory, displayName } = getSubjectDisplayNameAndCategory(
-    party,
+    entity,
     focalSubjects,
   );
 
@@ -422,7 +424,7 @@ function createSubjectMetadata({
     }
 
     if (!isCibcFi(fiuNo)) {
-      const { contactName } = party.contact ?? {};
+      const { contactName } = entity ?? {};
 
       const contactPhrase = contactName
         ? `with contact name ${contactName}`
@@ -476,7 +478,7 @@ function createSubjectMetadata({
   }
 
   if (TRANSACTION_TYPE_ENUM.Wires === typeKey) {
-    const { street, city, country, postalCode } = party.address ?? {};
+    const { street, city, country, postalCode } = entity ?? {};
 
     const address = [street, city, country, postalCode]
       .filter(Boolean)
@@ -652,14 +654,14 @@ export const NODE_CATEGORY_LABEL: Record<number, string> = {
 type SUBJECT_TYPE = keyof typeof NODE_ENUM;
 
 export function getSubjectDisplayNameAndCategory(
-  party: PartyGenType | undefined,
+  entity: EntityGenType | undefined,
   focalSubjects: Set<string>,
 ) {
   let nodeCategory = NODE_ENUM.UnknownNode as number;
   let displayName = 'Unknown Subject';
   let isFocal = false;
 
-  if (!party) {
+  if (!entity) {
     return {
       nodeCategory,
       displayName,
@@ -667,12 +669,16 @@ export function getSubjectDisplayNameAndCategory(
     };
   }
 
-  const { partyKey } = party.identifiers ?? {};
+  const { givenName, otherOrInitialName, surname, nameOfEntity, partyKey } =
+    entity ?? {};
 
-  const { givenName, otherOrInitial, surname, nameOfEntity } =
-    party.partyName ?? {};
-
-  if (!partyKey && !givenName && !otherOrInitial && !surname && !nameOfEntity) {
+  if (
+    !partyKey &&
+    !givenName &&
+    !otherOrInitialName &&
+    !surname &&
+    !nameOfEntity
+  ) {
     return {
       nodeCategory,
       displayName,
@@ -685,9 +691,9 @@ export function getSubjectDisplayNameAndCategory(
   const isEntity = !!nameOfEntity;
   isFocal = !!partyKey && focalSubjects.has(partyKey);
 
-  displayName = getPartyFullName({
+  displayName = getEntityFullName({
     givenName,
-    otherOrInitial,
+    otherOrInitialName,
     surname,
     nameOfEntity,
   });
@@ -706,7 +712,7 @@ export function getSubjectDisplayNameAndCategory(
 
   if (!isFocal && !isClient && isEntity) nodeCategory = NODE_ENUM.EntitySubject;
 
-  const isMerchant = !!party.identifiers?.merchantPhone;
+  const isMerchant = !!entity.merchantPhone;
 
   if (isMerchant) nodeCategory = NODE_ENUM.Merchant;
 

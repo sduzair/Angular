@@ -47,9 +47,17 @@ mongoimport --uri "$URI" --db "$DB" --collection otc --file /seed/cbfeMixedDepos
 
 mongoimport --uri "$URI" --db "$DB" --collection pos --file /seed/posOut.json --jsonArray
 
+# create dump
 
-echo "Restoring parties collection..."
-mongorestore --uri="$URI" --nsInclude="$DB.parties" /seed/dump/
+# docker exec mongodb mongodump `
+# >>   --uri="mongodb://mongodb:27017/?replicaSet=rs0" `
+# >>   --db=amldb `
+# >>   --out=/dump
+
+# docker cp mongodb:/dump/amldb ./data/dump
+
+echo "Restoring entity collection..."
+mongorestore --uri="$URI" --nsInclude="$DB.entity" /seed/dump/
 
 # todo: composite index for selections
 

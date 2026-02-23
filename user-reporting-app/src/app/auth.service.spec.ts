@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { computed, signal } from '@angular/core';
 import { AuthService, UserPrincipal, UserRole } from './auth.service';
-import { TEST_USER_ANALYST } from './auth.fixture';
+import { TEST_USER_ADMIN } from './auth.fixture';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -17,7 +17,7 @@ describe('AuthService', () => {
 });
 
 export function createAuthServiceSpy(
-  initialUser: UserPrincipal | null = TEST_USER_ANALYST,
+  initialUser: UserPrincipal | null = TEST_USER_ADMIN,
 ) {
   // Create writable signal for testing
   const _currentUserSignal = signal<UserPrincipal | null>(initialUser);

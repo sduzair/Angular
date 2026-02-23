@@ -6,5 +6,5 @@ public record AddSelectionsRequest
 (
     int CaseETag,
     List<Selection> Selections,
-    List<Party> Parties
+    List<Entity> Entities
 );

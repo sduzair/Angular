@@ -21,6 +21,7 @@ import {
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
+import { EntityType } from '../../aml/case-record.store';
 import {
   FORM_OPTIONS_DETAILS_OF_DISPOSITION,
   FORM_OPTIONS_TYPE_OF_FUNDS,
@@ -28,7 +29,6 @@ import {
 import { StrTransaction } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import { SnackbarQueueService } from '../../snackbar-queue.service';
 import { AccountNumberData } from '../../transaction-search/account-number-selectable-table/account-number-selectable-table.component';
-import { PartyGenType } from '../../transaction-view/transform-to-str-transaction/party-gen.service';
 import {
   getSubjectDisplayNameAndCategory,
   getTxnType,
@@ -82,7 +82,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
   accountNumbersSelection: AccountNumberData[] = [];
 
   @Input({ required: true })
-  parties: PartyGenType[] = [];
+  entities: EntityType[] = [];
 
   private myChart: echarts.ECharts | undefined;
   private resizeObserver: ResizeObserver | undefined;
@@ -164,7 +164,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
         linksMap,
         focalSubjects,
         focalAccounts,
-        parties: this.parties,
+        entities: this.entities,
       });
     });
 
@@ -174,7 +174,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
         linksMap,
         nodesMap,
         focalSubjects,
-        parties: this.parties,
+        entities: this.entities,
       });
     });
 
@@ -326,14 +326,14 @@ export function buildNodesAndAccountHolderLinks({
   linksMap,
   focalSubjects,
   focalAccounts,
-  parties,
+  entities,
 }: {
   transaction: StrTransaction;
   nodesMap: Map<string | null, GraphNode>;
   linksMap: Map<string, Link>;
   focalSubjects: Set<string>;
   focalAccounts: Set<string>;
-  parties: PartyGenType[];
+  entities: EntityType[];
 }) {
   // SA account and subjects, nodes and links
   for (const {
@@ -365,7 +365,7 @@ export function buildNodesAndAccountHolderLinks({
       if (!nodesMap.has(linkToSub)) {
         const { nodeCategory: category, displayName } =
           getSubjectDisplayNameAndCategory(
-            parties.find((p) => p.partyIdentifier === linkToSub),
+            entities.find((p) => p.entityIdentifier === linkToSub),
             focalSubjects,
           );
 
@@ -376,7 +376,7 @@ export function buildNodesAndAccountHolderLinks({
           displayName,
           creditsByTxnType: {},
           debitsByTxnType: {},
-          partyInfo: parties.find((p) => p.partyIdentifier === linkToSub)!,
+          entityInfo: entities.find((p) => p.entityIdentifier === linkToSub)!,
         });
       }
     }
@@ -434,7 +434,7 @@ export function buildNodesAndAccountHolderLinks({
       if (!nodesMap.has(linkToSub)) {
         const { nodeCategory: category, displayName } =
           getSubjectDisplayNameAndCategory(
-            parties.find((p) => p.partyIdentifier === linkToSub),
+            entities.find((p) => p.entityIdentifier === linkToSub),
             focalSubjects,
           );
 
@@ -445,7 +445,7 @@ export function buildNodesAndAccountHolderLinks({
           displayName,
           creditsByTxnType: {},
           debitsByTxnType: {},
-          partyInfo: parties.find((p) => p.partyIdentifier === linkToSub)!,
+          entityInfo: entities.find((p) => p.entityIdentifier === linkToSub)!,
         });
       }
     }
@@ -480,13 +480,13 @@ export function buildTransactionLinks({
   transaction,
   nodesMap,
   linksMap,
-  parties,
+  entities,
   focalSubjects,
 }: {
   transaction: StrTransaction;
   nodesMap: Map<string, GraphNode>;
   linksMap: Map<string, Link>;
-  parties: PartyGenType[];
+  entities: EntityType[];
   focalSubjects: Set<string>;
 }) {
   const { methodOfTxn, wasTxnAttempted } = transaction;
@@ -520,7 +520,7 @@ export function buildTransactionLinks({
           if (!nodesMap.has(condId)) {
             const { nodeCategory: category, displayName } =
               getSubjectDisplayNameAndCategory(
-                parties.find((p) => p.partyIdentifier === condId),
+                entities.find((p) => p.entityIdentifier === condId),
                 focalSubjects,
               );
 
@@ -531,7 +531,7 @@ export function buildTransactionLinks({
               displayName,
               creditsByTxnType: {},
               debitsByTxnType: {},
-              partyInfo: parties.find((p) => p.partyIdentifier === condId)!,
+              entityInfo: entities.find((p) => p.entityIdentifier === condId)!,
             });
           }
 
@@ -560,7 +560,7 @@ export function buildTransactionLinks({
           if (!nodesMap.has(benId)) {
             const { nodeCategory: category, displayName } =
               getSubjectDisplayNameAndCategory(
-                parties.find((p) => p.partyIdentifier === benId),
+                entities.find((p) => p.entityIdentifier === benId),
                 focalSubjects,
               );
 
@@ -571,7 +571,7 @@ export function buildTransactionLinks({
               displayName,
               creditsByTxnType: {},
               debitsByTxnType: {},
-              partyInfo: parties.find((p) => p.partyIdentifier === benId)!,
+              entityInfo: entities.find((p) => p.entityIdentifier === benId)!,
             });
           }
 
@@ -849,7 +849,7 @@ export type GraphNode = GraphNodeItemOption &
         displayName: string;
         creditsByTxnType: TxnTypeAmount;
         debitsByTxnType: TxnTypeAmount;
-        partyInfo: PartyGenType | null;
+        entityInfo: EntityType | null;
       }
   );
 

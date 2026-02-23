@@ -29,6 +29,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatTooltip } from '@angular/material/tooltip';
 import {
   ActivatedRoute,
   ActivatedRouteSnapshot,
@@ -49,32 +50,31 @@ import {
 } from 'rxjs/operators';
 import {
   CaseRecordStore,
-  createTransactionPartyEnricher,
+  createTransactionEntityEnricher,
   StrTransactionWithChangeLogs,
 } from '../../aml/case-record.store';
 import * as ChangeLog from '../../change-logging/change-log';
 import { getFormErrors } from '../../form-helpers';
 import { SnackbarQueueService } from '../../snackbar-queue.service';
-import { getPartyFullName } from '../../transaction-view/transform-to-str-transaction/party-gen.service';
+import { getEntityFullName } from '../../transaction-view/transform-to-str-transaction/entity-gen.service';
 import {
   ConductorNpdData,
   StrTransaction,
   StrTxnFlowOfFunds,
 } from '../reporting-ui-table/reporting-ui-table.component';
+import { AuditableFormComponent } from './auditable-form.component';
 import { ClearFieldDirective } from './clear-field.directive';
+import { ControlToggleReadonlyDirective } from './control-toggle-readonly.directive';
 import { ControlToggleDirective } from './control-toggle.directive';
 import { DatepickerReadonlyDirective } from './datepicker-readonly.directive';
+import { EntitySyncDirective } from './entity-sync.directive';
 import { FormOptions } from './form-options.service';
 import { MarkAsClearedDirective } from './mark-as-cleared.directive';
-import { PartySyncDirective } from './party-sync.directive';
 import { ToggleEditFieldDirective } from './toggle-edit-field.directive';
 import { TransactionDateDirective } from './transaction-date.directive';
 import { TransactionDetailsPanelComponent } from './transaction-details-panel/transaction-details-panel.component';
 import { TransactionTimeDirective } from './transaction-time.directive';
 import { ValidateOnParentChangesDirective } from './validate-on-parent-changes.directive';
-import { ControlToggleReadonlyDirective } from './control-toggle-readonly.directive';
-import { AuditableFormComponent } from './auditable-form.component';
-import { MatTooltip } from '@angular/material/tooltip';
 
 export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
   isErrorState(
@@ -116,7 +116,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
     MatSelectModule,
     MatBadgeModule,
     ValidateOnParentChangesDirective,
-    PartySyncDirective,
+    EntitySyncDirective,
     DatepickerReadonlyDirective,
     ControlToggleReadonlyDirective,
     MatTooltip,
@@ -1748,7 +1748,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           ) {
                             <div
                               [formGroupName]="holderIndex"
-                              appPartySync
+                              appEntitySync
                               class="w-100">
                               <mat-expansion-panel [expanded]="true">
                                 <mat-expansion-panel-header class="my-2">
@@ -1789,10 +1789,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       holderIndex +
                                       '-linkToSub'
                                     ">
-                                    <mat-label>Select Party</mat-label>
+                                    <mat-label>Select Entity</mat-label>
                                     <mat-select formControlName="linkToSub">
                                       @for (
-                                        option of partiesOptions$ | async;
+                                        option of entitiesOptions$ | async;
                                         track option.value
                                       ) {
                                         <mat-option [value]="option.value">
@@ -1906,12 +1906,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       saIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-_hiddenOtherOrInitial'
+                                      '-_hiddenOtherOrInitialName'
                                     ">
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="_hiddenOtherOrInitial"
+                                      formControlName="_hiddenOtherOrInitialName"
                                       appValidateOnParentChanges />
                                     <button
                                       type="button"
@@ -2019,7 +2019,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           ) {
                             <div
                               [formGroupName]="fundsIndex"
-                              appPartySync
+                              appEntitySync
                               class="w-100">
                               <mat-expansion-panel [expanded]="true">
                                 <mat-expansion-panel-header class="my-2">
@@ -2056,10 +2056,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       fundsIndex +
                                       '-linkToSub'
                                     ">
-                                    <mat-label>Select Party</mat-label>
+                                    <mat-label>Select Entity</mat-label>
                                     <mat-select formControlName="linkToSub">
                                       @for (
-                                        option of partiesOptions$ | async;
+                                        option of entitiesOptions$ | async;
                                         track option.value
                                       ) {
                                         <mat-option [value]="option.value">
@@ -2173,12 +2173,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       saIndex +
                                       '-sourceOfFunds-' +
                                       fundsIndex +
-                                      '-_hiddenOtherOrInitial'
+                                      '-_hiddenOtherOrInitialName'
                                     ">
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="_hiddenOtherOrInitial"
+                                      formControlName="_hiddenOtherOrInitialName"
                                       appValidateOnParentChanges />
                                     <button
                                       type="button"
@@ -2334,7 +2334,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           ) {
                             <div
                               [formGroupName]="condIndex"
-                              appPartySync
+                              appEntitySync
                               class="w-100">
                               <mat-expansion-panel [expanded]="true">
                                 <mat-expansion-panel-header class="my-2">
@@ -2370,10 +2370,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       condIndex +
                                       '-linkToSub'
                                     ">
-                                    <mat-label>Select Party</mat-label>
+                                    <mat-label>Select Entity</mat-label>
                                     <mat-select formControlName="linkToSub">
                                       @for (
-                                        option of partiesOptions$ | async;
+                                        option of entitiesOptions$ | async;
                                         track option.value
                                       ) {
                                         <mat-option [value]="option.value">
@@ -2487,12 +2487,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       saIndex +
                                       '-conductors-' +
                                       condIndex +
-                                      '-_hiddenOtherOrInitial'
+                                      '-_hiddenOtherOrInitialName'
                                     ">
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="_hiddenOtherOrInitial"
+                                      formControlName="_hiddenOtherOrInitialName"
                                       appValidateOnParentChanges />
                                     <button
                                       type="button"
@@ -2567,7 +2567,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                   ) {
                                     <div
                                       [formGroupName]="behalfIndex"
-                                      appPartySync
+                                      appEntitySync
                                       class="w-100">
                                       <mat-expansion-panel [expanded]="true">
                                         <mat-expansion-panel-header
@@ -2616,11 +2616,11 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                               behalfIndex +
                                               '-linkToSub'
                                             ">
-                                            <mat-label>Select Party</mat-label>
+                                            <mat-label>Select Entity</mat-label>
                                             <mat-select
                                               formControlName="linkToSub">
                                               @for (
-                                                option of partiesOptions$
+                                                option of entitiesOptions$
                                                   | async;
                                                 track option.value
                                               ) {
@@ -2750,14 +2750,14 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                               condIndex +
                                               '-onBehalfOf-' +
                                               behalfIndex +
-                                              '-_hiddenOtherOrInitial'
+                                              '-_hiddenOtherOrInitialName'
                                             ">
                                             <mat-label
                                               >Other or Initial</mat-label
                                             >
                                             <input
                                               matInput
-                                              formControlName="_hiddenOtherOrInitial"
+                                              formControlName="_hiddenOtherOrInitialName"
                                               appValidateOnParentChanges />
                                             <button
                                               type="button"
@@ -3851,7 +3851,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           ) {
                             <div
                               [formGroupName]="holderIndex"
-                              appPartySync
+                              appEntitySync
                               class="w-100">
                               <mat-expansion-panel [expanded]="true">
                                 <mat-expansion-panel-header class="my-2">
@@ -3892,10 +3892,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       holderIndex +
                                       '-linkToSub'
                                     ">
-                                    <mat-label>Select Party</mat-label>
+                                    <mat-label>Select Entity</mat-label>
                                     <mat-select formControlName="linkToSub">
                                       @for (
-                                        option of partiesOptions$ | async;
+                                        option of entitiesOptions$ | async;
                                         track option.value
                                       ) {
                                         <mat-option [value]="option.value">
@@ -4008,12 +4008,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       caIndex +
                                       '-accountHolders-' +
                                       holderIndex +
-                                      '-_hiddenOtherOrInitial'
+                                      '-_hiddenOtherOrInitialName'
                                     ">
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="_hiddenOtherOrInitial"
+                                      formControlName="_hiddenOtherOrInitialName"
                                       appValidateOnParentChanges />
                                     <button
                                       type="button"
@@ -4123,7 +4123,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           ) {
                             <div
                               [formGroupName]="invIndex"
-                              appPartySync
+                              appEntitySync
                               class="w-100">
                               <mat-expansion-panel [expanded]="true">
                                 <mat-expansion-panel-header class="my-2">
@@ -4160,10 +4160,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       invIndex +
                                       '-linkToSub'
                                     ">
-                                    <mat-label>Select Party</mat-label>
+                                    <mat-label>Select Entity</mat-label>
                                     <mat-select formControlName="linkToSub">
                                       @for (
-                                        option of partiesOptions$ | async;
+                                        option of entitiesOptions$ | async;
                                         track option.value
                                       ) {
                                         <mat-option [value]="option.value">
@@ -4276,12 +4276,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       caIndex +
                                       '-involvedIn-' +
                                       invIndex +
-                                      '-_hiddenOtherOrInitial'
+                                      '-_hiddenOtherOrInitialName'
                                     ">
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="_hiddenOtherOrInitial"
+                                      formControlName="_hiddenOtherOrInitialName"
                                       appValidateOnParentChanges />
                                     <button
                                       type="button"
@@ -4436,7 +4436,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           ) {
                             <div
                               [formGroupName]="benIndex"
-                              appPartySync
+                              appEntitySync
                               class="w-100">
                               <mat-expansion-panel [expanded]="true">
                                 <mat-expansion-panel-header class="my-2">
@@ -4471,10 +4471,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       benIndex +
                                       '-linkToSub'
                                     ">
-                                    <mat-label>Select Party</mat-label>
+                                    <mat-label>Select Entity</mat-label>
                                     <mat-select formControlName="linkToSub">
                                       @for (
-                                        option of partiesOptions$ | async;
+                                        option of entitiesOptions$ | async;
                                         track option.value
                                       ) {
                                         <mat-option [value]="option.value">
@@ -4587,12 +4587,12 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       caIndex +
                                       '-beneficiaries-' +
                                       benIndex +
-                                      '-_hiddenOtherOrInitial'
+                                      '-_hiddenOtherOrInitialName'
                                     ">
                                     <mat-label>Other or Initial</mat-label>
                                     <input
                                       matInput
-                                      formControlName="_hiddenOtherOrInitial"
+                                      formControlName="_hiddenOtherOrInitialName"
                                       appValidateOnParentChanges />
                                     <button
                                       type="button"
@@ -4678,19 +4678,24 @@ export class EditFormComponent
   private route = inject(ActivatedRoute);
   private router = inject(Router);
 
-  protected parties$ = this.caseRecordStore.state$.pipe(
-    map(({ parties }) => parties),
+  protected entities$ = this.caseRecordStore.state$.pipe(
+    map(({ entities }) => entities),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  protected partiesOptions$ = this.parties$.pipe(
-    map((parties) =>
-      parties.map(({ partyIdentifier, partyName }, index) => {
-        const { givenName, surname, otherOrInitial, nameOfEntity } =
-          partyName ?? {};
+  protected entitiesOptions$ = this.entities$.pipe(
+    map((entities) =>
+      entities.map((entity, index) => {
+        const {
+          givenName,
+          surname,
+          otherOrInitialName,
+          nameOfEntity,
+          entityIdentifier,
+        } = entity ?? {};
         return {
-          label: `${index + 1}. ${getPartyFullName({ givenName, otherOrInitial, surname, nameOfEntity })}`,
-          value: partyIdentifier,
+          label: `${index + 1}. ${getEntityFullName({ givenName, otherOrInitialName, surname, nameOfEntity })}`,
+          value: entityIdentifier,
         };
       }),
     ),
@@ -4700,8 +4705,8 @@ export class EditFormComponent
     combineLatestWith(
       this.auditVersionControl.valueChanges.pipe(startWith(NaN)),
     ),
-    withLatestFrom(this.parties$),
-    map(([[editType, auditVersion], parties]) => {
+    withLatestFrom(this.entities$),
+    map(([[editType, auditVersion], entities]) => {
       switch (editType.type) {
         case 'SINGLE_SAVE':
           return this.createEditForm({
@@ -4724,10 +4729,10 @@ export class EditFormComponent
             auditChangeLogs,
           );
 
-          const enrichParties = createTransactionPartyEnricher(parties);
+          const enrichEntities = createTransactionEntityEnricher(entities);
 
           return this.createEditForm({
-            txn: enrichParties(txn),
+            txn: enrichEntities(txn),
             options: { editType: 'AUDIT_REQUEST', disabled: true },
           });
         }
@@ -4802,7 +4807,7 @@ export class EditFormComponent
   private static mandatoryFields = [
     '_hiddenPartyKey',
     '_hiddenGivenName',
-    '_hiddenOtherOrInitial',
+    '_hiddenOtherOrInitialName',
     '_hiddenSurname',
     '_hiddenNameOfEntity',
   ];
@@ -4839,18 +4844,6 @@ export class EditFormComponent
           ),
       ),
     );
-
-    // eslint-disable-next-line no-constant-condition
-    if (false && hasMissingMandatoryFields) {
-      this.snackbarQ.open(
-        'Please enter mandatory fields before saving',
-        'Dismiss',
-        {
-          duration: 5000,
-        },
-      );
-      return;
-    }
 
     if (this.isSaved) {
       this.snackbarQ.open('Edits already saved!', 'Dismiss', {

@@ -122,7 +122,7 @@ export class ManualUploadReviewTableComponent {
     'startingActions.0.conductors.0._hiddenPartyKey',
     'startingActions.0.conductors.0._hiddenGivenName',
     'startingActions.0.conductors.0._hiddenSurname',
-    'startingActions.0.conductors.0._hiddenOtherOrInitial',
+    'startingActions.0.conductors.0._hiddenOtherOrInitialName',
     'startingActions.0.conductors.0._hiddenNameOfEntity',
 
     'completingActions.0.detailsOfDispo',
@@ -143,7 +143,7 @@ export class ManualUploadReviewTableComponent {
     'completingActions.0.beneficiaries.0._hiddenPartyKey',
     'completingActions.0.beneficiaries.0._hiddenGivenName',
     'completingActions.0.beneficiaries.0._hiddenSurname',
-    'completingActions.0.beneficiaries.0._hiddenOtherOrInitial',
+    'completingActions.0.beneficiaries.0._hiddenOtherOrInitialName',
     'completingActions.0.beneficiaries.0._hiddenNameOfEntity',
     '_hiddenAmlId',
     'reportingEntityTxnRefNo',

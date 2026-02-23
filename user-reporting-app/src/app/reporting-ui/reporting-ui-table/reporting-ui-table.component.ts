@@ -3,6 +3,7 @@ import {
   AfterViewInit,
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   signal,
   TrackByFunction,
@@ -23,6 +24,7 @@ import {
   CaseRecordStore,
   StrTransactionWithChangeLogs,
 } from '../../aml/case-record.store';
+import { AuthService } from '../../auth.service';
 import { BaseTableComponent } from '../../base-table/base-table.component';
 import {
   InvalidFormOptionsErrorKeys,
@@ -72,7 +74,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
         mat-raised-button
         ngProjectAs="table-toolbar-ele"
         (click)="openManualUploadStepper()"
-        [disabled]="isClosed$ | async">
+        [disabled]="(isClosed$ | async) || !canMakeSelections()">
         <mat-icon>file_upload</mat-icon>
         Manual Upload
       </button>
@@ -135,10 +137,14 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
               [matBadgeHidden]="!baseTable.selection.hasValue()">
               <mat-icon>edit</mat-icon>
             </button>
-            <button type="button" mat-icon-button class="invisible">
+            <button
+              type="button"
+              mat-icon-button
+              [class.d-none]="!canMakeSelections()">
               <mat-icon
                 class="text-primary"
-                [class.text-opacity-50]="isActionHeaderDisabled$ | async">
+                [class.text-opacity-50]="isActionHeaderDisabled$ | async"
+                [class.invisible]="canMakeSelections()">
                 history
               </mat-icon>
             </button>
@@ -147,6 +153,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
               [disabled]="
                 (isClosed$ | async) || (isActionHeaderDisabled$ | async)
               "
+              [class.d-none]="!canMakeSelections()"
               mat-icon-button
               (click)="resetSelectedTxns()"
               [matBadge]="baseTable.selection.selected.length"
@@ -162,6 +169,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
               [disabled]="
                 (isClosed$ | async) || (isActionHeaderDisabled$ | async)
               "
+              [class.d-none]="!canMakeSelections()"
               mat-icon-button
               (click)="removeSelectedTxns()"
               [matBadge]="baseTable.selection.selected.length"
@@ -195,7 +203,8 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
               [disabled]="
                 (false && (isClosed$ | async)) ||
                 isEditDisabled(row, qSavingEdits())
-              ">
+              "
+              [class.d-none]="!canMakeSelections()">
               <mat-icon class="text-primary">history</mat-icon>
             </button>
             <button
@@ -204,7 +213,8 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
               (click)="resetTxn(row)"
               [disabled]="
                 (isClosed$ | async) || isEditDisabled(row, qSavingEdits())
-              ">
+              "
+              [class.d-none]="!canMakeSelections()">
               <mat-icon class="text-danger">restart_alt</mat-icon>
             </button>
             <button
@@ -213,7 +223,8 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
               (click)="removeTxn(row)"
               [disabled]="
                 (isClosed$ | async) || isEditDisabled(row, qSavingEdits())
-              ">
+              "
+              [class.d-none]="!canMakeSelections()">
               <mat-icon class="text-danger">delete_outline</mat-icon>
             </button>
           </div>
@@ -259,8 +270,12 @@ export class ReportingUiTableComponent implements AfterViewInit {
   private dialog = inject(MatDialog);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private readonly authService = inject(AuthService);
   protected isClosed$ = this.caseRecordStore.isClosed$;
 
+  protected readonly canMakeSelections = computed(
+    () => this.authService.isAdmin() || this.authService.isInvestigator(),
+  );
   selectionsComputed$ = this.caseRecordStore.selectionsComputed$.pipe(
     tap((txns) => {
       const initHighlightsMap = new Map(
@@ -325,7 +340,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
     'startingActions.0.conductors.0._hiddenPartyKey',
     'startingActions.0.conductors.0._hiddenGivenName',
     'startingActions.0.conductors.0._hiddenSurname',
-    'startingActions.0.conductors.0._hiddenOtherOrInitial',
+    'startingActions.0.conductors.0._hiddenOtherOrInitialName',
     'startingActions.0.conductors.0._hiddenNameOfEntity',
 
     'completingActions.0.detailsOfDispo',
@@ -344,7 +359,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
     'completingActions.0.beneficiaries.0._hiddenPartyKey',
     'completingActions.0.beneficiaries.0._hiddenGivenName',
     'completingActions.0.beneficiaries.0._hiddenSurname',
-    'completingActions.0.beneficiaries.0._hiddenOtherOrInitial',
+    'completingActions.0.beneficiaries.0._hiddenOtherOrInitialName',
     'completingActions.0.beneficiaries.0._hiddenNameOfEntity',
     'flowOfFundsAmlId',
     'reportingEntityTxnRefNo',
@@ -399,7 +414,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
       'Conductor Given Name' as const,
     'startingActions.0.conductors.0._hiddenSurname':
       'Conductor Surname' as const,
-    'startingActions.0.conductors.0._hiddenOtherOrInitial':
+    'startingActions.0.conductors.0._hiddenOtherOrInitialName':
       'Conductor Other Name' as const,
     'startingActions.0.conductors.0._hiddenNameOfEntity':
       'Conductor Entity Name' as const,
@@ -427,7 +442,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
       'Beneficiary Given Name' as const,
     'completingActions.0.beneficiaries.0._hiddenSurname':
       'Beneficiary Surname' as const,
-    'completingActions.0.beneficiaries.0._hiddenOtherOrInitial':
+    'completingActions.0.beneficiaries.0._hiddenOtherOrInitialName':
       'Beneficiary Other Name' as const,
     'completingActions.0.beneficiaries.0._hiddenNameOfEntity':
       'Beneficiary Entity Name' as const,
@@ -476,7 +491,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
     'startingActions.0.conductors.0._hiddenPartyKey',
     'startingActions.0.conductors.0._hiddenGivenName',
     'startingActions.0.conductors.0._hiddenSurname',
-    'startingActions.0.conductors.0._hiddenOtherOrInitial',
+    'startingActions.0.conductors.0._hiddenOtherOrInitialName',
     'startingActions.0.conductors.0._hiddenNameOfEntity',
 
     'completingActions.0.detailsOfDispo',
@@ -493,7 +508,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
     'completingActions.0.beneficiaries.0._hiddenPartyKey',
     'completingActions.0.beneficiaries.0._hiddenGivenName',
     'completingActions.0.beneficiaries.0._hiddenSurname',
-    'completingActions.0.beneficiaries.0._hiddenOtherOrInitial',
+    'completingActions.0.beneficiaries.0._hiddenOtherOrInitialName',
     'completingActions.0.beneficiaries.0._hiddenNameOfEntity',
     'flowOfFundsSource',
     'flowOfFundsAmlId',
@@ -765,7 +780,7 @@ export interface AccountHolder {
   _hiddenPartyKey: string | null;
   _hiddenSurname: string | null;
   _hiddenGivenName: string | null;
-  _hiddenOtherOrInitial: string | null;
+  _hiddenOtherOrInitialName: string | null;
   _hiddenNameOfEntity: string | null;
 }
 
@@ -775,7 +790,7 @@ export type Conductor = {
   _hiddenPartyKey: string | null;
   _hiddenSurname: string | null;
   _hiddenGivenName: string | null;
-  _hiddenOtherOrInitial: string | null;
+  _hiddenOtherOrInitialName: string | null;
   _hiddenNameOfEntity: string | null;
   wasConductedOnBehalf: boolean | null;
   onBehalfOf?: OnBehalfOf[] | null;
@@ -797,7 +812,7 @@ export interface SourceOfFunds {
   _hiddenPartyKey: string | null;
   _hiddenSurname: string | null;
   _hiddenGivenName: string | null;
-  _hiddenOtherOrInitial: string | null;
+  _hiddenOtherOrInitialName: string | null;
   _hiddenNameOfEntity: string | null;
   accountNumber: string | null;
   identifyingNumber: string | null;
@@ -809,7 +824,7 @@ export interface OnBehalfOf {
   _hiddenPartyKey: string | null;
   _hiddenSurname: string | null;
   _hiddenGivenName: string | null;
-  _hiddenOtherOrInitial: string | null;
+  _hiddenOtherOrInitialName: string | null;
   _hiddenNameOfEntity: string | null;
 }
 
@@ -844,7 +859,7 @@ export interface InvolvedIn {
   _hiddenPartyKey: string | null;
   _hiddenSurname: string | null;
   _hiddenGivenName: string | null;
-  _hiddenOtherOrInitial: string | null;
+  _hiddenOtherOrInitialName: string | null;
   _hiddenNameOfEntity: string | null;
   accountNumber: string | null;
   identifyingNumber: string | null;
@@ -856,7 +871,7 @@ export interface Beneficiary {
   _hiddenPartyKey: string | null;
   _hiddenSurname: string | null;
   _hiddenGivenName: string | null;
-  _hiddenOtherOrInitial: string | null;
+  _hiddenOtherOrInitialName: string | null;
   _hiddenNameOfEntity: string | null;
 }
 

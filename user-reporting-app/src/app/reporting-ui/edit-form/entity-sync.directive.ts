@@ -10,7 +10,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ControlContainer, FormGroup } from '@angular/forms';
 import {
   catchError,
-  combineLatest,
   distinctUntilChanged,
   EMPTY,
   map,
@@ -26,17 +25,17 @@ import { TransactionSearchService } from '../../transaction-search/transaction-s
 import { TypedForm } from './edit-form.component';
 
 @Directive({
-  selector: '[appPartySync]',
+  selector: '[appEntitySync]',
 })
-export class PartySyncDirective implements OnInit {
+export class EntitySyncDirective implements OnInit {
   private controlContainer = inject(ControlContainer);
   protected caseRecordStore = inject(CaseRecordStore);
   private searchService = inject(TransactionSearchService);
   private destroyRef = inject(DestroyRef);
   private errorHandler = inject(ErrorHandler);
 
-  protected parties$ = this.caseRecordStore.state$.pipe(
-    map(({ parties }) => parties),
+  protected entities$ = this.caseRecordStore.state$.pipe(
+    map(({ entities }) => entities),
   );
 
   ngOnInit() {
@@ -46,7 +45,7 @@ export class PartySyncDirective implements OnInit {
         _hiddenPartyKey: string | null;
         _hiddenSurname: string | null;
         _hiddenGivenName: string | null;
-        _hiddenOtherOrInitial: string | null;
+        _hiddenOtherOrInitialName: string | null;
         _hiddenNameOfEntity: string | null;
       }>
     >;
@@ -60,10 +59,10 @@ export class PartySyncDirective implements OnInit {
     linkCtrl.valueChanges
       .pipe(
         startWith(linkCtrl.value),
-        withLatestFrom(this.parties$),
+        withLatestFrom(this.entities$),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe(([linkId, parties]) => {
+      .subscribe(([linkId, entitiesLocal]) => {
         if (linkCtrl.disabled) return;
 
         // Toggle logic based on whether a link is selected
@@ -73,14 +72,14 @@ export class PartySyncDirective implements OnInit {
           group.controls._hiddenGivenName.enable({ emitEvent: false });
           group.controls._hiddenSurname.enable({ emitEvent: false });
           group.controls._hiddenNameOfEntity.enable({ emitEvent: false });
-          group.controls._hiddenOtherOrInitial.enable({ emitEvent: false });
+          group.controls._hiddenOtherOrInitialName.enable({ emitEvent: false });
 
           group.patchValue(
             {
               _hiddenPartyKey: null,
               _hiddenGivenName: null,
               _hiddenSurname: null,
-              _hiddenOtherOrInitial: null,
+              _hiddenOtherOrInitialName: null,
               _hiddenNameOfEntity: null,
             },
             { emitEvent: false }, // do not trigger infinite loops
@@ -88,14 +87,16 @@ export class PartySyncDirective implements OnInit {
           return;
         }
 
-        const party = parties.find((p) => p.partyIdentifier === linkId);
-        console.assert(!!party, 'Assert party exists in local state');
+        const entity = entitiesLocal.find((p) => p.entityIdentifier === linkId);
+        console.assert(!!entity, 'Assert entity exists in local state');
 
-        const { identifiers, partyName } = party ?? {};
-
-        const { partyKey } = identifiers ?? {};
-        const { givenName, surname, otherOrInitial, nameOfEntity } =
-          partyName ?? {};
+        const {
+          givenName,
+          surname,
+          otherOrInitialName,
+          nameOfEntity,
+          partyKey,
+        } = entity ?? {};
 
         // Populate fields
         group.patchValue(
@@ -103,7 +104,7 @@ export class PartySyncDirective implements OnInit {
             _hiddenPartyKey: partyKey,
             _hiddenGivenName: givenName,
             _hiddenSurname: surname,
-            _hiddenOtherOrInitial: otherOrInitial,
+            _hiddenOtherOrInitialName: otherOrInitialName,
             _hiddenNameOfEntity: nameOfEntity,
           },
           { emitEvent: false }, // do not trigger infinite loops
@@ -113,7 +114,7 @@ export class PartySyncDirective implements OnInit {
         group.controls._hiddenGivenName.disable({ emitEvent: false });
         group.controls._hiddenSurname.disable({ emitEvent: false });
         group.controls._hiddenNameOfEntity.disable({ emitEvent: false });
-        group.controls._hiddenOtherOrInitial.disable({ emitEvent: false });
+        group.controls._hiddenOtherOrInitialName.disable({ emitEvent: false });
       });
 
     // -----------------------------------------------------------
@@ -122,59 +123,66 @@ export class PartySyncDirective implements OnInit {
     partyKeyCtrl.valueChanges
       .pipe(
         distinctUntilChanged(),
-        withLatestFrom(this.parties$),
+        withLatestFrom(this.entities$),
         tap(() => {
           group.patchValue(
             {
               _hiddenGivenName: null,
               _hiddenSurname: null,
-              _hiddenOtherOrInitial: null,
+              _hiddenOtherOrInitialName: null,
               _hiddenNameOfEntity: null,
             },
             { emitEvent: false },
           );
         }),
-        switchMap(([inputKey, partiesLocalState]) => {
+        switchMap(([inputKey, entitiesLocal]) => {
           if (partyKeyCtrl.disabled) return EMPTY;
 
           if (!inputKey) return EMPTY;
 
-          const partyMatch = partiesLocalState.find(
-            (p) => p.identifiers?.partyKey === inputKey,
-          );
+          const partyMatch = entitiesLocal.find((p) => p.partyKey === inputKey);
 
           const isPartyAlreadySet =
-            linkCtrl.value === partyMatch?.partyIdentifier;
+            linkCtrl.value === partyMatch?.entityIdentifier;
 
           if (partyMatch && !isPartyAlreadySet) {
             // This sets the link, which triggers Logic #1 above
-            linkCtrl.setValue(partyMatch.partyIdentifier);
+            linkCtrl.setValue(partyMatch.entityIdentifier);
             return EMPTY;
           }
 
-          // Attempting to fetch party info when party not found in local state
+          // Attempting to fetch party info when entity not found in local state
           return timer(1000).pipe(
             switchMap(() =>
               this.searchService.getPartyInfo(inputKey).pipe(
-                tap(({ givenName, surname, otherOrInitial, nameOfEntity }) => {
-                  group.patchValue(
-                    {
-                      _hiddenGivenName: givenName,
-                      _hiddenSurname: surname,
-                      _hiddenOtherOrInitial: otherOrInitial,
-                      _hiddenNameOfEntity: nameOfEntity,
-                    },
-                    { emitEvent: false },
-                  );
-                  group.controls._hiddenGivenName.disable({ emitEvent: false });
-                  group.controls._hiddenSurname.disable({ emitEvent: false });
-                  group.controls._hiddenNameOfEntity.disable({
-                    emitEvent: false,
-                  });
-                  group.controls._hiddenOtherOrInitial.disable({
-                    emitEvent: false,
-                  });
-                }),
+                tap(
+                  ({
+                    givenName,
+                    surname,
+                    otherOrInitialName,
+                    nameOfEntity,
+                  }) => {
+                    group.patchValue(
+                      {
+                        _hiddenGivenName: givenName,
+                        _hiddenSurname: surname,
+                        _hiddenOtherOrInitialName: otherOrInitialName,
+                        _hiddenNameOfEntity: nameOfEntity,
+                      },
+                      { emitEvent: false },
+                    );
+                    group.controls._hiddenGivenName.disable({
+                      emitEvent: false,
+                    });
+                    group.controls._hiddenSurname.disable({ emitEvent: false });
+                    group.controls._hiddenNameOfEntity.disable({
+                      emitEvent: false,
+                    });
+                    group.controls._hiddenOtherOrInitialName.disable({
+                      emitEvent: false,
+                    });
+                  },
+                ),
                 catchError((error: HttpErrorResponse) => {
                   if (error.status === HttpStatusCode.NotFound) {
                     setError(partyKeyCtrl, {

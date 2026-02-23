@@ -1,12 +1,5 @@
+import { EntityType } from '../../aml/case-record.store';
 import { formatCurrencyLocal } from '../../reporting-ui/edit-form/common-validation';
-import {
-  PartyAccount,
-  PartyAddress,
-  PartyContact,
-  PartyIdentifiers,
-  PartyName,
-  PartySourceSystem,
-} from '../../transaction-view/transform-to-str-transaction/party-gen.service';
 import {
   NODE_ENUM,
   TRANSACTION_TYPE_FRIENDLY_NAME,
@@ -48,29 +41,16 @@ export function extractNodeDisplayData(node: GraphNode): NodeDisplayData {
   }
 
   if (node.nodeType === 'subject') {
-    const {
-      partyIdentifier,
-      sourceSystem,
-      identifiers,
-      account,
-      partyName,
-      contact,
-      address,
-    } = node.partyInfo ?? {};
+    const { entityIdentifier } = node.entityInfo ?? {};
 
     const data: NodeDisplayData = {
       title: node.displayName,
       category: node.category as number,
       categoryName: getNodeName(node.category as number),
 
-      partyInfo: {
-        partyIdentifier,
-        sourceSystem,
-        identifiers,
-        account,
-        partyName,
-        contact,
-        address,
+      entityInfo: {
+        entityIdentifier: entityIdentifier!,
+        ...node.entityInfo,
       },
 
       currencyTotals: {
@@ -256,67 +236,64 @@ export function formatNodeDataAsHtml(data: NodeDisplayData): string {
   if (data.account)
     html += `<span style="font-size: 13px;">Account: ${data.account}</span><br/>`;
 
-  // Party Info Section (subjects only)
-  if (data.partyInfo) {
-    const { account, identifiers, contact, address } = data.partyInfo;
-    // Party Name - title
+  // Entity Info Section (subjects only)
+  if (data.entityInfo) {
+    // Entity Name - title
 
-    // Party Account
-    if (account) {
-      if (account.accountNumber) {
-        html += `<span style="font-size: 13px;">Acct #: ${account.accountNumber}`;
-        if (account.transitNumber)
-          html += ` (Transit: ${account.transitNumber})`;
-        if (account.currency) html += ` [${account.currency}]`;
-        html += `</span><br/>`;
-      }
-      if (account.fiNumber)
-        html += `<span style="font-size: 13px;">FI: ${account.fiNumber}</span><br/>`;
-      if (account.accountName)
-        html += `<span style="font-size: 13px;">Acct Name: ${account.accountName}</span><br/>`;
+    // Entity Account
+    const { accountNumber, transitNumber, currency, fiNumber, accountName } =
+      data.entityInfo ?? {};
+    if (accountNumber) {
+      html += `<span style="font-size: 13px;">Acct #: ${accountNumber}`;
+      if (transitNumber) html += ` (Transit: ${transitNumber})`;
+      if (currency) html += ` [${currency}]`;
+      html += `</span><br/>`;
     }
+    if (fiNumber)
+      html += `<span style="font-size: 13px;">FI: ${fiNumber}</span><br/>`;
+    if (accountName)
+      html += `<span style="font-size: 13px;">Acct Name: ${accountName}</span><br/>`;
 
-    // Party Identifiers
-    if (identifiers) {
-      if (identifiers.partyKey)
-        html += `<span style="font-size: 13px;">Party Key: ${identifiers.partyKey}</span><br/>`;
-      if (identifiers.certapayAccount)
-        html += `<span style="font-size: 13px;">Certapay: ${identifiers.certapayAccount}</span><br/>`;
-      // if (identifiers.msgTag50)
-      //   html += `<span style="font-size: 13px;">Tag 50: ${identifiers.msgTag50}</span><br/>`;
-      // if (identifiers.msgTag59)
-      //   html += `<span style="font-size: 13px;">Tag 59: ${identifiers.msgTag59}</span><br/>`;
-      if (identifiers.cardNumber)
-        html += `<span style="font-size: 13px;">Card: ${identifiers.cardNumber}</span><br/>`;
-    }
+    // Entity Identifiers
+    const { partyKey, certapayAccount, cardNumber } = data.entityInfo ?? {};
+    if (partyKey)
+      html += `<span style="font-size: 13px;">Entity Key: ${partyKey}</span><br/>`;
+    if (certapayAccount)
+      html += `<span style="font-size: 13px;">Certapay: ${certapayAccount}</span><br/>`;
+    // if (msgTag50)
+    //   html += `<span style="font-size: 13px;">Tag 50: ${msgTag50}</span><br/>`;
+    // if (msgTag59)
+    //   html += `<span style="font-size: 13px;">Tag 59: ${msgTag59}</span><br/>`;
+    if (cardNumber)
+      html += `<span style="font-size: 13px;">Card: ${cardNumber}</span><br/>`;
 
-    // Party Contact
-    if (contact) {
-      if (contact.email)
-        html += `<span style="font-size: 13px;">Email: ${contact.email}</span><br/>`;
-      if (contact.phone)
-        html += `<span style="font-size: 13px;">Phone: ${contact.phone}</span><br/>`;
-      if (contact.mobile)
-        html += `<span style="font-size: 13px;">Mobile: ${contact.mobile}</span><br/>`;
-      if (contact.handleUsed)
-        html += `<span style="font-size: 13px;">Handle: ${contact.handleUsed}</span><br/>`;
-    }
+    // Entity Contact
+    const { email, phone, mobile, handleUsed } = data.entityInfo ?? {};
+    if (email)
+      html += `<span style="font-size: 13px;">Email: ${email}</span><br/>`;
+    if (phone)
+      html += `<span style="font-size: 13px;">Phone: ${phone}</span><br/>`;
+    if (mobile)
+      html += `<span style="font-size: 13px;">Mobile: ${mobile}</span><br/>`;
+    if (handleUsed)
+      html += `<span style="font-size: 13px;">Handle: ${handleUsed}</span><br/>`;
 
-    // Party Address
-    if (address) {
-      if (address.rawAddress) {
-        html += `<span style="font-size: 13px;">Address: ${address.rawAddress}</span><br/>`;
-      } else {
-        const addressParts = [
-          address.street,
-          address.city,
-          address.provinceState,
-          address.postalCode,
-          address.country,
-        ].filter(Boolean);
-        if (addressParts.length > 0)
-          html += `<span style="font-size: 13px;">Address: ${addressParts.join(', ')}</span><br/>`;
-      }
+    // Entity Address
+    const { rawAddress, street, city, provinceState, postalCode, country } =
+      data.entityInfo ?? {};
+
+    if (rawAddress) {
+      html += `<span style="font-size: 13px;">Address: ${rawAddress}</span><br/>`;
+    } else {
+      const addressParts = [
+        street,
+        city,
+        provinceState,
+        postalCode,
+        country,
+      ].filter(Boolean);
+      if (addressParts.length > 0)
+        html += `<span style="font-size: 13px;">Address: ${addressParts.join(', ')}</span><br/>`;
     }
   }
 
@@ -393,57 +370,52 @@ function formatNodeDataAsText(data: NodeDisplayData | undefined): string {
   if (data.transit) text += `Transit: ${data.transit}\n`;
   if (data.account) text += `Account: ${data.account}\n`;
 
-  // Party Info Section (subjects only)
-  if (data.partyInfo) {
-    const { account, identifiers, contact, address } = data.partyInfo;
-    // Party Name - title
+  // Entity Info Section (subjects only)
+  if (data.entityInfo) {
+    // Entity Name - title
 
-    // Party Account
-    if (account) {
-      if (account.accountNumber) {
-        text += `Acct #: ${account.accountNumber}`;
-        if (account.transitNumber)
-          text += ` (Transit: ${account.transitNumber})`;
-        if (account.currency) text += ` [${account.currency}]`;
-        text += `\n`;
-      }
-      if (account.fiNumber) text += `FI: ${account.fiNumber}\n`;
-      if (account.accountName) text += `Acct Name: ${account.accountName}\n`;
+    // Entity Account
+    const { accountNumber, transitNumber, currency, fiNumber, accountName } =
+      data.entityInfo;
+    if (accountNumber) {
+      text += `Acct #: ${accountNumber}`;
+      if (transitNumber) text += ` (Transit: ${transitNumber})`;
+      if (currency) text += ` [${currency}]`;
+      text += `\n`;
     }
+    if (fiNumber) text += `FI: ${fiNumber}\n`;
+    if (accountName) text += `Acct Name: ${accountName}\n`;
 
-    // Party Identifiers
-    if (identifiers) {
-      if (identifiers.partyKey) text += `Party Key: ${identifiers.partyKey}\n`;
-      if (identifiers.certapayAccount)
-        text += `Certapay: ${identifiers.certapayAccount}\n`;
-      // if (identifiers.msgTag50) text += `Tag 50: ${identifiers.msgTag50}\n`;
-      // if (identifiers.msgTag59) text += `Tag 59: ${identifiers.msgTag59}\n`;
-      if (identifiers.cardNumber) text += `Card: ${identifiers.cardNumber}\n`;
-    }
+    // Entity Identifiers
+    const { partyKey, certapayAccount, cardNumber } = data.entityInfo;
+    if (partyKey) text += `Party Key: ${partyKey}\n`;
+    if (certapayAccount) text += `Certapay: ${certapayAccount}\n`;
+    // if (msgTag50) text += `Tag 50: ${msgTag50}\n`;
+    // if (msgTag59) text += `Tag 59: ${msgTag59}\n`;
+    if (cardNumber) text += `Card: ${cardNumber}\n`;
 
-    // Party Contact
-    if (contact) {
-      if (contact.email) text += `Email: ${contact.email}\n`;
-      if (contact.phone) text += `Phone: ${contact.phone}\n`;
-      if (contact.mobile) text += `Mobile: ${contact.mobile}\n`;
-      if (contact.handleUsed) text += `Handle: ${contact.handleUsed}\n`;
-    }
+    // Entity Contact
+    const { email, phone, mobile, handleUsed } = data.entityInfo;
+    if (email) text += `Email: ${email}\n`;
+    if (phone) text += `Phone: ${phone}\n`;
+    if (mobile) text += `Mobile: ${mobile}\n`;
+    if (handleUsed) text += `Handle: ${handleUsed}\n`;
 
-    // Party Address
-    if (address) {
-      if (address.rawAddress) {
-        text += `Address: ${address.rawAddress}\n`;
-      } else {
-        const addressParts = [
-          address.street,
-          address.city,
-          address.provinceState,
-          address.postalCode,
-          address.country,
-        ].filter(Boolean);
-        if (addressParts.length > 0) {
-          text += `Address: ${addressParts.join(', ')}\n`;
-        }
+    // Entity Address
+    const { rawAddress, street, city, provinceState, postalCode, country } =
+      data.entityInfo;
+    if (rawAddress) {
+      text += `Address: ${rawAddress}\n`;
+    } else {
+      const addressParts = [
+        street,
+        city,
+        provinceState,
+        postalCode,
+        country,
+      ].filter(Boolean);
+      if (addressParts.length > 0) {
+        text += `Address: ${addressParts.join(', ')}\n`;
       }
     }
   }
@@ -491,16 +463,8 @@ export interface NodeDisplayData {
   categoryName: string;
   transit?: string | null;
   account?: string | null;
-  // Party info (subjects only)
-  partyInfo?: {
-    partyIdentifier?: string;
-    sourceSystem?: PartySourceSystem;
-    identifiers?: PartyIdentifiers;
-    account?: PartyAccount;
-    partyName?: PartyName;
-    contact?: PartyContact;
-    address?: PartyAddress;
-  };
+  // Entity info (when node is a entity)
+  entityInfo?: EntityType;
 
   currencyTotals?: {
     receivedByCurrency: { currency: string; amount: string; count: number }[];

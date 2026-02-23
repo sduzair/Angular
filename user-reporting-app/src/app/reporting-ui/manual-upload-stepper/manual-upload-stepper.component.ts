@@ -46,9 +46,9 @@ import {
 } from '../../aml/case-record.store';
 import { TransactionSearchService } from '../../transaction-search/transaction-search.service';
 import {
-  PartyGenService,
-  PartyGenType,
-} from '../../transaction-view/transform-to-str-transaction/party-gen.service';
+  EntityGenService,
+  EntityGenType,
+} from '../../transaction-view/transform-to-str-transaction/entity-gen.service';
 import {
   FormOptions,
   FormOptionsService,
@@ -215,6 +215,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
   private destroyRef = inject(DestroyRef);
   private fb = inject(FormBuilder);
   dialogRef = inject(MatDialogRef<ManualUploadStepperComponent>);
+  private entityGenService = inject(EntityGenService);
 
   @ViewChild('dropZone') dropZone!: ElementRef;
 
@@ -236,7 +237,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
   //   MANUAL_TRANSACTIONS_WITH_CHANGELOGS_DEV_OR_TEST_ONLY_FIXTURE;
   parsedData: {
     manualSelection: StrTransactionWithChangeLogs;
-    manualParties: PartyGenType[];
+    manualEntities: EntityGenType[];
   }[] = [];
   parsedSelectionsData: StrTransactionWithChangeLogs[] | null = null;
 
@@ -378,11 +379,11 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
       )
       // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
       .subscribe({
-        next: (selectionsAndParties = []) => {
-          this.parsedData = selectionsAndParties.map(
-            ({ selection: manualSelection, parties: manualParties }) => ({
+        next: (selectionsAndEntities = []) => {
+          this.parsedData = selectionsAndEntities.map(
+            ({ selection: manualSelection, entities: manualEntities }) => ({
               manualSelection,
-              manualParties,
+              manualEntities,
             }),
           );
           this.parsedSelectionsData = this.parsedData.map(
@@ -431,11 +432,11 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
       switchMap(({ jsonData, formOptions }) =>
         forkJoin(
           jsonData.map((json) =>
-            this.convertSheetJsonToSelectionAndParties(json, formOptions),
+            this.convertSheetJsonToSelectionAndEntities(json, formOptions),
           ),
         ).pipe(
-          tap((selectionsAndParties) =>
-            selectionsAndParties.map((item) => {
+          tap((selectionsAndEntities) =>
+            selectionsAndEntities.map((item) => {
               return {
                 ...item,
                 selection: [item.selection].map(setRowValidationInfo),
@@ -446,14 +447,12 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
       ),
     );
   }
-  private partyGenService = inject(PartyGenService);
-
-  convertSheetJsonToSelectionAndParties(
+  convertSheetJsonToSelectionAndEntities(
     value: Record<ColumnHeaderLabels, string>,
     formOptions: FormOptions,
   ) {
-    return new ManualTransactionBuilder(value, formOptions, (party) =>
-      this.partyGenService.generateParty(party),
+    return new ManualTransactionBuilder(value, formOptions, (entity) =>
+      this.entityGenService.generateEntity(entity),
     )
       .trimValues()
       .withMetadata()
@@ -467,7 +466,7 @@ export class ManualUploadStepperComponent implements AfterViewInit, OnDestroy {
 
   onUpload(stepper: MatStepper) {
     this.stepperFormGroup.controls.readyForUpload.setValue(true);
-    this.sessionDataService.qAddManualSelectionsAndParties(this.parsedData);
+    this.sessionDataService.qAddManualSelectionsAndEntities(this.parsedData);
     // After successful upload, move to next step
     this.sessionDataService
       .whenProcessed(

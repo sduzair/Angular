@@ -10,7 +10,6 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { exposeComponent, uiChatResource } from '@hashbrownai/angular';
 import { s } from '@hashbrownai/core';
 import { KnownModelIds } from '@hashbrownai/core/src/utils/llm';
-import { take, tap } from 'rxjs';
 import { AccountTransactionTotalsService } from '../analytics/account-transaction-totals.service';
 import { SnackbarQueueService } from '../snackbar-queue.service';
 import { ChatComposerComponent } from './chat-composer/chat-composer.component';
@@ -219,21 +218,20 @@ Array<{
       checkDataIntegrity,
       getReviewPeriod,
       getPartyKeysByAccount,
-      // getSubjectInfoByPartyKey,
       getAccountTransactionTotals,
     ],
   });
 
   sendMessage(message: string): void {
     this.chat.sendMessage({ role: 'user', content: message });
-    this.totalsService
-      .getAccountTransactionTotals$()
-      .pipe(
-        take(1),
-        tap((val) => console.log(val)),
-      )
-      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
-      .subscribe();
+    // this.totalsService
+    //   .getAccountTransactionTotals$()
+    //   .pipe(
+    //     take(1),
+    //     tap((val) => console.log(val)),
+    //   )
+    //   // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
+    //   .subscribe();
   }
 
   retryMessages() {

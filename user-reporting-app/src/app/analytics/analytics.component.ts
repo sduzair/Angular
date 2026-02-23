@@ -10,8 +10,10 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatIcon } from '@angular/material/icon';
 import { MatOption, MatSelect } from '@angular/material/select';
 import { MatToolbar } from '@angular/material/toolbar';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -41,8 +43,6 @@ import {
 import { CircularComponent } from './circular/circular.component';
 import { MonthlyTxnVolumeComponent } from './monthly-txn-volume/monthly-txn-volume.component';
 import { TxnTypeBreakdownComponent } from './txn-type-breakdown/txn-type-breakdown.component';
-import { MatIcon } from '@angular/material/icon';
-import { MatButtonModule } from '@angular/material/button';
 
 @Component({
   selector: 'app-analytics',
@@ -224,7 +224,7 @@ import { MatButtonModule } from '@angular/material/button';
           [transactions]="(filteredSelectionsByAccountAndPeriod$ | async) || []"
           [accountNumbersSelection]="(accountsSelection$ | async) || []"
           [partyKeysSelection]="(partyKeysSelection$ | async) || []"
-          [parties]="(parties$ | async) || []">
+          [entities]="(entities$ | async) || []">
         </app-circular>
       </div>
       <div class="col-6">
@@ -291,7 +291,7 @@ export class AnalyticsComponent implements AfterViewInit {
     }),
   );
 
-  parties$ = this.caseRecord$.pipe(map(({ parties }) => parties));
+  entities$ = this.caseRecord$.pipe(map(({ entities }) => entities));
 
   accountsSelection$ = this.caseRecord$.pipe(
     map(({ searchParams: { accountNumbersSelection } }) => {

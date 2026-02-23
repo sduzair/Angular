@@ -489,15 +489,15 @@ api.MapGet("/caserecord/{caseRecordId}/selections", async (
     IMongoDatabase database) =>
 {
     var selections = database.GetCollection<Selection>("selections");
-    var parties = database.GetCollection<Party>("parties");
+    var entities = database.GetCollection<Entity>("entity");
 
     var selectionFilter = Builders<Selection>.Filter.Eq(x => x.CaseRecordId, caseRecordId);
-    var partyFilter = Builders<Party>.Filter.Eq(x => x.CaseRecordId, caseRecordId);
+    var entityFilter = Builders<Entity>.Filter.Eq(x => x.CaseRecordId, caseRecordId);
 
     var selectionList = await selections.Find(selectionFilter).ToListAsync();
-    var partyList = await parties.Find(partyFilter).ToListAsync();
+    var entityList = await entities.Find(entityFilter).ToListAsync();
 
-    return Results.Ok(new FetchSelectionsResponse(selectionList, partyList));
+    return Results.Ok(new FetchSelectionsResponse(selectionList, entityList));
 }).RequireAuthorization("AnalystPolicy"); ;
 
 api.MapPost("/caserecord/{caseRecordId}/selections/add", async (
@@ -508,7 +508,7 @@ api.MapPost("/caserecord/{caseRecordId}/selections/add", async (
 {
     var caseRecords = database.GetCollection<CaseRecord>("caseRecord");
     var selections = database.GetCollection<Selection>("selections");
-    var parties = database.GetCollection<Party>("parties");
+    var entities = database.GetCollection<Entity>("entity");
 
     using var session = await mongoClient.StartSessionAsync(cancellationToken: cancellationToken);
 
@@ -536,14 +536,14 @@ api.MapPost("/caserecord/{caseRecordId}/selections/add", async (
                     await selections.InsertManyAsync(s, selectionsToInsert, cancellationToken: ct);
 
 
-                var partiesToInsert = request.Parties.Select(p =>
+                var entitiesToInsert = request.Entities.Select(p =>
                 {
                     p.CaseRecordId = caseRecordId;
                     return p;
                 }).ToList();
 
-                if (partiesToInsert.Count > 0)
-                    await parties.InsertManyAsync(s, partiesToInsert, cancellationToken: ct);
+                if (entitiesToInsert.Count > 0)
+                    await entities.InsertManyAsync(s, entitiesToInsert, cancellationToken: ct);
 
                 var currentUser = context.User.Identity?.Name ?? "System";
 
@@ -562,7 +562,7 @@ api.MapPost("/caserecord/{caseRecordId}/selections/add", async (
                 return new AddSelectionsResponse(
                     CaseETag: updatedCase.ETag,
                     SelectionCount: selectionsToInsert.Count,
-                    PartyCount: partiesToInsert.Count,
+                    EntityCount: entitiesToInsert.Count,
                     LastUpdated: updatedCase.LastUpdated!.Value
                 );
             }, cancellationToken: cancellationToken);
@@ -571,7 +571,9 @@ api.MapPost("/caserecord/{caseRecordId}/selections/add", async (
         return await CaseRecordGuard.ResolveFailureAsync(caseRecords, caseRecordId, request.CaseETag);
 
     return Results.Ok(result);
-}).RequireAuthorization("InvPolicy"); ;
+    // prevents edit form entity addition
+    // }).RequireAuthorization("InvPolicy"); ;
+}).RequireAuthorization("AnalystPolicy"); ;
 
 api.MapPost("/caserecord/{caseRecordId}/selections/remove", async (
     string caseRecordId,

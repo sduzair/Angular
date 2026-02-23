@@ -18,7 +18,7 @@ import {
   POSSourceData,
   SEARCH_SOURCE_ID,
 } from '../../transaction-search/transaction-search.service';
-import { PartyAddress, PartyGenType, PartyName } from './party-gen.service';
+import { EntityGenType } from './entity-gen.service';
 
 /**
  * Transform POS transaction into StrTransactionWithChangeLogs format
@@ -26,20 +26,20 @@ import { PartyAddress, PartyGenType, PartyName } from './party-gen.service';
 export function transformPOSToStrTransaction({
   posTxn,
   fofTxn,
-  generateParty,
+  generateEntity,
   getAccountInfo,
   caseRecordId,
 }: {
   posTxn: POSSourceData;
   fofTxn: FlowOfFundsSourceData;
-  generateParty: (
-    party: Omit<PartyGenType, 'partyIdentifier'>,
-  ) => Observable<PartyGenType | null>;
+  generateEntity: (
+    entity: Omit<EntityGenType, 'entityIdentifier'>,
+  ) => Observable<EntityGenType | null>;
   getAccountInfo: (account: string) => Observable<GetAccountInfoRes>;
   caseRecordId: string;
 }): Observable<{
   selection: StrTransactionWithChangeLogs;
-  parties: PartyGenType[];
+  entities: EntityGenType[];
 }> {
   // Collect all party keys and account info we need to fetch
   const partyKeysToFetch = new Set<string>();
@@ -80,40 +80,36 @@ export function transformPOSToStrTransaction({
         );
       }
 
-      // Fetch all party info in parallel
-      const partyInfoObservables: Record<
+      // Fetch all entity info in parallel
+      const entityInfoObservables: Record<
         string,
-        Observable<PartyGenType | null>
+        Observable<EntityGenType | null>
       > = {};
 
       Array.from(partyKeysToFetch).forEach((partyKey) => {
-        partyInfoObservables[partyKey] = generateParty({
-          identifiers: { partyKey },
+        entityInfoObservables[partyKey] = generateEntity({
+          partyKey,
         });
       });
 
-      // Generate merchant party
-      partyInfoObservables[
+      // Generate merchant entity
+      entityInfoObservables[
         `merchant_${posTxn.merchantName}_${posTxn.merchantCity}`
-      ] = generateParty({
-        identifiers: { merchantPhone: posTxn.merchantCity },
-        partyName: {
-          ...parseMerchantName(posTxn),
-        },
-        address: {
-          ...parseMerchantAddress(posTxn),
-        },
+      ] = generateEntity({
+        merchantPhone: posTxn.merchantCity,
+        ...parseMerchantName(posTxn),
+        ...parseMerchantAddress(posTxn),
         sourceSystem: 'POS',
       });
 
       return forkJoin({
-        partiesInfo:
-          Object.keys(partyInfoObservables).length > 0
-            ? forkJoin(partyInfoObservables)
-            : of({} as Record<string, PartyGenType | null>),
-      }).pipe(map(({ partiesInfo }) => ({ partiesInfo, accountsInfo })));
+        entitiesInfo:
+          Object.keys(entityInfoObservables).length > 0
+            ? forkJoin(entityInfoObservables)
+            : of({} as Record<string, EntityGenType | null>),
+      }).pipe(map(({ entitiesInfo }) => ({ entitiesInfo, accountsInfo })));
     }),
-    map(({ partiesInfo, accountsInfo }) => {
+    map(({ entitiesInfo, accountsInfo }) => {
       // Build starting actions - Customer making payment (funds OUT)
       const startingActions: StartingAction[] = [];
 
@@ -124,19 +120,16 @@ export function transformPOSToStrTransaction({
           .split(/[;:]/)
           .reduce((acc, key) => {
             const trimmedKey = key.trim();
-            if (partiesInfo[trimmedKey]) {
+            if (entitiesInfo[trimmedKey]) {
               acc.push({
-                linkToSub: partiesInfo[trimmedKey]?.partyIdentifier!,
-                _hiddenPartyKey:
-                  partiesInfo[trimmedKey]?.identifiers?.partyKey!,
-                _hiddenGivenName:
-                  partiesInfo[trimmedKey]?.partyName?.givenName ?? null,
-                _hiddenSurname:
-                  partiesInfo[trimmedKey]?.partyName?.surname ?? null,
-                _hiddenOtherOrInitial:
-                  partiesInfo[trimmedKey]?.partyName?.otherOrInitial ?? null,
+                linkToSub: entitiesInfo[trimmedKey]?.entityIdentifier!,
+                _hiddenPartyKey: entitiesInfo[trimmedKey]?.partyKey!,
+                _hiddenGivenName: entitiesInfo[trimmedKey]?.givenName ?? null,
+                _hiddenSurname: entitiesInfo[trimmedKey]?.surname ?? null,
+                _hiddenOtherOrInitialName:
+                  entitiesInfo[trimmedKey]?.otherOrInitialName ?? null,
                 _hiddenNameOfEntity:
-                  partiesInfo[trimmedKey]?.partyName?.nameOfEntity ?? null,
+                  entitiesInfo[trimmedKey]?.nameOfEntity ?? null,
               });
             }
             return acc;
@@ -145,23 +138,19 @@ export function transformPOSToStrTransaction({
       const conductors: Conductor[] = [];
       conductors.push({
         linkToSub:
-          partiesInfo[String(posTxn.flowOfFundsConductorEcif)]
-            ?.partyIdentifier!,
+          entitiesInfo[String(posTxn.flowOfFundsConductorEcif)]
+            ?.entityIdentifier!,
         _hiddenPartyKey:
-          partiesInfo[String(posTxn.flowOfFundsConductorEcif)]?.identifiers
-            ?.partyKey!,
+          entitiesInfo[String(posTxn.flowOfFundsConductorEcif)]?.partyKey!,
         _hiddenGivenName:
-          partiesInfo[String(posTxn.flowOfFundsConductorEcif)]?.partyName
-            ?.givenName!,
+          entitiesInfo[String(posTxn.flowOfFundsConductorEcif)]?.givenName!,
         _hiddenSurname:
-          partiesInfo[String(posTxn.flowOfFundsConductorEcif)]?.partyName
-            ?.surname!,
-        _hiddenOtherOrInitial:
-          partiesInfo[String(posTxn.flowOfFundsConductorEcif)]?.partyName
-            ?.otherOrInitial!,
+          entitiesInfo[String(posTxn.flowOfFundsConductorEcif)]?.surname!,
+        _hiddenOtherOrInitialName:
+          entitiesInfo[String(posTxn.flowOfFundsConductorEcif)]
+            ?.otherOrInitialName!,
         _hiddenNameOfEntity:
-          partiesInfo[String(posTxn.flowOfFundsConductorEcif)]?.partyName
-            ?.nameOfEntity!,
+          entitiesInfo[String(posTxn.flowOfFundsConductorEcif)]?.nameOfEntity!,
         wasConductedOnBehalf: false,
         onBehalfOf: [],
       });
@@ -196,20 +185,19 @@ export function transformPOSToStrTransaction({
       // Build completing actions - Merchant receiving payment
       const completingActions: CompletingAction[] = [];
 
-      const merchantParty =
-        partiesInfo[`merchant_${posTxn.merchantName}_${posTxn.merchantCity}`];
+      const merchantEntity =
+        entitiesInfo[`merchant_${posTxn.merchantName}_${posTxn.merchantCity}`];
 
-      const merchantBeneficiary = merchantParty
+      const merchantBeneficiary = merchantEntity
         ? [
             {
-              linkToSub: merchantParty.partyIdentifier!,
+              linkToSub: merchantEntity.entityIdentifier!,
               _hiddenPartyKey: null,
-              _hiddenGivenName: merchantParty.partyName?.givenName ?? null,
-              _hiddenSurname: merchantParty.partyName?.surname ?? null,
-              _hiddenOtherOrInitial:
-                merchantParty.partyName?.otherOrInitial ?? null,
-              _hiddenNameOfEntity:
-                merchantParty.partyName?.nameOfEntity ?? null,
+              _hiddenGivenName: merchantEntity.givenName ?? null,
+              _hiddenSurname: merchantEntity.surname ?? null,
+              _hiddenOtherOrInitialName:
+                merchantEntity.otherOrInitialName ?? null,
+              _hiddenNameOfEntity: merchantEntity.nameOfEntity ?? null,
             },
           ]
         : [];
@@ -304,15 +292,15 @@ export function transformPOSToStrTransaction({
 
       return {
         selection: transformed,
-        parties: Object.values(partiesInfo).filter(
+        entities: Object.values(entitiesInfo).filter(
           (p) => p !== null,
-        ) as PartyGenType[],
+        ) as EntityGenType[],
       };
     }),
   );
 }
 
-const parseMerchantName = (posTxn: POSSourceData): PartyName => {
+const parseMerchantName = (posTxn: POSSourceData) => {
   const merchantName =
     posTxn.merchantName || posTxn.terminalOwnerName || 'Unknown Merchant';
 
@@ -320,13 +308,13 @@ const parseMerchantName = (posTxn: POSSourceData): PartyName => {
   return {
     surname: null,
     givenName: null,
-    otherOrInitial: null,
+    otherOrInitialName: null,
     nameOfEntity: merchantName.trim(),
   };
 };
 
 // Helper to parse merchant address
-function parseMerchantAddress(posTxn: POSSourceData): PartyAddress {
+function parseMerchantAddress(posTxn: POSSourceData) {
   return {
     street: posTxn.merchantStreetAddress || null,
     city: posTxn.merchantCity || null,

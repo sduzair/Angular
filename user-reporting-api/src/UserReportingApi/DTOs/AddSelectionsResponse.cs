@@ -4,6 +4,6 @@ public record AddSelectionsResponse
 (
     int CaseETag,
     int SelectionCount,
-    int PartyCount,
+    int EntityCount,
     DateTime LastUpdated
 );

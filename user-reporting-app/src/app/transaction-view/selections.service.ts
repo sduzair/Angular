@@ -20,7 +20,7 @@ export class SelectionsService {
     );
   }
 
-  addSelectionsAndParties(
+  addSelectionsAndEntities(
     caseRecordId: string,
     request: AddSelectionsReq,
   ): Observable<AddSelectionsRes> {
@@ -74,8 +74,8 @@ export interface SelectionRes {
   [key: string]: unknown; // extra elements from BsonDocument
 }
 
-export interface PartyRes {
-  partyIdentifier: string;
+export interface EntityRes {
+  entityIdentifier: string;
   caseRecordId: string;
   [key: string]: unknown;
 }
@@ -84,7 +84,7 @@ export interface PartyRes {
 
 export interface FetchSelectionsRes {
   selectionList: SelectionRes[];
-  partyList: PartyRes[];
+  entityList: EntityRes[];
 }
 
 // ---- Add ----
@@ -92,13 +92,13 @@ export interface FetchSelectionsRes {
 interface AddSelectionsReq {
   caseETag: number;
   selections: Omit<SelectionRes, 'isClosed' | 'eTag' | 'changeLogs'>[];
-  parties: Omit<PartyRes, 'caseRecordId'>[];
+  entities: Omit<EntityRes, 'caseRecordId'>[];
 }
 
 export interface AddSelectionsRes {
   caseETag: number;
   selectionCount: number;
-  partyCount: number;
+  entityCount: number;
   lastUpdated: string;
 }
 

@@ -16,7 +16,7 @@ import {
   GetAccountInfoRes,
   OTCSourceData,
 } from '../../transaction-search/transaction-search.service';
-import { PartyGenType } from './party-gen.service';
+import { EntityGenType } from './entity-gen.service';
 
 /**
  * Transform CBFE mixed deposit transaction into StrTransactionWithChangeLogs format
@@ -24,15 +24,15 @@ import { PartyGenType } from './party-gen.service';
 export function transformOTCToStrTransaction({
   sourceTxn,
   fofTxn,
-  generateParty,
+  generateEntity,
   getAccountInfo,
   caseRecordId,
 }: {
   sourceTxn: OTCSourceData;
   fofTxn: FlowOfFundsSourceData;
-  generateParty: (
-    party: Omit<PartyGenType, 'partyIdentifier'>,
-  ) => Observable<PartyGenType | null>;
+  generateEntity: (
+    entity: Omit<EntityGenType, 'entityIdentifier'>,
+  ) => Observable<EntityGenType | null>;
   getAccountInfo: (account: string) => Observable<GetAccountInfoRes>;
   caseRecordId: string;
 }) {
@@ -90,26 +90,26 @@ export function transformOTCToStrTransaction({
         );
       }
 
-      // Fetch all party info in parallel
-      const partyInfoObservables: Record<
+      // Fetch all entity info in parallel
+      const entityInfoObservables: Record<
         string,
-        Observable<PartyGenType | null>
+        Observable<EntityGenType | null>
       > = {};
 
       Array.from(partyKeysToFetch).forEach((partyKey) => {
-        partyInfoObservables[partyKey] = generateParty({
-          identifiers: { partyKey },
+        entityInfoObservables[partyKey] = generateEntity({
+          partyKey,
         });
       });
 
       return forkJoin({
-        partiesInfo:
-          Object.keys(partyInfoObservables).length > 0
-            ? forkJoin(partyInfoObservables)
-            : of({} as Record<string, PartyGenType | null>),
-      }).pipe(map(({ partiesInfo }) => ({ partiesInfo, accountsInfo })));
+        entitiesInfo:
+          Object.keys(entityInfoObservables).length > 0
+            ? forkJoin(entityInfoObservables)
+            : of({} as Record<string, EntityGenType | null>),
+      }).pipe(map(({ entitiesInfo }) => ({ entitiesInfo, accountsInfo })));
     }),
-    map(({ partiesInfo, accountsInfo }) => {
+    map(({ entitiesInfo, accountsInfo }) => {
       // Parse cheque amount from chequeBreakdown field
       const parseChequeAmount = (): number => {
         if (!sourceTxn.chequeBreakdown) {
@@ -132,16 +132,14 @@ export function transformOTCToStrTransaction({
       const conductorPartyKey = String(sourceTxn.flowOfFundsConductorPartyKey);
 
       conductors.push({
-        linkToSub: partiesInfo[conductorPartyKey]?.partyIdentifier!,
-        _hiddenPartyKey: partiesInfo[conductorPartyKey]?.identifiers?.partyKey!,
-        _hiddenGivenName:
-          partiesInfo[conductorPartyKey]?.partyName?.givenName ?? null,
-        _hiddenSurname:
-          partiesInfo[conductorPartyKey]?.partyName?.surname ?? null,
-        _hiddenOtherOrInitial:
-          partiesInfo[conductorPartyKey]?.partyName?.otherOrInitial ?? null,
+        linkToSub: entitiesInfo[conductorPartyKey]?.entityIdentifier!,
+        _hiddenPartyKey: entitiesInfo[conductorPartyKey]?.partyKey!,
+        _hiddenGivenName: entitiesInfo[conductorPartyKey]?.givenName ?? null,
+        _hiddenSurname: entitiesInfo[conductorPartyKey]?.surname ?? null,
+        _hiddenOtherOrInitialName:
+          entitiesInfo[conductorPartyKey]?.otherOrInitialName ?? null,
         _hiddenNameOfEntity:
-          partiesInfo[conductorPartyKey]?.partyName?.nameOfEntity ?? null,
+          entitiesInfo[conductorPartyKey]?.nameOfEntity ?? null,
         wasConductedOnBehalf: sourceTxn.strSaOboInd === 'Yes',
         onBehalfOf: [],
         npdTypeOfDevice: null,
@@ -213,14 +211,13 @@ export function transformOTCToStrTransaction({
       const caAccountHolders =
         sourceTxn.strCaAccountHolderCifId?.split(/[;:]/).reduce((acc, key) => {
           acc.push({
-            linkToSub: partiesInfo[key]?.partyIdentifier!,
-            _hiddenPartyKey: partiesInfo[key]?.identifiers?.partyKey!,
-            _hiddenGivenName: partiesInfo[key]?.partyName?.givenName ?? null,
-            _hiddenSurname: partiesInfo[key]?.partyName?.surname ?? null,
-            _hiddenOtherOrInitial:
-              partiesInfo[key]?.partyName?.otherOrInitial ?? null,
-            _hiddenNameOfEntity:
-              partiesInfo[key]?.partyName?.nameOfEntity ?? null,
+            linkToSub: entitiesInfo[key]?.entityIdentifier!,
+            _hiddenPartyKey: entitiesInfo[key]?.partyKey!,
+            _hiddenGivenName: entitiesInfo[key]?.givenName ?? null,
+            _hiddenSurname: entitiesInfo[key]?.surname ?? null,
+            _hiddenOtherOrInitialName:
+              entitiesInfo[key]?.otherOrInitialName ?? null,
+            _hiddenNameOfEntity: entitiesInfo[key]?.nameOfEntity ?? null,
           });
           return acc;
         }, [] as AccountHolder[]) ?? [];
@@ -313,7 +310,7 @@ export function transformOTCToStrTransaction({
 
       return {
         selection: transformed,
-        parties: Object.values(partiesInfo) as PartyGenType[],
+        entities: Object.values(entitiesInfo) as EntityGenType[],
       };
     }),
   );

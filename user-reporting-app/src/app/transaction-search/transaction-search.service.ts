@@ -983,6 +983,6 @@ export interface GetPartyInfoRes {
   partyKey: string;
   surname: string;
   givenName: string;
-  otherOrInitial: string;
+  otherOrInitialName: string;
   nameOfEntity: string;
 }

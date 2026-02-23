@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   ErrorHandler,
   inject,
   signal,
@@ -42,6 +43,7 @@ import {
   CaseRecordStore,
   StrTransactionWithChangeLogs,
 } from '../aml/case-record.store';
+import { AuthService } from '../auth.service';
 import { SnackbarQueueService } from '../snackbar-queue.service';
 import { RouteExtrasFromSearch } from '../transaction-search/transaction-search.component';
 import {
@@ -63,12 +65,12 @@ import { OlbTableComponent } from './olb-table/olb-table.component';
 import { OtcTableComponent } from './otc-table/otc-table.component';
 import { PosTableComponent } from './pos-table/pos-table.component';
 import { transformABMToStrTransaction } from './transform-to-str-transaction/abm-transform';
+import {
+  EntityGenService,
+  EntityGenType,
+} from './transform-to-str-transaction/entity-gen.service';
 import { transformOlbEmtToStrTransaction } from './transform-to-str-transaction/olb-emt-transform';
 import { transformOTCToStrTransaction } from './transform-to-str-transaction/otc-transform';
-import {
-  PartyGenService,
-  PartyGenType,
-} from './transform-to-str-transaction/party-gen.service';
 import { transformPOSToStrTransaction } from './transform-to-str-transaction/pos-transform';
 import { transformWireToStrTransaction } from './transform-to-str-transaction/wire-transform';
 import { WiresTableComponent } from './wires-table/wires-table.component';
@@ -128,7 +130,7 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             color="warn"
             mat-stroked-button
             [class.d-none]="danglingSelections.length === 0"
-            [disabled]="isClosed$ | async"
+            [disabled]="(isClosed$ | async) || !canMakeSelections()"
             (click)="removeDanglingSelections(danglingSelections)"
             [matBadge]="danglingSelections.length"
             aria-label="Remove extra selections">
@@ -159,7 +161,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
               (saveProgress$ | async)?.status === 'transforming' ||
               (saveProgress$ | async)?.status === 'saving' ||
               (qIsSaving$ | async) ||
-              (isClosed$ | async)
+              (isClosed$ | async) ||
+              !canMakeSelections()
             "
             (click)="onSave()">
             @let isSaving =
@@ -190,7 +193,7 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [selectionCount]="(fofSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
             [highlightedRecords]="highlightedRecords"
-            [disabled]="isClosed$ | async" />
+            [disabled]="(isClosed$ | async) || !canMakeSelections()" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -204,7 +207,7 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [selectionCount]="(abmSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
             [highlightedRecords]="highlightedRecords"
-            [disabled]="isClosed$ | async" />
+            [disabled]="(isClosed$ | async) || !canMakeSelections()" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -218,7 +221,7 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [selectionCount]="(olbSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
             [highlightedRecords]="highlightedRecords"
-            [disabled]="isClosed$ | async" />
+            [disabled]="(isClosed$ | async) || !canMakeSelections()" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -232,7 +235,7 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [selectionCount]="(emtSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
             [highlightedRecords]="highlightedRecords"
-            [disabled]="isClosed$ | async" />
+            [disabled]="(isClosed$ | async) || !canMakeSelections()" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -246,7 +249,7 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [selectionCount]="(wiresSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
             [highlightedRecords]="highlightedRecords"
-            [disabled]="isClosed$ | async" />
+            [disabled]="(isClosed$ | async) || !canMakeSelections()" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -260,7 +263,7 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [selectionCount]="(otcSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
             [highlightedRecords]="highlightedRecords"
-            [disabled]="isClosed$ | async" />
+            [disabled]="(isClosed$ | async) || !canMakeSelections()" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -274,7 +277,7 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [selectionCount]="(posSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
             [highlightedRecords]="highlightedRecords"
-            [disabled]="isClosed$ | async" />
+            [disabled]="(isClosed$ | async) || !canMakeSelections()" />
         </mat-tab>
       </mat-tab-group>
     }
@@ -286,9 +289,13 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
   private snackBar = inject(SnackbarQueueService);
   private highlightsService = inject(LocalHighlightsService);
   private errorHandler = inject(ErrorHandler);
+  private readonly authService = inject(AuthService);
   protected qIsSaving$ = this._caseRecordStore.qIsSaving$;
   protected isClosed$ = this._caseRecordStore.isClosed$;
 
+  protected readonly canMakeSelections = computed(
+    () => this.authService.isAdmin() || this.authService.isInvestigator(),
+  );
   highlightedRecords = signal<Map<string, string>>(new Map());
 
   private highlights$ = this._caseRecordStore.state$.pipe(
@@ -517,7 +524,7 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
 
         const transformations: Observable<{
           selection: StrTransactionWithChangeLogs;
-          parties: PartyGenType[];
+          entities: EntityGenType[];
         } | null>[] = [];
 
         for (const {
@@ -670,7 +677,7 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
                 item,
               ): item is {
                 selection: StrTransactionWithChangeLogs;
-                parties: PartyGenType[];
+                entities: EntityGenType[];
               } => item !== null,
             );
 
@@ -696,7 +703,7 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     // Save transformed transactions
     switchMap(({ transformations, removedSelectionIds }) => {
       return this._caseRecordStore
-        .addSelectionsAndParties(transformations)
+        .addSelectionsAndEntities(transformations)
         .pipe(
           switchMap(({ selectionCount: addedSelectionsCount }) => {
             this.saveProgress$.next({
@@ -733,7 +740,7 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
 
   // Transformation helper methods
   private searchService = inject(TransactionSearchService);
-  private partyGenService = inject(PartyGenService);
+  private entityGenService = inject(EntityGenService);
   private transformABM(
     abmTxn: AbmSourceData,
     fofTxn: FlowOfFundsSourceData,
@@ -742,8 +749,8 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     return transformABMToStrTransaction(
       abmTxn,
       fofTxn,
-      (party: Omit<PartyGenType, 'partyIdentifier'>) =>
-        this.partyGenService.generateParty(party),
+      (entity: Omit<EntityGenType, 'entityIdentifier'>) =>
+        this.entityGenService.generateEntity(entity),
       (account) => this.searchService.getAccountInfo(account),
       caseRecordId,
     );
@@ -759,8 +766,8 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
       olbTxn,
       fofTxn,
       emtTxn,
-      generateParty: (party: Omit<PartyGenType, 'partyIdentifier'>) =>
-        this.partyGenService.generateParty(party),
+      generateEntity: (entity: Omit<EntityGenType, 'entityIdentifier'>) =>
+        this.entityGenService.generateEntity(entity),
       getAccountInfo: (account) => this.searchService.getAccountInfo(account),
       caseRecordId,
     });
@@ -774,8 +781,8 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     return transformWireToStrTransaction({
       wireTxn,
       fofTxn,
-      generateParty: (party: Omit<PartyGenType, 'partyIdentifier'>) =>
-        this.partyGenService.generateParty(party),
+      generateEntity: (entity: Omit<EntityGenType, 'entityIdentifier'>) =>
+        this.entityGenService.generateEntity(entity),
       getAccountInfo: (account) => this.searchService.getAccountInfo(account),
       caseRecordId,
     });
@@ -789,8 +796,8 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     return transformOTCToStrTransaction({
       sourceTxn: otcTxn,
       fofTxn,
-      generateParty: (party: Omit<PartyGenType, 'partyIdentifier'>) =>
-        this.partyGenService.generateParty(party),
+      generateEntity: (entity: Omit<EntityGenType, 'entityIdentifier'>) =>
+        this.entityGenService.generateEntity(entity),
       getAccountInfo: (account) => this.searchService.getAccountInfo(account),
       caseRecordId,
     });
@@ -804,8 +811,8 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     return transformPOSToStrTransaction({
       posTxn,
       fofTxn,
-      generateParty: (party: Omit<PartyGenType, 'partyIdentifier'>) =>
-        this.partyGenService.generateParty(party),
+      generateEntity: (entity: Omit<EntityGenType, 'entityIdentifier'>) =>
+        this.entityGenService.generateEntity(entity),
       getAccountInfo: (account) => this.searchService.getAccountInfo(account),
       caseRecordId,
     });
@@ -838,7 +845,7 @@ export const searchResultResolver: ResolveFn<boolean> = (
 
   return forkJoin([
     caseRecordStore.fetchCaseRecordByAmlId(amlId),
-    caseRecordStore.fetchSelectionsAndParties(),
+    caseRecordStore.fetchSelectionsAndEntities(),
   ]).pipe(
     map(() => true),
     catchError((error) => {

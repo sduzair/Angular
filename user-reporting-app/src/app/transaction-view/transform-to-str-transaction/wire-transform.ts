@@ -17,7 +17,7 @@ import {
   SEARCH_SOURCE_ID,
   WireSourceData,
 } from '../../transaction-search/transaction-search.service';
-import { PartyAddress, PartyGenType, PartyName } from './party-gen.service';
+import { EntityGenType } from './entity-gen.service';
 
 /**
  * Transform incoming wire transfer into StrTransactionWithChangeLogs format
@@ -25,20 +25,20 @@ import { PartyAddress, PartyGenType, PartyName } from './party-gen.service';
 export function transformWireToStrTransaction({
   wireTxn,
   fofTxn,
-  generateParty,
+  generateEntity,
   getAccountInfo,
   caseRecordId,
 }: {
   wireTxn: WireSourceData;
   fofTxn: FlowOfFundsSourceData;
-  generateParty: (
-    party: Omit<PartyGenType, 'partyIdentifier'>,
-  ) => Observable<PartyGenType | null>;
+  generateEntity: (
+    entity: Omit<EntityGenType, 'entityIdentifier'>,
+  ) => Observable<EntityGenType | null>;
   getAccountInfo: (account: string) => Observable<GetAccountInfoRes>;
   caseRecordId: string;
 }): Observable<{
   selection: StrTransactionWithChangeLogs;
-  parties: PartyGenType[];
+  entities: EntityGenType[];
 }> {
   if (wireTxn.wireRole !== 'RECEIVER') {
     throw new Error(
@@ -81,35 +81,36 @@ export function transformWireToStrTransaction({
           partyKeysToFetch.add(item.partyKey),
         );
       }
-      // Fetch all party info in parallel
-      const partyInfoObservables: Record<
+      // Fetch all entity info in parallel
+      const entityInfoObservables: Record<
         string,
-        Observable<PartyGenType | null>
+        Observable<EntityGenType | null>
       > = {};
       Array.from(partyKeysToFetch).forEach((partyKey) => {
-        partyInfoObservables[partyKey] = generateParty({
-          identifiers: { partyKey },
+        entityInfoObservables[partyKey] = generateEntity({
+          partyKey,
         });
       });
 
-      partyInfoObservables[wireTxn.msgTag50] = generateParty({
-        identifiers: { msgTag50: wireTxn.msgTag50 },
-        partyName: {
-          ...parseOCPartyName(wireTxn),
-        },
-        address: {
-          ...parseOCAddress(wireTxn),
-        },
+      entityInfoObservables[wireTxn.msgTag50] = generateEntity({
+        msgTag50: wireTxn.msgTag50,
+        ...parseOCEntityName(wireTxn),
+        ...parseOCAddress(wireTxn),
       });
 
       return forkJoin({
-        partiesInfo:
-          Object.keys(partyInfoObservables).length > 0
-            ? forkJoin(partyInfoObservables)
-            : of({} as Record<string, PartyGenType | null>),
-      }).pipe(map(({ partiesInfo }) => ({ partiesInfo, accountsInfo })));
+        entitiesInfo:
+          Object.keys(entityInfoObservables).length > 0
+            ? forkJoin(entityInfoObservables)
+            : of({} as Record<string, EntityGenType | null>),
+      }).pipe(
+        map(({ entitiesInfo: entitiesInfo }) => ({
+          entitiesInfo,
+          accountsInfo,
+        })),
+      );
     }),
-    map(({ partiesInfo, accountsInfo }) => {
+    map(({ entitiesInfo, accountsInfo }) => {
       // Build starting actions - INCOMING WIRE
       const startingActions: StartingAction[] = [];
 
@@ -139,16 +140,14 @@ export function transformWireToStrTransaction({
         wasCondInfoObtained: true,
         conductors: [
           {
-            linkToSub: partiesInfo[wireTxn.msgTag50]?.partyIdentifier!,
+            linkToSub: entitiesInfo[wireTxn.msgTag50]?.entityIdentifier!,
             _hiddenPartyKey: null,
-            _hiddenGivenName:
-              partiesInfo[wireTxn.msgTag50]?.partyName?.givenName ?? null,
-            _hiddenSurname:
-              partiesInfo[wireTxn.msgTag50]?.partyName?.surname ?? null,
-            _hiddenOtherOrInitial:
-              partiesInfo[wireTxn.msgTag50]?.partyName?.otherOrInitial ?? null,
+            _hiddenGivenName: entitiesInfo[wireTxn.msgTag50]?.givenName ?? null,
+            _hiddenSurname: entitiesInfo[wireTxn.msgTag50]?.surname ?? null,
+            _hiddenOtherOrInitialName:
+              entitiesInfo[wireTxn.msgTag50]?.otherOrInitialName ?? null,
             _hiddenNameOfEntity:
-              partiesInfo[wireTxn.msgTag50]?.partyName?.nameOfEntity ?? null,
+              entitiesInfo[wireTxn.msgTag50]?.nameOfEntity ?? null,
             wasConductedOnBehalf: false,
             onBehalfOf: [],
           },
@@ -163,14 +162,13 @@ export function transformWireToStrTransaction({
           ?.split(/[;:]/)
           .reduce((acc, key) => {
             acc.push({
-              linkToSub: partiesInfo[key]?.partyIdentifier!,
-              _hiddenPartyKey: partiesInfo[key]?.identifiers?.partyKey!,
-              _hiddenGivenName: partiesInfo[key]?.partyName?.givenName ?? null,
-              _hiddenSurname: partiesInfo[key]?.partyName?.surname ?? null,
-              _hiddenOtherOrInitial:
-                partiesInfo[key]?.partyName?.otherOrInitial ?? null,
-              _hiddenNameOfEntity:
-                partiesInfo[key]?.partyName?.nameOfEntity ?? null,
+              linkToSub: entitiesInfo[key]?.entityIdentifier!,
+              _hiddenPartyKey: entitiesInfo[key]?.partyKey!,
+              _hiddenGivenName: entitiesInfo[key]?.givenName ?? null,
+              _hiddenSurname: entitiesInfo[key]?.surname ?? null,
+              _hiddenOtherOrInitialName:
+                entitiesInfo[key]?.otherOrInitialName ?? null,
+              _hiddenNameOfEntity: entitiesInfo[key]?.nameOfEntity ?? null,
             });
             return acc;
           }, [] as AccountHolder[]) ?? [];
@@ -262,14 +260,14 @@ export function transformWireToStrTransaction({
 
       return {
         selection: transformed,
-        parties: Object.values(partiesInfo) as PartyGenType[],
+        entities: Object.values(entitiesInfo) as EntityGenType[],
       };
     }),
   );
 }
 
 // Helper to parse name from wire data
-const parseOCPartyName = (wireTxn: WireSourceData): PartyName => {
+const parseOCEntityName = (wireTxn: WireSourceData) => {
   const { ocName } = wireTxn;
 
   // Check if it looks like an entity name (contains words like Inc, Ltd, LLC, etc.)
@@ -277,7 +275,7 @@ const parseOCPartyName = (wireTxn: WireSourceData): PartyName => {
     return {
       surname: null,
       givenName: null,
-      otherOrInitial: null,
+      otherOrInitialName: null,
       nameOfEntity: ocName.trim(),
     };
   }
@@ -288,7 +286,7 @@ const parseOCPartyName = (wireTxn: WireSourceData): PartyName => {
   if (nameParts.length === 3) {
     return {
       givenName: nameParts[0],
-      otherOrInitial: nameParts[1],
+      otherOrInitialName: nameParts[1],
       surname: nameParts[2],
       nameOfEntity: null,
     };
@@ -296,7 +294,7 @@ const parseOCPartyName = (wireTxn: WireSourceData): PartyName => {
   if (nameParts.length === 2) {
     return {
       givenName: nameParts[0],
-      otherOrInitial: null,
+      otherOrInitialName: null,
       surname: nameParts[1],
       nameOfEntity: null,
     };
@@ -304,7 +302,7 @@ const parseOCPartyName = (wireTxn: WireSourceData): PartyName => {
   if (nameParts.length === 1) {
     return {
       givenName: nameParts[0],
-      otherOrInitial: null,
+      otherOrInitialName: null,
       surname: null,
       nameOfEntity: null,
     };
@@ -314,7 +312,7 @@ const parseOCPartyName = (wireTxn: WireSourceData): PartyName => {
   return {
     surname: null,
     givenName: null,
-    otherOrInitial: null,
+    otherOrInitialName: null,
     nameOfEntity: ocName.trim(),
   };
 };
@@ -324,7 +322,7 @@ function isBusiness(ocName: string) {
     /\b(Inc|Ltd|LLC|Corp|Corporation|Limited|Company|Bank|Trust|Credit Union|Plc)\b/i;
   return entityPatterns.test(ocName);
 }
-function parseOCAddress(wireTxn: WireSourceData): PartyAddress {
+function parseOCAddress(wireTxn: WireSourceData) {
   const [street, city, countryOrPostalCountry] =
     wireTxn.flowOfFundsTransactionDesc
       .split('@')[1]

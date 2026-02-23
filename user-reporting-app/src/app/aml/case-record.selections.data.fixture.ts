@@ -11,7 +11,7 @@ import * as cashWith from '../../../../data/cashWithdrawalCompleteWithRawSubject
 import * as inWire from '../../../../data/wireInCompleteWithBackup.json';
 
 // import { StrTransaction } from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
-import { PartyGenType } from '../transaction-view/transform-to-str-transaction/party-gen.service';
+import { EntityGenType } from '../transaction-view/transform-to-str-transaction/entity-gen.service';
 import { StrTransactionWithChangeLogs } from './case-record.store';
 
 export const IMPORT_SIZE = 20;
@@ -82,7 +82,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "3415674561",
                         "_hiddenGivenName": "James",
                         "_hiddenSurname": "Carter",
-                        "_hiddenOtherOrInitial": "L",
+                        "_hiddenOtherOrInitialName": "L",
                         "_hiddenNameOfEntity": null,
                         "wasConductedOnBehalf": false,
                         "onBehalfOf": [],
@@ -123,7 +123,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "3415674561",
                         "_hiddenGivenName": "James",
                         "_hiddenSurname": "Carter",
-                        "_hiddenOtherOrInitial": "L",
+                        "_hiddenOtherOrInitialName": "L",
                         "_hiddenNameOfEntity": null,
                         "wasConductedOnBehalf": false,
                         "onBehalfOf": [],
@@ -162,7 +162,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "3415674561",
                         "_hiddenGivenName": "James",
                         "_hiddenSurname": "Carter",
-                        "_hiddenOtherOrInitial": "L",
+                        "_hiddenOtherOrInitialName": "L",
                         "_hiddenNameOfEntity": null
                     },
                     {
@@ -170,7 +170,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "1846597320",
                         "_hiddenGivenName": "Laura",
                         "_hiddenSurname": "Nguyen",
-                        "_hiddenOtherOrInitial": "M",
+                        "_hiddenOtherOrInitialName": "M",
                         "_hiddenNameOfEntity": null
                     }
                 ],
@@ -182,7 +182,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "3415674561",
                         "_hiddenGivenName": "James",
                         "_hiddenSurname": "Carter",
-                        "_hiddenOtherOrInitial": "L",
+                        "_hiddenOtherOrInitialName": "L",
                         "_hiddenNameOfEntity": null
                     },
                     {
@@ -190,7 +190,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "1846597320",
                         "_hiddenGivenName": "Laura",
                         "_hiddenSurname": "Nguyen",
-                        "_hiddenOtherOrInitial": "M",
+                        "_hiddenOtherOrInitialName": "M",
                         "_hiddenNameOfEntity": null
                     }
                 ]
@@ -263,7 +263,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "3415674561",
                         "_hiddenGivenName": "James",
                         "_hiddenSurname": "Carter",
-                        "_hiddenOtherOrInitial": "L",
+                        "_hiddenOtherOrInitialName": "L",
                         "_hiddenNameOfEntity": null,
                         "wasConductedOnBehalf": false,
                         "onBehalfOf": [],
@@ -304,7 +304,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "3415674561",
                         "_hiddenGivenName": "James",
                         "_hiddenSurname": "Carter",
-                        "_hiddenOtherOrInitial": "L",
+                        "_hiddenOtherOrInitialName": "L",
                         "_hiddenNameOfEntity": null,
                         "wasConductedOnBehalf": false,
                         "onBehalfOf": [],
@@ -343,7 +343,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "3415674561",
                         "_hiddenGivenName": "James",
                         "_hiddenSurname": "Carter",
-                        "_hiddenOtherOrInitial": "L",
+                        "_hiddenOtherOrInitialName": "L",
                         "_hiddenNameOfEntity": null
                     },
                     {
@@ -351,7 +351,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "1846597320",
                         "_hiddenGivenName": "Laura",
                         "_hiddenSurname": "Nguyen",
-                        "_hiddenOtherOrInitial": "M",
+                        "_hiddenOtherOrInitialName": "M",
                         "_hiddenNameOfEntity": null
                     }
                 ],
@@ -363,7 +363,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "3415674561",
                         "_hiddenGivenName": "James",
                         "_hiddenSurname": "Carter",
-                        "_hiddenOtherOrInitial": "L",
+                        "_hiddenOtherOrInitialName": "L",
                         "_hiddenNameOfEntity": null
                     },
                     {
@@ -371,7 +371,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "1846597320",
                         "_hiddenGivenName": "Laura",
                         "_hiddenSurname": "Nguyen",
-                        "_hiddenOtherOrInitial": "M",
+                        "_hiddenOtherOrInitialName": "M",
                         "_hiddenNameOfEntity": null
                     }
                 ]
@@ -444,7 +444,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": null,
                         "_hiddenGivenName": "Kuhlman",
                         "_hiddenSurname": "Group",
-                        "_hiddenOtherOrInitial": null,
+                        "_hiddenOtherOrInitialName": null,
                         "_hiddenNameOfEntity": null,
                         "wasConductedOnBehalf": false,
                         "onBehalfOf": []
@@ -476,7 +476,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "3415674561",
                         "_hiddenGivenName": "James",
                         "_hiddenSurname": "Carter",
-                        "_hiddenOtherOrInitial": "L",
+                        "_hiddenOtherOrInitialName": "L",
                         "_hiddenNameOfEntity": null
                     },
                     {
@@ -484,7 +484,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "1846597320",
                         "_hiddenGivenName": "Laura",
                         "_hiddenSurname": "Nguyen",
-                        "_hiddenOtherOrInitial": "M",
+                        "_hiddenOtherOrInitialName": "M",
                         "_hiddenNameOfEntity": null
                     }
                 ],
@@ -497,7 +497,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "3415674561",
                         "_hiddenGivenName": "James",
                         "_hiddenSurname": "Carter",
-                        "_hiddenOtherOrInitial": "L",
+                        "_hiddenOtherOrInitialName": "L",
                         "_hiddenNameOfEntity": null
                     },
                     {
@@ -505,7 +505,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "1846597320",
                         "_hiddenGivenName": "Laura",
                         "_hiddenSurname": "Nguyen",
-                        "_hiddenOtherOrInitial": "M",
+                        "_hiddenOtherOrInitialName": "M",
                         "_hiddenNameOfEntity": null
                     }
                 ]
@@ -574,7 +574,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "0907156820",
                         "_hiddenGivenName": "Devondra",
                         "_hiddenSurname": "Towers",
-                        "_hiddenOtherOrInitial": null,
+                        "_hiddenOtherOrInitialName": null,
                         "_hiddenNameOfEntity": null
                     }
                 ],
@@ -587,7 +587,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "0907156820",
                         "_hiddenGivenName": "Devondra",
                         "_hiddenSurname": "Towers",
-                        "_hiddenOtherOrInitial": null,
+                        "_hiddenOtherOrInitialName": null,
                         "_hiddenNameOfEntity": null,
                         "wasConductedOnBehalf": false,
                         "onBehalfOf": [],
@@ -626,7 +626,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "3415674561",
                         "_hiddenGivenName": "James",
                         "_hiddenSurname": "Carter",
-                        "_hiddenOtherOrInitial": "L",
+                        "_hiddenOtherOrInitialName": "L",
                         "_hiddenNameOfEntity": null
                     },
                     {
@@ -634,7 +634,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "1846597320",
                         "_hiddenGivenName": "Laura",
                         "_hiddenSurname": "Nguyen",
-                        "_hiddenOtherOrInitial": "M",
+                        "_hiddenOtherOrInitialName": "M",
                         "_hiddenNameOfEntity": null
                     }
                 ],
@@ -647,7 +647,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "3415674561",
                         "_hiddenGivenName": "James",
                         "_hiddenSurname": "Carter",
-                        "_hiddenOtherOrInitial": "L",
+                        "_hiddenOtherOrInitialName": "L",
                         "_hiddenNameOfEntity": null
                     },
                     {
@@ -655,7 +655,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "1846597320",
                         "_hiddenGivenName": "Laura",
                         "_hiddenSurname": "Nguyen",
-                        "_hiddenOtherOrInitial": "M",
+                        "_hiddenOtherOrInitialName": "M",
                         "_hiddenNameOfEntity": null
                     }
                 ]
@@ -727,7 +727,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "3415674561",
                         "_hiddenGivenName": "James",
                         "_hiddenSurname": "Carter",
-                        "_hiddenOtherOrInitial": "L",
+                        "_hiddenOtherOrInitialName": "L",
                         "_hiddenNameOfEntity": null,
                         "wasConductedOnBehalf": false,
                         "onBehalfOf": [],
@@ -766,7 +766,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "3415674561",
                         "_hiddenGivenName": "James",
                         "_hiddenSurname": "Carter",
-                        "_hiddenOtherOrInitial": "L",
+                        "_hiddenOtherOrInitialName": "L",
                         "_hiddenNameOfEntity": null
                     },
                     {
@@ -774,7 +774,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "1846597320",
                         "_hiddenGivenName": "Laura",
                         "_hiddenSurname": "Nguyen",
-                        "_hiddenOtherOrInitial": "M",
+                        "_hiddenOtherOrInitialName": "M",
                         "_hiddenNameOfEntity": null
                     }
                 ],
@@ -787,7 +787,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "3415674561",
                         "_hiddenGivenName": "James",
                         "_hiddenSurname": "Carter",
-                        "_hiddenOtherOrInitial": "L",
+                        "_hiddenOtherOrInitialName": "L",
                         "_hiddenNameOfEntity": null
                     },
                     {
@@ -795,7 +795,7 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
                         "_hiddenPartyKey": "1846597320",
                         "_hiddenGivenName": "Laura",
                         "_hiddenSurname": "Nguyen",
-                        "_hiddenOtherOrInitial": "M",
+                        "_hiddenOtherOrInitialName": "M",
                         "_hiddenNameOfEntity": null
                     }
                 ]
@@ -827,53 +827,37 @@ export const SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE: StrTransactionWithChangeLogs[]
         "_hiddenValidation": []
     }
 ]
-export const PARTIES_DEV_OR_TEST_ONLY_FIXTURE: PartyGenType[] = [
+export const ENTITIES_DEV_OR_TEST_ONLY_FIXTURE: EntityGenType[] = [
     {
-        "partyIdentifier": "4903dafbfbf21653a76ede6f2134c2f0dc32d328702c956cd9bcf2b58b482c49",
-        "identifiers": {
-            "partyKey": "1846597320"
-        },
-        "partyName": {
-            "surname": "Nguyen",
-            "givenName": "Laura",
-            "otherOrInitial": "M",
-            "nameOfEntity": null
-        }
+        "entityIdentifier": "4903dafbfbf21653a76ede6f2134c2f0dc32d328702c956cd9bcf2b58b482c49",
+        "partyKey": "1846597320",
+        "surname": "Nguyen",
+        "givenName": "Laura",
+        "otherOrInitialName": "M",
+        "nameOfEntity": null
     },
     {
-        "partyIdentifier": "aa37117af79830a10c5a92e85fb1114769ee46e7aa4138e9f93e186accede213",
-        "identifiers": {
-            "partyKey": "3415674561"
-        },
-        "partyName": {
-            "surname": "Carter",
-            "givenName": "James",
-            "otherOrInitial": "L",
-            "nameOfEntity": null
-        }
+        "entityIdentifier": "aa37117af79830a10c5a92e85fb1114769ee46e7aa4138e9f93e186accede213",
+        "partyKey": "3415674561",
+        "surname": "Carter",
+        "givenName": "James",
+        "otherOrInitialName": "L",
+        "nameOfEntity": null
     },
     {
-        "identifiers": {
-            "partyKey": "0907156820"
-        },
-        "partyName": {
-            "surname": "Towers",
-            "givenName": "Devondra",
-            "otherOrInitial": null,
-            "nameOfEntity": null
-        },
-        "partyIdentifier": "0836e578615f8b6e67ca2fcaede30e8df8fdb39897adb697bc1db555c4a61ece",
+        "partyKey": "0907156820",
+        "surname": "Towers",
+        "givenName": "Devondra",
+        "otherOrInitialName": null,
+        "nameOfEntity": null,
+        "entityIdentifier": "0836e578615f8b6e67ca2fcaede30e8df8fdb39897adb697bc1db555c4a61ece",
     },
     {
-        "identifiers": {
-            "msgTag50": "ZPW29648\nKuhlman Group\nOld Church Street, Athenry,\nBinglincha\n CN"
-        },
-        "partyName": {
-            "givenName": "Kuhlman",
-            "otherOrInitial": null,
-            "surname": "Group",
-            "nameOfEntity": null
-        },
-        "partyIdentifier": "1444cca89918e03ad898ded2e0541f5c741650d3973f56afb0c9eddcd42765ac",
+        "msgTag50": "ZPW29648\nKuhlman Group\nOld Church Street, Athenry,\nBinglincha\n CN",
+        "givenName": "Kuhlman",
+        "otherOrInitialName": null,
+        "surname": "Group",
+        "nameOfEntity": null,
+        "entityIdentifier": "1444cca89918e03ad898ded2e0541f5c741650d3973f56afb0c9eddcd42765ac",
     }
 ]

@@ -89,6 +89,7 @@ import {
   TransactionSearchResponse,
   TransactionSearchService,
 } from './transaction-search.service';
+import { getEntityFullName } from '../transaction-view/transform-to-str-transaction/entity-gen.service';
 
 const AMLID_TEST = '99999999';
 
@@ -192,7 +193,7 @@ const AMLID_TEST = '99999999';
                 class="d-flex align-items-center gap-3 text-muted fs-6 flex-grow-1">
                 <span
                   class="d-flex align-items-center gap-1"
-                  [class.invisible]="!lastUpdatedBy">
+                  [class.d-none]="!lastUpdatedBy">
                   <span class="fw-medium text-secondary">Updated By:</span>
                   <mat-icon
                     color="accent"
@@ -202,11 +203,11 @@ const AMLID_TEST = '99999999';
                   <span class="text-dark">{{ lastUpdatedBy }}</span>
                 </span>
 
-                <span class="vr" [class.invisible]="!lastUpdated"></span>
+                <span class="vr" [class.d-none]="!lastUpdated"></span>
 
                 <span
                   class="d-flex align-items-center gap-1"
-                  [class.invisible]="!lastUpdated">
+                  [class.d-none]="!lastUpdated">
                   <span class="fw-medium text-secondary"> Last Updated: </span>
                   <mat-icon
                     color="accent"
@@ -222,9 +223,7 @@ const AMLID_TEST = '99999999';
 
                 <span
                   class="vr"
-                  [class.invisible]="
-                    isClosed === null || !canManageCase()
-                  "></span>
+                  [class.d-none]="isClosed === null || !canManageCase()"></span>
 
                 <button
                   type="button"
@@ -236,7 +235,7 @@ const AMLID_TEST = '99999999';
                     (isLoadingCaseRecord$ | async) ||
                     (isLoadingSearch$ | async) === 'loading'
                   "
-                  [class.invisible]="isClosed === null || !canManageCase()"
+                  [class.d-none]="isClosed === null || !canManageCase()"
                   class="case-toggle-btn me-2">
                   <mat-icon>{{ isClosed ? 'lock_open' : 'lock' }}</mat-icon>
                   {{ isClosed ? 'Reopen Case' : 'Close Case' }}
@@ -805,7 +804,7 @@ export class TransactionSearchComponent implements OnInit {
     map((responses) =>
       responses.map((res) => ({
         _hiddenPartyKey: res.partyKey,
-        name: formatPartyName(res),
+        name: getEntityFullName(res),
       })),
     ),
   );
@@ -1309,27 +1308,6 @@ export interface RouteExtrasFromSearch {
   searchParams: CaseRecordState['searchParams'];
   searchResult: TransactionSearchResponse;
   caseRecordId: string;
-}
-
-function formatPartyName(party: {
-  surname: string;
-  givenName: string;
-  otherOrInitial: string;
-  nameOfEntity: string;
-}): string {
-  // If entity name exists, use it (for organizations)
-  if (party.nameOfEntity?.trim()) {
-    return party.nameOfEntity.trim();
-  }
-
-  // Otherwise format individual name
-  const parts = [
-    party.givenName?.trim(),
-    party.otherOrInitial?.trim(),
-    party.surname?.trim(),
-  ].filter(Boolean); // Remove empty/null values
-
-  return parts.join(' ') || 'Unknown';
 }
 
 interface CaseRecordOption {
