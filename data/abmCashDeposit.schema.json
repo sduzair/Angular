@@ -19,15 +19,12 @@
     {
       "name": "accountNumber",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "5582195",
-        "8692413",
-        "5647218"
-      ],
+      "type": "Dataset Column",
+      "dataset": "cashDepositCompleteWithRawSubjectWithBackup",
+      "column": "caAccount",
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "this.to_s"
+      "formula": ""
     },
     {
       "name": "acctCurrAmount",
@@ -208,28 +205,22 @@
     {
       "name": "creditedAccount",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "5582195",
-        "8692413",
-        "5647218"
-      ],
+      "type": "Dataset Column",
+      "dataset": "cashDepositCompleteWithRawSubjectWithBackup",
+      "column": "caAccount",
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "this.to_s"
+      "formula": ""
     },
     {
       "name": "creditedTransit",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "84255",
-        "31980",
-        "87594"
-      ],
+      "type": "Dataset Column",
+      "dataset": "cashDepositCompleteWithRawSubjectWithBackup",
+      "column": "caTransit",
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "this.to_s"
+      "formula": ""
     },
     {
       "name": "creditorId",
@@ -751,12 +742,9 @@
     {
       "name": "strCaAccount",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "5582195",
-        "8692413",
-        "5647218"
-      ],
+      "type": "Dataset Column",
+      "dataset": "cashDepositCompleteWithRawSubjectWithBackup",
+      "column": "caAccount",
       "selectionStyle": "sequential",
       "distribution": null,
       "formula": ""
@@ -818,12 +806,9 @@
     {
       "name": "strCaBranch",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-        "84255",
-        "31980",
-        "87594"
-      ],
+      "type": "Dataset Column",
+      "dataset": "cashDepositCompleteWithRawSubjectWithBackup",
+      "column": "caTransit",
       "selectionStyle": "sequential",
       "distribution": null,
       "formula": null

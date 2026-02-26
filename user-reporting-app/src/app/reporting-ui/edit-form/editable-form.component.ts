@@ -217,169 +217,172 @@ export abstract class EditableFormComponent {
     if (sAction?.accountHolders)
       sAction.hasAccountHolders = sAction.accountHolders.length > 0;
 
-    const saGroup = new FormGroup({
-      _id: new FormControl({
-        value: action?._id ?? getFormGroupId(),
-        // enabled to allow nth starting action bulk edit
-        disabled: false,
-      }),
-      directionOfSA: new FormControl(
-        {
-          value: action?.directionOfSA ?? SET_AS_EMPTY,
-          disabled,
-        },
-        [Validators.required],
-        this.directionOfSAValidator(),
-      ),
-      typeOfFunds: new FormControl(
-        {
-          value: action?.typeOfFunds ?? SET_AS_EMPTY,
-          disabled,
-        },
-        [Validators.required, chequeValidator()],
-        this.typeOfFundsValidator(),
-      ),
-      typeOfFundsOther: new FormControl(
-        { value: action?.typeOfFundsOther ?? SET_AS_EMPTY, disabled },
-        [dependentPropValidator('typeOfFunds')],
-      ),
-      amount: new FormControl(
-        { value: action?.amount ?? null, disabled },
-        Validators.required,
-      ),
-      currency: new FormControl(
-        { value: action?.currency ?? SET_AS_EMPTY, disabled },
-        [],
-        this.amountCurrencyValidator(),
-      ),
-      fiuNo: new FormControl(
-        { value: action?.fiuNo ?? SET_AS_EMPTY, disabled },
-        [accountInfoValidator(), fiuValidator()],
-      ),
-      branch: new FormControl(
-        { value: action?.branch ?? SET_AS_EMPTY, disabled },
-        [Validators.minLength(5), Validators.maxLength(5)],
-      ),
-      account: new FormControl({
-        value: action?.account ?? SET_AS_EMPTY,
-        disabled,
-      }),
-      accountType: new FormControl(
-        {
-          value: action?.accountType ?? SET_AS_EMPTY,
-          disabled,
-        },
-        [],
-        this.accountTypeValidator(),
-      ),
-      accountTypeOther: new FormControl(
-        { value: action?.accountTypeOther ?? SET_AS_EMPTY, disabled },
-        [dependentPropValidator('accountType')],
-      ),
-      accountOpen: new FormControl({
-        value: action?.accountOpen ?? SET_AS_EMPTY,
-        disabled,
-      }),
-      accountClose: new FormControl(
-        {
-          value: action?.accountClose ?? SET_AS_EMPTY,
-          disabled,
-        },
-        [accountCloseDateValidator()],
-      ),
-      accountStatus: new FormControl(
-        {
-          value: action?.accountStatus ?? SET_AS_EMPTY,
-          disabled,
-        },
-        [],
-        [this.accountStatusValidator()],
-      ),
-      howFundsObtained: new FormControl({
-        value: action?.howFundsObtained ?? SET_AS_EMPTY,
-        disabled,
-      }),
-      accountCurrency: new FormControl(
-        {
-          value: action?.accountCurrency ?? SET_AS_EMPTY,
-          disabled,
-        },
-        [],
-        this.accountCurrencyValidator(),
-      ),
-      hasAccountHolders: new FormControl({
-        value: ChangeLog.getToggleInitVal(
-          'hasAccountHolders',
-          action?.hasAccountHolders,
-          editType === 'BULK_SAVE',
+    const saGroup = new FormGroup(
+      {
+        _id: new FormControl({
+          value: action?._id ?? getFormGroupId(),
+          // enabled to allow nth starting action bulk edit
+          disabled: false,
+        }),
+        directionOfSA: new FormControl(
+          {
+            value: action?.directionOfSA ?? SET_AS_EMPTY,
+            disabled,
+          },
+          [Validators.required],
+          this.directionOfSAValidator(),
         ),
-        disabled,
-      }),
-      accountHolders: new FormArray(
-        action?.accountHolders?.map((holder) =>
-          this.createAccountHolderGroup({
-            holder,
-            options: { disabled },
-          }),
-        ) ||
-          (createEmptyArrays
-            ? [
-                this.createAccountHolderGroup({
-                  options: { disabled },
-                }),
-              ]
-            : []),
-      ),
-      wasSofInfoObtained: new FormControl({
-        value: ChangeLog.getToggleInitVal(
-          'wasSofInfoObtained',
-          action?.wasSofInfoObtained,
-          editType === 'BULK_SAVE',
+        typeOfFunds: new FormControl(
+          {
+            value: action?.typeOfFunds ?? SET_AS_EMPTY,
+            disabled,
+          },
+          [Validators.required],
+          this.typeOfFundsValidator(),
         ),
-        disabled,
-      }),
-      sourceOfFunds: new FormArray(
-        action?.sourceOfFunds?.map((source) =>
-          this.createSourceOfFundsGroup({
-            source,
-            options: { disabled },
-          }),
-        ) ||
-          (createEmptyArrays
-            ? [
-                this.createSourceOfFundsGroup({
-                  options: { disabled },
-                }),
-              ]
-            : []),
-      ),
-      wasCondInfoObtained: new FormControl(
-        {
+        typeOfFundsOther: new FormControl(
+          { value: action?.typeOfFundsOther ?? SET_AS_EMPTY, disabled },
+          [dependentPropValidator('typeOfFunds')],
+        ),
+        amount: new FormControl(
+          { value: action?.amount ?? null, disabled },
+          Validators.required,
+        ),
+        currency: new FormControl(
+          { value: action?.currency ?? SET_AS_EMPTY, disabled },
+          [],
+          this.amountCurrencyValidator(),
+        ),
+        fiuNo: new FormControl(
+          { value: action?.fiuNo ?? SET_AS_EMPTY, disabled },
+          [accountInfoValidator(), fiuValidator()],
+        ),
+        branch: new FormControl(
+          { value: action?.branch ?? SET_AS_EMPTY, disabled },
+          [Validators.minLength(5), Validators.maxLength(5)],
+        ),
+        account: new FormControl({
+          value: action?.account ?? SET_AS_EMPTY,
+          disabled,
+        }),
+        accountType: new FormControl(
+          {
+            value: action?.accountType ?? SET_AS_EMPTY,
+            disabled,
+          },
+          [],
+          this.accountTypeValidator(),
+        ),
+        accountTypeOther: new FormControl(
+          { value: action?.accountTypeOther ?? SET_AS_EMPTY, disabled },
+          [dependentPropValidator('accountType')],
+        ),
+        accountOpen: new FormControl({
+          value: action?.accountOpen ?? SET_AS_EMPTY,
+          disabled,
+        }),
+        accountClose: new FormControl(
+          {
+            value: action?.accountClose ?? SET_AS_EMPTY,
+            disabled,
+          },
+          [accountCloseDateValidator()],
+        ),
+        accountStatus: new FormControl(
+          {
+            value: action?.accountStatus ?? SET_AS_EMPTY,
+            disabled,
+          },
+          [],
+          [this.accountStatusValidator()],
+        ),
+        howFundsObtained: new FormControl({
+          value: action?.howFundsObtained ?? SET_AS_EMPTY,
+          disabled,
+        }),
+        accountCurrency: new FormControl(
+          {
+            value: action?.accountCurrency ?? SET_AS_EMPTY,
+            disabled,
+          },
+          [],
+          this.accountCurrencyValidator(),
+        ),
+        hasAccountHolders: new FormControl({
           value: ChangeLog.getToggleInitVal(
-            'wasCondInfoObtained',
-            action?.wasCondInfoObtained,
+            'hasAccountHolders',
+            action?.hasAccountHolders,
             editType === 'BULK_SAVE',
           ),
           disabled,
-        },
-        [conductorValidator()],
-      ),
-      conductors: new FormArray(
-        action?.conductors?.map((conductor) =>
-          this.createConductorGroup({
-            conductor,
-            options: { editType, disabled },
-          }),
-        ) ||
-          (createEmptyArrays
-            ? [
-                this.createConductorGroup({
-                  options: { editType, disabled },
-                }),
-              ]
-            : []),
-      ),
-    }) satisfies FormGroup<
+        }),
+        accountHolders: new FormArray(
+          action?.accountHolders?.map((holder) =>
+            this.createAccountHolderGroup({
+              holder,
+              options: { disabled },
+            }),
+          ) ||
+            (createEmptyArrays
+              ? [
+                  this.createAccountHolderGroup({
+                    options: { disabled },
+                  }),
+                ]
+              : []),
+        ),
+        wasSofInfoObtained: new FormControl({
+          value: ChangeLog.getToggleInitVal(
+            'wasSofInfoObtained',
+            action?.wasSofInfoObtained,
+            editType === 'BULK_SAVE',
+          ),
+          disabled,
+        }),
+        sourceOfFunds: new FormArray(
+          action?.sourceOfFunds?.map((source) =>
+            this.createSourceOfFundsGroup({
+              source,
+              options: { disabled },
+            }),
+          ) ||
+            (createEmptyArrays
+              ? [
+                  this.createSourceOfFundsGroup({
+                    options: { disabled },
+                  }),
+                ]
+              : []),
+        ),
+        wasCondInfoObtained: new FormControl(
+          {
+            value: ChangeLog.getToggleInitVal(
+              'wasCondInfoObtained',
+              action?.wasCondInfoObtained,
+              editType === 'BULK_SAVE',
+            ),
+            disabled,
+          },
+          [conductorValidator()],
+        ),
+        conductors: new FormArray(
+          action?.conductors?.map((conductor) =>
+            this.createConductorGroup({
+              conductor,
+              options: { editType, disabled },
+            }),
+          ) ||
+            (createEmptyArrays
+              ? [
+                  this.createConductorGroup({
+                    options: { editType, disabled },
+                  }),
+                ]
+              : []),
+        ),
+      },
+      { validators: [chequeValidator()], updateOn: 'change' },
+    ) satisfies FormGroup<
       TypedForm<RecursiveOmit<StartingAction, keyof ConductorNpdData>>
     >;
 
@@ -1475,21 +1478,19 @@ function conductorValidator(): ValidatorFn {
 
 function chequeValidator(): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
-    const saControl = control.parent as FormGroup<
+    const saControl = control as FormGroup<
       TypedForm<RecursiveOmit<StartingAction, keyof ConductorNpdData>>
     > | null;
 
     if (!saControl?.value) return null;
 
-    console.assert(
-      isFormGroup(saControl),
-      'Assert parent control is group control',
-    );
-
-    if (hasMissingCheque(saControl.value as StartingAction))
-      return {
+    setError(
+      saControl.controls.typeOfFunds,
+      {
         missingCheque: 'Missing cheque info',
-      };
+      },
+      () => hasMissingCheque(saControl.getRawValue() as StartingAction),
+    );
 
     return null;
   };

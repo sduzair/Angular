@@ -23,6 +23,7 @@ import {
   getPartyKeysByAccount,
   getReviewPeriod,
 } from './tools/tools';
+import { map, take, tap } from 'rxjs';
 
 @Component({
   selector: 'app-chatbot',
@@ -158,7 +159,7 @@ For each transaction type in the 'totalsList' array, write **one** transaction t
 
 '<transaction_type>: Total debits of <amount(s)> across <count> <date_phrase>[subjects.length > 0: to <sub_types_phrase>: <subject_list>].'
 
-(All placeholder definitions identical to CREDITS above)
+> These placeholder definitions: <transaction_type>, <amount(s)>, <count>, <date_phrase>, <sub_types_phrase>, <subject_list> follow the same rules as defined under CREDITS above.
 
 4. Add a horizontal rule and an empty line before processing the next account.
 
@@ -223,15 +224,12 @@ Array<{
   });
 
   sendMessage(message: string): void {
-    this.chat.sendMessage({ role: 'user', content: message });
-    // this.totalsService
-    //   .getAccountTransactionTotals$()
-    //   .pipe(
-    //     take(1),
-    //     tap((val) => console.log(val)),
-    //   )
-    //   // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
-    //   .subscribe();
+    // this.chat.sendMessage({ role: 'user', content: message });
+    this.totalsService
+      .getAccountTransactionTotals$()
+      .pipe(tap((val) => console.log(val)))
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
+      .subscribe();
   }
 
   retryMessages() {

@@ -159,24 +159,24 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
             class="d-flex align-items-center gap-3 text-muted fs-6"
             [class.invisible]="!auditLastUpdatedBy || !auditLastUpdated">
             <span class="d-flex align-items-center gap-1">
-              <span class="fw-medium text-secondary">Updated By:</span>
               <mat-icon
                 color="accent"
                 style="font-size: 20px; height: 20px; width: 20px;">
                 person
               </mat-icon>
+              <span class="fw-medium text-secondary">Updated By:</span>
               <span class="text-dark">{{ auditLastUpdatedBy }}</span>
             </span>
 
             <span class="vr"></span>
 
             <span class="d-flex align-items-center gap-1">
-              <span class="fw-medium text-secondary"> Last Updated: </span>
               <mat-icon
                 color="accent"
                 style="font-size: 20px; height: 20px; width: 20px;">
                 schedule
               </mat-icon>
+              <span class="fw-medium text-secondary"> Last Updated: </span>
               <span class="text-dark">
                 {{ auditLastUpdated | date: 'short' }}
               </span>
@@ -2532,7 +2532,24 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                   </mat-form-field>
                                 </div>
                                 <!-- On Behalf Of Subsection -->
-                                <h3>On Behalf Of</h3>
+                                <h3 class="d-flex align-items-center gap-2">
+                                  On Behalf Of
+                                  @if (
+                                    isArrayFieldChanged(
+                                      '/startingActions/' +
+                                        saIndex +
+                                        '/conductors/' +
+                                        condIndex +
+                                        '/onBehalfOf'
+                                    )
+                                  ) {
+                                    <mat-icon
+                                      class="text-primary"
+                                      matTooltip="Section has changes">
+                                      edit
+                                    </mat-icon>
+                                  }
+                                </h3>
                                 <div class="row">
                                   <mat-checkbox
                                     formControlName="wasConductedOnBehalf"
@@ -4723,7 +4740,11 @@ export class EditFormComponent
           const auditChangeLogs = editType.payload.changeLogs.filter(
             (log) => log.eTag! <= auditVersion,
           );
-          this.auditChangeLogPaths = auditChangeLogs.map(({ path }) => path);
+
+          this.auditVersionChangeLogPaths = auditChangeLogs
+            .filter((log) => log.eTag === auditVersion)
+            .map(({ path }) => path);
+
           const txn = ChangeLog.applyChangeLogs(
             editType.payload,
             auditChangeLogs,

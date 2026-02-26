@@ -137,19 +137,16 @@ function hasMissingHolderInfo(value: {
 export function hasMissingBasicInfo(
   txn: StrTransactionWithChangeLogs,
 ): boolean {
-  // Validate methodOfTxn
-  if (!txn.methodOfTxn) {
+  if (!txn.methodOfTxn || !txn.dateOfTxn) {
     return true;
   }
 
-  // Validate startingActions array exists and has at least one action
   if (!txn.startingActions || txn.startingActions.length === 0) {
     return true;
   }
 
-  // Validate each starting action
+  // Validate starting actions required fields
   for (const sa of txn.startingActions) {
-    // Validate starting action required fields
     if (sa.amount == null || isNaN(sa.amount)) {
       return true;
     }
@@ -162,7 +159,6 @@ export function hasMissingBasicInfo(
       return true;
     }
 
-    // Validate conductors (each starting action needs exactly one conductor)
     if (!sa.conductors || sa.conductors.length !== 1) {
       return true;
     }
@@ -172,15 +168,11 @@ export function hasMissingBasicInfo(
     }
   }
 
-  // Validate completingActions array structure
   if (!txn.completingActions || txn.completingActions.length === 0) {
     return true;
   }
 
-  // Validate completingActions array structure
-  if (!txn.completingActions || txn.completingActions.length !== 1) {
-    return true;
-  }
+  console.assert(txn.completingActions.length === 1);
 
   const ca = txn.completingActions[0];
 

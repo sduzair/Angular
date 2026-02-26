@@ -57,33 +57,7 @@ export const getAccountTransactionTotals = createTool({
   handler: () => {
     // Converts Maps to arrays of objects for serialization
     return firstValueFrom(
-      inject(AccountTransactionTotalsService)
-        .getAccountTransactionTotals$()
-        .pipe(
-          map((accountTotals) =>
-            accountTotals.map((account) => ({
-              ...account,
-              totalsList: Array.from(account.totalsMap.entries()).map(
-                ([
-                  txnTypeKey,
-                  { transactionType, amountsMap, count, dates, subjects },
-                ]) => ({
-                  txnTypeKey,
-                  transactionType,
-                  amountsList: Array.from(amountsMap.entries()).map(
-                    ([currency, amount]) => ({
-                      currency,
-                      amount,
-                    }),
-                  ),
-                  count,
-                  dates,
-                  subjects,
-                }),
-              ),
-            })),
-          ),
-        ),
+      inject(AccountTransactionTotalsService).getAccountTransactionTotals$(),
     );
   },
 });

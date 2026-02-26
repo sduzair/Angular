@@ -300,10 +300,10 @@ export function formatNodeDataAsHtml(data: NodeDisplayData): string {
   if (data.currencyTotals) {
     const { receivedByCurrency, sentByCurrency } = data.currencyTotals;
 
-    html += `<hr style="margin: 4px 0"/>`;
-
-    if (receivedByCurrency.length > 0 || sentByCurrency.length > 0)
+    if (receivedByCurrency.length > 0 || sentByCurrency.length > 0) {
+      html += `<hr style="margin: 4px 0"/>`;
       html += `<strong>Summary:</strong><br/>`;
+    }
 
     // Display received currency totals
     if (receivedByCurrency.length > 0) {

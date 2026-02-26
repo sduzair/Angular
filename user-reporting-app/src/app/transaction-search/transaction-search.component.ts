@@ -194,12 +194,12 @@ const AMLID_TEST = '99999999';
                 <span
                   class="d-flex align-items-center gap-1"
                   [class.d-none]="!lastUpdatedBy">
-                  <span class="fw-medium text-secondary">Updated By:</span>
                   <mat-icon
                     color="accent"
                     style="font-size: 20px; height: 20px; width: 20px;">
                     person
                   </mat-icon>
+                  <span class="fw-medium text-secondary">Updated By:</span>
                   <span class="text-dark">{{ lastUpdatedBy }}</span>
                 </span>
 
@@ -208,12 +208,12 @@ const AMLID_TEST = '99999999';
                 <span
                   class="d-flex align-items-center gap-1"
                   [class.d-none]="!lastUpdated">
-                  <span class="fw-medium text-secondary"> Last Updated: </span>
                   <mat-icon
                     color="accent"
                     style="font-size: 20px; height: 20px; width: 20px;">
                     schedule
                   </mat-icon>
+                  <span class="fw-medium text-secondary"> Last Updated: </span>
                   <span class="text-dark">
                     {{ lastUpdated | date: 'short' }}
                   </span>
@@ -227,7 +227,7 @@ const AMLID_TEST = '99999999';
 
                 <button
                   type="button"
-                  mat-stroked-button
+                  mat-raised-button
                   [color]="isClosed ? 'primary' : 'warn'"
                   (click)="onToggleCaseStatus()"
                   [disabled]="

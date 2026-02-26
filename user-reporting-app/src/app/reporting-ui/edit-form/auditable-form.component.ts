@@ -16,7 +16,7 @@ export abstract class AuditableFormComponent extends EditableFormComponent {
     nonNullable: true,
   });
 
-  protected auditChangeLogPaths: string[] = [];
+  protected auditVersionChangeLogPaths: string[] = [];
   protected auditVersionOptions$ = this.editType$.pipe(
     filter(({ type }) => type === 'AUDIT_REQUEST'),
     map(({ payload }) =>
@@ -52,9 +52,9 @@ export abstract class AuditableFormComponent extends EditableFormComponent {
       });
 
       return Array.from(verMap.entries()).map(
-        ([key, { updatedAt, updatedBy }]) => ({
+        ([key, { updatedAt, updatedBy, eTag }]) => ({
           label: `v${String(key)}`,
-          value: key,
+          value: eTag,
           updatedAt,
           updatedBy,
         }),
@@ -95,17 +95,19 @@ export abstract class AuditableFormComponent extends EditableFormComponent {
   isFormFieldChanged(path: string): boolean {
     if (!this.isAudit) return false;
 
-    return this.auditChangeLogPaths.some((logPath) => logPath === path);
+    return this.auditVersionChangeLogPaths.some((logPath) => logPath === path);
   }
 
   isArrayFieldChanged(path: string): boolean {
     if (!this.isAudit) return false;
 
-    return this.auditChangeLogPaths.some((logPath) => logPath.startsWith(path));
+    return this.auditVersionChangeLogPaths.some((logPath) =>
+      logPath.startsWith(path),
+    );
   }
 
   isTransactionDetailsChanged(): boolean {
-    return !this.auditChangeLogPaths.every((logPath) =>
+    return !this.auditVersionChangeLogPaths.every((logPath) =>
       ['/startingActions', '/completingActions'].some((action) =>
         logPath.startsWith(action),
       ),

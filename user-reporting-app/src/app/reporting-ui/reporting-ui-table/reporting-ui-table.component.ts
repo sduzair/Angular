@@ -140,11 +140,11 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
             <button
               type="button"
               mat-icon-button
-              [class.d-none]="!canMakeSelections()">
+              [class.d-none]="!canPerformQA()">
               <mat-icon
                 class="text-primary"
                 [class.text-opacity-50]="isActionHeaderDisabled$ | async"
-                [class.invisible]="canMakeSelections()">
+                [class.invisible]="true">
                 history
               </mat-icon>
             </button>
@@ -204,7 +204,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
                 (false && (isClosed$ | async)) ||
                 isEditDisabled(row, qSavingEdits())
               "
-              [class.d-none]="!canMakeSelections()">
+              [class.d-none]="!canPerformQA()">
               <mat-icon class="text-primary">history</mat-icon>
             </button>
             <button
@@ -276,6 +276,9 @@ export class ReportingUiTableComponent implements AfterViewInit {
   protected readonly canMakeSelections = computed(
     () => this.authService.isAdmin() || this.authService.isInvestigator(),
   );
+
+  protected readonly canPerformQA = computed(() => this.authService.isAdmin());
+
   selectionsComputed$ = this.caseRecordStore.selectionsComputed$.pipe(
     tap((txns) => {
       const initHighlightsMap = new Map(

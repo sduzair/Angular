@@ -122,10 +122,6 @@ export class MonthlyTxnVolumeComponent
     if (!this.myChart) return;
 
     const { monthlyData } = this.groupByMonth(this.transactions);
-    console.log(
-      '🚀 ~ MonthlyTxnVolumeComponent ~ updateChart ~ monthlyData:',
-      monthlyData,
-    );
 
     // Create series for each account (credits and debits)
     const series: ECOption['series'] = [];

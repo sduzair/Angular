@@ -75,6 +75,8 @@ import {
   EntityGenType,
 } from '../transaction-view/transform-to-str-transaction/entity-gen.service';
 import { CaseRecordService } from './case-record.service';
+import { Dialog } from '@angular/cdk/dialog';
+import { SnackbarQueueService } from '../snackbar-queue.service';
 
 export const DEFAULT_CASE_RECORD_STATE: CaseRecordState = {
   searchResponse: [],
@@ -117,6 +119,7 @@ export class CaseRecordStore {
   private errorHandler = inject(ErrorHandler);
   private readonly initialState = inject(CASE_RECORD_INITIAL_STATE);
   private auth = inject(AuthService);
+  private snackBar = inject(SnackbarQueueService);
 
   // --- STATE STREAMS ---
   // NOTE: All state mutations must spread existing state to preserve reference equality on unchanged properties.
@@ -213,6 +216,9 @@ export class CaseRecordStore {
     this._conflict$
       .pipe(
         switchMap(() => {
+          this.snackBar.open(
+            'This record was updated by another user — retrieving remote changes.',
+          );
           return forkJoin([
             this.fetchCaseRecordByAmlId(this._state$.value.amlId),
             this.fetchSelectionsAndEntities(),
