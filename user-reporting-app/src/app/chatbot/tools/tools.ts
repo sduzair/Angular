@@ -70,7 +70,7 @@ export const checkDataIntegrity = createTool({
   handler: () => {
     return firstValueFrom(
       inject(CaseRecordStore).selectionsComputed$.pipe(
-        map((selections) => selections.every(hasDataIntegrity)),
+        map(({ result: selections }) => selections.every(hasDataIntegrity)),
       ),
     );
   },

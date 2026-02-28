@@ -4,7 +4,7 @@ import { CanActivateFn, Router } from '@angular/router';
 export interface UserPrincipal {
   id: string;
   username: string;
-  role: keyof typeof ROLE_ENUM;
+  role: (typeof ROLE_FRIENDLY_NAME)[keyof typeof ROLE_FRIENDLY_NAME];
   email?: string;
 }
 
@@ -27,13 +27,15 @@ export class AuthService {
   readonly currentRole = computed(() => this._currentUser()?.role ?? null);
   readonly isAdmin = computed(() => this._currentUser()?.role === 'Admin');
   readonly isAnalyst = computed(() => this._currentUser()?.role === 'Analyst');
-  readonly isInvestigator = computed(() => this._currentUser()?.role === 'Inv');
+  readonly isInvestigator = computed(
+    () => this._currentUser()?.role === 'Investigator',
+  );
 
   login(username: string, role: keyof typeof ROLE_ENUM): void {
     const user: UserPrincipal = {
       id: crypto.randomUUID(),
       username,
-      role,
+      role: ROLE_FRIENDLY_NAME[ROLE_ENUM[role]],
       email: `${username.toLowerCase().replaceAll(' ', '')}@example.com`,
     };
 
@@ -83,6 +85,12 @@ const ROLE_ENUM = {
   Analyst: 0,
   Inv: 1,
   Admin: 2,
+} as const;
+
+const ROLE_FRIENDLY_NAME = {
+  0: 'Analyst',
+  1: 'Investigator',
+  2: 'Admin',
 } as const;
 
 export type UserRole = keyof typeof ROLE_ENUM;

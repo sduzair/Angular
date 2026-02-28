@@ -282,7 +282,9 @@ export class AnalyticsComponent implements AfterViewInit {
   }
 
   selections$ = this.caseRecord.selectionsComputed$.pipe(
-    map((txns) => (txns.some(hasManualTransaction) ? [] : txns)),
+    map(({ result: computedSelections }) =>
+      computedSelections.some(hasManualTransaction) ? [] : computedSelections,
+    ),
   );
 
   partyKeysSelection$ = this.caseRecord$.pipe(

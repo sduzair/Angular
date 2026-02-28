@@ -27,6 +27,8 @@ import { Breadcrumb } from '../app.routes';
 import { ChatbotComponent } from '../chatbot/chatbot.component';
 import { NavTreeService } from '../nav-layout/nav-tree.service';
 import { CaseRecordStore, ReviewPeriod } from './case-record.store';
+import { AuthService } from '../auth.service';
+import { toObservable } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'app-aml',
@@ -77,6 +79,23 @@ import { CaseRecordStore, ReviewPeriod } from './case-record.store';
 
             <!-- Info chips -->
             <div class="info-chips-container">
+              <!-- Last Updated By / Closed By -->
+              @if (isClosed$ | async) {
+                @if (closedBy$ | async; as closedBy) {
+                  <mat-chip color="accent" class="info-chip">
+                    <mat-icon>lock_person</mat-icon>
+                    Closed by: {{ closedBy }}
+                  </mat-chip>
+                }
+              } @else {
+                @if (lastUpdatedBy$ | async; as updatedBy) {
+                  <mat-chip color="accent" class="info-chip">
+                    <mat-icon>edit</mat-icon>
+                    By: {{ updatedBy }}
+                  </mat-chip>
+                }
+              }
+
               <!-- Params Changes -->
               @let searchParamsChanged =
                 (searchParamsChanged$ | async) ?? false;
@@ -98,11 +117,19 @@ import { CaseRecordStore, ReviewPeriod } from './case-record.store';
                 </mat-chip>
               }
 
-              <!-- Last Updated By -->
-              @if (lastUpdatedBy$ | async; as updatedBy) {
+              <!-- Role -->
+              @if (role$ | async; as role) {
+                <mat-chip color="accent" class="info-chip">
+                  <mat-icon>shield</mat-icon>
+                  {{ role }}
+                </mat-chip>
+              }
+
+              <!-- Username -->
+              @if (username$ | async; as username) {
                 <mat-chip color="accent" class="info-chip">
                   <mat-icon>person</mat-icon>
-                  {{ updatedBy }}
+                  You: {{ username }}
                 </mat-chip>
               }
 
@@ -112,7 +139,6 @@ import { CaseRecordStore, ReviewPeriod } from './case-record.store';
                 @if (counts$ | async; as counts) {
                   <span>
                     {{ counts.selectionCount }}
-
                     @if (counts.selectionCount !== counts.startingCount) {
                       <span class="opacity-75"
                         >({{ counts.startingCount }})</span
@@ -134,21 +160,32 @@ import { CaseRecordStore, ReviewPeriod } from './case-record.store';
               }
             </div>
 
-            <mat-chip
-              color="accent"
-              selected="true"
-              class="last-updated-chip info-chip">
-              @if (savingStatus$ | async) {
-                <mat-progress-spinner
-                  diameter="20"
-                  mode="indeterminate"
-                  class="last-updated-chip-spinner"></mat-progress-spinner>
-              } @else {
-                <mat-icon class="last-updated-chip-spinner">update</mat-icon>
-              }
-              Last Updated:
-              {{ lastUpdated$ | async | date: 'short' }}
-            </mat-chip>
+            <!-- Last Updated / Closed At (mutually exclusive) -->
+            @if (isClosed$ | async) {
+              <mat-chip
+                color="accent"
+                selected="true"
+                class="last-updated-chip info-chip">
+                <mat-icon class="last-updated-chip-spinner">lock</mat-icon>
+                Closed: {{ closedAt$ | async | date: 'short' }}
+              </mat-chip>
+            } @else {
+              <mat-chip
+                color="accent"
+                selected="true"
+                class="last-updated-chip info-chip">
+                @if (savingStatus$ | async) {
+                  <mat-progress-spinner
+                    diameter="20"
+                    mode="indeterminate"
+                    class="last-updated-chip-spinner">
+                  </mat-progress-spinner>
+                } @else {
+                  <mat-icon class="last-updated-chip-spinner">update</mat-icon>
+                }
+                Last Updated: {{ lastUpdated$ | async | date: 'short' }}
+              </mat-chip>
+            }
           </mat-toolbar-row>
         </mat-toolbar>
       </div>
@@ -183,6 +220,7 @@ import { CaseRecordStore, ReviewPeriod } from './case-record.store';
 export class AmlComponent implements OnInit {
   private caseRecordStore = inject(CaseRecordStore);
   private readonly _router = inject(Router);
+  private authService = inject(AuthService);
   lastUpdated$ = this.caseRecordStore.lastUpdated$;
 
   savingStatus$ = this.caseRecordStore.qIsSaving$;
@@ -257,9 +295,10 @@ export class AmlComponent implements OnInit {
   }
 
   counts$ = this.caseRecordStore.selectionsComputed$.pipe(
-    map((selections) => ({
-      selectionCount: selections.length,
-      startingCount: selections.flatMap((sel) => sel.startingActions).length,
+    map(({ result: computedSelections }) => ({
+      selectionCount: computedSelections.length,
+      startingCount: computedSelections.flatMap((sel) => sel.startingActions)
+        .length,
     })),
   );
 
@@ -270,6 +309,23 @@ export class AmlComponent implements OnInit {
 
   reviewPeriods$ = this.caseRecordStore.state$.pipe(
     map((state) => state.searchParams.reviewPeriodSelection),
+  );
+
+  // Auth-derived chips
+  currentUser$ = toObservable(this.authService.currentUser);
+
+  username$ = this.currentUser$.pipe(map((user) => user?.username ?? null));
+
+  role$ = this.currentUser$.pipe(map((user) => user?.role ?? null));
+
+  isClosed$ = this.caseRecordStore.state$.pipe(map((state) => state.isClosed));
+
+  closedAt$ = this.caseRecordStore.state$.pipe(
+    map((state) => state.closedAt ?? null),
+  );
+
+  closedBy$ = this.caseRecordStore.state$.pipe(
+    map((state) => state.closedBy ?? null),
   );
 
   formatReviewPeriod(period: ReviewPeriod): string {

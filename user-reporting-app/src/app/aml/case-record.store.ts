@@ -54,6 +54,7 @@ import {
   WithETag,
   _hiddenValidationType,
 } from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
+import { SnackbarQueueService } from '../snackbar-queue.service';
 import { DeepPartial } from '../test-helpers';
 import { type RouteExtrasFromSearch } from '../transaction-search/transaction-search.component';
 import {
@@ -75,8 +76,6 @@ import {
   EntityGenType,
 } from '../transaction-view/transform-to-str-transaction/entity-gen.service';
 import { CaseRecordService } from './case-record.service';
-import { Dialog } from '@angular/cdk/dialog';
-import { SnackbarQueueService } from '../snackbar-queue.service';
 
 export const DEFAULT_CASE_RECORD_STATE: CaseRecordState = {
   searchResponse: [],
@@ -234,86 +233,120 @@ export class CaseRecordStore {
     // Filter ensures we only proceed if there is work to do
     filter(
       ({
-        selectionsWithPendingChanges,
-        selectionsToAdd,
-        selectionsToRemove,
-        resetAndAddSelections,
+        selectionsPatchPendingChanges,
+        selectionsPatchPendingHighlights,
+        selectionsPatchToAdd,
+        selectionsPatchToRemove,
+        selectionsPatchResetAndAdd,
         selections,
       }) =>
-        (selectionsWithPendingChanges ?? []).length > 0 ||
-        (selectionsToAdd ?? []).length > 0 ||
-        (selectionsToRemove ?? []).length > 0 ||
-        (resetAndAddSelections ?? []).length > 0 ||
+        (selectionsPatchPendingChanges ?? []).length > 0 ||
+        (selectionsPatchPendingHighlights ?? []).length > 0 ||
+        (selectionsPatchToAdd ?? []).length > 0 ||
+        (selectionsPatchToRemove ?? []).length > 0 ||
+        (selectionsPatchResetAndAdd ?? []).length > 0 ||
         selections.length === 0, // Allow pass-through for reset/clear scenarios
     ),
     map(
       ({
         selections: currentSelections,
-        selectionsWithPendingChanges = [],
-        selectionsToAdd = [],
-        selectionsToRemove = [],
-        resetAndAddSelections = [],
         entities: currentEntities,
+        selectionsPatchPendingChanges = [],
+        selectionsPatchPendingHighlights = [],
+        selectionsPatchToAdd = [],
+        selectionsPatchToRemove = [],
+        selectionsPatchResetAndAdd = [],
       }) => {
-        if (resetAndAddSelections.length > 0) {
-          const _cloneSelectionIds = structuredClone(resetAndAddSelections);
+        if (selectionsPatchResetAndAdd.length > 0) {
+          const selectionsToAdd = selectionsPatchResetAndAdd.slice();
           // eslint-disable-next-line no-param-reassign
-          resetAndAddSelections.length = 0;
-          return resetAndAddSelectionsHandler({
-            selections: currentSelections,
-            selectionsToAdd: _cloneSelectionIds,
-            entities: currentEntities,
-          });
-        }
-        if (selectionsWithPendingChanges.length > 0) {
-          const _cloneSelectionIds = structuredClone(
-            selectionsWithPendingChanges,
-          );
-          // eslint-disable-next-line no-param-reassign
-          selectionsWithPendingChanges.length = 0;
-          return computePartialChangesHandler({
-            selections: currentSelections,
-            selectionsToRecompute: _cloneSelectionIds,
-            entities: currentEntities,
-          });
-        }
-
-        if (selectionsToAdd.length > 0) {
-          const _cloneSelectionIds = structuredClone(selectionsToAdd);
-          // eslint-disable-next-line no-param-reassign
-          selectionsToAdd.length = 0;
-          return addSelectionsHandler({
-            selections: currentSelections,
-            selectionsToAdd: _cloneSelectionIds,
-            entities: currentEntities,
-          });
-        }
-
-        if (selectionsToRemove.length > 0) {
-          const _cloneSelectionIds = structuredClone(selectionsToRemove);
-          // eslint-disable-next-line no-param-reassign
-          selectionsToRemove.length = 0;
-          return (acc: StrTransactionWithChangeLogs[]) => {
-            return acc.filter(
-              (txn) =>
-                !_cloneSelectionIds.includes(txn.flowOfFundsAmlTransactionId),
-            );
+          selectionsPatchResetAndAdd.length = 0;
+          return {
+            handler: selectionsPatchResetAndAddHandler({
+              selections: currentSelections,
+              selectionsToAdd,
+              entities: currentEntities,
+            }),
+            suppress: false,
           };
         }
 
-        if (currentSelections.length == 0) return () => [];
+        if (selectionsPatchPendingChanges.length > 0) {
+          const selectionsToRecompute = selectionsPatchPendingChanges.slice();
+          // eslint-disable-next-line no-param-reassign
+          selectionsPatchPendingChanges.length = 0;
+          return {
+            handler: computePartialChangesHandler({
+              selections: currentSelections,
+              selectionsToRecompute,
+              entities: currentEntities,
+            }),
+            suppress: false,
+          };
+        }
+
+        if (selectionsPatchPendingHighlights.length > 0) {
+          const selectionsToRecompute =
+            selectionsPatchPendingHighlights.slice();
+          // eslint-disable-next-line no-param-reassign
+          selectionsPatchPendingHighlights.length = 0;
+          return {
+            handler: computePartialChangesHandler({
+              selections: currentSelections,
+              selectionsToRecompute,
+              entities: currentEntities,
+            }),
+            suppress: true,
+          };
+        }
+
+        if (selectionsPatchToAdd.length > 0) {
+          const selectionsToAdd = selectionsPatchToAdd.slice();
+          // eslint-disable-next-line no-param-reassign
+          selectionsPatchToAdd.length = 0;
+          return {
+            handler: addSelectionsHandler({
+              selections: currentSelections,
+              selectionsToAdd,
+              entities: currentEntities,
+            }),
+            suppress: false,
+          };
+        }
+
+        if (selectionsPatchToRemove.length > 0) {
+          const selectionToRemove = selectionsPatchToRemove.slice();
+          // eslint-disable-next-line no-param-reassign
+          selectionsPatchToRemove.length = 0;
+          return {
+            handler: (acc: StrTransactionWithChangeLogs[]) => {
+              return acc.filter(
+                (txn) =>
+                  !selectionToRemove.includes(txn.flowOfFundsAmlTransactionId),
+              );
+            },
+            suppress: false,
+          };
+        }
+
+        if (currentSelections.length == 0)
+          return { handler: () => [], suppress: false };
 
         throw new Error('Unexpected state selections change');
       },
     ),
-    scan((acc, handler) => {
-      try {
-        return handler(acc);
-      } catch (error) {
-        this.errorHandler.handleError(error);
-        return acc;
-      }
-    }, [] as StrTransactionWithChangeLogs[]),
+    scan(
+      (acc, { handler, suppress }) => {
+        try {
+          const result = handler(acc.result);
+          return { result, suppress };
+        } catch (error) {
+          this.errorHandler.handleError(error);
+          return { result: acc.result, suppress };
+        }
+      },
+      { result: [] as StrTransactionWithChangeLogs[], suppress: false },
+    ),
     catchError((error) => {
       this.errorHandler.handleError(error);
       return of();
@@ -388,18 +421,20 @@ export class CaseRecordStore {
     concatMap(({ edit, incomingSaves }) => {
       return of(edit).pipe(
         withLatestFrom(
-          this.selectionsComputed$,
+          this.selectionsComputed$.pipe(map(({ result }) => result)),
           this._state$.pipe(map(({ selections }) => selections)),
         ),
         map(([edit, selectionsComputed, selectionsCurrent]) => {
           const { editType } = edit;
           const pendingChanges: SaveChangesReq['pendingChanges'] = [];
+          const pendingHighlightChanges: SaveChangesReq['pendingChanges'] = [];
           const selectionsAndEntitiesToAdd: {
             selection?: StrTransactionWithChangeLogs;
             entities: EntityGenType[];
           }[] = [];
           const selectionsToReset: ResetSelectionsReq['pendingResets'] = [];
-          const selectionsToRemove: RemoveSelectionsReq['selectionIds'] = [];
+          const selectionsPatchToRemove: RemoveSelectionsReq['selectionIds'] =
+            [];
 
           if (editType === 'SINGLE_SAVE') {
             const {
@@ -480,7 +515,7 @@ export class CaseRecordStore {
 
               console.assert(pendingChangeLogs.length === 1);
 
-              pendingChanges.push({
+              pendingHighlightChanges.push({
                 flowOfFundsAmlTransactionId: txnId,
                 changeLogs: pendingChangeLogs,
                 eTag: transactionBefore.eTag ?? 0,
@@ -508,17 +543,15 @@ export class CaseRecordStore {
             const { selectionIds: tableSelections } = edit;
             const tableSelectionsSet = new Set(tableSelections);
 
-            const selectionsWithChanges = selectionsComputed
+            const selectionsWithChanges = selectionsCurrent
               .filter((selection) => {
-                return (
-                  tableSelectionsSet.has(
-                    selection.flowOfFundsAmlTransactionId,
-                  ) && selection.changeLogs.length > 0
+                return tableSelectionsSet.has(
+                  selection.flowOfFundsAmlTransactionId,
                 );
               })
-              .map(({ flowOfFundsAmlTransactionId, changeLogs }) => ({
+              .map(({ flowOfFundsAmlTransactionId, eTag }) => ({
                 flowOfFundsAmlTransactionId,
-                eTag: changeLogs.at(-1)?.eTag ?? 0,
+                eTag,
               }));
 
             selectionsToReset.push(...selectionsWithChanges);
@@ -526,29 +559,32 @@ export class CaseRecordStore {
 
           if (editType === 'REMOVE_SELECTIONS') {
             const { selectionIds: tableSelections } = edit;
-            selectionsToRemove.push(...tableSelections);
+            selectionsPatchToRemove.push(...tableSelections);
           }
 
           return {
             editType,
             pendingChanges,
+            pendingHighlightChanges,
             selectionsAndEntitiesToAdd: selectionsAndEntitiesToAdd,
             selectionsToReset,
-            selectionsToRemove,
+            selectionsPatchToRemove,
           };
         }),
         filter(
           ({
             pendingChanges,
+            pendingHighlightChanges,
             selectionsAndEntitiesToAdd,
             selectionsToReset,
-            selectionsToRemove,
+            selectionsPatchToRemove,
           }) => {
             const hasChanges =
               pendingChanges.length > 0 ||
+              pendingHighlightChanges.length > 0 ||
               selectionsAndEntitiesToAdd.length > 0 ||
               selectionsToReset.length > 0 ||
-              selectionsToRemove.length > 0;
+              selectionsPatchToRemove.length > 0;
 
             if (!hasChanges) {
               this.markSavesAsProcessed(incomingSaves);
@@ -559,9 +595,10 @@ export class CaseRecordStore {
         switchMap(
           ({
             pendingChanges,
+            pendingHighlightChanges,
             selectionsAndEntitiesToAdd,
             selectionsToReset,
-            selectionsToRemove,
+            selectionsPatchToRemove,
           }) => {
             if (selectionsAndEntitiesToAdd.length > 0) {
               return this.addSelectionsAndEntities(selectionsAndEntitiesToAdd);
@@ -573,12 +610,18 @@ export class CaseRecordStore {
               });
             }
 
+            if (pendingHighlightChanges.length > 0) {
+              return this.saveHighlightChanges({
+                pendingChanges: pendingHighlightChanges,
+              });
+            }
+
             if (selectionsToReset.length > 0) {
               return this._resetSelections(selectionsToReset);
             }
 
-            if (selectionsToRemove.length > 0) {
-              return this.removeSelections(selectionsToRemove);
+            if (selectionsPatchToRemove.length > 0) {
+              return this.removeSelections(selectionsPatchToRemove);
             }
 
             throw new Error('Unknown edit type');
@@ -786,7 +829,7 @@ export class CaseRecordStore {
             ...this._state$.value,
             selections: selectionList as StrTransactionWithChangeLogs[],
             entities: entityList as WithCaseRecordId<EntityGenType>[],
-            resetAndAddSelections: selectionList.map(
+            selectionsPatchResetAndAdd: selectionList.map(
               (sel) => sel.flowOfFundsAmlTransactionId,
             ),
           });
@@ -845,7 +888,7 @@ export class CaseRecordStore {
                         }) satisfies StrTransactionWithChangeLogs,
                     ),
                   ],
-                  selectionsToAdd: selections.map(
+                  selectionsPatchToAdd: selections.map(
                     (sel) => sel.flowOfFundsAmlTransactionId,
                   ),
                   entities: [
@@ -892,7 +935,7 @@ export class CaseRecordStore {
                   !selectionIds.includes(sel.flowOfFundsAmlTransactionId),
               ),
             ],
-            selectionsToRemove: selectionIds,
+            selectionsPatchToRemove: selectionIds,
             eTag: newCaseETag,
             lastUpdated,
           });
@@ -937,6 +980,7 @@ export class CaseRecordStore {
                   (changeLog) =>
                     ({
                       ...changeLog,
+                      // todo: use etag from response
                       eTag: eTag + 1,
                       updatedBy,
                       updatedAt,
@@ -948,7 +992,63 @@ export class CaseRecordStore {
 
         this._state$.next({
           ...this._state$.value,
-          selectionsWithPendingChanges: pendingChanges.map(
+          selectionsPatchPendingChanges: pendingChanges.map(
+            ({ flowOfFundsAmlTransactionId }) => flowOfFundsAmlTransactionId,
+          ),
+        });
+      }),
+      catchError((error: HttpErrorResponse) => {
+        // Conflict triggers refresh of local state
+        if (error.status === HttpStatusCode.Conflict) {
+          this._conflict$.next();
+          return EMPTY;
+        }
+
+        return throwError(() => error);
+      }),
+    );
+  }
+
+  private saveHighlightChanges(payload: SaveChangesReq) {
+    const { caseRecordId } = this._state$.value;
+
+    const payloadClone = structuredClone(payload);
+    return this.selectionsService.saveChanges(caseRecordId, payloadClone).pipe(
+      tap(({ updatedAt, updatedBy }) => {
+        const { pendingChanges } = payloadClone;
+
+        pendingChanges
+          .filter((change) => change.changeLogs.length > 0)
+          .forEach(
+            ({
+              flowOfFundsAmlTransactionId,
+              eTag,
+              changeLogs: pendingChangeLogs,
+            }) => {
+              const txn = this._state$.value.selections.find(
+                (strTxn) =>
+                  strTxn.flowOfFundsAmlTransactionId ===
+                  flowOfFundsAmlTransactionId,
+              )!;
+
+              txn.eTag = eTag + 1;
+              txn.changeLogs.push(
+                ...pendingChangeLogs.map(
+                  (changeLog) =>
+                    ({
+                      ...changeLog,
+                      eTag: eTag + 1,
+                      updatedBy,
+                      updatedAt,
+                    }) as ChangeLogAudit,
+                ),
+              );
+            },
+          );
+
+        this._state$.next({
+          ...this._state$.value,
+          selectionsPatchPendingHighlights: pendingChanges.map(
             ({ flowOfFundsAmlTransactionId }) => flowOfFundsAmlTransactionId,
           ),
         });
@@ -964,7 +1064,7 @@ export class CaseRecordStore {
         const { pendingChanges } = payloadClone;
         this._state$.next({
           ...this._state$.value,
-          selectionsWithPendingChanges: pendingChanges.map(
+          selectionsPatchPendingChanges: pendingChanges.map(
             ({ flowOfFundsAmlTransactionId }) => flowOfFundsAmlTransactionId,
           ),
         });
@@ -995,7 +1095,7 @@ export class CaseRecordStore {
 
           this._state$.next({
             ...this._state$.value,
-            selectionsWithPendingChanges: [...selectionIdsSet.values()],
+            selectionsPatchPendingChanges: [...selectionIdsSet.values()],
           });
         }),
         catchError((error: HttpErrorResponse) => {
@@ -1039,10 +1139,11 @@ export interface CaseRecordState {
   entities: WithCaseRecordId<EntityType>[];
 
   // table partial update use
-  selectionsWithPendingChanges?: PendingChange['flowOfFundsAmlTransactionId'][];
-  selectionsToAdd?: StrTransactionWithChangeLogs['flowOfFundsAmlTransactionId'][];
-  selectionsToRemove?: StrTransactionWithChangeLogs['flowOfFundsAmlTransactionId'][];
-  resetAndAddSelections?: StrTransactionWithChangeLogs['flowOfFundsAmlTransactionId'][];
+  selectionsPatchPendingChanges?: PendingChange['flowOfFundsAmlTransactionId'][];
+  selectionsPatchPendingHighlights?: PendingChange['flowOfFundsAmlTransactionId'][];
+  selectionsPatchToAdd?: StrTransactionWithChangeLogs['flowOfFundsAmlTransactionId'][];
+  selectionsPatchToRemove?: StrTransactionWithChangeLogs['flowOfFundsAmlTransactionId'][];
+  selectionsPatchResetAndAdd?: StrTransactionWithChangeLogs['flowOfFundsAmlTransactionId'][];
   searchResponse: TransactionSearchResponse;
 }
 
@@ -1077,7 +1178,7 @@ const computePartialChangesHandler = ({
 }: {
   selections: StrTransactionWithChangeLogs[];
   selectionsToRecompute: NonNullable<
-    CaseRecordState['selectionsWithPendingChanges']
+    CaseRecordState['selectionsPatchPendingChanges']
   >;
   entities: WithCaseRecordId<EntityGenType>[];
 }) => {
@@ -1114,7 +1215,7 @@ const addSelectionsHandler = ({
   entities,
 }: {
   selections: StrTransactionWithChangeLogs[];
-  selectionsToAdd: NonNullable<CaseRecordState['selectionsToAdd']>;
+  selectionsToAdd: NonNullable<CaseRecordState['selectionsPatchToAdd']>;
   entities: WithCaseRecordId<EntityGenType>[];
 }) => {
   return (acc: StrTransactionWithChangeLogs[]) => {
@@ -1135,13 +1236,13 @@ const addSelectionsHandler = ({
   };
 };
 
-const resetAndAddSelectionsHandler = ({
+const selectionsPatchResetAndAddHandler = ({
   selections,
   selectionsToAdd,
   entities,
 }: {
   selections: StrTransactionWithChangeLogs[];
-  selectionsToAdd: NonNullable<CaseRecordState['resetAndAddSelections']>;
+  selectionsToAdd: NonNullable<CaseRecordState['selectionsPatchResetAndAdd']>;
   entities: WithCaseRecordId<EntityGenType>[];
 }) => {
   return (_acc: StrTransactionWithChangeLogs[]) => {

@@ -19,7 +19,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { ActivatedRoute, ResolveFn, Router } from '@angular/router';
-import { combineLatestWith, map, Observable, tap } from 'rxjs';
+import { combineLatestWith, filter, map, Observable, tap } from 'rxjs';
 import {
   CaseRecordStore,
   StrTransactionWithChangeLogs,
@@ -280,7 +280,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
   protected readonly canPerformQA = computed(() => this.authService.isAdmin());
 
   selectionsComputed$ = this.caseRecordStore.selectionsComputed$.pipe(
-    tap((txns) => {
+    tap(({ result: txns }) => {
       const initHighlightsMap = new Map(
         txns.map((txn) => [
           txn.flowOfFundsAmlTransactionId,
@@ -289,6 +289,8 @@ export class ReportingUiTableComponent implements AfterViewInit {
       );
       this.highlightedRecords.update(() => new Map(initHighlightsMap));
     }),
+    filter(({ suppress }) => !suppress),
+    map(({ result }) => result),
   );
 
   qSavingEdits = toSignal(this.caseRecordStore.qActiveSaveIds$, {
@@ -668,7 +670,9 @@ export class ReportingUiTableComponent implements AfterViewInit {
 export const selectionsComputedResolver: ResolveFn<
   Observable<StrTransactionWithChangeLogs[]>
 > = async () => {
-  return inject(CaseRecordStore).selectionsComputed$;
+  return inject(CaseRecordStore).selectionsComputed$.pipe(
+    map(({ result }) => result),
+  );
 };
 
 const validationColors: Record<_hiddenValidationType, string> = {

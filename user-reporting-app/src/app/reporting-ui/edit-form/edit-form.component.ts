@@ -4911,17 +4911,18 @@ export const singleEditTypeResolver: ResolveFn<EditFormEditType> = (
   _: RouterStateSnapshot,
 ) => {
   return inject(CaseRecordStore).selectionsComputed$.pipe(
-    map((strTransactionData) => {
-      const strTransaction = strTransactionData.find(
+    map(({ result: computedSelections }) => {
+      const transactionSelection = computedSelections.find(
         (txn) =>
           route.params['transactionId'] === txn.flowOfFundsAmlTransactionId,
       );
 
-      if (!strTransaction) throw new Error('Transaction record not found');
+      if (!transactionSelection)
+        throw new Error('Transaction record not found');
 
       return {
         type: 'SINGLE_SAVE',
-        payload: structuredClone(strTransaction),
+        payload: structuredClone(transactionSelection),
       };
     }),
   );
@@ -4937,14 +4938,14 @@ export const bulkEditTypeResolver: ResolveFn<EditFormEditType> = (
   if (!selectedTransactionsForBulkEdit) throw new Error('Unknown edit type');
 
   return inject(CaseRecordStore).selectionsComputed$.pipe(
-    map((strTransactionData) => {
-      const strTransactions = strTransactionData.filter((txn) =>
+    map(({ result: selectionsComputed }) => {
+      const transactionSelection = selectionsComputed.filter((txn) =>
         selectedTransactionsForBulkEdit.includes(
           txn.flowOfFundsAmlTransactionId,
         ),
       );
       console.assert(
-        strTransactions.length === selectedTransactionsForBulkEdit.length,
+        transactionSelection.length === selectedTransactionsForBulkEdit.length,
       );
       return {
         type: 'BULK_SAVE',
@@ -4960,15 +4961,16 @@ export const auditResolver: ResolveFn<EditFormEditType> = (
 ) => {
   return inject(CaseRecordStore).state$.pipe(
     map(({ selections }) => {
-      const strTransaction = selections.find(
+      const transactionSelection = selections.find(
         (txn) =>
           route.params['transactionId'] === txn.flowOfFundsAmlTransactionId,
       );
-      if (!strTransaction) throw new Error('Transaction record not found');
+      if (!transactionSelection)
+        throw new Error('Transaction record not found');
       return {
         type: 'AUDIT_REQUEST',
         payload: structuredClone(
-          strTransaction,
+          transactionSelection,
         ) as StrTransactionWithChangeLogs,
       };
     }),

@@ -81,6 +81,7 @@ export class AccountTransactionTotalsService {
     );
 
     const transactionSelections$ = this.caseRecord.selectionsComputed$.pipe(
+      map(({ result }) => result),
       take(1),
     );
 
@@ -99,17 +100,17 @@ export class AccountTransactionTotalsService {
         ([
           selectedFocalAccountsInfo,
           partyKeysSelection,
-          transactionSelections,
+          selectedTransactions,
           entities,
         ]) => {
           console.log(
             '🚀 ~ AccountTransactionTotalsService ~ getAccountTransactionTotals$ ~ transactionSelections:',
-            transactionSelections,
+            selectedTransactions,
           );
           const focalSubjects = new Set(partyKeysSelection);
 
-          if (transactionSelections.some(hasManualTransaction)) return [];
-          if (transactionSelections.some(hasMissingBasicInfo)) return [];
+          if (selectedTransactions.some(hasManualTransaction)) return [];
+          if (selectedTransactions.some(hasMissingBasicInfo)) return [];
           // note: data integrity check in dedicated tool
 
           const accountTotals: AccountTotals[] = [];
@@ -130,7 +131,7 @@ export class AccountTransactionTotalsService {
               startingActions,
               completingActions,
               purposeOfTxn = '',
-            } of transactionSelections.filter(
+            } of selectedTransactions.filter(
               createCreditsFilter(selectedFocalAccount),
             )) {
               for (const sa of startingActions) {
@@ -261,7 +262,7 @@ export class AccountTransactionTotalsService {
               startingActions,
               completingActions,
               purposeOfTxn,
-            } of transactionSelections.filter(
+            } of selectedTransactions.filter(
               createDebitsFilter(selectedFocalAccount),
             )) {
               console.assert(startingActions.length === 1);

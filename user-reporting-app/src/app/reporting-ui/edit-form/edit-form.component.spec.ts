@@ -94,15 +94,15 @@ class MockNavLayoutComponent {}
 
 // At the top of your test file
 const mockSingleEditTypeResolver: ResolveFn<EditFormEditType> = (route) => {
-  const strTransaction = CASE_RECORD_STATE_FIXTURE.selections.find(
+  const selectedTransaction = CASE_RECORD_STATE_FIXTURE.selections.find(
     (txn) => txn.flowOfFundsAmlTransactionId === route.params['transactionId'],
   );
-  if (!strTransaction) throw new Error('Transaction record not found');
+  if (!selectedTransaction) throw new Error('Transaction record not found');
 
   return {
     type: 'SINGLE_SAVE',
 
-    payload: structuredClone(strTransaction),
+    payload: structuredClone(selectedTransaction),
   };
 };
 
@@ -116,14 +116,14 @@ const mockBulkEditTypeResolver: ResolveFn<EditFormEditType> = () => ({
 });
 
 const mockAuditResolver: ResolveFn<EditFormEditType> = (route) => {
-  const strTransaction = CASE_RECORD_STATE_FIXTURE.selections.find(
+  const selectedTransaction = CASE_RECORD_STATE_FIXTURE.selections.find(
     (txn) => txn.flowOfFundsAmlTransactionId === route.params['transactionId'],
   );
-  if (!strTransaction) throw new Error('Transaction record not found');
+  if (!selectedTransaction) throw new Error('Transaction record not found');
 
   return {
     type: 'AUDIT_REQUEST',
-    payload: structuredClone(strTransaction),
+    payload: structuredClone(selectedTransaction),
   };
 };
 
@@ -1759,7 +1759,7 @@ const CASE_RECORD_STATE_FIXTURE: CaseRecordState = {
       eTag: 0,
     };
   }),
-  selectionsToAdd: [
+  selectionsPatchToAdd: [
     TRANSACTION_EDIT_FORM_ALL_FIELDS_FIXTURE.reportingEntityTxnRefNo!,
   ],
   entities: ENTITIES_TEST_OR_DEV_ONLY_FIXTURE,
