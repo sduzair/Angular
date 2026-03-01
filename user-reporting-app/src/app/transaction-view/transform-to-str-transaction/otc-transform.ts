@@ -176,9 +176,10 @@ export function transformOTCToStrTransaction({
         wasSofInfoObtained: false,
         sourceOfFunds: [],
         wasCondInfoObtained: conductors.length > 0,
-        conductors: conductors.length > 0 ? [...conductors] : undefined,
+        conductors: conductors.length > 0 ? [...conductors] : [],
       });
 
+      const conductorsCash = structuredClone(conductors);
       // Add cash starting action for cash
       startingActions.push({
         directionOfSA: sourceTxn.strSaDirection,
@@ -200,8 +201,8 @@ export function transformOTCToStrTransaction({
         accountHolders: [],
         wasSofInfoObtained: sourceTxn.strSaFundingSourceInd === 'Yes',
         sourceOfFunds: [],
-        wasCondInfoObtained: conductors.length > 0,
-        conductors: conductors.length > 0 ? [...conductors] : undefined,
+        wasCondInfoObtained: conductorsCash.length > 0,
+        conductors: conductorsCash.length > 0 ? [...conductorsCash] : [],
       });
 
       // Build completing actions
@@ -244,15 +245,14 @@ export function transformOTCToStrTransaction({
           accountsInfo[sourceTxn.strCaAccount!]?.accountStatus ||
           sourceTxn.strCaAccountStatus,
         hasAccountHolders: caAccountHolders.length > 0,
-        accountHolders:
-          caAccountHolders.length > 0 ? caAccountHolders : undefined,
-        wasAnyOtherSubInvolved: sourceTxn.strCaInvolvedInInd === 'Yes',
-        involvedIn: sourceTxn.strCaInvolvedInInd === 'Yes' ? [] : undefined,
+        accountHolders: caAccountHolders.length > 0 ? caAccountHolders : [],
+        wasAnyOtherSubInvolved: false,
+        involvedIn: [],
         wasBenInfoObtained: sourceTxn.strCaBeneficiaryInd === 'Yes',
         beneficiaries:
           sourceTxn.strCaBeneficiaryInd === 'Yes'
-            ? caAccountHolders
-            : undefined,
+            ? structuredClone(caAccountHolders)
+            : [],
       });
 
       const { flowOfFundsTransactionDesc } = fofTxn;

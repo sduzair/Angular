@@ -45,7 +45,7 @@ import { toObservable } from '@angular/core/rxjs-interop';
     ChatbotComponent,
   ],
   template: `
-    <div class="container-fluid px-0 overflow-y-auto overflow-x-hidden h-100">
+    <div class="container-fluid px-0 overflow-y-scroll overflow-x-hidden h-100">
       <div class="row row-cols-1 mx-0 sticky-top">
         <mat-toolbar class="col">
           <mat-toolbar-row class="header-toolbar-row px-0">

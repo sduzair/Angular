@@ -4803,6 +4803,10 @@ export class EditFormComponent
               )
                 return true;
 
+              const isNullish = (v: unknown) =>
+                v === null || v === undefined || v === '';
+              if (isNullish(val1) && isNullish(val2)) return true;
+
               return undefined;
             },
           );

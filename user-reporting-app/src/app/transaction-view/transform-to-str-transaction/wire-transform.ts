@@ -196,7 +196,7 @@ export function transformWireToStrTransaction({
         wasAnyOtherSubInvolved: false,
         involvedIn: [],
         wasBenInfoObtained: true,
-        beneficiaries: caAccountHolders,
+        beneficiaries: structuredClone(caAccountHolders),
       });
 
       const { flowOfFundsTransactionDesc } = fofTxn;

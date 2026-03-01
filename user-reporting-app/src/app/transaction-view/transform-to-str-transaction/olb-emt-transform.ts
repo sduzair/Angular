@@ -251,7 +251,7 @@ export function transformOlbEmtToStrTransaction({
           wasSofInfoObtained: false,
           sourceOfFunds: [],
           wasCondInfoObtained: true,
-          conductors: senderAccountHolders?.map(
+          conductors: structuredClone(senderAccountHolders)?.map(
             ({
               linkToSub,
               _hiddenPartyKey,
@@ -340,7 +340,7 @@ export function transformOlbEmtToStrTransaction({
           howFundsObtained: null,
           hasAccountHolders: senderAccountHolders.length > 0,
           accountHolders:
-            senderAccountHolders.length > 0 ? senderAccountHolders : undefined,
+            senderAccountHolders.length > 0 ? senderAccountHolders : [],
           wasSofInfoObtained: false,
           sourceOfFunds: [],
           wasCondInfoObtained: true,
@@ -394,7 +394,7 @@ export function transformOlbEmtToStrTransaction({
           wasAnyOtherSubInvolved: false,
           involvedIn: [],
           wasBenInfoObtained: true,
-          beneficiaries: recipientAccountHolders,
+          beneficiaries: structuredClone(recipientAccountHolders),
         });
       }
 
@@ -485,7 +485,7 @@ export function transformOlbEmtToStrTransaction({
           wasAnyOtherSubInvolved: false,
           involvedIn: [],
           wasBenInfoObtained: true,
-          beneficiaries: recipientAccountHolders,
+          beneficiaries: structuredClone(recipientAccountHolders),
         });
       }
 

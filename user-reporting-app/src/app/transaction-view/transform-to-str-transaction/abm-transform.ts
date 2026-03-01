@@ -6,6 +6,7 @@ import {
 } from '../../reporting-ui/edit-form/form-options.service';
 import {
   AccountHolder,
+  Beneficiary,
   CompletingAction,
   Conductor,
   StartingAction,
@@ -178,7 +179,7 @@ export function transformABMToStrTransaction(
         hasAccountHolders: saAccountHolders.length > 0,
         accountHolders: saAccountHolders,
         wasSofInfoObtained: false,
-        sourceOfFunds: undefined,
+        sourceOfFunds: [],
         wasCondInfoObtained: conductors.length > 0,
         conductors: conductors,
       });
@@ -204,6 +205,28 @@ export function transformABMToStrTransaction(
             return acc;
           }, [] as AccountHolder[]) ?? [];
 
+      const beneficiaries: Beneficiary[] = [];
+      beneficiaries.push({
+        linkToSub:
+          entitiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
+            ?.entityIdentifier!,
+        _hiddenPartyKey:
+          entitiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
+            ?.partyKey!,
+        _hiddenGivenName:
+          entitiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
+            ?.givenName!,
+        _hiddenSurname:
+          entitiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
+            ?.surname!,
+        _hiddenOtherOrInitialName:
+          entitiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
+            ?.otherOrInitialName!,
+        _hiddenNameOfEntity:
+          entitiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
+            ?.nameOfEntity!,
+      });
+
       completingActions.push({
         detailsOfDispo: sourceTxn.strCaDispositionType,
         detailsOfDispoOther: null,
@@ -228,8 +251,8 @@ export function transformABMToStrTransaction(
         beneficiaries:
           (sourceTxn.strCaDispositionType as FORM_OPTIONS_DETAILS_OF_DISPOSITION) ===
           'Cash Withdrawal (account based)'
-            ? conductors
-            : caAccountHolders,
+            ? beneficiaries
+            : structuredClone(caAccountHolders),
       });
 
       const { flowOfFundsTransactionDesc } = fofTxn;
