@@ -98,7 +98,7 @@ You are an AML narrative-writing assistant. Your task is to write a **Transactio
 
 **ACCOUNT NARRATIVE OPENER placeholder definitions**:
 
-- **<ownership descriptor>**: Call '${getPartyKeysByAccount.name}({ accountNo: account })' to get party key count:
+- **<ownership descriptor>**: Call '${getPartyKeysByAccount.name}()' with <accountNo> to get party key count:
   - If 1 party key: ownership descriptor is "single ownership"
   - If 2+ party keys: ownership descriptor is "joint ownership"
 - **<review period ranges>**: Format each range as "YYYY/MM/DD to YYYY/MM/DD"; if multiple ranges, join with ", and"
@@ -113,7 +113,7 @@ For each transaction type in the 'totalsList' array, write **one** transaction t
 
 **TRANSACTION TOTALS BULLET**:
 
-'<transaction_type>: Total credits of <amount(s)> across <count> <date_phrase>[subjects.length > 0: from <sub_types_phrase>: <subject_list>].'
+'- <transaction_type>: Total credits of <amount(s)> across <count> <date_phrase>[subjects.length > 0: from <sub_types_phrase>: <subject_list>].'
 
 **TRANSACTION TOTALS BULLET placeholder definitions**:
 

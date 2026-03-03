@@ -15,7 +15,6 @@ export const getReviewPeriod = createTool({
   handler: () => {
     return firstValueFrom(
       inject(CaseRecordStore).state$.pipe(
-        delay(2000),
         map(
           ({ searchParams: { reviewPeriodSelection } }) =>
             reviewPeriodSelection,
