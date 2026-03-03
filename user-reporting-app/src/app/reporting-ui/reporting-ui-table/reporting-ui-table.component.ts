@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatBadgeModule } from '@angular/material/badge';
-import { MatButtonModule } from '@angular/material/button';
+import { MatButtonModule, MatIconButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -42,6 +42,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
     MatToolbarModule,
     MatIconModule,
     MatButtonModule,
+    MatIconButton,
     MatBadgeModule,
     MatDialogModule,
     MatChipsModule,
@@ -125,13 +126,13 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
           mat-header-cell
           *matHeaderCellDef
           [class.sticky-cell]="baseTable.isStickyColumn('actions')">
-          <div>
+          <div class="d-flex flex-nowrap gap-1">
             <button
               type="button"
               [disabled]="
                 (isClosed$ | async) || (isActionHeaderDisabled$ | async)
               "
-              mat-icon-button
+              matIconButton
               (click)="navigateToBulkEdit()"
               [matBadge]="baseTable.selection.selected.length"
               [matBadgeHidden]="!baseTable.selection.hasValue()">
@@ -139,7 +140,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
             </button>
             <button
               type="button"
-              mat-icon-button
+              matIconButton
               [class.d-none]="!canPerformQA()">
               <mat-icon
                 class="text-primary"
@@ -154,7 +155,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
                 (isClosed$ | async) || (isActionHeaderDisabled$ | async)
               "
               [class.d-none]="!canMakeSelections()"
-              mat-icon-button
+              matIconButton
               (click)="resetSelectedTxns()"
               [matBadge]="baseTable.selection.selected.length"
               [matBadgeHidden]="!baseTable.selection.hasValue()">
@@ -170,7 +171,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
                 (isClosed$ | async) || (isActionHeaderDisabled$ | async)
               "
               [class.d-none]="!canMakeSelections()"
-              mat-icon-button
+              matIconButton
               (click)="removeSelectedTxns()"
               [matBadge]="baseTable.selection.selected.length"
               [matBadgeHidden]="!baseTable.selection.hasValue()">
@@ -186,10 +187,10 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
           mat-cell
           *matCellDef="let row"
           [class.sticky-cell]="baseTable.isStickyColumn('actions')">
-          <div>
+          <div class="d-flex flex-nowrap gap-1">
             <button
               type="button"
-              mat-icon-button
+              matIconButton
               (click)="navigateToEditForm(row)"
               [disabled]="
                 (isClosed$ | async) || isEditDisabled(row, qSavingEdits())
@@ -198,7 +199,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
             </button>
             <button
               type="button"
-              mat-icon-button
+              matIconButton
               (click)="navigateToAuditForm(row)"
               [disabled]="
                 (false && (isClosed$ | async)) ||
@@ -209,7 +210,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
             </button>
             <button
               type="button"
-              mat-icon-button
+              matIconButton
               (click)="resetTxn(row)"
               [disabled]="
                 (isClosed$ | async) || isEditDisabled(row, qSavingEdits())
@@ -219,7 +220,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
             </button>
             <button
               type="button"
-              mat-icon-button
+              matIconButton
               (click)="removeTxn(row)"
               [disabled]="
                 (isClosed$ | async) || isEditDisabled(row, qSavingEdits())
@@ -245,7 +246,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
           mat-cell
           *matCellDef="let row"
           [class.sticky-cell]="baseTable.isStickyColumn('_hiddenValidation')">
-          <mat-chip-set>
+          <mat-chip-set class="validation-chips">
             @for (ch of row._hiddenValidation; track $index) {
               <mat-chip
                 [style.--mat-chip-elevated-container-color]="

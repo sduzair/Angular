@@ -123,11 +123,11 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
   ],
   template: `
     @let editForm = editForm$ | async;
-    <div class="container px-0 mb-5">
+    <div class="container-xl px-0 mb-5">
       <mat-toolbar class="justify-content-end px-0 gap-4 toolbar">
         <button
           type="button"
-          mat-icon-button
+          matIconButton
           (click)="navigateBack()"
           aria-label="Go back">
           <mat-icon>arrow_back</mat-icon>
@@ -139,12 +139,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
           <div class="d-flex align-items-center gap-2">
             <mat-chip
               color="accent"
-              class="d-flex align-items-center selected-chip">
-              <mat-icon>checklist</mat-icon>
+              class="d-flex align-items-center bulk-selections-chip">
+              <mat-icon matChipAvatar>checklist</mat-icon>
               <span class="fw-bold">{{ editType.payload.length }}</span>
-              <span class="text-muted">
-                transaction(s) selected for bulk edit
-              </span>
+              <span class="text-muted"> selected for bulk edit </span>
             </mat-chip>
           </div>
         }
@@ -231,7 +229,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
         }
       }
     </div>
-    <div class="container form-field-density px-0">
+    <div class="container-xl form-field-density px-0">
       @if (editForm) {
         <form
           [formGroup]="editForm"
@@ -246,7 +244,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
             <!-- Transaction Details Tab -->
             <mat-tab>
               <ng-template mat-tab-label>
-                <h3 class="mb-0">Transaction Details</h3>
+                <h5>Transaction Details</h5>
                 <mat-icon
                   class="error-icon mx-1"
                   [class.error-icon-show]="showTransactionDetailsErrorIcon"
@@ -295,7 +293,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="!this.isBulkEdit"
                           type="button"
                           appMarkAsCleared
-                          mat-icon-button
+                          matIconButton
                           matSuffix>
                           <mat-icon>backspace</mat-icon>
                         </button>
@@ -303,7 +301,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="!this.isBulkEdit"
                           type="button"
                           appToggleEditField
-                          mat-icon-button
+                          matIconButton
                           matSuffix>
                           <mat-icon>edit</mat-icon>
                         </button>
@@ -311,7 +309,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="this.isBulkEdit"
                           type="button"
                           appClearField
-                          mat-icon-button
+                          matIconButton
                           matSuffix>
                           <mat-icon>clear</mat-icon>
                         </button>
@@ -338,7 +336,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="!this.isBulkEdit"
                           type="button"
                           appMarkAsCleared
-                          mat-icon-button
+                          matIconButton
                           matSuffix>
                           <mat-icon>backspace</mat-icon>
                         </button>
@@ -346,7 +344,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="!this.isBulkEdit"
                           type="button"
                           appToggleEditField
-                          mat-icon-button
+                          matIconButton
                           matSuffix>
                           <mat-icon>edit</mat-icon>
                         </button>
@@ -354,7 +352,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="this.isBulkEdit"
                           type="button"
                           appClearField
-                          mat-icon-button
+                          matIconButton
                           matSuffix>
                           <mat-icon>clear</mat-icon>
                         </button>
@@ -363,7 +361,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                       <div class="col-xl-4 d-flex gap-2">
                         <mat-checkbox
                           formControlName="hasPostingDate"
-                          class="col-auto"
+                          class="col-auto mb-3"
                           data-testid="hasPostingDate">
                           Has Posting Date?
                         </mat-checkbox>
@@ -379,7 +377,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="!this.isBulkEdit"
                           type="button"
                           appToggleEditField="hasPostingDate"
-                          mat-icon-button
+                          matIconButton
                           matSuffix
                           class="col-auto">
                           <mat-icon>edit</mat-icon>
@@ -413,7 +411,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="this.isBulkEdit"
                           type="button"
                           appClearField
-                          mat-icon-button
+                          matIconButton
                           matSuffix>
                           <mat-icon>clear</mat-icon>
                         </button>
@@ -441,7 +439,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="this.isBulkEdit"
                           type="button"
                           appClearField
-                          mat-icon-button
+                          matIconButton
                           matSuffix>
                           <mat-icon>clear</mat-icon>
                         </button>
@@ -487,7 +485,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="!this.isBulkEdit"
                           type="button"
                           appMarkAsCleared
-                          mat-icon-button
+                          matIconButton
                           matSuffix>
                           <mat-icon>backspace</mat-icon>
                         </button>
@@ -495,7 +493,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="!this.isBulkEdit"
                           type="button"
                           appToggleEditField
-                          mat-icon-button
+                          matIconButton
                           matSuffix>
                           <mat-icon>edit</mat-icon>
                         </button>
@@ -503,7 +501,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="this.isBulkEdit"
                           type="button"
                           appClearField
-                          mat-icon-button
+                          matIconButton
                           matSuffix>
                           <mat-icon>clear</mat-icon>
                         </button>
@@ -531,7 +529,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="!this.isBulkEdit"
                           type="button"
                           appMarkAsCleared
-                          mat-icon-button
+                          matIconButton
                           matSuffix>
                           <mat-icon>backspace</mat-icon>
                         </button>
@@ -539,7 +537,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="this.isBulkEdit"
                           type="button"
                           appClearField
-                          mat-icon-button
+                          matIconButton
                           matSuffix>
                           <mat-icon>clear</mat-icon>
                         </button>
@@ -550,7 +548,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                       <div class="col-12 col-xl-4 d-flex gap-2">
                         <mat-checkbox
                           formControlName="wasTxnAttempted"
-                          class="col-auto"
+                          class="col-auto mb-3"
                           data-testid="wasTxnAttempted">
                           Was Transaction Attempted?
                         </mat-checkbox>
@@ -566,7 +564,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="!this.isBulkEdit"
                           type="button"
                           appToggleEditField="wasTxnAttempted"
-                          mat-icon-button
+                          matIconButton
                           matSuffix
                           class="col-auto">
                           <mat-icon>edit</mat-icon>
@@ -595,7 +593,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="this.isBulkEdit"
                           type="button"
                           appClearField
-                          mat-icon-button
+                          matIconButton
                           matSuffix>
                           <mat-icon>clear</mat-icon>
                         </button>
@@ -621,7 +619,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="!this.isBulkEdit"
                           type="button"
                           appMarkAsCleared
-                          mat-icon-button
+                          matIconButton
                           matSuffix>
                           <mat-icon>backspace</mat-icon>
                         </button>
@@ -629,7 +627,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="!this.isBulkEdit"
                           type="button"
                           appToggleEditField
-                          mat-icon-button
+                          matIconButton
                           matSuffix>
                           <mat-icon>edit</mat-icon>
                         </button>
@@ -637,7 +635,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="this.isBulkEdit"
                           type="button"
                           appClearField
-                          mat-icon-button
+                          matIconButton
                           matSuffix>
                           <mat-icon>clear</mat-icon>
                         </button>
@@ -665,7 +663,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="!this.isBulkEdit"
                           type="button"
                           appMarkAsCleared
-                          mat-icon-button
+                          matIconButton
                           matSuffix>
                           <mat-icon>backspace</mat-icon>
                         </button>
@@ -673,7 +671,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="!this.isBulkEdit"
                           type="button"
                           appToggleEditField
-                          mat-icon-button
+                          matIconButton
                           matSuffix>
                           <mat-icon>edit</mat-icon>
                         </button>
@@ -681,7 +679,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           [disabled]="this.isBulkEdit"
                           type="button"
                           appClearField
-                          mat-icon-button
+                          matIconButton
                           matSuffix>
                           <mat-icon>clear</mat-icon>
                         </button>
@@ -723,7 +721,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
             <!-- Starting Actions Tab -->
             <mat-tab>
               <ng-template mat-tab-label>
-                <h3 class="mb-0">Starting Actions</h3>
+                <h5>Starting Actions</h5>
                 <mat-icon
                   class="error-icon mx-1"
                   [class.error-icon-show]="showStartingActionsErrorIcon"
@@ -761,20 +759,22 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                   ) {
                     <div [formGroupName]="saIndex">
                       <mat-expansion-panel [expanded]="true">
-                        <mat-expansion-panel-header class="my-3">
+                        <mat-expansion-panel-header>
                           <mat-panel-title
                             class="d-flex align-items-center gap-2">
-                            <h1>Starting Action #{{ saIndex + 1 }}</h1>
-                            <span class="mat-h1 mb-0 text-break">
-                              ({{
-                                saAction.controls.amount.value ?? 0
-                                  | currency
-                                    : saAction.controls.currency.value ?? ''
-                              }})
-                            </span>
+                            <h3>
+                              Starting Action #{{ saIndex + 1 }}
+                              <span class="mb-0 text-break">
+                                ({{
+                                  saAction.controls.amount.value ?? 0
+                                    | currency
+                                      : saAction.controls.currency.value ?? ''
+                                }})
+                              </span>
+                            </h3>
                             <button
                               type="button"
-                              mat-icon-button
+                              matIconButton
                               [class.invisible]="this.isAudit"
                               [attr.data-testid]="
                                 'startingActions-' + saIndex + '-remove'
@@ -832,7 +832,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -840,7 +840,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -848,7 +848,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -900,7 +900,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -908,7 +908,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -916,7 +916,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -968,7 +968,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -976,7 +976,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -1013,7 +1013,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -1021,7 +1021,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -1029,7 +1029,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -1081,7 +1081,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -1089,7 +1089,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -1097,7 +1097,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -1134,7 +1134,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -1142,7 +1142,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -1150,7 +1150,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -1200,7 +1200,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -1208,7 +1208,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -1216,7 +1216,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -1246,7 +1246,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -1254,7 +1254,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -1262,7 +1262,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -1318,7 +1318,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -1326,7 +1326,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -1334,7 +1334,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -1372,7 +1372,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -1380,7 +1380,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -1434,7 +1434,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -1442,7 +1442,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -1450,7 +1450,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -1502,7 +1502,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -1510,7 +1510,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -1518,7 +1518,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -1561,7 +1561,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -1569,7 +1569,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -1577,7 +1577,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -1619,7 +1619,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -1627,7 +1627,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -1635,7 +1635,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -1672,7 +1672,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -1680,7 +1680,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -1688,7 +1688,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -1696,7 +1696,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           </mat-form-field>
                         </div>
                         <!-- Account Holders Section -->
-                        <h2 class="d-flex align-items-center gap-2">
+                        <h4 class="d-flex align-items-center gap-2">
                           Account Holders
                           @if (
                             isArrayFieldChanged(
@@ -1709,11 +1709,11 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               edit
                             </mat-icon>
                           }
-                        </h2>
+                        </h4>
 
                         <div class="row">
                           <mat-checkbox
-                            class="col"
+                            class="col-auto mb-3"
                             formControlName="hasAccountHolders"
                             [attr.data-testid]="
                               'startingActions-' +
@@ -1726,7 +1726,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                             [disabled]="!this.isBulkEdit"
                             type="button"
                             appToggleEditField="hasAccountHolders"
-                            mat-icon-button
+                            matIconButton
                             matSuffix>
                             <mat-icon>edit</mat-icon>
                           </button>
@@ -1751,15 +1751,15 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               appEntitySync
                               class="w-100">
                               <mat-expansion-panel [expanded]="true">
-                                <mat-expansion-panel-header class="my-2">
+                                <mat-expansion-panel-header>
                                   <mat-panel-title
                                     class="d-flex align-items-center gap-2"
-                                    ><h3>
+                                    ><h5>
                                       Account Holder #{{ holderIndex + 1 }}
-                                    </h3>
+                                    </h5>
                                     <button
                                       type="button"
-                                      mat-icon-button
+                                      matIconButton
                                       [class.invisible]="this.isAudit"
                                       [attr.data-testid]="
                                         'startingActions-' +
@@ -1803,7 +1803,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -1828,7 +1828,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -1866,7 +1866,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -1891,7 +1891,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -1916,7 +1916,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -1941,7 +1941,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -1970,7 +1970,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           </button>
                         </div>
                         <!-- Source of Funds Section -->
-                        <h2 class="d-flex align-items-center gap-2">
+                        <h4 class="d-flex align-items-center gap-2">
                           Source of Funds
                           @if (
                             isArrayFieldChanged(
@@ -1983,10 +1983,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               edit
                             </mat-icon>
                           }
-                        </h2>
+                        </h4>
                         <div class="row">
                           <mat-checkbox
-                            class="col"
+                            class="col-auto mb-3"
                             formControlName="wasSofInfoObtained"
                             [attr.data-testid]="
                               'startingActions-' +
@@ -1999,7 +1999,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                             [disabled]="!this.isBulkEdit"
                             type="button"
                             appToggleEditField="wasSofInfoObtained"
-                            mat-icon-button
+                            matIconButton
                             matSuffix>
                             <mat-icon>edit</mat-icon>
                           </button>
@@ -2022,15 +2022,15 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               appEntitySync
                               class="w-100">
                               <mat-expansion-panel [expanded]="true">
-                                <mat-expansion-panel-header class="my-2">
+                                <mat-expansion-panel-header>
                                   <mat-panel-title
                                     class="d-flex align-items-center gap-2"
-                                    ><h3>
+                                    ><h5>
                                       Source of Funds #{{ fundsIndex + 1 }}
-                                    </h3>
+                                    </h5>
                                     <button
                                       type="button"
-                                      mat-icon-button
+                                      matIconButton
                                       [class.invisible]="this.isAudit"
                                       [attr.data-testid]="
                                         'startingActions-' +
@@ -2070,7 +2070,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -2095,7 +2095,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -2133,7 +2133,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -2158,7 +2158,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -2183,7 +2183,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -2208,7 +2208,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -2232,7 +2232,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -2256,7 +2256,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -2283,7 +2283,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           </button>
                         </div>
                         <!-- Conductors Section -->
-                        <h2 class="d-flex align-items-center gap-2">
+                        <h4 class="d-flex align-items-center gap-2">
                           Conductors
                           @if (
                             isArrayFieldChanged(
@@ -2296,10 +2296,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               edit
                             </mat-icon>
                           }
-                        </h2>
+                        </h4>
                         <div class="row">
                           <mat-checkbox
-                            class="col"
+                            class="col-auto mb-3"
                             formControlName="wasCondInfoObtained"
                             [attr.data-testid]="
                               'startingActions-' +
@@ -2312,7 +2312,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                             [disabled]="!this.isBulkEdit"
                             type="button"
                             appToggleEditField="wasCondInfoObtained"
-                            mat-icon-button
+                            matIconButton
                             matSuffix>
                             <mat-icon>edit</mat-icon>
                           </button>
@@ -2337,13 +2337,13 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               appEntitySync
                               class="w-100">
                               <mat-expansion-panel [expanded]="true">
-                                <mat-expansion-panel-header class="my-2">
+                                <mat-expansion-panel-header>
                                   <mat-panel-title
                                     class="d-flex align-items-center gap-2"
-                                    ><h3>Conductor #{{ condIndex + 1 }}</h3>
+                                    ><h5>Conductor #{{ condIndex + 1 }}</h5>
                                     <button
                                       type="button"
-                                      mat-icon-button
+                                      matIconButton
                                       [class.invisible]="this.isAudit"
                                       [attr.data-testid]="
                                         'startingActions-' +
@@ -2384,7 +2384,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -2409,7 +2409,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -2447,7 +2447,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -2472,7 +2472,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -2497,7 +2497,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -2522,7 +2522,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -2532,7 +2532,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                   </mat-form-field>
                                 </div>
                                 <!-- On Behalf Of Subsection -->
-                                <h3 class="d-flex align-items-center gap-2">
+                                <h5 class="d-flex align-items-center gap-2">
                                   On Behalf Of
                                   @if (
                                     isArrayFieldChanged(
@@ -2549,9 +2549,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       edit
                                     </mat-icon>
                                   }
-                                </h3>
+                                </h5>
                                 <div class="row">
                                   <mat-checkbox
+                                    class="col-auto mb-3"
                                     formControlName="wasConductedOnBehalf"
                                     [attr.data-testid]="
                                       'startingActions-' +
@@ -2587,18 +2588,17 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                       appEntitySync
                                       class="w-100">
                                       <mat-expansion-panel [expanded]="true">
-                                        <mat-expansion-panel-header
-                                          class="my-2">
+                                        <mat-expansion-panel-header>
                                           <mat-panel-title
                                             class="d-flex align-items-center gap-2"
-                                            ><h3>
+                                            ><h5>
                                               On Behalf Of #{{
                                                 behalfIndex + 1
                                               }}
-                                            </h3>
+                                            </h5>
                                             <button
                                               type="button"
-                                              mat-icon-button
+                                              matIconButton
                                               [class.invisible]="this.isAudit"
                                               [attr.data-testid]="
                                                 'startingActions-' +
@@ -2650,7 +2650,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                             <button
                                               type="button"
                                               appClearField
-                                              mat-icon-button
+                                              matIconButton
                                               matSuffix>
                                               <mat-icon>clear</mat-icon>
                                             </button>
@@ -2677,7 +2677,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                             <button
                                               type="button"
                                               appClearField
-                                              mat-icon-button
+                                              matIconButton
                                               matSuffix>
                                               <mat-icon>clear</mat-icon>
                                             </button>
@@ -2721,7 +2721,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                             <button
                                               type="button"
                                               appClearField
-                                              mat-icon-button
+                                              matIconButton
                                               matSuffix>
                                               <mat-icon>clear</mat-icon>
                                             </button>
@@ -2750,7 +2750,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                             <button
                                               type="button"
                                               appClearField
-                                              mat-icon-button
+                                              matIconButton
                                               matSuffix>
                                               <mat-icon>clear</mat-icon>
                                             </button>
@@ -2779,7 +2779,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                             <button
                                               type="button"
                                               appClearField
-                                              mat-icon-button
+                                              matIconButton
                                               matSuffix>
                                               <mat-icon>clear</mat-icon>
                                             </button>
@@ -2808,7 +2808,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                             <button
                                               type="button"
                                               appClearField
-                                              mat-icon-button
+                                              matIconButton
                                               matSuffix>
                                               <mat-icon>clear</mat-icon>
                                             </button>
@@ -2860,7 +2860,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
 
             <mat-tab>
               <ng-template mat-tab-label>
-                <h3 class="mb-0">Completing Actions</h3>
+                <h5>Completing Actions</h5>
                 <mat-icon
                   class="error-icon mx-1"
                   [class.error-icon-show]="showCompletingActionsErrorIcon"
@@ -2898,24 +2898,26 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                   ) {
                     <div [formGroupName]="caIndex">
                       <mat-expansion-panel [expanded]="true">
-                        <mat-expansion-panel-header class="my-3">
+                        <mat-expansion-panel-header>
                           <mat-panel-title
                             class="d-flex align-items-center gap-2"
-                            ><h1>Completing Action #{{ caIndex + 1 }}</h1>
-                            <span class="mat-h1 mb-0 text-break">
-                              ({{
-                                caAction.controls.amount.value ?? 0
-                                  | currency
-                                    : caAction.controls.currency.value ?? ''
-                              }})
-                            </span>
+                            ><h3>
+                              Completing Action #{{ caIndex + 1 }}
+                              <span class="mb-0 text-break">
+                                ({{
+                                  caAction.controls.amount.value ?? 0
+                                    | currency
+                                      : caAction.controls.currency.value ?? ''
+                                }})
+                              </span>
+                            </h3>
                             <button
                               type="button"
                               [class.invisible]="this.isAudit"
                               [attr.data-testid]="
                                 'completingActions-' + caIndex + '-remove'
                               "
-                              mat-icon-button
+                              matIconButton
                               (click)="removeCompletingAction(caIndex)">
                               <mat-icon>delete</mat-icon>
                             </button>
@@ -2972,7 +2974,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -2980,7 +2982,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -2988,7 +2990,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -3030,7 +3032,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -3038,7 +3040,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -3075,7 +3077,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -3083,7 +3085,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -3091,7 +3093,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -3143,7 +3145,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -3151,7 +3153,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -3159,7 +3161,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -3194,7 +3196,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -3202,7 +3204,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -3210,7 +3212,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -3243,7 +3245,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -3251,7 +3253,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -3259,7 +3261,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -3296,7 +3298,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -3304,7 +3306,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -3312,7 +3314,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -3362,7 +3364,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -3370,7 +3372,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -3378,7 +3380,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -3408,7 +3410,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -3416,7 +3418,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -3424,7 +3426,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -3480,7 +3482,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -3488,7 +3490,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -3496,7 +3498,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -3536,7 +3538,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -3544,7 +3546,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -3600,7 +3602,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -3608,7 +3610,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -3616,7 +3618,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -3670,7 +3672,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -3678,7 +3680,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -3686,7 +3688,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -3729,7 +3731,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -3737,7 +3739,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -3745,7 +3747,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -3789,7 +3791,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appMarkAsCleared
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>backspace</mat-icon>
                             </button>
@@ -3797,7 +3799,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="!this.isBulkEdit"
                               type="button"
                               appToggleEditField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>edit</mat-icon>
                             </button>
@@ -3805,7 +3807,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               [disabled]="this.isBulkEdit"
                               type="button"
                               appClearField
-                              mat-icon-button
+                              matIconButton
                               matSuffix>
                               <mat-icon>clear</mat-icon>
                             </button>
@@ -3813,7 +3815,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           </mat-form-field>
                         </div>
                         <!-- Account Holders Section -->
-                        <h2 class="d-flex align-items-center gap-2">
+                        <h4 class="d-flex align-items-center gap-2">
                           Account Holders
                           @if (
                             isArrayFieldChanged(
@@ -3828,10 +3830,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               edit
                             </mat-icon>
                           }
-                        </h2>
+                        </h4>
                         <div class="row">
                           <mat-checkbox
-                            class="col"
+                            class="col-auto mb-3"
                             formControlName="hasAccountHolders"
                             [attr.data-testid]="
                               'completingActions-' +
@@ -3844,7 +3846,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                             [disabled]="!this.isBulkEdit"
                             type="button"
                             appToggleEditField="hasAccountHolders"
-                            mat-icon-button
+                            matIconButton
                             matSuffix>
                             <mat-icon>edit</mat-icon>
                           </button>
@@ -3871,15 +3873,15 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               appEntitySync
                               class="w-100">
                               <mat-expansion-panel [expanded]="true">
-                                <mat-expansion-panel-header class="my-2">
+                                <mat-expansion-panel-header>
                                   <mat-panel-title
                                     class="d-flex align-items-center gap-2"
-                                    ><h3>
+                                    ><h5>
                                       Account Holder #{{ holderIndex + 1 }}
-                                    </h3>
+                                    </h5>
                                     <button
                                       type="button"
-                                      mat-icon-button
+                                      matIconButton
                                       [class.invisible]="this.isAudit"
                                       [attr.data-testid]="
                                         'completingActions-' +
@@ -3923,7 +3925,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -3947,7 +3949,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -3985,7 +3987,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -4010,7 +4012,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -4035,7 +4037,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -4060,7 +4062,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -4089,7 +4091,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           </button>
                         </div>
                         <!-- Involved In Section -->
-                        <h2 class="d-flex align-items-center gap-2">
+                        <h4 class="d-flex align-items-center gap-2">
                           Other Involved Subjects
                           @if (
                             isArrayFieldChanged(
@@ -4102,10 +4104,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               edit
                             </mat-icon>
                           }
-                        </h2>
+                        </h4>
                         <div class="row">
                           <mat-checkbox
-                            class="col"
+                            class="col-auto mb-3"
                             formControlName="wasAnyOtherSubInvolved"
                             [attr.data-testid]="
                               'completingActions-' +
@@ -4118,7 +4120,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                             [disabled]="!this.isBulkEdit"
                             type="button"
                             appToggleEditField="wasAnyOtherSubInvolved"
-                            mat-icon-button
+                            matIconButton
                             matSuffix>
                             <mat-icon>edit</mat-icon>
                           </button>
@@ -4143,15 +4145,15 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               appEntitySync
                               class="w-100">
                               <mat-expansion-panel [expanded]="true">
-                                <mat-expansion-panel-header class="my-2">
+                                <mat-expansion-panel-header>
                                   <mat-panel-title
                                     class="d-flex align-items-center gap-2"
-                                    ><h3>
+                                    ><h5>
                                       Involved Subject #{{ invIndex + 1 }}
-                                    </h3>
+                                    </h5>
                                     <button
                                       type="button"
-                                      mat-icon-button
+                                      matIconButton
                                       [class.invisible]="this.isAudit"
                                       [attr.data-testid]="
                                         'completingActions-' +
@@ -4191,7 +4193,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -4215,7 +4217,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -4253,7 +4255,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -4278,7 +4280,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -4303,7 +4305,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -4328,7 +4330,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -4352,7 +4354,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -4376,7 +4378,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -4401,7 +4403,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                           </button>
                         </div>
                         <!-- Beneficiaries Section -->
-                        <h2 class="d-flex align-items-center gap-2">
+                        <h4 class="d-flex align-items-center gap-2">
                           Beneficiaries
                           @if (
                             isArrayFieldChanged(
@@ -4414,10 +4416,10 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               edit
                             </mat-icon>
                           }
-                        </h2>
+                        </h4>
                         <div class="row">
                           <mat-checkbox
-                            class="col"
+                            class="col-auto mb-3"
                             formControlName="wasBenInfoObtained"
                             [attr.data-testid]="
                               'completingActions-' +
@@ -4430,7 +4432,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                             [disabled]="!this.isBulkEdit"
                             type="button"
                             appToggleEditField="wasBenInfoObtained"
-                            mat-icon-button
+                            matIconButton
                             matSuffix>
                             <mat-icon>edit</mat-icon>
                           </button>
@@ -4456,13 +4458,13 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                               appEntitySync
                               class="w-100">
                               <mat-expansion-panel [expanded]="true">
-                                <mat-expansion-panel-header class="my-2">
+                                <mat-expansion-panel-header>
                                   <mat-panel-title
                                     class="d-flex align-items-center gap-2"
-                                    ><h3>Beneficiary #{{ benIndex + 1 }}</h3>
+                                    ><h5>Beneficiary #{{ benIndex + 1 }}</h5>
                                     <button
                                       type="button"
-                                      mat-icon-button
+                                      matIconButton
                                       [class.invisible]="this.isAudit"
                                       [attr.data-testid]="
                                         'completingActions-' +
@@ -4502,7 +4504,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -4526,7 +4528,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -4564,7 +4566,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -4589,7 +4591,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -4614,7 +4616,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>
@@ -4639,7 +4641,7 @@ export class PreemptiveErrorStateMatcher implements ErrorStateMatcher {
                                     <button
                                       type="button"
                                       appClearField
-                                      mat-icon-button
+                                      matIconButton
                                       matSuffix>
                                       <mat-icon>clear</mat-icon>
                                     </button>

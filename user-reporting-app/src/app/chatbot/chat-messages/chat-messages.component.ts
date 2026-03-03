@@ -26,29 +26,25 @@ import { ChatToolChipComponent } from '../chat-tool-chip/chat-tool-chip.componen
     @for (message of collapsedMessages(); track $index) {
       @switch (message.role) {
         @case ('user') {
-          <div class="d-flex justify-content-end mb-3">
-            <div
-              class="chat-message user rounded-3 py-2 px-3 shadow-sm"
-              style="max-width: 75%">
+          <div class="d-flex justify-content-end">
+            <div class="chat-message user shadow-sm" style="max-width: 75%">
               <p class="mb-0">{{ message.content }}</p>
             </div>
           </div>
         }
         @case ('assistant') {
           <div
-            class="d-flex gap-2 mb-3"
+            class="d-flex gap-1"
             [class.flex-column]="message.toolCalls.length > 0">
             @if (message.toolCalls.length > 0) {
-              <div class="flex-shrink-0 position-absolute">
-                <div
-                  class="assistant-avatar rounded-circle overflow-hidden"
-                  style="width: 40px; height: 40px">
-                  <mat-icon class="w-100 h-100">auto_awesome</mat-icon>
+              <div class="position-absolute">
+                <div class="assistant-avatar">
+                  <mat-icon>auto_awesome</mat-icon>
                 </div>
               </div>
               <div
-                class="d-flex flex-row flex-wrap gap-2 mb-2 ms-5 overflow-auto"
-                style="max-height: 400px; scrollbar-width: thin;">
+                class="d-flex flex-row flex-wrap gap-1 mb-1 ms-5 overflow-auto"
+                style="max-height: 300px; scrollbar-width: thin;">
                 @for (toolCall of message.toolCalls; track $index) {
                   <app-chat-tool-chip
                     [toolCall]="toolCall"
@@ -59,7 +55,7 @@ import { ChatToolChipComponent } from '../chat-tool-chip/chat-tool-chip.componen
             }
             @if (message.content) {
               <div
-                class="chat-message assistant rounded-3 py-2 px-3 shadow-sm"
+                class="chat-message assistant shadow-sm"
                 style="max-width: 75%">
                 <hb-render-message [message]="message" />
               </div>
@@ -68,8 +64,8 @@ import { ChatToolChipComponent } from '../chat-tool-chip/chat-tool-chip.componen
         }
         @case ('error') {
           <div
-            class="d-flex align-items-center gap-2 mb-3 p-3 bg-opacity-10 
-                    border border-danger border-opacity-25 rounded-3">
+            class="d-flex align-items-center gap-2 p-2 bg-opacity-10
+                  border border-danger border-opacity-25 rounded-3">
             <mat-icon color="error" class="flex-shrink-0">error</mat-icon>
             <span class="flex-grow-1">{{ message.content }}</span>
             @if ($last) {

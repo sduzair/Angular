@@ -1,14 +1,9 @@
 import { inject } from '@angular/core';
 import { createTool } from '@hashbrownai/angular';
 import { s } from '@hashbrownai/core';
-import { firstValueFrom, map } from 'rxjs';
-import {
-  CaseRecordStore,
-  StrTransactionChangeLogs,
-  StrTransactionWithChangeLogs,
-} from '../../aml/case-record.store';
+import { delay, firstValueFrom, map } from 'rxjs';
+import { CaseRecordStore } from '../../aml/case-record.store';
 import { AccountTransactionTotalsService } from '../../analytics/account-transaction-totals.service';
-import { VALIDATION_KEYS } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import { TransactionSearchService } from '../../transaction-search/transaction-search.service';
 import { hasDataIntegrity } from '../../reporting-ui/edit-form/common-validation';
 

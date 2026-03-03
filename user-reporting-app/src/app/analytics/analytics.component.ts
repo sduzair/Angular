@@ -126,7 +126,7 @@ import { TxnTypeBreakdownComponent } from './txn-type-breakdown/txn-type-breakdo
                         </strong>
                         <button
                           type="button"
-                          mat-icon-button
+                          matIconButton
                           aria-label="Threshold info"
                           [matTooltip]="
                             currData.belowThreshold +

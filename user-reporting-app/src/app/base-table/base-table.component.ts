@@ -2,6 +2,7 @@ import { ScrollingModule } from '@angular/cdk/scrolling';
 import { CommonModule, DatePipe } from '@angular/common';
 import {
   AfterContentInit,
+  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   ContentChildren,
@@ -9,7 +10,6 @@ import {
   OnInit,
   QueryList,
   TrackByFunction,
-  AfterViewInit,
 } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatAutocomplete } from '@angular/material/autocomplete';
@@ -173,12 +173,13 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                 Reset
               </button>
               <mat-button-toggle-group
+                [hideSingleSelectionIndicator]="true"
                 [formControl]="filterFormConjunctionControl">
                 <mat-button-toggle value="AND">AND</mat-button-toggle>
                 <mat-button-toggle value="OR">OR</mat-button-toggle>
               </mat-button-toggle-group>
               <div class="flex-fill"></div>
-              <button type="button" mat-icon-button (click)="drawer.toggle()">
+              <button type="button" matIconButton (click)="drawer.toggle()">
                 <mat-icon>close</mat-icon>
               </button>
             </mat-toolbar-row>
@@ -200,7 +201,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                   <button
                     type="button"
                     matSuffix
-                    mat-icon-button
+                    matIconButton
                     (click)="
                       this.filterFormGetFormControl(filterKey).reset(null)
                     ">
@@ -224,7 +225,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                   <button
                     type="button"
                     matSuffix
-                    mat-icon-button
+                    matIconButton
                     (click)="
                       this.filterFormGetFormControl(filterKey).reset(null)
                     ">
@@ -252,7 +253,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                   <button
                     type="button"
                     matSuffix
-                    mat-icon-button
+                    matIconButton
                     (click)="
                       this.filterFormGetFormControl(filterKey).reset(null)
                     ">
@@ -266,7 +267,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                   <mat-label>{{
                     this.displayedColumnsTransform(filterKey)
                   }}</mat-label>
-                  <mat-chip-grid #chipGrid>
+                  <mat-chip-grid class="select-filter-chip-grid" #chipGrid>
                     @for (
                       option of this.selectFiltersOptionsSelected[filterKey]
                         | async;
@@ -350,7 +351,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                   <button
                     type="button"
                     matSuffix
-                    mat-icon-button
+                    matIconButton
                     (click)="
                       $event.stopPropagation();
                       this.filterFormGetFormControl(filterKey).reset(null);
@@ -363,7 +364,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
               @if (filterKey === this.filterFormHighlightSelectFilterKey) {
                 <div class="col mb-3">
                   <mat-button-toggle-group
-                    class="px-0 w-100 justify-content-center"
+                    class="select-color-box px-0 w-100 justify-content-center"
                     [formControlName]="this.filterFormHighlightSelectFilterKey">
                     @for (
                       option of Object.entries(filterFormHighlightMap);

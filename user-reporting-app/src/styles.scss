@@ -1,5 +1,10 @@
 @use '@angular/material' as mat;
 @use './styles_theme-colors.scss' as my-theme;
+@use './styles_compact-overrides' as compact-overrides;
+
+html {
+  font-size: 13px;
+}
 
 html {
   @include mat.theme(
@@ -9,15 +14,26 @@ html {
         tertiary: my-theme.$tertiary-palette,
       ),
       typography: Roboto,
-      density: -3,
+      density: 0,
     )
   );
+  // zoom: 0.8; // note: breaks getBoundingClientRect() calc
 }
 
-// Include Angular Material core styles and typography
-// @include mat.core();
-$my-typography: mat.m2-define-typography-config();
-@include mat.typography-hierarchy($my-typography);
+@include compact-overrides.apply();
+
+html,
+body {
+  height: 100%;
+}
+
+html {
+  scrollbar-color: var(--mat-sys-outline-variant)
+    var(--mat-sys-surface-container-low);
+  scrollbar-width: thin;
+
+  --mat-select-panel-background-color: var(--mat-sys-surface);
+}
 
 .mat-success {
   @include mat.icon-overrides(
@@ -75,30 +91,11 @@ $my-typography: mat.m2-define-typography-config();
   );
 }
 
-mat-toolbar {
-  --mat-toolbar-standard-height: 64px;
-}
-
-html,
-body {
-  height: 100%;
-}
 body {
   margin: 0;
   font-family: Roboto, 'Helvetica Neue', sans-serif;
-}
-
-body {
   background-color: var(--mat-sys-background);
   color: var(--mat-sys-on-background);
-}
-
-html {
-  scrollbar-color: var(--mat-sys-outline-variant)
-    var(--mat-sys-surface-container-low);
-  scrollbar-width: thin;
-
-  --mat-select-panel-background-color: var(--mat-sys-surface);
 }
 
 /* Base skeleton block */
@@ -196,23 +193,6 @@ html {
 
 .upload-stepper-dialog {
   --mat-dialog-container-max-width: 70vw;
-}
-
-/* Ensure explicit height for ECharts */
-.h-400 {
-  height: 400px;
-}
-
-.h-500 {
-  height: 500px;
-}
-
-.h-800 {
-  height: 800px;
-}
-
-.h-900 {
-  height: 900px;
 }
 
 .mat-mdc-snack-bar-label {

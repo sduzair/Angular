@@ -34,7 +34,7 @@ import {
   MatFormFieldDefaultOptions,
   MatFormFieldModule,
 } from '@angular/material/form-field';
-import { MatIcon } from '@angular/material/icon';
+import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatSelectModule } from '@angular/material/select';
@@ -71,6 +71,7 @@ import { AuthService } from '../auth.service';
 import { setError } from '../form-helpers';
 import { PreemptiveErrorStateMatcher } from '../reporting-ui/edit-form/edit-form.component';
 import { SnackbarQueueService } from '../snackbar-queue.service';
+import { getEntityFullName } from '../transaction-view/transform-to-str-transaction/entity-gen.service';
 import {
   AccountNumberData,
   AccountNumberSelectableTableComponent,
@@ -89,7 +90,6 @@ import {
   TransactionSearchResponse,
   TransactionSearchService,
 } from './transaction-search.service';
-import { getEntityFullName } from '../transaction-view/transform-to-str-transaction/entity-gen.service';
 
 const AMLID_TEST = '99999999';
 
@@ -107,7 +107,7 @@ const AMLID_TEST = '99999999';
     ReviewPeriodDateDirective,
     MatListModule,
     MatCardModule,
-    MatIcon,
+    MatIconModule,
     MatToolbarModule,
     SourceRefreshSelectableTableComponent,
     ProductTypeSelectableTableComponent,
@@ -115,14 +115,15 @@ const AMLID_TEST = '99999999';
     PartyKeySelectableTableComponent,
   ],
   template: `
-    <div class="transaction-search container my-1 px-0 my-1">
-      <div class="row row-cols-1 gap-3 px-3 pb-3">
-        <mat-toolbar class="col">
+    <div class="transaction-search container-xl my-1 px-0 my-1">
+      <div class="row row-cols-1 gap-3 px-5 pb-3">
+        <mat-toolbar class="col mb-2">
           <span>Transaction Search</span>
           <div class="flex-fill"></div>
           <button
             type="button"
             mat-flat-button
+            matSuffix
             (click)="onSearch()"
             [disabled]="
               isSourceRefreshTimeLoading ||
@@ -137,9 +138,11 @@ const AMLID_TEST = '99999999';
         <form [formGroup]="searchParamsForm" class="search-form col">
           <div class="row">
             <!-- Search Form Section -->
-            <mat-toolbar-row class="col-12 flex-row gap-3 mb-5">
+            <mat-toolbar-row class="col-12 flex-row gap-3 mb-4">
               <!-- AML ID Input -->
-              <mat-form-field subscriptSizing="dynamic">
+              <mat-form-field
+                class="search-aml-input"
+                subscriptSizing="dynamic">
                 <mat-label>AML ID</mat-label>
                 <input
                   (keyup.enter)="onLoad()"
@@ -194,11 +197,7 @@ const AMLID_TEST = '99999999';
                 <span
                   class="d-flex align-items-center gap-1"
                   [class.d-none]="!lastUpdatedBy">
-                  <mat-icon
-                    color="accent"
-                    style="font-size: 20px; height: 20px; width: 20px;">
-                    person
-                  </mat-icon>
+                  <mat-icon color="accent"> person </mat-icon>
                   <span class="fw-medium text-secondary">Updated By:</span>
                   <span class="text-dark">{{ lastUpdatedBy }}</span>
                 </span>
@@ -208,11 +207,7 @@ const AMLID_TEST = '99999999';
                 <span
                   class="d-flex align-items-center gap-1"
                   [class.d-none]="!lastUpdated">
-                  <mat-icon
-                    color="accent"
-                    style="font-size: 20px; height: 20px; width: 20px;">
-                    schedule
-                  </mat-icon>
+                  <mat-icon color="accent"> schedule </mat-icon>
                   <span class="fw-medium text-secondary"> Last Updated: </span>
                   <span class="text-dark">
                     {{ lastUpdated | date: 'short' }}
@@ -286,8 +281,9 @@ const AMLID_TEST = '99999999';
                         </div>
                       </mat-card-subtitle>
                     </mat-card-header>
-                    <mat-card-content>
+                    <mat-card-content class="d-flex flex-column">
                       <app-party-key-selectable-table
+                        class="flex-fill overflow-auto"
                         formControlName="partyKeys"
                         [data]="(partyKeysData$ | async) || []"
                         [isLoading]="(isLoadingCaseRecord$ | async) || false">
@@ -322,8 +318,9 @@ const AMLID_TEST = '99999999';
                         </div>
                       </mat-card-subtitle>
                     </mat-card-header>
-                    <mat-card-content>
+                    <mat-card-content class="d-flex flex-column">
                       <app-account-number-selectable-table
+                        class="flex-fill overflow-auto"
                         formControlName="accountNumbers"
                         [data]="(accountNumbersData$ | async) || []"
                         [isLoading]="(isLoadingCaseRecord$ | async) || false">
@@ -358,8 +355,9 @@ const AMLID_TEST = '99999999';
                         </div>
                       </mat-card-subtitle>
                     </mat-card-header>
-                    <mat-card-content>
+                    <mat-card-content class="d-flex flex-column">
                       <app-product-type-selectable-table
+                        class="flex-fill overflow-auto"
                         formControlName="productTypes"
                         [isLoading]="(isLoadingCaseRecord$ | async) || false">
                       </app-product-type-selectable-table>
@@ -408,8 +406,10 @@ const AMLID_TEST = '99999999';
                         </div>
                       </mat-card-subtitle>
                     </mat-card-header>
-                    <mat-card-content>
-                      <div formArrayName="reviewPeriods">
+                    <mat-card-content class="d-flex flex-column">
+                      <div
+                        class="flex-fill overflow-auto"
+                        formArrayName="reviewPeriods">
                         <div>
                           @for (
                             period of searchParamsForm.controls.reviewPeriods
@@ -419,7 +419,7 @@ const AMLID_TEST = '99999999';
                           ) {
                             <div [formGroupName]="i">
                               <div
-                                class="row review-period-input mt-2 justify-content-evenly"
+                                class="row review-period-input mt-2 justify-content-evenly mx-0"
                                 [class.loading]="
                                   isSourceRefreshTimeLoading ||
                                   (isLoadingCaseRecord$ | async) ||
@@ -482,7 +482,7 @@ const AMLID_TEST = '99999999';
                                   class="col-1 px-0 d-flex align-items-center">
                                   <button
                                     type="button"
-                                    mat-icon-button
+                                    matIconButton
                                     color="warn"
                                     (click)="removeReviewPeriod(i)"
                                     [disabled]="
@@ -535,8 +535,9 @@ const AMLID_TEST = '99999999';
                   </mat-card-subtitle>
                 </mat-card-header>
 
-                <mat-card-content>
+                <mat-card-content class="d-flex flex-column">
                   <app-source-refresh-selectable-table
+                    class="flex-fill overflow-auto"
                     formControlName="sourceSystems"
                     [data]="(sourceRefreshTimeData$ | async) || []"
                     [isLoading]="

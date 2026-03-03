@@ -1,9 +1,4 @@
 @use '@angular/material' as mat;
-@use '../typography-scaling.scss' as typo;
-
-mat-form-field {
-  @include mat.form-field-density(-4);
-}
 
 ::ng-deep .start-end .mdc-evolution-chip-set__chips {
   display: flex;
@@ -19,8 +14,4 @@ mat-form-field {
 
 .risk-display {
   scrollbar-width: thin;
-}
-
-::ng-deep .account-select .mat-mdc-form-field-infix {
-  width: 200px;
 }

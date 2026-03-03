@@ -62,8 +62,6 @@ import { map, take, tap } from 'rxjs';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChatbotComponent {
-  private snackBar = inject(SnackbarQueueService);
-  private totalsService = inject(AccountTransactionTotalsService);
   readonly contentDiv =
     viewChild.required<ElementRef<HTMLDivElement>>('contentDiv');
   constructor() {
@@ -99,7 +97,7 @@ You are an AML narrative-writing assistant. Your task is to write a **Transactio
 
 **ACCOUNT NARRATIVE OPENER template**:
 
-> A review of <ownership descriptor> account **#<accountNo>** / <account currency> was conducted for the period(s) from **<review period ranges>**, and the following concerning activity was noted:
+> A review of <ownership descriptor> account **#<accountNo>** / <account currency> was conducted for the period(s) **<review period ranges>**, and the following concerning activity was noted:
 
 
 **ACCOUNT NARRATIVE OPENER placeholder definitions**:
@@ -109,7 +107,7 @@ You are an AML narrative-writing assistant. Your task is to write a **Transactio
   - If 2+ party keys: ownership descriptor is "joint ownership"
 - **<review period ranges>**: Format each range as "YYYY/MM/DD to YYYY/MM/DD"; if multiple ranges, join with ", and"
 
-3. Include two sections with bullets
+3. Include CREDITS and DEBITS sections containing a bullet point for each transaction type
 
 ##### CREDITS
 
@@ -224,12 +222,12 @@ Array<{
   });
 
   sendMessage(message: string): void {
-    // this.chat.sendMessage({ role: 'user', content: message });
-    this.totalsService
-      .getAccountTransactionTotals$()
-      .pipe(tap((val) => console.log(val)))
-      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
-      .subscribe();
+    this.chat.sendMessage({ role: 'user', content: message });
+    // this.totalsService
+    //   .getAccountTransactionTotals$()
+    //   .pipe(tap((val) => console.log(val)))
+    //   // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
+    //   .subscribe();
   }
 
   retryMessages() {

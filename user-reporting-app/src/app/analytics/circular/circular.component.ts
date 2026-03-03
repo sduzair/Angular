@@ -63,7 +63,8 @@ type ECOption = echarts.ComposeOption<
   imports: [],
   template: `
     <div
-      class="h-900 w-100 position-relative border rounded shadow-sm overflow-hidden">
+      style="height: 700px;"
+      class="w-100 position-relative border rounded shadow-sm overflow-hidden">
       <div #chartContainer class="w-100 h-100"></div>
     </div>
   `,
@@ -186,10 +187,19 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
         subtext:
           'Interactive directional funds flow with account ownership/relationships',
         left: 'left',
-        top: 10,
+        top: 6,
+        textStyle: {
+          fontSize: 14,
+          fontWeight: 600,
+        },
+        subtextStyle: {
+          fontSize: 11,
+        },
       },
       tooltip: {
         trigger: 'item',
+        padding: [6, 10],
+        textStyle: { fontSize: 12 },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         formatter: (params: any) => {
           if (params.dataType === 'node') {
@@ -220,9 +230,10 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
           orient: 'vertical',
           left: 'left',
           top: 'middle',
-          itemGap: 12,
-          itemWidth: 25,
-          itemHeight: 14,
+          itemGap: 10,
+          itemWidth: 22,
+          itemHeight: 12,
+          textStyle: { fontSize: 10 },
           formatter: (name: string) => {
             const categoryIndex = NODES.findIndex((c) => c.name === name);
             const count = nodes.filter(
@@ -237,27 +248,23 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
             { type: 'inverse', title: 'Invert' },
           ],
           selectorPosition: 'start',
-          selectorItemGap: 8,
-          selectorButtonGap: 15,
           selected: {
             [NODES[NODE_ENUM.Account].name]: false,
             [NODES[NODE_ENUM.FocalAccount].name]: false,
           },
 
-          // Style the selector buttons
           selectorLabel: {
             show: true,
             color: '#333',
-            fontSize: 12,
+            fontSize: 10,
             fontWeight: 500,
-            borderRadius: 4,
-            padding: [4, 8, 4, 8], // [top, right, bottom, left]
+            borderRadius: 3,
+            padding: [2, 5],
             backgroundColor: '#f0f0f0',
             borderColor: '#d0d0d0',
             borderWidth: 1,
           },
 
-          // Hover state
           emphasis: {
             selectorLabel: {
               color: '#fff',
@@ -279,6 +286,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
           label: {
             show: true,
             position: 'right',
+            fontSize: 11,
             formatter: (({ data }) => {
               const node = data as GraphNode;
 
@@ -291,7 +299,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
 
               return node.name;
             }) as LabelFormatter,
-            distance: 4,
+            distance: 3,
           },
           edgeSymbolSize: 15,
           lineStyle: {
@@ -301,7 +309,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
           emphasis: {
             focus: 'adjacency',
             lineStyle: {
-              width: 10,
+              width: 8,
             },
           },
           scaleLimit: {
@@ -869,9 +877,9 @@ type GraphNodeItemOption = Extract<
 
 export type DIRECTION_OF_SA = 'In' | 'Out';
 
-const SYMBOL_MIN_SIZE = 20;
-const SYMBOL_MAX_SIZE = 30;
-const SYMBOL_ACCOUNT_SIZE = 20;
+const SYMBOL_MIN_SIZE = 14;
+const SYMBOL_MAX_SIZE = 22;
+const SYMBOL_ACCOUNT_SIZE = 14;
 const LINK_OPACITY = 0.8;
 
 type LabelFormatter = Exclude<

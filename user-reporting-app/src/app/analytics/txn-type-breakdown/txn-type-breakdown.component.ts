@@ -63,7 +63,8 @@ type ECOption = echarts.ComposeOption<
   ],
   template: `
     <div
-      class="h-400 w-100 position-relative border rounded shadow-sm overflow-hidden">
+      style="height: 320px;"
+      class="w-100 position-relative border rounded shadow-sm overflow-hidden">
       <!-- Direction Toggle -->
       <mat-button-toggle-group
         class="direction-toggle float-end z-1 me-1 mt-1"
@@ -210,16 +211,17 @@ export class TxnTypeBreakdownComponent implements OnInit, OnChanges, OnDestroy {
     const option: ECOption = {
       title: {
         text: `Transaction Type Breakdown - ${mode === 'credits' ? 'Credits' : 'Debits'}`,
-        subtext:
-          mode === 'credits'
-            ? 'Incoming Funds by Type'
-            : 'Outgoing Funds by Type',
+        subtext: mode === 'credits' ? 'Incoming Funds' : 'Outgoing Funds',
         left: 'left',
-        top: 10,
+
+        top: 6,
+        textStyle: { fontSize: 14, fontWeight: 600 },
+        subtextStyle: { fontSize: 11 },
       },
       tooltip: {
         trigger: 'item',
         confine: true,
+        padding: [6, 10],
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         formatter: (params: any) => {
           const data = params.data as ChartData;
@@ -227,39 +229,62 @@ export class TxnTypeBreakdownComponent implements OnInit, OnChanges, OnDestroy {
           const isCredit = mode === 'credits';
           const color = isCredit ? '#22c55e' : '#ef4444';
 
-          let result = `<div style="font-size: 13px;">`;
-          result += `<strong>${params.name}</strong><br/>`;
-          result += `<span>Transit: ${this.account?.transit}</span><br/>`;
-          result += `<span>Account: ${this.account?.account}</span><br/>`;
-          result += '<hr style="margin: 4px 0; border-color: #ddd"/>';
+          let inner = `<strong>${params.name}</strong><br/>`;
+          inner += `<span>Transit: ${this.account?.transit}</span><br/>`;
+          inner += `<span>Account: ${this.account?.account}</span><br/>`;
+          inner += `<hr style="margin:3px 0; border-color:#ddd"/>`;
+          inner += `<span>Transactions: ${data.count.toLocaleString()}</span><br/>`;
+          inner += `<span style="color:${color}">${isCredit ? '↑ Credit' : '↓ Debit'}:</span> ${formatCurrencyLocal({ value: data.value, currencyCode: currency })}<br/>`;
 
-          result += `<span>Transactions: ${data.count.toLocaleString()}</span><br/>`;
-          result += `<span style="color: ${color};">${isCredit ? '↑ Credit' : '↓ Debit'}:</span> ${formatCurrencyLocal({ value: data.value, currencyCode: currency })}<br/>`;
-
-          result += `</div>`;
-          return result;
+          return `<div style="font-size:11px; line-height:1.5">${inner}</div>`;
         },
       },
       legend: {
         orient: 'vertical',
         left: 'left',
         top: 'middle',
-        itemGap: 15,
+        itemGap: 10,
+        itemWidth: 22,
+        itemHeight: 12,
+        textStyle: { fontSize: 10 },
         formatter: (name: string) => {
           const type = chartData.find((m) => m.name === name);
           if (!type) return name;
 
           return `${name}: ${formatCurrencyLocal({ value: type.value, currencyCode: this.account?.currency })}`;
         },
-        textStyle: {
-          fontSize: 13,
+
+        // selectors for show/hide all
+        // selector: [
+        //   { type: 'all', title: 'All' },
+        //   { type: 'inverse', title: 'Invert' },
+        // ],
+        selectorPosition: 'start',
+
+        selectorLabel: {
+          show: true,
+          color: '#333',
+          fontSize: 10,
+          fontWeight: 500,
+          borderRadius: 3,
+          padding: [2, 5],
+          backgroundColor: '#f0f0f0',
+          borderColor: '#d0d0d0',
+          borderWidth: 1,
+        },
+        emphasis: {
+          selectorLabel: {
+            color: '#fff',
+            backgroundColor: '#5470c6',
+            borderColor: '#5470c6',
+          },
         },
       },
       series: [
         {
           name: 'Transaction Types',
           type: 'pie',
-          radius: ['45%', '70%'],
+          radius: ['40%', '65%'],
           center: ['60%', '50%'],
           data: chartData.map((type) => ({
             name: type.name,
@@ -273,14 +298,14 @@ export class TxnTypeBreakdownComponent implements OnInit, OnChanges, OnDestroy {
           })),
           emphasis: {
             itemStyle: {
-              shadowBlur: 15,
+              shadowBlur: 10,
               shadowOffsetX: 0,
-              shadowColor: 'rgba(0, 0, 0, 0.3)',
-              borderWidth: 3,
+              shadowColor: 'rgba(0,0,0,0.25)',
+              borderWidth: 2,
             },
             label: {
               show: true,
-              fontSize: 16,
+              fontSize: 13,
               fontWeight: 'bold',
             },
           },
@@ -293,14 +318,14 @@ export class TxnTypeBreakdownComponent implements OnInit, OnChanges, OnDestroy {
             },
             rich: {
               name: {
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: 'bold',
                 color: '#333',
               },
               value: {
-                fontSize: 11,
+                fontSize: 10,
                 color: '#666',
-                padding: [3, 0, 0, 0],
+                padding: [2, 0, 0, 0],
               },
               percent: {
                 fontSize: 10,
@@ -310,8 +335,8 @@ export class TxnTypeBreakdownComponent implements OnInit, OnChanges, OnDestroy {
           },
           labelLine: {
             show: true,
-            length: 15,
-            length2: 10,
+            length: 10,
+            length2: 7,
             smooth: true,
           },
           animationType: 'scale',
@@ -329,7 +354,7 @@ export class TxnTypeBreakdownComponent implements OnInit, OnChanges, OnDestroy {
             text: mode === 'credits' ? 'Total Credits' : 'Total Debits',
             align: 'center',
             fill: '#999',
-            fontSize: 13,
+            fontSize: 11,
           },
         },
         {
@@ -340,14 +365,14 @@ export class TxnTypeBreakdownComponent implements OnInit, OnChanges, OnDestroy {
             text: `${formatCurrencyLocal({ value: totalValue, currencyCode: this.account?.currency })}`,
             align: 'center',
             fill: mode === 'credits' ? '#52c41a' : '#f5222d',
-            fontSize: 22,
+            fontSize: 18,
             fontWeight: 'bold',
           },
         },
         {
           type: 'text',
           right: '3%',
-          top: '56%',
+          top: '57%',
           style: {
             text: `${chartData.reduce((sum, d) => sum + d.count, 0)} txns`,
             align: 'center',

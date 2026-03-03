@@ -10,7 +10,7 @@ import {
   ViewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
+import { MatButtonModule, MatIconButton } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSidenavModule } from '@angular/material/sidenav';
@@ -48,11 +48,12 @@ import { NavTreeService } from './nav-tree.service';
     MatTreeModule,
     MatIconModule,
     MatButtonModule,
+    MatIconButton,
     MatTreeNodePadding,
     MatDialogModule,
   ],
   template: `
-    <mat-sidenav-container class="d-flex flex-column">
+    <mat-sidenav-container class="d-flex flex-column h-100">
       <mat-sidenav
         mode="side"
         opened
@@ -62,8 +63,9 @@ import { NavTreeService } from './nav-tree.service';
         <mat-toolbar class="px-3 mb-2 border-bottom justify-content-between">
           <span>Poacher UI</span>
           <button
+          class="logout-btn"
             type="button"
-            mat-icon-button
+            matIconButton
             (click)="onLogout()"
             matTooltip="Logout"
             aria-label="Logout">
@@ -85,7 +87,7 @@ import { NavTreeService } from './nav-tree.service';
               class="d-flex align-items-center w-100 p-1 rounded app-hover-bg">
               <button
                 type="button"
-                mat-icon-button
+                matIconButton
                 matTreeNodeToggle
                 [attr.aria-label]="'Toggle ' + node.name">
                 <mat-icon>
@@ -104,7 +106,7 @@ import { NavTreeService } from './nav-tree.service';
               @if (isAmlNode(node)) {
                 <button
                   type="button"
-                  mat-icon-button
+                  matIconButton
                   class="ms-auto"
                   [attr.aria-label]="'Close ' + node.name"
                   (click)="onRemoveAmlCase($event, node)">
@@ -133,7 +135,7 @@ import { NavTreeService } from './nav-tree.service';
         </mat-tree>
       </mat-sidenav>
 
-      <mat-sidenav-content class="vh-100">
+      <mat-sidenav-content class="overflow-y-scroll">
         <router-outlet></router-outlet>
       </mat-sidenav-content>
     </mat-sidenav-container>

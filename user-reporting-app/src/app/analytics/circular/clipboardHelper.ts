@@ -229,134 +229,99 @@ function aggregateCurrencyTotals({
  * Format display data as HTML
  */
 export function formatNodeDataAsHtml(data: NodeDisplayData): string {
-  let html = `<strong>${data.title}</strong><br/>`;
-  html += `<span style="font-size: 13px;">Type: ${data.categoryName}</span><br/>`;
-  if (data.transit)
-    html += `<span style="font-size: 13px;">Transit: ${data.transit}</span><br/>`;
-  if (data.account)
-    html += `<span style="font-size: 13px;">Account: ${data.account}</span><br/>`;
+  let inner = `<strong>${data.title}</strong><br/>`;
+  inner += `<span>Type: ${data.categoryName}</span><br/>`;
 
-  // Entity Info Section (subjects only)
+  if (data.transit) inner += `<span>Transit: ${data.transit}</span><br/>`;
+  if (data.account) inner += `<span>Account: ${data.account}</span><br/>`;
+
   if (data.entityInfo) {
-    // Entity Name - title
+    const {
+      accountNumber,
+      transitNumber,
+      currency,
+      fiNumber,
+      accountName,
+      partyKey,
+      certapayAccount,
+      cardNumber,
+      email,
+      phone,
+      mobile,
+      handleUsed,
+      rawAddress,
+      street,
+      city,
+      provinceState,
+      postalCode,
+      country,
+    } = data.entityInfo;
 
-    // Entity Account
-    const { accountNumber, transitNumber, currency, fiNumber, accountName } =
-      data.entityInfo ?? {};
     if (accountNumber) {
-      html += `<span style="font-size: 13px;">Acct #: ${accountNumber}`;
-      if (transitNumber) html += ` (Transit: ${transitNumber})`;
-      if (currency) html += ` [${currency}]`;
-      html += `</span><br/>`;
+      inner += `<span>Acct #: ${accountNumber}`;
+      if (transitNumber) inner += ` (Transit: ${transitNumber})`;
+      if (currency) inner += ` [${currency}]`;
+      inner += `</span><br/>`;
     }
-    if (fiNumber)
-      html += `<span style="font-size: 13px;">FI: ${fiNumber}</span><br/>`;
-    if (accountName)
-      html += `<span style="font-size: 13px;">Acct Name: ${accountName}</span><br/>`;
-
-    // Entity Identifiers
-    const { partyKey, certapayAccount, cardNumber } = data.entityInfo ?? {};
-    if (partyKey)
-      html += `<span style="font-size: 13px;">Entity Key: ${partyKey}</span><br/>`;
+    if (fiNumber) inner += `<span>FI: ${fiNumber}</span><br/>`;
+    if (accountName) inner += `<span>Acct Name: ${accountName}</span><br/>`;
+    if (partyKey) inner += `<span>Entity Key: ${partyKey}</span><br/>`;
     if (certapayAccount)
-      html += `<span style="font-size: 13px;">Certapay: ${certapayAccount}</span><br/>`;
-    // if (msgTag50)
-    //   html += `<span style="font-size: 13px;">Tag 50: ${msgTag50}</span><br/>`;
-    // if (msgTag59)
-    //   html += `<span style="font-size: 13px;">Tag 59: ${msgTag59}</span><br/>`;
-    if (cardNumber)
-      html += `<span style="font-size: 13px;">Card: ${cardNumber}</span><br/>`;
-
-    // Entity Contact
-    const { email, phone, mobile, handleUsed } = data.entityInfo ?? {};
-    if (email)
-      html += `<span style="font-size: 13px;">Email: ${email}</span><br/>`;
-    if (phone)
-      html += `<span style="font-size: 13px;">Phone: ${phone}</span><br/>`;
-    if (mobile)
-      html += `<span style="font-size: 13px;">Mobile: ${mobile}</span><br/>`;
-    if (handleUsed)
-      html += `<span style="font-size: 13px;">Handle: ${handleUsed}</span><br/>`;
-
-    // Entity Address
-    const { rawAddress, street, city, provinceState, postalCode, country } =
-      data.entityInfo ?? {};
+      inner += `<span>Certapay: ${certapayAccount}</span><br/>`;
+    if (cardNumber) inner += `<span>Card: ${cardNumber}</span><br/>`;
+    if (email) inner += `<span>Email: ${email}</span><br/>`;
+    if (phone) inner += `<span>Phone: ${phone}</span><br/>`;
+    if (mobile) inner += `<span>Mobile: ${mobile}</span><br/>`;
+    if (handleUsed) inner += `<span>Handle: ${handleUsed}</span><br/>`;
 
     if (rawAddress) {
-      html += `<span style="font-size: 13px;">Address: ${rawAddress}</span><br/>`;
+      inner += `<span>Address: ${rawAddress}</span><br/>`;
     } else {
-      const addressParts = [
-        street,
-        city,
-        provinceState,
-        postalCode,
-        country,
-      ].filter(Boolean);
-      if (addressParts.length > 0)
-        html += `<span style="font-size: 13px;">Address: ${addressParts.join(', ')}</span><br/>`;
+      const parts = [street, city, provinceState, postalCode, country].filter(
+        Boolean,
+      );
+      if (parts.length)
+        inner += `<span>Address: ${parts.join(', ')}</span><br/>`;
     }
   }
 
   if (data.currencyTotals) {
     const { receivedByCurrency, sentByCurrency } = data.currencyTotals;
-
     if (receivedByCurrency.length > 0 || sentByCurrency.length > 0) {
-      html += `<hr style="margin: 4px 0"/>`;
-      html += `<strong>Summary:</strong><br/>`;
-    }
-
-    // Display received currency totals
-    if (receivedByCurrency.length > 0) {
-      receivedByCurrency.forEach((currencyData) => {
-        html += `<span style="font-size: 13px; color: #52c41a;">`;
-        html += `  ← Received: ${currencyData.amount}`;
-        html += ` (${currencyData.count} tx)`;
-        html += `</span><br/>`;
-      });
-    }
-
-    // Display sent currency totals
-    if (sentByCurrency.length > 0) {
-      sentByCurrency.forEach((currencyData) => {
-        html += `<span style="font-size: 13px; color: #f5222d;">`;
-        html += `  → Sent: ${currencyData.amount}`;
-        html += ` (${currencyData.count} tx)`;
-        html += `</span><br/>`;
-      });
+      inner += `<hr style="margin:4px 0"/>`;
+      inner += `<strong>Summary</strong><br/>`;
+      receivedByCurrency.forEach(
+        ({ amount, count }) =>
+          (inner += `<span style="color:#52c41a">← Received: ${amount} (${count} tx)</span><br/>`),
+      );
+      sentByCurrency.forEach(
+        ({ amount, count }) =>
+          (inner += `<span style="color:#f5222d">→ Sent: ${amount} (${count} tx)</span><br/>`),
+      );
     }
   }
 
-  if (data.currencyTotalsByTxnType && data.currencyTotalsByTxnType.length > 0) {
-    html += `<hr style="margin: 6px 0; border-color: #ddd"/>`;
-    html += `<strong>Transaction Type Breakdown:</strong><br/>`;
-
-    data.currencyTotalsByTxnType.forEach((typeData) => {
-      html += `<div style="margin-top: 6px; padding-left: 8px; border-left: 2px solid #e8e8e8;">`;
-      html += `<strong style="font-size: 13px; color: #333;">${typeData.txnType}</strong><br/>`;
-
-      if (typeData.receivedByCurrency.length > 0) {
-        typeData.receivedByCurrency.forEach((currencyData) => {
-          html += `<span style="font-size: 13px; color: #52c41a;">`;
-          html += `  ← Received: ${currencyData.amount}`;
-          html += ` (${currencyData.count} tx)`;
-          html += `</span><br/>`;
-        });
-      }
-
-      if (typeData.sentByCurrency.length > 0) {
-        typeData.sentByCurrency.forEach((currencyData) => {
-          html += `<span style="font-size: 13px; color: #f5222d;">`;
-          html += `  → Sent: ${currencyData.amount}`;
-          html += ` (${currencyData.count} tx)`;
-          html += `</span><br/>`;
-        });
-      }
-
-      html += `</div>`;
-    });
+  if (data.currencyTotalsByTxnType?.length) {
+    inner += `<hr style="margin:4px 0; border-color:#ddd"/>`;
+    inner += `<strong>By Transaction Type</strong><br/>`;
+    data.currencyTotalsByTxnType.forEach(
+      ({ txnType, receivedByCurrency, sentByCurrency }) => {
+        inner += `<div style="margin-top:3px; padding-left:6px; border-left:2px solid #e8e8e8">`;
+        inner += `<span>${txnType}</span><br/>`;
+        receivedByCurrency.forEach(
+          ({ amount, count }) =>
+            (inner += `<span style="color:#52c41a">← Received: ${amount} (${count} tx)</span><br/>`),
+        );
+        sentByCurrency.forEach(
+          ({ amount, count }) =>
+            (inner += `<span style="color:#f5222d">→ Sent: ${amount} (${count} tx)</span><br/>`),
+        );
+        inner += `</div>`;
+      },
+    );
   }
 
-  return html;
+  return `<div style="font-size:11px; line-height:1.5">${inner}</div>`;
 }
 
 /**

@@ -1,4 +1,4 @@
-@mixin typography-scaling($scale-factor: 1) {
+@mixin apply($scale-factor: 1) {
   & {
     // Set the scale factor
     --scale-factor: #{$scale-factor};

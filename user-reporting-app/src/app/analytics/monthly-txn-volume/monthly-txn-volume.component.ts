@@ -60,7 +60,8 @@ type ECOption = echarts.ComposeOption<
   imports: [],
   template: `
     <div
-      class="h-500 w-100 position-relative border rounded shadow-sm overflow-hidden">
+      style="height: 380px;"
+      class="w-100 position-relative border rounded shadow-sm overflow-hidden">
       <div #chartContainer class="w-100 h-100"></div>
     </div>
   `,
@@ -165,74 +166,70 @@ export class MonthlyTxnVolumeComponent
         text: 'Monthly Transaction Volume',
         subtext: 'Incoming vs. Outgoing Funds for Account',
         left: 'center',
-        top: 10,
+        top: 6,
+        textStyle: { fontSize: 14, fontWeight: 600 },
+        subtextStyle: { fontSize: 11 },
       },
       tooltip: {
         trigger: 'axis',
         axisPointer: {
           type: 'shadow',
         },
+        padding: [6, 10],
         confine: true,
         formatter: (params: ToolTipFormatterParams) => {
           if (!Array.isArray(params)) return '';
 
           const month = 'axisValue' in params[0] ? params[0].axisValue : null;
-
-          let credit = 0;
-          let debit = 0;
+          let credit = 0,
+            debit = 0;
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          params.forEach((item: any) => {
+          (params as any[]).forEach((item) => {
             const match = item.seriesName.match(/^(.+) \((CR|DB)\)$/);
             if (!match) return;
-
-            const type = match[2];
-            if (type === 'CR') {
-              credit = item.value;
-            } else {
-              debit = Math.abs(item.value);
-            }
+            if (match[2] === 'CR') credit = item.value;
+            else debit = Math.abs(item.value);
           });
 
           const currency = this.account!.currency;
+          let inner = `<strong>${month}</strong><br/>`;
+          inner += `<span>Transit: ${this.account?.transit}</span><br/>`;
+          inner += `<span>Account: ${this.account?.account}</span><br/>`;
+          inner += `<hr style="margin:3px 0; border-color:#ddd"/>`;
 
-          let result = `<div style="font-size: 13px;">`;
-          result += `<strong>${month}</strong><br/>`;
-          result += `<span>Transit: ${this.account?.transit}</span><br/>`;
-          result += `<span>Account: ${this.account?.account}</span><br/>`;
-          result += '<hr style="margin: 4px 0; border-color: #ddd"/>';
-
-          if (credit > 0) {
-            result += `<span style="color: #22c55e;">↑ Credit:</span> ${formatCurrencyLocal({ value: credit, currencyCode: currency })}<br/>`;
-          }
-          if (debit > 0) {
-            result += `<span style="color: #ef4444;">↓ Debit:</span> ${formatCurrencyLocal({ value: debit, currencyCode: currency })}<br/>`;
-          }
+          if (credit > 0)
+            inner += `<span style="color:#22c55e">↑ Credit:</span> ${formatCurrencyLocal({ value: credit, currencyCode: currency })}<br/>`;
+          if (debit > 0)
+            inner += `<span style="color:#ef4444">↓ Debit:</span> ${formatCurrencyLocal({ value: debit, currencyCode: currency })}<br/>`;
 
           if (credit > 0 && debit > 0) {
-            const netFlow = credit - debit;
-            const netColor = netFlow >= 0 ? '#22c55e' : '#ef4444';
-            const netLabel = netFlow >= 0 ? 'Inflow' : 'Outflow';
-
-            result += '<hr style="margin: 4px 0; border-color: #ddd"/>';
-            result += `<strong style="color: ${netColor};">${netLabel}:</strong> ${formatCurrencyLocal({ value: Math.abs(netFlow), currencyCode: currency })}`;
+            const net = credit - debit;
+            const color = net >= 0 ? '#22c55e' : '#ef4444';
+            const label = net >= 0 ? 'Net Inflow' : 'Net Outflow';
+            inner += `<hr style="margin:3px 0; border-color:#ddd"/>`;
+            inner += `<strong style="color:${color}">${label}:</strong> ${formatCurrencyLocal({ value: Math.abs(net), currencyCode: currency })}`;
           }
 
-          result += `</div>`;
-          return result;
+          // font-size once, all children inherit
+          return `<div style="font-size:11px; line-height:1.5">${inner}</div>`;
         },
       },
       legend: {
         data: series.map((s) => s.name as string),
-        top: 60,
-        type: 'scroll', // Allow scrolling if too many accounts
+        top: 48,
+        itemGap: 10,
+        itemWidth: 22,
+        itemHeight: 12,
+        textStyle: { fontSize: 10 },
+        type: 'scroll',
         pageButtonPosition: 'end',
       },
       grid: {
         left: '3%',
         right: '4%',
-        bottom: 80,
-        top: 120,
+        bottom: 60,
+        top: 100,
         outerBoundsMode: 'same',
         outerBoundsContain: 'axisLabel',
       },
@@ -241,6 +238,23 @@ export class MonthlyTxnVolumeComponent
         data: monthlyData.map((d) => d.month),
         axisLabel: {
           rotate: 45,
+          fontSize: 11,
+        },
+      },
+      yAxis: {
+        type: 'value',
+        axisLabel: {
+          fontSize: 11,
+          formatter: (value: number) => {
+            const absVal = Math.abs(value);
+            const sign = value >= 0 ? '' : '-';
+            return `${sign}$${(absVal / 1000).toFixed(0)}k`;
+          },
+        },
+        splitLine: {
+          lineStyle: {
+            type: 'dashed',
+          },
         },
       },
       dataZoom: [
@@ -249,9 +263,9 @@ export class MonthlyTxnVolumeComponent
           xAxisIndex: 0,
           start: 0,
           end: 100,
-          height: 25, // Slider height
-          bottom: 10, // Position from bottom
-          handleSize: '110%', // Handle size
+          height: 20,
+          bottom: 8,
+          handleSize: '100%',
           handleStyle: {
             color: '#5470c6',
           },
@@ -279,21 +293,7 @@ export class MonthlyTxnVolumeComponent
           throttle: 100,
         },
       ],
-      yAxis: {
-        type: 'value',
-        axisLabel: {
-          formatter: (value: number) => {
-            const absVal = Math.abs(value);
-            const sign = value >= 0 ? '' : '-';
-            return `${sign}$${(absVal / 1000).toFixed(0)}k`;
-          },
-        },
-        splitLine: {
-          lineStyle: {
-            type: 'dashed',
-          },
-        },
-      },
+
       series: series,
     };
 

@@ -6,9 +6,10 @@ import {
   inject,
   OnInit,
 } from '@angular/core';
+import { toObservable } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
-import { MatChip } from '@angular/material/chips';
-import { MatIcon } from '@angular/material/icon';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatIcon, MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -24,11 +25,10 @@ import {
 import { format, parse } from 'date-fns';
 import { filter, map, Observable, startWith } from 'rxjs';
 import { Breadcrumb } from '../app.routes';
+import { AuthService } from '../auth.service';
 import { ChatbotComponent } from '../chatbot/chatbot.component';
 import { NavTreeService } from '../nav-layout/nav-tree.service';
 import { CaseRecordStore, ReviewPeriod } from './case-record.store';
-import { AuthService } from '../auth.service';
-import { toObservable } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'app-aml',
@@ -36,16 +36,16 @@ import { toObservable } from '@angular/core/rxjs-interop';
     CommonModule,
     RouterOutlet,
     MatToolbarModule,
-    MatChip,
+    MatChipsModule,
     MatProgressSpinner,
-    MatIcon,
     RouterModule,
     MatSidenavModule,
     MatButtonModule,
+    MatIconModule,
     ChatbotComponent,
   ],
   template: `
-    <div class="container-fluid px-0 overflow-y-scroll overflow-x-hidden h-100">
+    <div class="container-fluid px-0 h-100">
       <div class="row row-cols-1 mx-0 sticky-top">
         <mat-toolbar class="col">
           <mat-toolbar-row class="header-toolbar-row px-0">
@@ -83,14 +83,14 @@ import { toObservable } from '@angular/core/rxjs-interop';
               @if (isClosed$ | async) {
                 @if (closedBy$ | async; as closedBy) {
                   <mat-chip color="accent" class="info-chip">
-                    <mat-icon>lock_person</mat-icon>
+                    <mat-icon matChipAvatar>lock_person</mat-icon>
                     Closed by: {{ closedBy }}
                   </mat-chip>
                 }
               } @else {
                 @if (lastUpdatedBy$ | async; as updatedBy) {
                   <mat-chip color="accent" class="info-chip">
-                    <mat-icon>edit</mat-icon>
+                    <mat-icon matChipAvatar>edit</mat-icon>
                     By: {{ updatedBy }}
                   </mat-chip>
                 }
@@ -112,7 +112,7 @@ import { toObservable } from '@angular/core/rxjs-interop';
               <!-- Status -->
               @if (amlCaseStatus$ | async; as status) {
                 <mat-chip color="accent" class="info-chip">
-                  <mat-icon>label_important_outline</mat-icon>
+                  <mat-icon matChipAvatar>label_important_outline</mat-icon>
                   {{ status }}
                 </mat-chip>
               }
@@ -120,7 +120,7 @@ import { toObservable } from '@angular/core/rxjs-interop';
               <!-- Role -->
               @if (role$ | async; as role) {
                 <mat-chip color="accent" class="info-chip">
-                  <mat-icon>shield</mat-icon>
+                  <mat-icon matChipAvatar>shield</mat-icon>
                   {{ role }}
                 </mat-chip>
               }
@@ -128,14 +128,14 @@ import { toObservable } from '@angular/core/rxjs-interop';
               <!-- Username -->
               @if (username$ | async; as username) {
                 <mat-chip color="accent" class="info-chip">
-                  <mat-icon>person</mat-icon>
+                  <mat-icon matChipAvatar>person</mat-icon>
                   You: {{ username }}
                 </mat-chip>
               }
 
               <!-- Selections Count -->
               <mat-chip color="accent" class="info-chip">
-                <mat-icon>checklist</mat-icon>
+                <mat-icon matChipAvatar>checklist</mat-icon>
                 @if (counts$ | async; as counts) {
                   <span>
                     {{ counts.selectionCount }}
@@ -153,7 +153,7 @@ import { toObservable } from '@angular/core/rxjs-interop';
               @if (reviewPeriods$ | async; as periods) {
                 @for (period of periods; track period.start) {
                   <mat-chip color="accent" class="info-chip">
-                    <mat-icon>date_range</mat-icon>
+                    <mat-icon matChipAvatar>date_range</mat-icon>
                     {{ formatReviewPeriod(period) }}
                   </mat-chip>
                 }
@@ -166,7 +166,9 @@ import { toObservable } from '@angular/core/rxjs-interop';
                 color="accent"
                 selected="true"
                 class="last-updated-chip info-chip">
-                <mat-icon class="last-updated-chip-spinner">lock</mat-icon>
+                <mat-icon matChipAvatar class="last-updated-chip-spinner"
+                  >lock</mat-icon
+                >
                 Closed: {{ closedAt$ | async | date: 'short' }}
               </mat-chip>
             } @else {
@@ -181,7 +183,9 @@ import { toObservable } from '@angular/core/rxjs-interop';
                     class="last-updated-chip-spinner">
                   </mat-progress-spinner>
                 } @else {
-                  <mat-icon class="last-updated-chip-spinner">update</mat-icon>
+                  <mat-icon matChipAvatar class="last-updated-chip-spinner"
+                    >update</mat-icon
+                  >
                 }
                 Last Updated: {{ lastUpdated$ | async | date: 'short' }}
               </mat-chip>
@@ -193,7 +197,7 @@ import { toObservable } from '@angular/core/rxjs-interop';
         <mat-drawer
           position="end"
           #drawer
-          class="shadow-lg border my-5 chatbot-drawer">
+          class="border my-5 chatbot-drawer">
           <app-chatbot />
         </mat-drawer>
         <mat-drawer-content class="overflow-hidden">
@@ -206,11 +210,12 @@ import { toObservable } from '@angular/core/rxjs-interop';
       </mat-drawer-container>
       <button
         type="button"
-        mat-fab
+        matFab
+        extended
         color="primary"
-        class="position-fixed end-0 bottom-0 me-4 mb-4 z-3"
+        class="position-fixed z-3 ai-btn px-3"
         (click)="drawer.toggle()">
-        <mat-icon>auto_awesome</mat-icon>
+        <mat-icon class="mx-0">auto_awesome</mat-icon>
       </button>
     </div>
   `,
