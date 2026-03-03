@@ -1,6 +1,6 @@
 @use '@angular/material' as mat;
-@use './styles_theme-colors.scss' as my-theme;
-@use './styles_compact-overrides' as compact-overrides;
+@use './_theme-colors.scss' as my-theme;
+@use './_compact-overrides' as compact-overrides;
 
 html {
   font-size: 13px;
@@ -207,4 +207,28 @@ html {
     --mat-snack-bar-container-shape,
     var(--mat-sys-corner-extra-small)
   );
+}
+
+// Opacity levels to generate
+$bg-opacities: (10, 25, 50, 75, 100);
+
+// Map of token name -> CSS variable
+$bg-tokens: (
+  'primary': --mat-sys-primary,
+  'secondary': --mat-sys-secondary,
+  'tertiary': --mat-sys-tertiary,
+  'primary-container': --mat-sys-primary-container,
+  'secondary-container': --mat-sys-secondary-container,
+  'surface': --mat-sys-surface,
+  'surface-variant': --mat-sys-surface-variant,
+);
+
+@each $name, $token in $bg-tokens {
+  @each $opacity in $bg-opacities {
+    .bg-#{$name}-#{$opacity} {
+      background-color: rgb(
+        from var(#{$token}) r g b / #{calc($opacity / 100)}
+      ) !important;
+    }
+  }
 }

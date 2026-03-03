@@ -1,5 +1,5 @@
 @use '@angular/material' as mat;
-@use '../../styles_typography-scaling.scss' as typography-scaling;
+@use '../../_typography-scaling.scss' as typography-scaling;
 
 mat-sidenav-container {
   @include mat.sidenav-overrides(
@@ -23,8 +23,8 @@ mat-sidenav-container {
 
   @include mat.toolbar-overrides(
     (
-      container-background-color: var(--mat-sys-primary-fixed),
-      container-text-color: var(--mat-sys-on-primary-fixed),
+      container-background-color: var(--mat-sys-primary),
+      container-text-color: var(--mat-sys-on-primary),
       title-text-font: var(--mat-sys-headline-small-font),
       title-text-line-height: var(--mat-sys-headline-small-line-height),
       title-text-size: var(--mat-sys-headline-small-size),
@@ -67,4 +67,12 @@ mat-tree-node a {
   width: 22px !important;
   height: 22px !important;
   line-height: 22px !important;
+  --mat-icon-color: var(--mat-sys-on-primary);
+}
+
+mat-icon.node-icon {
+  color: var(
+    --mat-chip-with-icon-icon-color,
+    var(--mat-sys-on-surface-variant)
+  );
 }

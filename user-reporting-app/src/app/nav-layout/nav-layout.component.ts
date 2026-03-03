@@ -95,7 +95,7 @@ import { NavTreeService } from './nav-tree.service';
                 </mat-icon>
               </button>
 
-              <mat-icon class="me-2">
+              <mat-icon class="node-icon me-2">
                 {{ node.matIcon }}
               </mat-icon>
 
@@ -125,7 +125,7 @@ import { NavTreeService } from './nav-tree.service';
               routerLinkActive="app-hover-bg-active"
               class="d-flex align-items-center w-100 p-1 rounded app-hover-bg text-decoration-none transition-base"
               style="cursor: pointer;">
-              <mat-icon class="me-2">
+              <mat-icon class="node-icon me-2">
                 {{ node.matIcon }}
               </mat-icon>
 

@@ -85,13 +85,15 @@ button.ai-btn {
 
   @include mat.fab-overrides(
     (
+      container-color: var(--mat-sys-primary),
+      foreground-color: var(--mat-sys-on-primary),
       // Height
       extended-container-height: 50px,
 
       // Touch-target: match container
       touch-target-size: 50px,
       small-touch-target-size: 50px,
-      touch-target-display: none
+      touch-target-display: none,
     )
   );
 

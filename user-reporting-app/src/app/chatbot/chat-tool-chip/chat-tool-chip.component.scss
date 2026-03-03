@@ -10,21 +10,23 @@ mat-chip {
 
   // Pending: secondary-container palette
   &.pending {
-    --mat-chip-elevated-container-color: var(--mat-sys-secondary-container);
-    --mat-chip-label-text-color: var(--mat-sys-on-secondary-container);
+    --mat-chip-elevated-container-color: rgb(
+      from var(--mat-sys-primary) r g b / 0.45
+    );
+    --mat-chip-label-text-color: var(--mat-sys-on-primary);
 
     mat-spinner ::ng-deep circle {
-      stroke: var(--mat-sys-on-secondary-container);
+      stroke: var(--mat-sys-on-primary);
     }
   }
 
   // Done: tertiary-container palette
   &.done {
-    --mat-chip-elevated-container-color: var(--mat-sys-tertiary-container);
-    --mat-chip-label-text-color: var(--mat-sys-on-tertiary-container);
+    --mat-chip-elevated-container-color: var(--mat-sys-primary);
+    --mat-chip-label-text-color: var(--mat-sys-on-primary);
 
     mat-icon {
-      color: var(--mat-sys-on-tertiary-container);
+      color: var(--mat-sys-on-primary);
       font-size: 12px !important;
       width: 12px !important;
       height: 12px !important;

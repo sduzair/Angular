@@ -9,7 +9,7 @@ import { Chat } from '@hashbrownai/core';
   imports: [MatProgressSpinnerModule, MatIconModule, MatChipsModule],
   template: `
     @if (toolCall().status === 'pending') {
-      <mat-chip class="pending border-0">
+      <mat-chip class="pending border-0 bg-primary-50">
         <mat-spinner diameter="12" class="flex-shrink-0"></mat-spinner>
         <span class="text-nowrap">{{ pending() }}</span>
       </mat-chip>

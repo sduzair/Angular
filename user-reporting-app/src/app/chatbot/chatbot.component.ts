@@ -3,15 +3,12 @@ import {
   Component,
   effect,
   ElementRef,
-  inject,
   viewChild,
 } from '@angular/core';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { exposeComponent, uiChatResource } from '@hashbrownai/angular';
 import { s } from '@hashbrownai/core';
 import { KnownModelIds } from '@hashbrownai/core/src/utils/llm';
-import { AccountTransactionTotalsService } from '../analytics/account-transaction-totals.service';
-import { SnackbarQueueService } from '../snackbar-queue.service';
 import { ChatComposerComponent } from './chat-composer/chat-composer.component';
 import { ChatLayoutComponent } from './chat-layout/chat-layout.component';
 import { ChatMessagesComponent } from './chat-messages/chat-messages.component';
@@ -23,7 +20,6 @@ import {
   getPartyKeysByAccount,
   getReviewPeriod,
 } from './tools/tools';
-import { map, take, tap } from 'rxjs';
 
 @Component({
   selector: 'app-chatbot',
@@ -42,7 +38,7 @@ import { map, take, tap } from 'rxjs';
         </div>
       }
       <app-chat-layout>
-        <div class="chat-messages" #contentDiv>
+        <div class="chat-messages overflow-y-scroll" #contentDiv>
           <app-chat-messages
             [messages]="chat.value()"
             (retry)="retryMessages()" />

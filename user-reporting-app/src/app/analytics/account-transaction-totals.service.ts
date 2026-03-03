@@ -103,10 +103,6 @@ export class AccountTransactionTotalsService {
           selectedTransactions,
           entities,
         ]) => {
-          console.log(
-            '🚀 ~ AccountTransactionTotalsService ~ getAccountTransactionTotals$ ~ transactionSelections:',
-            selectedTransactions,
-          );
           const focalSubjects = new Set(partyKeysSelection);
 
           if (selectedTransactions.some(hasManualTransaction)) return [];

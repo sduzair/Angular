@@ -15,6 +15,7 @@ export const getReviewPeriod = createTool({
   handler: () => {
     return firstValueFrom(
       inject(CaseRecordStore).state$.pipe(
+        delay(2000),
         map(
           ({ searchParams: { reviewPeriodSelection } }) =>
             reviewPeriodSelection,
@@ -65,6 +66,7 @@ export const checkDataIntegrity = createTool({
   handler: () => {
     return firstValueFrom(
       inject(CaseRecordStore).selectionsComputed$.pipe(
+        delay(2000),
         map(({ result: selections }) => selections.every(hasDataIntegrity)),
       ),
     );
