@@ -13,7 +13,7 @@ export class AppErrorHandlerService implements ErrorHandler {
       typeof error.error === 'object' &&
       'message' in error.error
     ) {
-      this.snackbarQ.open(error.error.message, 'Dismiss');
+      this.snackbarQ.open({ message: error.error.message, action: 'Dismiss' });
     } else if (
       error instanceof HttpErrorResponse &&
       error.error &&
@@ -22,29 +22,41 @@ export class AppErrorHandlerService implements ErrorHandler {
     ) {
       const msg: string = error.error.message;
 
-      this.snackbarQ.open(msg, 'Dismiss');
+      this.snackbarQ.open({ message: msg, action: 'Dismiss' });
     } else if (
       error instanceof HttpErrorResponse &&
       error.status === HttpStatusCode.Unauthorized
     ) {
-      this.snackbarQ.open(error.message, 'Dismiss');
+      this.snackbarQ.open({ message: error.message, action: 'Dismiss' });
     } else if (error instanceof HttpErrorResponse) {
       // Show detailed info for any HTTP error
       let msg: string =
         error.message || `HTTP Error ${error.status}: ${error.statusText}`;
 
-      this.snackbarQ.open(msg, 'Dismiss', {
-        duration: undefined,
+      this.snackbarQ.open({
+        message: msg,
+        action: 'Dismiss',
+        config: {
+          duration: undefined,
+        },
       });
     } else if (error instanceof Error) {
       console.error(error);
-      this.snackbarQ.open(error.message, 'Dismiss', {
-        duration: undefined,
+      this.snackbarQ.open({
+        message: error.message,
+        action: 'Dismiss',
+        config: {
+          duration: undefined,
+        },
       });
     } else {
       console.error(error);
-      this.snackbarQ.open('Some error occured!', 'Dismiss', {
-        duration: undefined,
+      this.snackbarQ.open({
+        message: 'Some error occured!',
+        action: 'Dismiss',
+        config: {
+          duration: undefined,
+        },
       });
     }
   }

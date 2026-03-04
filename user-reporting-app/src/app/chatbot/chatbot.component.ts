@@ -197,7 +197,7 @@ Array<{
 # Execute the task
 
 1) **Call '${checkDataIntegrity.name}()' first**
-   - If returns false: Display an error message to the user and STOP. Do not proceed to step 2.
+   - If returns false: Under suitable header of size #### display a failed integrity check message to the user and STOP. Do not proceed to step 2.
    - If returns true: Continue to step 2
 2) Follow '# Output structure' to produce the narrative.
 `,

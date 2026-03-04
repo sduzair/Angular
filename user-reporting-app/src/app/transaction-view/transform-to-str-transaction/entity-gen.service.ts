@@ -63,9 +63,10 @@ export class EntityGenService {
   private generateEntityHash<T extends EntityGenType>(
     entity: Omit<T, 'entityIdentifier'>,
   ): Observable<string> {
+    const stripped = this.stripHashIgnoredFields(entity);
     const hashInput = entity.partyKey?.trim()
       ? entity.partyKey.trim()
-      : this.canonicalizeJcs(entity);
+      : this.canonicalizeJcs(stripped);
     return this.computeSHA256(hashInput);
   }
 
@@ -97,6 +98,16 @@ export class EntityGenService {
         'Unable to canonicalize object for hashing (non-JSON value?)',
       );
     return s;
+  }
+
+  private stripHashIgnoredFields<T extends object>(
+    entity: T,
+  ): OmitPrefixed<T, typeof HASH_IGNORE_PREFIX> {
+    return Object.fromEntries(
+      Object.entries(entity).filter(
+        ([key]) => !key.startsWith(HASH_IGNORE_PREFIX),
+      ),
+    ) as OmitPrefixed<T, typeof HASH_IGNORE_PREFIX>;
   }
 
   private computeSHA256(input: string): Observable<string> {
@@ -177,7 +188,7 @@ export interface EntityGenType {
   phone?: string | null;
   handleUsed?: string | null;
   contactIdentifier?: string | null;
-  contactName?: string | null;
+  _ignore_contactName?: string | null;
 
   // Address
   street?: string | null;
@@ -188,3 +199,10 @@ export interface EntityGenType {
   country?: string | null;
   rawAddress?: string | null;
 }
+
+export const HASH_IGNORE_PREFIX = '_ignore_' as const;
+
+/** Omits all keys of T that start with prefix P. */
+type OmitPrefixed<T, P extends string> = {
+  [K in keyof T as K extends `${P}${string}` ? never : K]: T[K];
+};

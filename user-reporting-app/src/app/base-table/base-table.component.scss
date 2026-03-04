@@ -142,6 +142,10 @@ mat-chip-set.mat-mdc-chip-set.mdc-evolution-chip-set.filter-chips {
   pointer-events: unset;
 }
 
+::ng-deep .select-option .mdc-form-field.mat-internal-form-field {
+  gap: 0.5rem;
+}
+
 ::ng-deep
   .select-option.mat-mdc-option.mdc-list-item--disabled
   .mdc-list-item__primary-text {

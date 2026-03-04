@@ -682,7 +682,10 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
             );
 
             if (results.length - transformations.length > 0) {
-              this.snackBar.open('Some transformations have failed', 'Close');
+              this.snackBar.open({
+                message: 'Some transformations have failed',
+                action: 'Close',
+              });
             }
 
             this.saveProgress$.next({

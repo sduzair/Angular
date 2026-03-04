@@ -4852,13 +4852,13 @@ export class EditFormComponent
       .some((error) => EditFormComponent.obstructiveErrors.has(error));
 
     if (hasObstructiveErrors) {
-      this.snackbarQ.open(
-        'Please fix validation errors before saving',
-        'Dismiss',
-        {
+      this.snackbarQ.open({
+        message: 'Please fix validation errors before saving',
+        action: 'Dismiss',
+        config: {
           duration: 5000,
         },
-      );
+      });
       return;
     }
 
@@ -4873,8 +4873,12 @@ export class EditFormComponent
     );
 
     if (this.isSaved) {
-      this.snackbarQ.open('Edits already saved!', 'Dismiss', {
-        duration: 5000,
+      this.snackbarQ.open({
+        message: 'Edits already saved!',
+        action: 'Dismiss',
+        config: {
+          duration: 5000,
+        },
       });
       return;
     }

@@ -7,7 +7,6 @@ import {
   map,
   Observable,
   of,
-  shareReplay,
   switchMap,
   take,
 } from 'rxjs';
@@ -427,7 +426,7 @@ function createSubjectMetadata({
     }
 
     if (!isCibcFi(fiuNo)) {
-      const { contactName } = entity ?? {};
+      const { _ignore_contactName: contactName } = entity ?? {};
 
       const contactPhrase = contactName
         ? `with contact name ${contactName}`

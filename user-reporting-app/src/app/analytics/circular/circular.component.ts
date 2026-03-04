@@ -74,7 +74,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
   private snackbarQ = inject(SnackbarQueueService);
   @ViewChild('chartContainer', { static: true }) chartContainer!: ElementRef;
 
-  @Input({ required: true }) transactions: StrTransaction[] = [];
+  @Input({ required: true }) transactions!: StrTransaction[];
 
   @Input({ required: true })
   partyKeysSelection: string[] = [];
@@ -137,8 +137,12 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
         const copyText = getNodeDataTextToCopy(params.data as GraphNode);
         navigator.clipboard.writeText(copyText).then(
           () => {
-            this.snackbarQ.open('Copied to clipboard!', 'OK', {
-              duration: 1000,
+            this.snackbarQ.open({
+              message: 'Copied to clipboard!',
+              action: 'OK',
+              config: {
+                duration: 1000,
+              },
             });
           },
           (err) => {

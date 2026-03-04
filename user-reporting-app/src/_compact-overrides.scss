@@ -48,9 +48,9 @@
     (
       // Default containers: 16px
       container-size: 12px,
-      container-padding: 0 2px,
+      container-padding: 0 4px,
       container-offset: -8px 0,
-      container-overlap-offset: -8px,
+      container-overlap-offset: -5px,
 
       large-size-container-size: 12px,
       large-size-container-padding: 0 2px,
@@ -410,6 +410,12 @@
       container-shape: 4px
     )
   );
+  div.mat-mdc-snackbar-surface {
+    padding-right: 0px;
+  }
+  div.mdc-snackbar__label {
+    padding: 10px 10px 10px 16px;
+  }
 
   @include mat.stepper-overrides(
     (
@@ -462,6 +468,9 @@
   //     mobile-height: 32px
   //   )
   // );
+  .mat-mdc-tooltip-surface {
+    align-content: center;
+  }
 
   @include mat.tree-overrides(
     (

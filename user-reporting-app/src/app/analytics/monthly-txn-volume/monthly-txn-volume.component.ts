@@ -74,7 +74,7 @@ export class MonthlyTxnVolumeComponent
   private myChart: echarts.ECharts | undefined;
   private resizeObserver: ResizeObserver | undefined;
 
-  @Input({ required: true }) transactions: StrTransaction[] = [];
+  @Input({ required: true }) transactions!: StrTransaction[];
   @Input({ required: true }) account: {
     account: string;
     currency: string;

@@ -215,9 +215,10 @@ export class CaseRecordStore {
     this._conflict$
       .pipe(
         switchMap(() => {
-          this.snackBar.open(
-            'This record was updated by another user — retrieving remote changes.',
-          );
+          this.snackBar.open({
+            message:
+              'This record was updated by another user — retrieving remote changes.',
+          });
           return forkJoin([
             this.fetchCaseRecordByAmlId(this._state$.value.amlId),
             this.fetchSelectionsAndEntities(),

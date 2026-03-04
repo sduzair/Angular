@@ -122,7 +122,7 @@ export function transformOlbEmtToStrTransaction({
           generateEntity({
             certapayAccount: emtTxn.recipientCertapayAccount,
             email: emtTxn.recipientEmail,
-            contactName: emtTxn.contactName,
+            _ignore_contactName: emtTxn.contactName,
             ...parseEntityNameFromEmt(emtTxn.recipientName),
             fiNumber: emtTxn.recipientFi,
           });

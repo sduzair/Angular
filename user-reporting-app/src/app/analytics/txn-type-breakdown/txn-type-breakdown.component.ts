@@ -90,7 +90,7 @@ type ECOption = echarts.ComposeOption<
 export class TxnTypeBreakdownComponent implements OnInit, OnChanges, OnDestroy {
   @ViewChild('chartContainer', { static: true }) chartContainer!: ElementRef;
 
-  @Input({ required: true }) transactions: StrTransaction[] = [];
+  @Input({ required: true }) transactions!: StrTransaction[];
   @Input({ required: true }) account: {
     account: string;
     currency: string;

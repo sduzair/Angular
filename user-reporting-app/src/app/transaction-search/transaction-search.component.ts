@@ -933,7 +933,9 @@ export class TransactionSearchComponent implements OnInit {
       })
       .pipe(
         tap(() => {
-          this.snackbarQ.open('Saved changes to search parameters');
+          this.snackbarQ.open({
+            message: 'Saved changes to search parameters',
+          });
           this.searchParamsForm.controls.reviewPeriods.clear({
             emitEvent: false,
           });
@@ -1027,13 +1029,14 @@ export class TransactionSearchComponent implements OnInit {
 
   onSearch() {
     if (this.searchParamsForm.invalid) {
-      this.snackbarQ.open(
-        'Please enter valid transaction search filters before searching',
-        'Dismiss',
-        {
+      this.snackbarQ.open({
+        message:
+          'Please enter valid transaction search filters before searching',
+        action: 'Dismiss',
+        config: {
           duration: 5000,
         },
-      );
+      });
       return;
     }
     const {
@@ -1069,11 +1072,11 @@ export class TransactionSearchComponent implements OnInit {
         catchError((error) => {
           // Handle error and set error state
           this.isLoadingSearch$.next('fail');
-          this.snackbarQ.open(
-            'Transaction search failed. Please try again.',
-            'Dismiss',
-            { duration: 5000 },
-          );
+          this.snackbarQ.open({
+            message: 'Transaction search failed. Please try again.',
+            action: 'Dismiss',
+            config: { duration: 5000 },
+          });
           return EMPTY; // Complete the observable
         }),
         takeUntilDestroyed(this.destroyRef),
@@ -1139,11 +1142,11 @@ export class TransactionSearchComponent implements OnInit {
             this.searchParamsBefore.eTag = newETag;
           }
 
-          this.snackbarQ.open(
-            isClosed
+          this.snackbarQ.open({
+            message: isClosed
               ? 'Case closed successfully'
               : 'Case reopened successfully',
-          );
+          });
         }),
         catchError((error: HttpErrorResponse) => {
           this.errorHandler.handleError(error);
