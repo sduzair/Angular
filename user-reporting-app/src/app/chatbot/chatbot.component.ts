@@ -3,12 +3,14 @@ import {
   Component,
   effect,
   ElementRef,
+  inject,
   viewChild,
 } from '@angular/core';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { exposeComponent, uiChatResource } from '@hashbrownai/angular';
 import { s } from '@hashbrownai/core';
 import { KnownModelIds } from '@hashbrownai/core/src/utils/llm';
+import { AccountTransactionTotalsService } from '../analytics/account-transaction-totals.service';
 import { ChatComposerComponent } from './chat-composer/chat-composer.component';
 import { ChatLayoutComponent } from './chat-layout/chat-layout.component';
 import { ChatMessagesComponent } from './chat-messages/chat-messages.component';
@@ -20,6 +22,7 @@ import {
   getPartyKeysByAccount,
   getReviewPeriod,
 } from './tools/tools';
+import { tap } from 'rxjs';
 
 @Component({
   selector: 'app-chatbot',
@@ -82,8 +85,10 @@ You are an AML narrative-writing assistant. Your task is to write a **Transactio
 
 # Output structure (must follow exactly)
 
-> **Template conventions**
-> - **[ ]** denotes an optional segment — evaluate the inline condition to determine inclusion; omit entirely (including surrounding whitespace) if the condition is false
+> **Bullet Template Conventions**:
+> - **[if <cond> | <then>]** is a conditional content directive — if \`<cond>\` is true: replace the directive with \`<then>\` (omit square brackets); if false: omit entirely, including surrounding whitespace
+>   - e.g. \`hello [if x > 0 | world].\` → \`hello world.\` or \`hello.\`
+
 
 1. Write the heading '#### Transaction Activity'.
 
@@ -94,7 +99,6 @@ You are an AML narrative-writing assistant. Your task is to write a **Transactio
 **ACCOUNT NARRATIVE OPENER template**:
 
 > A review of <ownership descriptor> account **#<accountNo>** / <account currency> was conducted for the period(s) **<review period ranges>**, and the following concerning activity was noted:
-
 
 **ACCOUNT NARRATIVE OPENER placeholder definitions**:
 
@@ -111,9 +115,9 @@ Process the entry where "totalsType === 'credits'" for this account.
 
 For each transaction type in the 'totalsList' array, write **one** transaction totals bullet.
 
-**TRANSACTION TOTALS BULLET**:
+**TRANSACTION TOTALS BULLET template**:
 
-'- <transaction_type>: Total credits of <amount(s)> across <count> <date_phrase>[subjects.length > 0: from <sub_types_phrase>: <subject_list>].'
+- <transaction_type>: Total credits of <amount(s)> across <count> <date_phrase> [if subjects.length > 0 | from <sub_types_phrase>: <subject_list>].
 
 **TRANSACTION TOTALS BULLET placeholder definitions**:
 
@@ -149,9 +153,9 @@ Process the entry where "totalsType === 'debits'" for this account.
 
 For each transaction type in the 'totalsList' array, write **one** transaction totals bullet.
 
-**TRANSACTION TOTALS BULLET**:
+**TRANSACTION TOTALS BULLET template**:
 
-'<transaction_type>: Total debits of <amount(s)> across <count> <date_phrase>[subjects.length > 0: to <sub_types_phrase>: <subject_list>].'
+- <transaction_type>: Total debits of <amount(s)> across <count> <date_phrase> [if subjects.length > 0 | to <sub_types_phrase>: <subject_list>].
 
 > These placeholder definitions: <transaction_type>, <amount(s)>, <count>, <date_phrase>, <sub_types_phrase>, <subject_list> follow the same rules as defined under CREDITS above.
 
@@ -192,6 +196,7 @@ Array<{
 - If the totalsList array is empty for credits/debits:
   - Still include the section header (##### CREDITS or ##### DEBITS)
   - Use this bullet format instead: "No <credit_or_debit> transactions were identified during the review period."
+- **Never output literal \`[\` or \`]\` characters** — square brackets in templates are processing directives only, not punctuation
 - Use professional AML reporting tone: factual, concise, formal
 
 # Execute the task
@@ -217,6 +222,7 @@ Array<{
     ],
   });
 
+  // private totalsService = inject(AccountTransactionTotalsService);
   sendMessage(message: string): void {
     this.chat.sendMessage({ role: 'user', content: message });
     // this.totalsService

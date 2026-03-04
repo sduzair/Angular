@@ -782,7 +782,9 @@ function normalize(
 
     // HIGH amount -> THICK line
     const lineWidth =
-      link.linkType === 'accountHolder' ? 1 : 1 + normalized * 7;
+      link.linkType === 'accountHolder'
+        ? 1
+        : LINK_MIN_SIZE + normalized * LINK_MAX_SIZE;
 
     const curveness =
       link.linkType === 'In' || link.linkType === 'Out' ? 0.1 : 0;
@@ -885,6 +887,9 @@ const SYMBOL_MIN_SIZE = 14;
 const SYMBOL_MAX_SIZE = 22;
 const SYMBOL_ACCOUNT_SIZE = 14;
 const LINK_OPACITY = 0.8;
+
+const LINK_MIN_SIZE = 1;
+const LINK_MAX_SIZE = 4;
 
 type LabelFormatter = Exclude<
   NonNullable<NonNullable<GraphSeriesOption['label']>['formatter']>,

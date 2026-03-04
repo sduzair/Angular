@@ -37,9 +37,6 @@ export class AccountTransactionTotalsService {
   private caseRecord = inject(CaseRecordStore);
   private searchService = inject(TransactionSearchService);
 
-  private transactionSelections$ =
-    this.caseRecord.selectionsComputed$.pipe(takeUntilDestroyed());
-
   getAccountTransactionTotals$(): Observable<AccountTotals[]> {
     const accountNumbersSelection$ = this.caseRecord.state$.pipe(
       map(
@@ -115,6 +112,9 @@ export class AccountTransactionTotalsService {
             currency: selectedFocalAccountCurrency,
             transit,
           } of selectedFocalAccountsInfo) {
+            const hasSubId = (subId: string) => (s: TransactionTypeSubject) =>
+              s.subId === subId;
+
             // CREDITS - funds received into this account
             const creditTotalsByType: Partial<
               Record<number, TransactionTypeTotals>
@@ -178,6 +178,7 @@ export class AccountTransactionTotalsService {
                 if (txnTypeKey === TRANSACTION_TYPE_ENUM.Cheque) {
                   for (const holder of accountHolders) {
                     const {
+                      subId,
                       displayName,
                       subType,
                       subTypeLabel,
@@ -194,12 +195,19 @@ export class AccountTransactionTotalsService {
                       direction,
                     });
 
-                    creditTotalsByType[txnTypeKey].subjects.push({
-                      displayName,
-                      subType,
-                      subTypeLabel,
-                      subjectPhrase,
-                    } satisfies TransactionTypeSubject);
+                    if (
+                      !creditTotalsByType[txnTypeKey].subjects.some(
+                        hasSubId(subId),
+                      )
+                    ) {
+                      creditTotalsByType[txnTypeKey].subjects.push({
+                        subId,
+                        displayName,
+                        subType,
+                        subTypeLabel,
+                        subjectPhrase,
+                      } satisfies TransactionTypeSubject);
+                    }
                   }
 
                   continue;
@@ -215,25 +223,35 @@ export class AccountTransactionTotalsService {
 
                 // Add conductor
                 console.assert(conductors.length === 1);
-                const { displayName, subType, subTypeLabel, subjectPhrase } =
-                  createSubjectMetadata({
-                    txnTypeKey: txnTypeKey,
-                    entity: entities.find(
-                      (p) => p.entityIdentifier === conductors[0].linkToSub,
-                    )!,
-                    focalSubjects,
-                    fiuNo,
-                    account,
-                    purposeOfTxn,
-                    direction,
-                  });
-
-                creditTotalsByType[txnTypeKey].subjects.push({
+                const {
+                  subId,
                   displayName,
                   subType,
                   subTypeLabel,
                   subjectPhrase,
-                } satisfies TransactionTypeSubject);
+                } = createSubjectMetadata({
+                  txnTypeKey: txnTypeKey,
+                  entity: entities.find(
+                    (p) => p.entityIdentifier === conductors[0].linkToSub,
+                  )!,
+                  focalSubjects,
+                  fiuNo,
+                  account,
+                  purposeOfTxn,
+                  direction,
+                });
+
+                if (
+                  !creditTotalsByType[txnTypeKey].subjects.some(hasSubId(subId))
+                ) {
+                  creditTotalsByType[txnTypeKey].subjects.push({
+                    subId,
+                    displayName,
+                    subType,
+                    subTypeLabel,
+                    subjectPhrase,
+                  } satisfies TransactionTypeSubject);
+                }
               }
             }
 
@@ -314,25 +332,35 @@ export class AccountTransactionTotalsService {
 
               // Add beneficiaries
               for (const beneficiary of beneficiaries) {
-                const { displayName, subType, subTypeLabel, subjectPhrase } =
-                  createSubjectMetadata({
-                    txnTypeKey: txnTypeKey,
-                    entity: entities.find(
-                      (p) => p.entityIdentifier === beneficiary.linkToSub,
-                    )!,
-                    focalSubjects,
-                    fiuNo,
-                    account,
-                    purposeOfTxn,
-                    direction,
-                  });
-
-                debitTotalsByType[txnTypeKey].subjects.push({
+                const {
+                  subId,
                   displayName,
                   subType,
                   subTypeLabel,
                   subjectPhrase,
-                } satisfies TransactionTypeSubject);
+                } = createSubjectMetadata({
+                  txnTypeKey: txnTypeKey,
+                  entity: entities.find(
+                    (p) => p.entityIdentifier === beneficiary.linkToSub,
+                  )!,
+                  focalSubjects,
+                  fiuNo,
+                  account,
+                  purposeOfTxn,
+                  direction,
+                });
+
+                if (
+                  !debitTotalsByType[txnTypeKey].subjects.some(hasSubId(subId))
+                ) {
+                  debitTotalsByType[txnTypeKey].subjects.push({
+                    subId,
+                    displayName,
+                    subType,
+                    subTypeLabel,
+                    subjectPhrase,
+                  } satisfies TransactionTypeSubject);
+                }
               }
             }
 
@@ -377,6 +405,7 @@ type CurrKey = string;
 type CurrAmount = number;
 
 interface TransactionTypeSubject {
+  subId: string;
   displayName: string;
   subType: SUBJECT_TYPE;
   subTypeLabel: string;
@@ -436,6 +465,7 @@ function createSubjectMetadata({
     }
 
     return {
+      subId: entity.entityIdentifier,
       displayName,
       subType,
       subTypeLabel: categoryLabel,
@@ -462,6 +492,7 @@ function createSubjectMetadata({
     }
 
     return {
+      subId: entity.entityIdentifier,
       displayName,
       subType,
       subTypeLabel: categoryLabel,
@@ -472,6 +503,7 @@ function createSubjectMetadata({
   if (typeKey === TRANSACTION_TYPE_ENUM.POS) {
     // display name is merchant name
     return {
+      subId: entity.entityIdentifier,
       displayName,
       subType,
       subTypeLabel: categoryLabel,
@@ -492,6 +524,7 @@ function createSubjectMetadata({
     const subjectPhrase = addressPhrase + (memoPhrase ? ' ' + memoPhrase : '');
 
     return {
+      subId: entity.entityIdentifier,
       displayName,
       subType,
       subTypeLabel: categoryLabel,
@@ -507,6 +540,7 @@ function createSubjectMetadata({
       bankPhrase + (accountPhrase ? ' ' + accountPhrase : '');
 
     return {
+      subId: entity.entityIdentifier,
       displayName,
       subType,
       subTypeLabel: categoryLabel,
@@ -520,6 +554,7 @@ function createSubjectMetadata({
   const subjectPhrase = bankPhrase + (accountPhrase ? ' ' + accountPhrase : '');
 
   return {
+    subId: entity.entityIdentifier,
     displayName,
     subType,
     subTypeLabel: categoryLabel,
