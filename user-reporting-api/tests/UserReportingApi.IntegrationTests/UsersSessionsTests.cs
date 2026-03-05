@@ -39,17 +39,17 @@ public class UsersSessionsTests
 
     public async Task InitializeAsync()
     {
-        // Create composite unique index on parties collection
-        var parties = _testDb.GetCollection<Party>("parties");
+        // Create composite unique index on entity collection
+        var entities = _testDb.GetCollection<Entity>("entity");
 
-        var indexKeys = Builders<Party>.IndexKeys
-            .Ascending(p => p.PartyIdentifier)
+        var indexKeys = Builders<Entity>.IndexKeys
+            .Ascending(p => p.EntityIdentifier)
             .Ascending(p => p.CaseRecordId);
 
         var indexOptions = new CreateIndexOptions { Unique = true };
-        var indexModel = new CreateIndexModel<Party>(indexKeys, indexOptions);
+        var indexModel = new CreateIndexModel<Entity>(indexKeys, indexOptions);
 
-        await parties.Indexes.CreateOneAsync(indexModel);
+        await entities.Indexes.CreateOneAsync(indexModel);
     }
 
     public Task DisposeAsync()
@@ -589,11 +589,11 @@ public class UsersSessionsTests
     #endregion
 
     // -------------------------------------------------------------------------
-    #region Selections and Parties Tests
+    #region Selections and Entities Tests
     // -------------------------------------------------------------------------
 
     [Fact]
-    public async Task FetchSelections_ReturnsAllSelectionsAndPartiesForCaseRecord()
+    public async Task FetchSelections_ReturnsAllSelectionsAndEntitiesForCaseRecord()
     {
         // Arrange
         var caseRecordId = Guid.NewGuid().ToString();
@@ -617,14 +617,14 @@ public class UsersSessionsTests
             }
         };
 
-        var parties = new[]
+        var entities = new[]
         {
-            new Party { CaseRecordId = caseRecordId, PartyIdentifier = "PARTY-001" },
-            new Party { CaseRecordId = caseRecordId, PartyIdentifier = "PARTY-002" }
+            new Entity { CaseRecordId = caseRecordId, EntityIdentifier = "ENTITY-001" },
+            new Entity { CaseRecordId = caseRecordId, EntityIdentifier = "ENTITY-002" }
         };
 
         await _testDb.GetCollection<Selection>("selections").InsertManyAsync(selections);
-        await _testDb.GetCollection<Party>("parties").InsertManyAsync(parties);
+        await _testDb.GetCollection<Entity>("entity").InsertManyAsync(entities);
 
         // Act
         var response = await _client.GetAsync($"/api/caserecord/{caseRecordId}/selections");
@@ -646,10 +646,10 @@ public class UsersSessionsTests
         var s2 = result.SelectionList.Single(s => s.FlowOfFundsAmlTransactionId == "txn-2");
         s2.ExtraElements!["amount"]!.Should().Be(200);
 
-        result.PartyList.Should().HaveCount(2);
-        result.PartyList.Select(p => p.PartyIdentifier)
-            .Should().BeEquivalentTo("PARTY-001", "PARTY-002");
-        result.PartyList.All(p => p.CaseRecordId == caseRecordId).Should().BeTrue();
+        result.EntityList.Should().HaveCount(2);
+        result.EntityList.Select(p => p.EntityIdentifier)
+            .Should().BeEquivalentTo("ENTITY-001", "ENTITY-002");
+        result.EntityList.All(p => p.CaseRecordId == caseRecordId).Should().BeTrue();
     }
 
     [Fact]
@@ -664,11 +664,11 @@ public class UsersSessionsTests
         var result = await response.Content.ReadFromJsonAsync<FetchSelectionsResponse>(TestOptions);
         result.Should().NotBeNull();
         result!.SelectionList.Should().BeEmpty();
-        result.PartyList.Should().BeEmpty();
+        result.EntityList.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task AddSelections_ValidCaseETag_InsertsSelectionsAndPartiesAndIncrementsETag()
+    public async Task AddSelections_ValidCaseETag_InsertsSelectionsAndEntitiesAndIncrementsETag()
     {
         // Arrange
         var caseRecord = new CaseRecord
@@ -700,10 +700,10 @@ public class UsersSessionsTests
                     ExtraElements = new Dictionary<string, object?> { ["data"] = "value2" }
                 }
             ],
-            Parties:
+            Entities:
             [
-                new Party { PartyIdentifier = "PARTY-NEW-001" },
-                new Party { PartyIdentifier = "PARTY-NEW-002" }
+                new Entity { EntityIdentifier = "ENTITY-NEW-001" },
+                new Entity { EntityIdentifier = "ENTITY-NEW-002" }
             ]
         );
 
@@ -718,7 +718,7 @@ public class UsersSessionsTests
         result.Should().NotBeNull();
         result!.CaseETag.Should().Be(3);
         result.SelectionCount.Should().Be(2);
-        result.PartyCount.Should().Be(2);
+        result.EntityCount.Should().Be(2);
         result.LastUpdated.Should().BeCloseTo(DateTime.UtcNow, TestConstants.DateTimeTolerance);
 
         // Verify selections in DB — including the denormalized IsClosed = false stamp
@@ -731,14 +731,14 @@ public class UsersSessionsTests
         dbSelections.All(s => s.CaseRecordId == caseRecord.CaseRecordId).Should().BeTrue();
         dbSelections.All(s => !s.IsClosed).Should().BeTrue("IsClosed must be stamped false on insert");
 
-        // Verify parties in DB
-        var dbParties = await _testDb.GetCollection<Party>("parties")
+        // Verify entities in DB
+        var dbEntities = await _testDb.GetCollection<Entity>("entity")
             .Find(p => p.CaseRecordId == caseRecord.CaseRecordId)
             .ToListAsync();
 
-        dbParties.Should().HaveCount(2);
-        dbParties.Select(p => p.PartyIdentifier)
-            .Should().BeEquivalentTo("PARTY-NEW-001", "PARTY-NEW-002");
+        dbEntities.Should().HaveCount(2);
+        dbEntities.Select(p => p.EntityIdentifier)
+            .Should().BeEquivalentTo("ENTITY-NEW-001", "ENTITY-NEW-002");
     }
 
     [Fact]
@@ -762,7 +762,7 @@ public class UsersSessionsTests
         var request = new AddSelectionsRequest(
             CaseETag: 3, // wrong ETag
             Selections: [new Selection { FlowOfFundsAmlTransactionId = "txn-1" }],
-            Parties: [new Party { PartyIdentifier = "PARTY-001" }]
+            Entities: [new Entity { EntityIdentifier = "ENTITY-001" }]
         );
 
         // Act
@@ -802,7 +802,7 @@ public class UsersSessionsTests
         var request = new AddSelectionsRequest(
             CaseETag: 2,
             Selections: [new Selection { FlowOfFundsAmlTransactionId = "txn-1" }],
-            Parties: []
+            Entities: []
         );
 
         // Act
@@ -905,7 +905,7 @@ public class UsersSessionsTests
     }
 
     [Fact]
-    public async Task AddSelections_DuplicatePartyIdentifier_ReturnsErrorAndRollsBackTransaction()
+    public async Task AddSelections_DuplicateEntityIdentifier_ReturnsErrorAndRollsBackTransaction()
     {
         // Arrange
         var caseRecord = new CaseRecord
@@ -922,12 +922,12 @@ public class UsersSessionsTests
 
         await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
 
-        var existingParty = new Party
+        var existingEntity = new Entity
         {
             CaseRecordId = caseRecord.CaseRecordId,
-            PartyIdentifier = "DUPLICATE-PARTY-001"
+            EntityIdentifier = "DUPLICATE-ENTITY-001"
         };
-        await _testDb.GetCollection<Party>("parties").InsertOneAsync(existingParty);
+        await _testDb.GetCollection<Entity>("entity").InsertOneAsync(existingEntity);
 
         var request = new AddSelectionsRequest(
             CaseETag: 0,
@@ -939,9 +939,9 @@ public class UsersSessionsTests
                     ExtraElements = new Dictionary<string, object?> { ["data"] = "test" }
                 }
             ],
-            Parties:
+            Entities:
             [
-                new Party { PartyIdentifier = "DUPLICATE-PARTY-001" } // duplicate!
+                new Entity { EntityIdentifier = "DUPLICATE-ENTITY-001" } // duplicate!
             ]
         );
 
@@ -957,11 +957,11 @@ public class UsersSessionsTests
             .ToListAsync();
         dbSelections.Should().BeEmpty("transaction should have rolled back");
 
-        var dbParties = await _testDb.GetCollection<Party>("parties")
+        var dbEntities = await _testDb.GetCollection<Entity>("entity")
             .Find(p => p.CaseRecordId == caseRecord.CaseRecordId)
             .ToListAsync();
-        dbParties.Should().ContainSingle("only the original party should exist");
-        dbParties[0].Id.Should().Be(existingParty.Id);
+        dbEntities.Should().ContainSingle("only the original entity should exist");
+        dbEntities[0].Id.Should().Be(existingEntity.Id);
 
         var dbCaseRecord = await _testDb.GetCollection<CaseRecord>("caseRecord")
             .Find(c => c.CaseRecordId == caseRecord.CaseRecordId)
@@ -970,7 +970,7 @@ public class UsersSessionsTests
     }
 
     [Fact]
-    public async Task AddSelections_DuplicatePartyInDifferentCase_Succeeds()
+    public async Task AddSelections_DuplicateEntityInDifferentCase_Succeeds()
     {
         // Arrange
         var caseRecord1 = new CaseRecord
@@ -999,19 +999,19 @@ public class UsersSessionsTests
 
         await _testDb.GetCollection<CaseRecord>("caseRecord").InsertManyAsync([caseRecord1, caseRecord2]);
 
-        var party1 = new Party
+        var entity1 = new Entity
         {
             CaseRecordId = caseRecord1.CaseRecordId,
-            PartyIdentifier = "SHARED-PARTY-001"
+            EntityIdentifier = "SHARED-ENTITY-001"
         };
-        await _testDb.GetCollection<Party>("parties").InsertOneAsync(party1);
+        await _testDb.GetCollection<Entity>("entity").InsertOneAsync(entity1);
 
         var request = new AddSelectionsRequest(
             CaseETag: 0,
             Selections: [],
-            Parties:
+            Entities:
             [
-                new Party { PartyIdentifier = "SHARED-PARTY-001" } // same identifier, different case
+                new Entity { EntityIdentifier = "SHARED-ENTITY-001" } // same identifier, different case
             ]
         );
 
@@ -1021,17 +1021,17 @@ public class UsersSessionsTests
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK,
-            "same PartyIdentifier should be allowed in different case records");
+            "same EntityIdentifier should be allowed in different case records");
 
         var result = await response.Content.ReadFromJsonAsync<AddSelectionsResponse>(TestOptions);
-        result!.PartyCount.Should().Be(1);
+        result!.EntityCount.Should().Be(1);
 
-        var allParties = await _testDb.GetCollection<Party>("parties")
-            .Find(p => p.PartyIdentifier == "SHARED-PARTY-001")
+        var allEntities = await _testDb.GetCollection<Entity>("entity")
+            .Find(p => p.EntityIdentifier == "SHARED-ENTITY-001")
             .ToListAsync();
 
-        allParties.Should().HaveCount(2, "same party identifier should exist in two different cases");
-        allParties.Select(p => p.CaseRecordId)
+        allEntities.Should().HaveCount(2, "same entity identifier should exist in two different cases");
+        allEntities.Select(p => p.CaseRecordId)
             .Should().BeEquivalentTo([caseRecord1.CaseRecordId, caseRecord2.CaseRecordId]);
     }
 
@@ -1090,7 +1090,7 @@ public class UsersSessionsTests
         updatedSelection.ChangeLogs.Should().HaveCount(1);
         updatedSelection.ChangeLogs![0].UpdatedAt.Should()
             .BeCloseTo(DateTime.UtcNow, TestConstants.DateTimeTolerance);
-        updatedSelection.ChangeLogs[0].UpdatedBy.Should().Be("System");
+        updatedSelection.ChangeLogs[0].UpdatedBy.Should().Be("TestUser");
         updatedSelection.ChangeLogs[0].ETag.Should().Be(1);
     }
 
