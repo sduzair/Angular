@@ -194,10 +194,7 @@ import { CaseRecordStore, ReviewPeriod } from './case-record.store';
         </mat-toolbar>
       </div>
       <mat-drawer-container hasBackdrop="false" appScrollPositionPreserve>
-        <mat-drawer
-          position="end"
-          #drawer
-          class="border my-5 chatbot-drawer">
+        <mat-drawer position="end" #drawer class="border my-5 chatbot-drawer">
           <app-chatbot />
         </mat-drawer>
         <mat-drawer-content class="overflow-hidden">

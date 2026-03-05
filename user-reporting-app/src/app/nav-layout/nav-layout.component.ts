@@ -63,7 +63,7 @@ import { NavTreeService } from './nav-tree.service';
         <mat-toolbar class="px-3 mb-2 border-bottom justify-content-between">
           <span>Poacher UI</span>
           <button
-          class="logout-btn"
+            class="logout-btn"
             type="button"
             matIconButton
             (click)="onLogout()"

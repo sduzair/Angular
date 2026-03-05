@@ -844,6 +844,25 @@ export abstract class AbstractBaseTable<
     /* empty */
   };
 
+  private syncHighlightsEffect = effect(() => {
+    if (!this.highlightedRecords) return;
+
+    const highlightMap = this.highlightedRecords(); // Track the signal
+
+    // Use untracked to read dataSource without creating dependency
+    untracked(() => {
+      this.dataSource.data.forEach((row) => {
+        const rowId = this.table.trackBy?.(0, row);
+        const color = highlightMap.get(rowId);
+
+        if (color === undefined) return;
+
+        // eslint-disable-next-line no-param-reassign
+        row[this.filterFormHighlightSelectFilterKey] = color as any;
+      });
+    });
+  });
+
   filterFormConjunctionControl = new FormControl<'OR' | 'AND'>('AND', {
     nonNullable: true,
   });
