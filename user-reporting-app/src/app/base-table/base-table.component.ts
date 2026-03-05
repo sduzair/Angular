@@ -562,7 +562,7 @@ export class BaseTableComponent<
   showToolbar = true;
 
   protected PAGE_ROWS = 24;
-  protected ROW_HEIGHT = 36;
+  protected ROW_HEIGHT = 28;
   protected BUFFER_PAGES = 6 * 2 * this.PAGE_ROWS * this.ROW_HEIGHT;
   protected BUFFER_PAGES_THRESHOLD = 2 * this.PAGE_ROWS * this.ROW_HEIGHT;
   ngAfterContentInit(): void {
