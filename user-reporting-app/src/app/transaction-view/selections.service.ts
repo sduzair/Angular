@@ -1,10 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { map, Observable } from 'rxjs';
-import { StrTransactionWithChangeLogs } from '../aml/case-record.store';
-import * as ChangeLog from '../change-logging/change-log';
-import { StrTxnFlowOfFunds } from '../reporting-ui/reporting-ui-table/reporting-ui-table.component';
-import { PartyGenType } from './transform-to-str-transaction/party-gen.service';
+import { Observable } from 'rxjs';
+import { ChangeLogAudit } from '../aml/case-record.store';
 
 @Injectable({
   providedIn: 'root',
@@ -13,133 +10,124 @@ export class SelectionsService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = '/api/caserecord';
 
-  /**
-   * Fetch all selections for a case record
-   */
   fetchSelections(caseRecordId: string) {
     // return of({
     //   selections: CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE.selections,
     // }).pipe(delay(100));
 
-    return this.http.get<FetchSelectionsResponse>(
+    return this.http.get<FetchSelectionsRes>(
       `${this.baseUrl}/${caseRecordId}/selections`,
     );
   }
 
-  /**
-   * Add selections to a case record
-   */
-  addSelectionsAndParties(
+  addSelectionsAndEntities(
     caseRecordId: string,
-    request: AddSelectionsRequest,
-  ): Observable<AddSelectionsResponse> {
-    return this.http.post<AddSelectionsResponse>(
+    request: AddSelectionsReq,
+  ): Observable<AddSelectionsRes> {
+    return this.http.post<AddSelectionsRes>(
       `${this.baseUrl}/${caseRecordId}/selections/add`,
       request,
     );
   }
 
-  /**
-   * Remove selections from a case record
-   */
   removeSelections(
     caseRecordId: string,
-    request: RemoveSelectionsRequest,
-  ): Observable<RemoveSelectionsResponse> {
-    return this.http.post<RemoveSelectionsResponse>(
+    request: RemoveSelectionsReq,
+  ): Observable<RemoveSelectionsRes> {
+    return this.http.post<RemoveSelectionsRes>(
       `${this.baseUrl}/${caseRecordId}/selections/remove`,
       request,
     );
   }
 
-  /**
-   * Save changes to selections
-   */
   saveChanges(
     caseRecordId: string,
-    request: SaveChangesRequest,
-  ): Observable<SaveChangesResponse> {
+    request: SaveChangesReq,
+  ): Observable<SaveChangesRes> {
     // return of(void 0).pipe(delay(150));
 
-    return this.http.post<SaveChangesResponse>(
+    return this.http.post<SaveChangesRes>(
       `${this.baseUrl}/${caseRecordId}/selections/save`,
       request,
     );
   }
 
-  /**
-   * Reset selections to their original state
-   */
   resetSelections(
     caseRecordId: string,
-    request: ResetSelectionsRequest,
-  ): Observable<ResetSelectionsResponse> {
+    request: ResetSelectionsReq,
+  ): Observable<ResetSelectionsRes> {
     // return of(void 0).pipe(delay(150));
 
-    return this.http.post<ResetSelectionsResponse>(
+    return this.http.post<ResetSelectionsRes>(
       `${this.baseUrl}/${caseRecordId}/selections/reset`,
       request,
     );
   }
 }
 
-// Request DTOs
-export interface AddSelectionsRequest {
-  caseETag: number;
-  selections: Omit<
-    StrTransactionWithChangeLogs,
-    'caseRecordId' | 'eTag' | 'changeLogs'
-  >[];
-  parties: PartyGenType[];
+export interface SelectionRes {
+  caseRecordId: string;
+  flowOfFundsAmlTransactionId: string;
+  isClosed?: boolean; // denormalized from case record
+  eTag: number;
+  changeLogs: ChangeLogAudit[];
+  [key: string]: unknown; // extra elements from BsonDocument
 }
 
-export interface RemoveSelectionsRequest {
-  caseETag: number;
-  selectionIds: StrTxnFlowOfFunds['flowOfFundsAmlTransactionId'][];
+export interface EntityRes {
+  entityIdentifier: string;
+  caseRecordId: string;
+  [key: string]: unknown;
 }
+
+// ---- Fetch ----
+
+export interface FetchSelectionsRes {
+  selectionList: SelectionRes[];
+  entityList: EntityRes[];
+}
+
+// ---- Add ----
+
+interface AddSelectionsReq {
+  caseETag: number;
+  selections: Omit<SelectionRes, 'isClosed' | 'eTag' | 'changeLogs'>[];
+  entities: Omit<EntityRes, 'caseRecordId'>[];
+}
+
+export interface AddSelectionsRes {
+  caseETag: number;
+  selectionCount: number;
+  entityCount: number;
+  lastUpdated: string;
+}
+
+// ---- Remove ----
+
+export interface RemoveSelectionsReq {
+  caseETag: number;
+  selectionIds: string[]; // flowOfFundsAmlTransactionId values
+}
+
+export interface RemoveSelectionsRes {
+  caseETag: number;
+  count: number;
+  lastUpdated: string;
+}
+
+// ---- Save ----
 
 export interface PendingChange {
   flowOfFundsAmlTransactionId: string;
   eTag: number;
-  changeLogs: ChangeLog.ChangeLogType[];
+  changeLogs: Omit<ChangeLogAudit, 'updatedAt' | 'updatedBy' | 'eTag'>[];
 }
 
-export interface SaveChangesRequest {
+export interface SaveChangesReq {
   pendingChanges: PendingChange[];
 }
 
-export interface PendingReset {
-  flowOfFundsAmlTransactionId: string;
-  eTag: number;
-}
-
-export interface ResetSelectionsRequest {
-  pendingResets: PendingReset[];
-}
-
-// Response DTOs
-export interface FetchSelectionsResponse {
-  selections: StrTransactionWithChangeLogs[];
-  parties: WithCaseRecordId<PartyGenType>[];
-}
-
-export type WithCaseRecordId<T = object> = T & {
-  caseRecordId: string;
-};
-
-export interface AddSelectionsResponse {
-  caseETag: number;
-  count: number;
-  lastUpdated: string;
-}
-
-export interface RemoveSelectionsResponse {
-  caseETag: number;
-  count: number;
-  lastUpdated: string;
-}
-
-export interface SaveChangesResponse {
+export interface SaveChangesRes {
   message: string;
   requested: number;
   succeeded: number;
@@ -147,11 +135,26 @@ export interface SaveChangesResponse {
   updatedAt: string;
 }
 
-export interface ResetSelectionsResponse {
+// ---- Reset ----
+
+export interface PendingReset {
+  flowOfFundsAmlTransactionId: string;
+  eTag: number;
+}
+
+export interface ResetSelectionsReq {
+  pendingResets: PendingReset[];
+}
+
+export interface ResetSelectionsRes {
   message: string;
   requested: number;
   succeeded: number;
 }
+
+export type WithCaseRecordId<T = object> = T & {
+  caseRecordId: string;
+};
 
 // Error response types
 export interface ConflictResponse {

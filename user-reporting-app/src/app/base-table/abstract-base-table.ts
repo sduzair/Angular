@@ -186,6 +186,14 @@ export abstract class AbstractBaseTable<
   }
 
   // ============================================================================
+  // Column Width Implementation
+  // ============================================================================
+  abstract columnWidthsMap: Partial<Record<TDataColumn, string>>;
+
+  getColumnWidth(col: TDataColumn) {
+    return this.columnWidthsMap[col] || 'auto';
+  }
+  // ============================================================================
   // Select Filters Implementation
   // ============================================================================
 
@@ -763,8 +771,6 @@ export abstract class AbstractBaseTable<
     row: TData,
     pageRowIndex: number,
   ) {
-    event.preventDefault();
-    event.stopPropagation();
     const isHighlightSelected =
       typeof this.filterFormHighlightSelectedColor !== 'undefined';
 
@@ -849,6 +855,8 @@ export abstract class AbstractBaseTable<
         const rowId = this.table.trackBy?.(0, row);
         const color = highlightMap.get(rowId);
 
+        if (color === undefined) return;
+
         // eslint-disable-next-line no-param-reassign
         row[this.filterFormHighlightSelectFilterKey] = color as any;
       });
@@ -911,8 +919,8 @@ export abstract class AbstractBaseTable<
   pageSize: number = this.pageSizeOptions[this.pageSizeOptions.length - 1];
 
   updatePageSizeOptions(dataLength: number): void {
-    const DEF_MAX = 300;
-    const options = [5, 10, 20, 50, 100, 200, DEF_MAX, 400, 500];
+    const DEF_MAX = 500;
+    const options = [5, 10, 20, 50, 100, 200, 400, 600, 800, 1000];
 
     let maxOption = DEF_MAX;
     let maxOptionIndex = options.length;

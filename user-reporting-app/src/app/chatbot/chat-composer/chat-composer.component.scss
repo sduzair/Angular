@@ -1,15 +1,22 @@
 :host {
   display: block;
-  padding: 16px;
+  padding: 12px 16px;
 }
 
 .composer-container {
   position: relative;
-  background: #fff;
+  background: var(--mat-sys-surface);
+
+  border-style: solid;
+  border-color: var(
+    --mat-button-outlined-outline-color,
+    var(--mat-sys-outline)
+  );
+  border-width: var(--mat-button-outlined-outline-width, 1px);
 }
 
 .textareaWrapper {
-  padding: 16px 48px 16px 16px;
+  padding: 12px 44px 12px 16px;
 }
 
 textarea {
@@ -18,19 +25,28 @@ textarea {
   color: var(--mat-sys-on-surface);
   background: none;
   outline: none;
-  overflow: none;
+  resize: none;
   padding: 0;
   margin: 0;
 }
 
 .send-button {
   color: var(--mat-sys-primary);
+
+  mat-icon.mat-icon {
+    font-size: 22px !important;
+    width: 22px !important;
+    height: 22px !important;
+    line-height: 22px !important;
+  }
 }
 
 .chat-composer {
-  font-family: inherit;
-  font-size: inherit;
-  line-height: inherit;
+  font-size: var(--mat-sys-body-large-size);
+  font-family: var(--mat-sys-body-large-font);
+  line-height: var(--mat-sys-body-large-line-height);
+  font-weight: var(--mat-sys-body-large-weight);
+  letter-spacing: var(--mat-sys-body-large-tracking);
 
   &::placeholder {
     color: var(--mat-sys-on-surface-variant);

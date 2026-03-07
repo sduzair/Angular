@@ -1,8 +1,12 @@
+import { formatCurrency, getCurrencySymbol } from '@angular/common';
 import { FormGroup } from '@angular/forms';
+import { StrTransactionWithChangeLogs } from '../../aml/case-record.store';
 import {
+  Beneficiary,
   CompletingAction,
   ConductorNpdData,
   StartingAction,
+  VALIDATION_KEYS,
 } from '../reporting-ui-table/reporting-ui-table.component';
 import { RecursiveOmit, TypedForm } from './edit-form.component';
 import {
@@ -13,17 +17,17 @@ import {
 export const hasPersonName = (cond: {
   _hiddenSurname?: string | null;
   _hiddenGivenName?: string | null;
-  _hiddenOtherOrInitial?: string | null;
+  _hiddenOtherOrInitialName?: string | null;
   _hiddenNameOfEntity?: string | null;
 }) =>
   !!cond._hiddenGivenName &&
-  !!cond._hiddenSurname &&
-  (true || !!cond._hiddenOtherOrInitial);
+  (true || !!cond._hiddenSurname) &&
+  (true || !!cond._hiddenOtherOrInitialName);
 
 export const hasEntityName = (cond: {
   _hiddenSurname?: string | null;
   _hiddenGivenName?: string | null;
-  _hiddenOtherOrInitial?: string | null;
+  _hiddenOtherOrInitialName?: string | null;
   _hiddenNameOfEntity?: string | null;
 }) => !!cond._hiddenNameOfEntity;
 
@@ -55,20 +59,29 @@ export function hasMissingAccountInfo(
     (action.detailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION) ===
       'Deposit to account';
 
+  const { fiuNo } = action;
+
+  if (!isCibcFi(fiuNo) && !isDepositToAccount) {
+    return;
+  }
+
   if (
-    (isDepositToAccount || action.fiuNo === '010') &&
-    (!action.branch ||
-      !action.account ||
-      !action.accountType ||
-      (action.accountType === 'Other' && !action.accountTypeOther) ||
-      !action.accountCurrency ||
-      !action.accountStatus ||
-      !action.accountOpen ||
-      (action.accountStatus === 'Closed' && !action.accountClose))
+    !action.branch ||
+    !action.account ||
+    !action.accountType ||
+    (action.accountType === 'Other' && !action.accountTypeOther) ||
+    !action.accountCurrency ||
+    !action.accountStatus ||
+    !action.accountOpen ||
+    (action.accountStatus === 'Closed' && !action.accountClose)
   )
     return true;
 
-  if ((action.accountHolders ?? []).some(hasMissingHolderInfo)) return true;
+  if (
+    (action.accountHolders ?? []).length === 0 ||
+    action.accountHolders!.some(hasMissingHolderInfo)
+  )
+    return true;
 
   return false;
 }
@@ -115,8 +128,125 @@ export function hasMissingCheque(action: StartingAction) {
 function hasMissingHolderInfo(value: {
   _hiddenSurname?: string | null;
   _hiddenGivenName?: string | null;
-  _hiddenOtherOrInitial?: string | null;
+  _hiddenOtherOrInitialName?: string | null;
   _hiddenNameOfEntity?: string | null;
 }): boolean {
   return !hasPersonName(value) && !hasEntityName(value);
+}
+
+export function hasMissingBasicInfo(
+  txn: StrTransactionWithChangeLogs,
+): boolean {
+  if (!txn.methodOfTxn || !txn.dateOfTxn) {
+    return true;
+  }
+
+  if (!txn.startingActions || txn.startingActions.length === 0) {
+    return true;
+  }
+
+  // Validate starting actions required fields
+  for (const sa of txn.startingActions) {
+    if (sa.amount == null || isNaN(sa.amount)) {
+      return true;
+    }
+
+    if (!sa.currency) {
+      return true;
+    }
+
+    if (!sa.typeOfFunds) {
+      return true;
+    }
+
+    if (!sa.conductors || sa.conductors.length !== 1) {
+      return true;
+    }
+
+    if (!sa.conductors[0].linkToSub) {
+      return true;
+    }
+  }
+
+  if (!txn.completingActions || txn.completingActions.length === 0) {
+    return true;
+  }
+
+  console.assert(txn.completingActions.length === 1);
+
+  const ca = txn.completingActions[0];
+
+  // Validate completing action required fields
+  if (ca.amount == null || isNaN(ca.amount)) {
+    return true;
+  }
+
+  if (!ca.currency) {
+    return true;
+  }
+
+  if (!ca.detailsOfDispo) {
+    return true;
+  }
+
+  if (txn.wasTxnAttempted === false && (ca.beneficiaries ?? []).length === 0)
+    return true;
+
+  // All validations passed
+  return false;
+}
+
+export function hasMissingBeneficiary(
+  txn: StrTransactionWithChangeLogs,
+): boolean {
+  if (
+    !txn.wasTxnAttempted &&
+    txn.completingActions.some((cAction) => {
+      const hasNoBeneficiaries = (cAction.beneficiaries ?? []).length === 0;
+      const hasMissingBenInfo = (ben: Beneficiary): boolean =>
+        !ben.linkToSub || (!hasEntityName(ben) && !hasPersonName(ben));
+
+      return (
+        hasNoBeneficiaries || cAction.beneficiaries!.some(hasMissingBenInfo)
+      );
+    })
+  ) {
+    return true;
+  }
+  return false;
+}
+
+export function isCibcFi(fiuNo: string | null | undefined): boolean {
+  return fiuNo === '010';
+}
+
+export const hasDataIntegrity = (sel: StrTransactionWithChangeLogs) =>
+  (sel._hiddenValidation ?? []).every((v) => !VALIDATION_KEYS.includes(v));
+
+/**
+ * Formats a number as currency using locale rules and currency symbol
+ * @param value - The numeric value to format
+ * @param currencyCode - ISO 4217 currency code (CAD, USD, INR, etc.)
+ * @param locale - Locale code (default: 'en-CA' for Canadian English)
+ * @param digitsInfo - Decimal representation (default: '1.2-2' means min 1 digit, 2-2 decimal places)
+ * @returns Formatted currency string
+ */
+export function formatCurrencyLocal({
+  value,
+  currencyCode = 'CAD',
+  locale = 'en-CA',
+  digitsInfo = '1.2-2',
+}: {
+  value: number;
+  currencyCode?: string;
+  locale?: string;
+  digitsInfo?: string;
+}): string {
+  return formatCurrency(
+    value,
+    locale,
+    getCurrencySymbol(currencyCode, 'wide'),
+    currencyCode,
+    digitsInfo,
+  );
 }

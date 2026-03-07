@@ -3,6 +3,7 @@ import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   DestroyRef,
   ErrorHandler,
   inject,
@@ -22,31 +23,25 @@ import {
 } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
-import { MAT_DATE_FORMATS, MatDateFormats } from '@angular/material/core';
 import {
-  MatDatepicker,
-  MatDatepickerModule,
-} from '@angular/material/datepicker';
+  ErrorStateMatcher,
+  MAT_DATE_FORMATS,
+  MatDateFormats,
+} from '@angular/material/core';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import {
   MAT_FORM_FIELD_DEFAULT_OPTIONS,
   MatFormFieldDefaultOptions,
   MatFormFieldModule,
 } from '@angular/material/form-field';
-import { MatIcon } from '@angular/material/icon';
+import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router } from '@angular/router';
-import {
-  getMonth,
-  getYear,
-  isAfter,
-  isBefore,
-  setMonth,
-  setYear,
-} from 'date-fns';
+import { isAfter, isBefore } from 'date-fns';
 import { isEqual, xorWith } from 'lodash-es';
 import {
   BehaviorSubject,
@@ -57,17 +52,26 @@ import {
   finalize,
   forkJoin,
   map,
+  merge,
   of,
-  shareReplay,
+  share,
   startWith,
   Subject,
   switchMap,
   tap,
 } from 'rxjs';
-import { CaseRecordService } from '../aml/case-record.service';
+import { AmlCaseTeardownService } from '../aml/aml-case-teardown.service';
+import {
+  CaseRecordRes,
+  CaseRecordService,
+  toCaseRecordIdLabel,
+} from '../aml/case-record.service';
 import { CaseRecordState, ReviewPeriod } from '../aml/case-record.store';
+import { AuthService } from '../auth.service';
 import { setError } from '../form-helpers';
+import { PreemptiveErrorStateMatcher } from '../reporting-ui/edit-form/edit-form.component';
 import { SnackbarQueueService } from '../snackbar-queue.service';
+import { getEntityFullName } from '../transaction-view/transform-to-str-transaction/entity-gen.service';
 import {
   AccountNumberData,
   AccountNumberSelectableTableComponent,
@@ -103,7 +107,7 @@ const AMLID_TEST = '99999999';
     ReviewPeriodDateDirective,
     MatListModule,
     MatCardModule,
-    MatIcon,
+    MatIconModule,
     MatToolbarModule,
     SourceRefreshSelectableTableComponent,
     ProductTypeSelectableTableComponent,
@@ -111,15 +115,15 @@ const AMLID_TEST = '99999999';
     PartyKeySelectableTableComponent,
   ],
   template: `
-    <div
-      class="transaction-search container h-100 my-1 overflow-x-hidden overflow-y-auto px-0 my-1">
-      <div class="row row-cols-1 gap-3 px-3 pb-3">
-        <mat-toolbar class="col">
+    <div class="transaction-search container-xl my-1 px-0 my-1">
+      <div class="row row-cols-1 gap-3 px-5 pb-3">
+        <mat-toolbar class="col mb-2">
           <span>Transaction Search</span>
           <div class="flex-fill"></div>
           <button
             type="button"
             mat-flat-button
+            matSuffix
             (click)="onSearch()"
             [disabled]="
               isSourceRefreshTimeLoading ||
@@ -134,9 +138,11 @@ const AMLID_TEST = '99999999';
         <form [formGroup]="searchParamsForm" class="search-form col">
           <div class="row">
             <!-- Search Form Section -->
-            <mat-toolbar-row class="col-12 flex-row gap-3 mb-3">
+            <mat-toolbar-row class="col-12 flex-row gap-3 mb-4">
               <!-- AML ID Input -->
-              <mat-form-field subscriptSizing="dynamic">
+              <mat-form-field
+                class="search-aml-input"
+                subscriptSizing="dynamic">
                 <mat-label>AML ID</mat-label>
                 <input
                   (keyup.enter)="onLoad()"
@@ -181,38 +187,71 @@ const AMLID_TEST = '99999999';
                 Save
               </button>
             </mat-toolbar-row>
-            <mat-toolbar-row class="col-12 flex-row updated-by-row">
-              <div class="flex-fill"></div>
+            <mat-toolbar-row class="col-12 flex-row updated-by-row mb-2">
               @let lastUpdatedBy =
                 searchParamsForm.controls.lastUpdatedBy.value;
               @let lastUpdated = searchParamsForm.controls.lastUpdated.value;
 
               <div
-                class="d-flex align-items-center gap-3 text-muted fs-6"
-                [class.invisible]="!lastUpdatedBy || !lastUpdated">
-                <span class="d-flex align-items-center gap-1">
+                class="d-flex align-items-center gap-3 text-muted fs-6 flex-grow-1">
+                <span
+                  class="d-flex align-items-center gap-1"
+                  [class.d-none]="!lastUpdatedBy">
+                  <mat-icon color="accent"> person </mat-icon>
                   <span class="fw-medium text-secondary">Updated By:</span>
-                  <mat-icon
-                    color="accent"
-                    style="font-size: 20px; height: 20px; width: 20px;">
-                    person
-                  </mat-icon>
                   <span class="text-dark">{{ lastUpdatedBy }}</span>
                 </span>
 
-                <span class="vr"></span>
+                <span class="vr" [class.d-none]="!lastUpdated"></span>
 
-                <span class="d-flex align-items-center gap-1">
+                <span
+                  class="d-flex align-items-center gap-1"
+                  [class.d-none]="!lastUpdated">
+                  <mat-icon color="accent"> schedule </mat-icon>
                   <span class="fw-medium text-secondary"> Last Updated: </span>
-                  <mat-icon
-                    color="accent"
-                    style="font-size: 20px; height: 20px; width: 20px;">
-                    schedule
-                  </mat-icon>
                   <span class="text-dark">
                     {{ lastUpdated | date: 'short' }}
                   </span>
                 </span>
+
+                @let isClosed = searchParamsForm.controls.isClosed.value;
+
+                <span
+                  class="vr"
+                  [class.d-none]="isClosed === null || !canManageCase()"></span>
+
+                <button
+                  type="button"
+                  mat-raised-button
+                  [color]="isClosed ? 'primary' : 'warn'"
+                  (click)="onToggleCaseStatus()"
+                  [disabled]="
+                    (isTogglingStatus$ | async) === true ||
+                    (isLoadingCaseRecord$ | async) ||
+                    (isLoadingSearch$ | async) === 'loading'
+                  "
+                  [class.d-none]="isClosed === null || !canManageCase()"
+                  class="case-toggle-btn me-2">
+                  <mat-icon>{{ isClosed ? 'lock_open' : 'lock' }}</mat-icon>
+                  {{ isClosed ? 'Reopen Case' : 'Close Case' }}
+                </button>
+
+                <div class="flex-fill"></div>
+
+                <mat-form-field subscriptSizing="dynamic">
+                  <mat-select
+                    placeholder="Select Case Record"
+                    formControlName="caseRecordId">
+                    @for (
+                      option of caseRecordIdOptions$ | async;
+                      track option.value
+                    ) {
+                      <mat-option [value]="option.value">
+                        {{ option.label }}
+                      </mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
               </div>
             </mat-toolbar-row>
             <div class="col-12 col-xl-8 mb-3">
@@ -242,8 +281,9 @@ const AMLID_TEST = '99999999';
                         </div>
                       </mat-card-subtitle>
                     </mat-card-header>
-                    <mat-card-content>
+                    <mat-card-content class="d-flex flex-column">
                       <app-party-key-selectable-table
+                        class="flex-fill overflow-auto"
                         formControlName="partyKeys"
                         [data]="(partyKeysData$ | async) || []"
                         [isLoading]="(isLoadingCaseRecord$ | async) || false">
@@ -278,8 +318,9 @@ const AMLID_TEST = '99999999';
                         </div>
                       </mat-card-subtitle>
                     </mat-card-header>
-                    <mat-card-content>
+                    <mat-card-content class="d-flex flex-column">
                       <app-account-number-selectable-table
+                        class="flex-fill overflow-auto"
                         formControlName="accountNumbers"
                         [data]="(accountNumbersData$ | async) || []"
                         [isLoading]="(isLoadingCaseRecord$ | async) || false">
@@ -314,8 +355,9 @@ const AMLID_TEST = '99999999';
                         </div>
                       </mat-card-subtitle>
                     </mat-card-header>
-                    <mat-card-content>
+                    <mat-card-content class="d-flex flex-column">
                       <app-product-type-selectable-table
+                        class="flex-fill overflow-auto"
                         formControlName="productTypes"
                         [isLoading]="(isLoadingCaseRecord$ | async) || false">
                       </app-product-type-selectable-table>
@@ -364,8 +406,10 @@ const AMLID_TEST = '99999999';
                         </div>
                       </mat-card-subtitle>
                     </mat-card-header>
-                    <mat-card-content>
-                      <div formArrayName="reviewPeriods">
+                    <mat-card-content class="d-flex flex-column">
+                      <div
+                        class="flex-fill overflow-auto"
+                        formArrayName="reviewPeriods">
                         <div>
                           @for (
                             period of searchParamsForm.controls.reviewPeriods
@@ -375,48 +419,29 @@ const AMLID_TEST = '99999999';
                           ) {
                             <div [formGroupName]="i">
                               <div
-                                class="row review-period-input mt-2 justify-content-evenly"
+                                class="row review-period-input mt-2 justify-content-evenly mx-0"
                                 [class.loading]="
                                   isSourceRefreshTimeLoading ||
                                   (isLoadingCaseRecord$ | async) ||
                                   false
                                 ">
                                 <mat-form-field class="col">
-                                  <mat-label>Start MM/YYYY</mat-label>
+                                  <mat-label>Start MM/DD/YYYY</mat-label>
                                   <input
                                     matInput
                                     [matDatepicker]="startPicker"
                                     formControlName="start"
-                                    readonly
                                     appReviewPeriodDate
                                     [max]="maxDate" />
                                   <mat-datepicker-toggle
                                     matSuffix
                                     [for]="startPicker"></mat-datepicker-toggle>
-                                  <mat-datepicker
-                                    #startPicker
-                                    startView="multi-year"
-                                    (yearSelected)="
-                                      chosenYearHandler(
-                                        $event,
-                                        startPicker,
-                                        'start',
-                                        i
-                                      )
-                                    "
-                                    (monthSelected)="
-                                      chosenMonthHandler(
-                                        $event,
-                                        startPicker,
-                                        'start',
-                                        i
-                                      )
-                                    "></mat-datepicker>
+                                  <mat-datepicker #startPicker></mat-datepicker>
                                   @if (
                                     period.controls.start.hasError('required')
                                   ) {
                                     <mat-error>
-                                      *Start month is required
+                                      *Start date is required
                                     </mat-error>
                                   }
                                   @if (
@@ -425,48 +450,29 @@ const AMLID_TEST = '99999999';
                                     )
                                   ) {
                                     <mat-error>
-                                      *Start month must be before end month
+                                      *Start date must be before end date
                                     </mat-error>
                                   }
                                 </mat-form-field>
                                 <span
                                   class="sk skw-6 skh-7 col-auto flex-grow-1 mx-3"></span>
                                 <mat-form-field class="col">
-                                  <mat-label>End MM/YYYY</mat-label>
+                                  <mat-label>End MM/DD/YYYY</mat-label>
                                   <input
                                     matInput
                                     [matDatepicker]="endPicker"
                                     formControlName="end"
-                                    readonly
                                     appReviewPeriodDate
                                     [max]="maxDate" />
                                   <mat-datepicker-toggle
                                     matSuffix
                                     [for]="endPicker"></mat-datepicker-toggle>
-                                  <mat-datepicker
-                                    #endPicker
-                                    startView="multi-year"
-                                    (yearSelected)="
-                                      chosenYearHandler(
-                                        $event,
-                                        endPicker,
-                                        'end',
-                                        i
-                                      )
-                                    "
-                                    (monthSelected)="
-                                      chosenMonthHandler(
-                                        $event,
-                                        endPicker,
-                                        'end',
-                                        i
-                                      )
-                                    "></mat-datepicker>
+                                  <mat-datepicker #endPicker></mat-datepicker>
                                   @if (
                                     period.controls.end.hasError('required')
                                   ) {
                                     <mat-error>
-                                      *End month is required
+                                      *End date is required
                                     </mat-error>
                                   }
                                 </mat-form-field>
@@ -476,7 +482,7 @@ const AMLID_TEST = '99999999';
                                   class="col-1 px-0 d-flex align-items-center">
                                   <button
                                     type="button"
-                                    mat-icon-button
+                                    matIconButton
                                     color="warn"
                                     (click)="removeReviewPeriod(i)"
                                     [disabled]="
@@ -529,8 +535,9 @@ const AMLID_TEST = '99999999';
                   </mat-card-subtitle>
                 </mat-card-header>
 
-                <mat-card-content>
+                <mat-card-content class="d-flex flex-column">
                   <app-source-refresh-selectable-table
+                    class="flex-fill overflow-auto"
                     formControlName="sourceSystems"
                     [data]="(sourceRefreshTimeData$ | async) || []"
                     [isLoading]="
@@ -546,6 +553,12 @@ const AMLID_TEST = '99999999';
           </div>
         </form>
       </div>
+      <!-- <div class="row row-cols-1">
+        <pre class="overlay-pre">
+          Form values: {{ searchParamsForm.value | json }}
+        </pre
+        >
+      </div> -->
     </div>
   `,
   styleUrl: './transaction-search.component.scss',
@@ -554,15 +567,15 @@ const AMLID_TEST = '99999999';
       provide: MAT_DATE_FORMATS,
       useValue: {
         parse: {
-          dateInput: 'MM/yyyy', // e.g. 09/2025
+          dateInput: 'MM/dd/yyyy',
         },
         display: {
-          dateInput: 'MM/yyyy',
+          dateInput: 'MM/dd/yyyy',
           monthYearLabel: 'MMM yyyy',
           dateA11yLabel: 'MMMM yyyy',
           monthYearA11yLabel: 'MMMM yyyy',
         },
-      } as MatDateFormats,
+      } satisfies MatDateFormats,
     },
     {
       provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
@@ -571,6 +584,7 @@ const AMLID_TEST = '99999999';
         floatLabel: 'always',
       } as MatFormFieldDefaultOptions,
     },
+    { provide: ErrorStateMatcher, useClass: PreemptiveErrorStateMatcher },
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -581,6 +595,7 @@ export class TransactionSearchComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
   private errorHandler = inject(ErrorHandler);
   private router = inject(Router);
+  private amlClosingService = inject(AmlCaseTeardownService);
 
   searchParamsForm = new FormGroup(
     {
@@ -623,10 +638,15 @@ export class TransactionSearchComponent implements OnInit {
         [] as ReturnType<typeof this.createReviewPeriodGroup>[],
         { validators: [overlappingReviewPeriodsValidator] },
       ),
-      caseRecordId: new FormControl('', { nonNullable: true }),
+      caseRecordId: new FormControl(
+        { value: '', disabled: true },
+        { nonNullable: true },
+      ),
       eTag: new FormControl(Number.NaN, { nonNullable: true }),
       lastUpdated: new FormControl('', { nonNullable: true }),
       lastUpdatedBy: new FormControl('', { nonNullable: true }),
+      status: new FormControl('', { nonNullable: true }),
+      isClosed: new FormControl(null as boolean | null),
     },
     {
       updateOn: 'change',
@@ -661,6 +681,8 @@ export class TransactionSearchComponent implements OnInit {
               lastUpdated,
               lastUpdatedBy,
               createdBy,
+              status,
+              isClosed,
             },
           ]) => {
             const {
@@ -695,8 +717,10 @@ export class TransactionSearchComponent implements OnInit {
                 })),
                 caseRecordId,
                 eTag,
-                lastUpdated,
+                lastUpdated: lastUpdated ?? undefined,
                 lastUpdatedBy: lastUpdatedBy ?? createdBy,
+                status,
+                isClosed,
               },
               { emitEvent: false }, // prevents value changes emission on aml id which disables form
             );
@@ -713,7 +737,7 @@ export class TransactionSearchComponent implements OnInit {
         finalize(() => this.isLoadingCaseRecord$.next(false)),
       ),
     ),
-    shareReplay({ bufferSize: 1, refCount: true }),
+    share(),
   );
 
   searchParamsBefore: typeof this.searchParamsForm.value | null = null;
@@ -757,6 +781,16 @@ export class TransactionSearchComponent implements OnInit {
     startWith(false),
   );
 
+  caseRecordIdOptions$ = merge(
+    this.loadClick$.pipe(map(() => [] as CaseRecordOption[])),
+
+    this.loadCaseRecord$.pipe(
+      map(([_, records]) =>
+        toCaseRecordOptions(Array.isArray(records) ? records : [records]),
+      ),
+    ),
+  ).pipe(startWith([] as CaseRecordOption[]));
+
   partyKeysData$ = this.loadCaseRecord$.pipe(
     switchMap(([{ partyKeys }]) => {
       return forkJoin(
@@ -771,7 +805,7 @@ export class TransactionSearchComponent implements OnInit {
     map((responses) =>
       responses.map((res) => ({
         _hiddenPartyKey: res.partyKey,
-        name: formatPartyName(res),
+        name: getEntityFullName(res),
       })),
     ),
   );
@@ -851,6 +885,9 @@ export class TransactionSearchComponent implements OnInit {
           this.searchParamsForm.controls.reviewPeriods.disable({
             emitEvent: false,
           });
+          this.searchParamsForm.controls.caseRecordId.disable({
+            emitEvent: false,
+          });
 
           this.searchParamsBefore = null;
         }),
@@ -871,6 +908,7 @@ export class TransactionSearchComponent implements OnInit {
       reviewPeriods,
       sourceSystems,
       eTag,
+      amlId,
     } = this.searchParamsForm.value;
 
     this.caseRecordService
@@ -894,6 +932,14 @@ export class TransactionSearchComponent implements OnInit {
         eTag: eTag!,
       })
       .pipe(
+        tap(() => {
+          this.snackbarQ.open({
+            message: 'Saved changes to search parameters',
+          });
+          this.searchParamsForm.controls.reviewPeriods.clear({
+            emitEvent: false,
+          });
+        }),
         finalize(() => this.isLoadingCaseRecord$.next(false)),
         catchError((error: HttpErrorResponse) => {
           // Handle errors gracefylly
@@ -909,17 +955,64 @@ export class TransactionSearchComponent implements OnInit {
         takeUntilDestroyed(this.destroyRef),
       )
       // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
-      .subscribe(({ lastUpdated, lastUpdatedBy }) => {
-        this.snackbarQ.open('Saved changes to search parameters');
-        this.searchParamsBefore = structuredClone(this.searchParamsForm.value);
-        this.searchParamsForm.controls.lastUpdated.setValue(lastUpdated, {
-          emitEvent: false,
-        });
-        this.searchParamsForm.controls.lastUpdatedBy.setValue(lastUpdatedBy!, {
-          emitEvent: false,
-        });
-        this.searchParamsForm.updateValueAndValidity();
-      });
+      .subscribe(
+        ({
+          caseRecordId,
+          searchParams,
+          eTag,
+          lastUpdated,
+          lastUpdatedBy,
+          createdBy,
+          status,
+          isClosed,
+        }) => {
+          const {
+            reviewPeriodSelection,
+            partyKeysSelection,
+            accountNumbersSelection,
+            sourceSystemsSelection,
+            productTypesSelection,
+          } = searchParams ?? {};
+
+          (reviewPeriodSelection ?? []).forEach((period) => {
+            this.searchParamsForm.controls.reviewPeriods.push(
+              this.createReviewPeriodGroup({
+                start: period.start ?? null,
+                end: period.end ?? null,
+              }),
+            );
+          });
+          this.searchParamsForm.patchValue(
+            {
+              amlId: amlId,
+              partyKeys: (partyKeysSelection ?? []).map((p) => ({
+                _hiddenPartyKey: p,
+              })),
+              accountNumbers: accountNumbersSelection ?? [],
+              sourceSystems: (sourceSystemsSelection ?? []).map((s) => ({
+                sourceSys: s,
+              })),
+              productTypes: (productTypesSelection ?? []).map((p) => ({
+                value: p,
+              })),
+              caseRecordId,
+              eTag,
+              lastUpdated: lastUpdated ?? undefined,
+              lastUpdatedBy: lastUpdatedBy ?? createdBy,
+              status,
+              isClosed,
+            },
+            { emitEvent: false }, // prevents value changes emission on aml id which disables form
+          );
+
+          this.searchParamsBefore = structuredClone(
+            this.searchParamsForm.value,
+          );
+
+          this.searchParamsForm.updateValueAndValidity();
+          this.amlClosingService.remove(amlId!);
+        },
+      );
   }
 
   get isFormDisabled() {
@@ -936,13 +1029,14 @@ export class TransactionSearchComponent implements OnInit {
 
   onSearch() {
     if (this.searchParamsForm.invalid) {
-      this.snackbarQ.open(
-        'Please enter valid transaction search filters before searching',
-        'Dismiss',
-        {
+      this.snackbarQ.open({
+        message:
+          'Please enter valid transaction search filters before searching',
+        action: 'Dismiss',
+        config: {
           duration: 5000,
         },
-      );
+      });
       return;
     }
     const {
@@ -978,11 +1072,11 @@ export class TransactionSearchComponent implements OnInit {
         catchError((error) => {
           // Handle error and set error state
           this.isLoadingSearch$.next('fail');
-          this.snackbarQ.open(
-            'Transaction search failed. Please try again.',
-            'Dismiss',
-            { duration: 5000 },
-          );
+          this.snackbarQ.open({
+            message: 'Transaction search failed. Please try again.',
+            action: 'Dismiss',
+            config: { duration: 5000 },
+          });
           return EMPTY; // Complete the observable
         }),
         takeUntilDestroyed(this.destroyRef),
@@ -1017,6 +1111,55 @@ export class TransactionSearchComponent implements OnInit {
           },
         );
       });
+  }
+
+  private readonly authService = inject(AuthService);
+
+  protected readonly canManageCase = computed(
+    () => this.authService.isAdmin() || this.authService.isInvestigator(),
+  );
+  protected isTogglingStatus$ = new BehaviorSubject<boolean>(false);
+  onToggleCaseStatus() {
+    const { caseRecordId, eTag } = this.searchParamsForm.getRawValue();
+    if (!caseRecordId || eTag == null || isNaN(eTag)) return;
+
+    const action$ = this.searchParamsForm.controls.isClosed.value
+      ? this.caseRecordService.activateCaseRecord(caseRecordId, { eTag })
+      : this.caseRecordService.closeCaseRecord(caseRecordId, { eTag });
+
+    this.isTogglingStatus$.next(true);
+
+    action$
+      .pipe(
+        tap(({ isClosed, eTag: newETag }) => {
+          this.searchParamsForm.patchValue(
+            { isClosed, eTag: newETag },
+            { emitEvent: false },
+          );
+
+          // Keep searchParamsBefore eTag in sync to avoid false "unsaved changes"
+          if (this.searchParamsBefore) {
+            this.searchParamsBefore.eTag = newETag;
+          }
+
+          this.snackbarQ.open({
+            message: isClosed
+              ? 'Case closed successfully'
+              : 'Case reopened successfully',
+          });
+        }),
+        catchError((error: HttpErrorResponse) => {
+          this.errorHandler.handleError(error);
+          if (error.status === HttpStatusCode.Conflict) {
+            this.loadClick$.next();
+          }
+          return EMPTY;
+        }),
+        finalize(() => this.isTogglingStatus$.next(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
+      .subscribe();
   }
 
   createReviewPeriodGroup({
@@ -1086,67 +1229,6 @@ export class TransactionSearchComponent implements OnInit {
     if (this.searchParamsForm.controls.reviewPeriods.length > 1) {
       this.searchParamsForm.controls.reviewPeriods.removeAt(index);
     }
-  }
-
-  // Month/year selection handlers
-  chosenYearHandler(
-    normalizedYear: Date,
-    _: MatDatepicker<Date>,
-    controlName:
-      | keyof (typeof this.searchParamsForm.controls.reviewPeriods.controls)[number]
-      | string,
-    index: number,
-  ) {
-    const ctrlValue = this.searchParamsForm.controls.reviewPeriods
-      .at(index)
-      .get(controlName)?.value as unknown as string;
-
-    let chosenDate: Date = normalizedYear;
-
-    if (ctrlValue) {
-      chosenDate = setYear(ctrlValue, getYear(normalizedYear));
-    }
-
-    this.searchParamsForm.controls.reviewPeriods
-      .at(index)
-      .get(controlName)
-      ?.setValue(ReviewPeriodDateDirective.format(chosenDate));
-
-    this.searchParamsForm.controls.reviewPeriods
-      .at(index)
-      .get(controlName)
-      ?.updateValueAndValidity();
-  }
-
-  chosenMonthHandler(
-    normalizedMonth: Date,
-    datepicker: MatDatepicker<Date>,
-    controlName:
-      | keyof (typeof this.searchParamsForm.controls.reviewPeriods.controls)[number]
-      | string,
-    index: number,
-  ) {
-    const ctrlValue = this.searchParamsForm.controls.reviewPeriods
-      .at(index)
-      .get(controlName)?.value as unknown as string;
-
-    let chosenDate: Date = normalizedMonth;
-
-    if (ctrlValue) {
-      chosenDate = setMonth(ctrlValue, getMonth(normalizedMonth));
-    }
-
-    this.searchParamsForm.controls.reviewPeriods
-      .at(index)
-      .get(controlName)
-      ?.setValue(ReviewPeriodDateDirective.format(chosenDate));
-
-    this.searchParamsForm.controls.reviewPeriods
-      .at(index)
-      .get(controlName)
-      ?.updateValueAndValidity();
-
-    datepicker.close();
   }
 }
 
@@ -1232,23 +1314,16 @@ export interface RouteExtrasFromSearch {
   caseRecordId: string;
 }
 
-function formatPartyName(party: {
-  surname: string;
-  givenName: string;
-  otherOrInitial: string;
-  nameOfEntity: string;
-}): string {
-  // If entity name exists, use it (for organizations)
-  if (party.nameOfEntity?.trim()) {
-    return party.nameOfEntity.trim();
-  }
+interface CaseRecordOption {
+  value: string;
+  label: string;
+}
 
-  // Otherwise format individual name
-  const parts = [
-    party.givenName?.trim(),
-    party.otherOrInitial?.trim(),
-    party.surname?.trim(),
-  ].filter(Boolean); // Remove empty/null values
-
-  return parts.join(' ') || 'Unknown';
+function toCaseRecordOptions(records: CaseRecordRes[]): CaseRecordOption[] {
+  return [...records]
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .map((record, i) => ({
+      value: record.caseRecordId,
+      label: toCaseRecordIdLabel(i, record),
+    }));
 }

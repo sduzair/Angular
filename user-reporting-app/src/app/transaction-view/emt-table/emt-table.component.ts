@@ -3,23 +3,21 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  EventEmitter,
   inject,
   Input,
-  Output,
   TrackByFunction,
   ViewChild,
   WritableSignal,
 } from '@angular/core';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
+import { map, take } from 'rxjs';
+import { CaseRecordStore } from '../../aml/case-record.store';
 import { IFilterForm } from '../../base-table/abstract-base-table';
 import { BaseTableComponent } from '../../base-table/base-table.component';
 import { EmtSourceData } from '../../transaction-search/transaction-search.service';
-import { TableSelectionType } from '../transaction-view.component';
-import { map, take } from 'rxjs';
-import { CaseRecordStore } from '../../aml/case-record.store';
 import { LocalHighlightsService } from '../local-highlights.service';
+import { TableSelectionType } from '../transaction-view.component';
 
 @Component({
   selector: 'app-emt-table',
@@ -33,6 +31,7 @@ import { LocalHighlightsService } from '../local-highlights.service';
       [displayedColumns]="displayedColumns"
       [displayColumnHeaderMap]="displayColumnHeaderMap"
       [stickyColumns]="stickyColumns"
+      [columnWidthsMap]="columnWidthsMap"
       [selectFiltersValues]="selectFiltersValues"
       [dateFiltersValues]="dateFiltersValues"
       [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
@@ -43,8 +42,8 @@ import { LocalHighlightsService } from '../local-highlights.service';
       [highlightedRecords]="highlightedRecords"
       [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'"
       [filterFormHighlightSideEffect]="filterFormHighlightSideEffect"
-      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
-      [sortedBy]="'depositedTimeDate'">
+      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples">
+      <!-- [sortedBy]="'depositedTimeDate'"> -->
       <!-- Selection Model -->
       <ng-container
         matColumnDef="select"
@@ -58,7 +57,8 @@ import { LocalHighlightsService } from '../local-highlights.service';
               (change)="$event ? toggleAllRows() : null"
               [checked]="hasValue() && isAllSelected()"
               [indeterminate]="hasValue() && !isAllSelected()"
-              [class.invisible]="!hasValue()">
+              [class.invisible]="!hasValue()"
+              [disabled]="disabled">
             </mat-checkbox>
           </div>
         </th>
@@ -70,7 +70,8 @@ import { LocalHighlightsService } from '../local-highlights.service';
             <mat-checkbox
               (click)="baseTable.onCheckBoxClickMultiToggle($event, row, i)"
               (change)="$event ? baseTable.toggleRow(row) : null"
-              [checked]="masterSelection!.isSelected(row)">
+              [checked]="masterSelection!.isSelected(row)"
+              [disabled]="disabled">
             </mat-checkbox>
           </div>
         </td>
@@ -84,6 +85,9 @@ export class EmtTableComponent<
     [K in keyof TableSelectionType]: string;
   },
 > {
+  @Input({ required: true })
+  disabled: boolean | null = false;
+
   dataColumnsValues: (keyof EmtSourceData)[] = [
     'depositedTimeDate',
     'depositedTimeTime',
@@ -211,6 +215,12 @@ export class EmtTableComponent<
     _uiPropHighlightColor: 'Highlight',
   };
 
+  columnWidthsMap: Partial<
+    Record<Extract<keyof EmtSourceData, string> | 'select', string>
+  > = {
+    flowOfFundsAmlTransactionId: '300px',
+  };
+
   stickyColumns: ('select' | keyof EmtSourceData)[] = [
     'select',
     'depositedTimeDate',
@@ -228,7 +238,7 @@ export class EmtTableComponent<
     'contactName',
     'cur',
     'etFwdFlag',
-    'originalFiRefCode',
+    // 'originalFiRefCode',
     'recipientAccountName',
     'recipientAccountNumber',
     'recipientCertapayAccount',

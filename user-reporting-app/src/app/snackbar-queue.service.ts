@@ -24,7 +24,15 @@ export class SnackbarQueueService {
   /**
    * Public API to add a message to the queue.
    */
-  open(message: string, action = 'OK', config?: MatSnackBarConfig) {
+  open({
+    message,
+    action = 'OK',
+    config,
+  }: {
+    message: string;
+    action?: string;
+    config?: MatSnackBarConfig;
+  }) {
     this.queue$.next({
       message,
       action,

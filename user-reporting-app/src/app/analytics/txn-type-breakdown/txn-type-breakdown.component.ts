@@ -28,12 +28,12 @@ import {
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
+import { formatCurrencyLocal } from '../../reporting-ui/edit-form/common-validation';
 import { StrTransaction } from '../../reporting-ui/reporting-ui-table/reporting-ui-table.component';
 import {
   getTxnType,
   TRANSACTION_TYPE_FRIENDLY_NAME,
-} from '../account-methods.service';
-import { formatCurrencyLocal } from '../circular/circular.component';
+} from '../account-transaction-totals.service';
 
 echarts.use([
   PieChart,
@@ -53,7 +53,7 @@ type ECOption = echarts.ComposeOption<
 >;
 
 @Component({
-  selector: 'app-txn-method-breakdown',
+  selector: 'app-txn-type-breakdown',
   imports: [
     CommonModule,
     MatButtonToggleModule,
@@ -63,7 +63,8 @@ type ECOption = echarts.ComposeOption<
   ],
   template: `
     <div
-      class="h-400 w-100 position-relative border rounded shadow-sm overflow-hidden">
+      style="height: 320px;"
+      class="w-100 position-relative border rounded shadow-sm overflow-hidden">
       <!-- Direction Toggle -->
       <mat-button-toggle-group
         class="direction-toggle float-end z-1 me-1 mt-1"
@@ -83,15 +84,18 @@ type ECOption = echarts.ComposeOption<
       <div #chartContainer class="w-100 h-100"></div>
     </div>
   `,
-  styleUrl: 'txn-method-breakdown.component.scss',
+  styleUrl: 'txn-type-breakdown.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TxnMethodBreakdownComponent
-  implements OnInit, OnChanges, OnDestroy
-{
+export class TxnTypeBreakdownComponent implements OnInit, OnChanges, OnDestroy {
   @ViewChild('chartContainer', { static: true }) chartContainer!: ElementRef;
 
-  @Input({ required: true }) transactions: StrTransaction[] = [];
+  @Input({ required: true }) transactions!: StrTransaction[];
+  @Input({ required: true }) account: {
+    account: string;
+    currency: string;
+    transit: string;
+  } | null = null;
 
   private myChart: echarts.ECharts | undefined;
   private resizeObserver: ResizeObserver | undefined;
@@ -140,116 +144,168 @@ export class TxnMethodBreakdownComponent
   private updateChart(): void {
     if (!this.myChart) return;
 
-    const methodData = this.processMethodData(this.transactions);
+    const typeData = this.processTypeData(this.transactions);
     const mode = this.viewMode();
 
     // Extract relevant data based on view mode
-    const chartData = methodData
+    const chartData = typeData
       .map(
         (m) =>
           ({
             name: m.name,
             value: mode === 'credits' ? m.credits : m.debits,
             count: mode === 'credits' ? m.creditCount : m.debitCount,
-            avgValue: mode === 'credits' ? m.avgCreditValue : m.avgDebitValue,
-            // Keep both for tooltip
-            credits: m.credits,
-            debits: m.debits,
+            _avgValue: mode === 'credits' ? m.avgCreditValue : m.avgDebitValue,
           }) satisfies ChartData,
       )
-      .filter((d) => d.value > 0); // Only show methods with transactions
+      .filter((d) => d.value > 0); // Only show types with transactions
 
     const totalValue = chartData.reduce((sum, m) => sum + m.value, 0);
 
+    const values = chartData.map((d) => d.value);
+    const minValue = Math.min(...values);
+    const maxValue = Math.max(...values);
+
+    const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+
+    const interpolateRgb = (
+      from: { r: number; g: number; b: number },
+      to: { r: number; g: number; b: number },
+      t: number,
+    ) => {
+      const tt = clamp01(t);
+      const r = Math.round(from.r + (to.r - from.r) * tt);
+      const g = Math.round(from.g + (to.g - from.g) * tt);
+      const b = Math.round(from.b + (to.b - from.b) * tt);
+      return `rgb(${r}, ${g}, ${b})`;
+    };
+
     // Different color schemes for credits vs debits
-    const getColorByMode = (avgValue: number, mode: ViewMode): string => {
-      if (mode === 'credits') {
-        if (avgValue > 5000) return '#52c41a'; // High incoming (Green)
-        if (avgValue > 2000) return '#73d13d'; // Medium incoming
-        return '#95de64'; // Low incoming
-      } else {
-        if (avgValue > 5000) return '#f5222d'; // High outgoing (Red)
-        if (avgValue > 2000) return '#ff4d4f'; // Medium outgoing
-        return '#ff7875'; // Low outgoing
+    const getColorByMode = (value: number, mode: ViewMode): string => {
+      // If all values are the same, just return a mid-ish shade
+      if (maxValue <= 0 || maxValue === minValue) {
+        return mode === 'credits' ? '#73d13d' : '#ff4d4f';
       }
+
+      // Log scale based on real min/max (no “expected max”)
+      const v = Math.max(value, 1);
+      const logMin = Math.log10(Math.max(minValue, 1));
+      const logMax = Math.log10(Math.max(maxValue, 1));
+      const t = (Math.log10(v) - logMin) / (logMax - logMin);
+
+      if (mode === 'credits') {
+        return interpolateRgb(
+          { r: 217, g: 247, b: 190 }, // #d9f7be  (light)
+          { r: 115, g: 209, b: 61 }, // #73d13d  (dark)
+          t,
+        );
+      }
+
+      return interpolateRgb(
+        { r: 255, g: 204, b: 199 }, // #ffccc7  (light)
+        { r: 255, g: 77, b: 79 }, // #ff4d4f  (dark)
+        t,
+      );
     };
 
     const option: ECOption = {
       title: {
-        text: `Transaction Method Breakdown - ${mode === 'credits' ? 'Credits' : 'Debits'}`,
-        subtext:
-          mode === 'credits'
-            ? 'Incoming Funds by Method'
-            : 'Outgoing Funds by Method',
+        text: `Transaction Type Breakdown - ${mode === 'credits' ? 'Credits' : 'Debits'}`,
+        subtext: mode === 'credits' ? 'Incoming Funds' : 'Outgoing Funds',
         left: 'left',
-        top: 10,
+
+        top: 6,
+        textStyle: { fontSize: 14, fontWeight: 600 },
+        subtextStyle: { fontSize: 11 },
       },
       tooltip: {
         trigger: 'item',
         confine: true,
+        padding: [6, 10],
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         formatter: (params: any) => {
           const data = params.data as ChartData;
-          const percent = ((data.value / totalValue) * 100).toFixed(1);
+          const currency = this.account!.currency;
+          const isCredit = mode === 'credits';
+          const color = isCredit ? '#22c55e' : '#ef4444';
 
-          return `
-            <strong>${params.name}</strong><br/>
-            <hr style="margin: 4px 0; border-color: #ddd"/>
-            ${mode === 'credits' ? 'Credit' : 'Debit'} Amount: ${formatCurrencyLocal(data.value)}<br/>
-            Transaction Count: ${data.count.toLocaleString()}<br/>
-            Percentage: ${percent}%<br/>
-            <hr style="margin: 4px 0; border-color: #ddd"/>
-            <em style="font-size: 11px; color: #999;">
-              Total Credits: ${formatCurrencyLocal(data.credits)}<br/>
-              Total Debits: ${formatCurrencyLocal(data.debits)}
-            </em>
-          `;
+          let inner = `<strong>${params.name}</strong><br/>`;
+          inner += `<span>Transit: ${this.account?.transit}</span><br/>`;
+          inner += `<span>Account: ${this.account?.account}</span><br/>`;
+          inner += `<hr style="margin:3px 0; border-color:#ddd"/>`;
+          inner += `<span>Transactions: ${data.count.toLocaleString()}</span><br/>`;
+          inner += `<span style="color:${color}">${isCredit ? '↑ Credit' : '↓ Debit'}:</span> ${formatCurrencyLocal({ value: data.value, currencyCode: currency })}<br/>`;
+
+          return `<div style="font-size:11px; line-height:1.5">${inner}</div>`;
         },
       },
       legend: {
         orient: 'vertical',
         left: 'left',
         top: 'middle',
-        itemGap: 15,
+        itemGap: 10,
+        itemWidth: 22,
+        itemHeight: 12,
+        textStyle: { fontSize: 10 },
         formatter: (name: string) => {
-          const method = chartData.find((m) => m.name === name);
-          if (!method) return name;
+          const type = chartData.find((m) => m.name === name);
+          if (!type) return name;
 
-          return `${name}: ${formatCurrencyLocal(method.value)}`;
+          return `${name}: ${formatCurrencyLocal({ value: type.value, currencyCode: this.account?.currency })}`;
         },
-        textStyle: {
-          fontSize: 13,
+
+        // selectors for show/hide all
+        // selector: [
+        //   { type: 'all', title: 'All' },
+        //   { type: 'inverse', title: 'Invert' },
+        // ],
+        selectorPosition: 'start',
+
+        selectorLabel: {
+          show: true,
+          color: '#333',
+          fontSize: 10,
+          fontWeight: 500,
+          borderRadius: 3,
+          padding: [2, 5],
+          backgroundColor: '#f0f0f0',
+          borderColor: '#d0d0d0',
+          borderWidth: 1,
+        },
+        emphasis: {
+          selectorLabel: {
+            color: '#fff',
+            backgroundColor: '#5470c6',
+            borderColor: '#5470c6',
+          },
         },
       },
       series: [
         {
-          name: 'Transaction Methods',
+          name: 'Transaction Types',
           type: 'pie',
-          radius: ['45%', '70%'],
+          radius: ['40%', '65%'],
           center: ['60%', '50%'],
-          data: chartData.map((method) => ({
-            name: method.name,
-            value: method.value,
-            count: method.count,
-            avgValue: method.avgValue,
-            credits: method.credits,
-            debits: method.debits,
+          data: chartData.map((type) => ({
+            name: type.name,
+            value: type.value,
+            count: type.count,
             itemStyle: {
-              color: getColorByMode(method.avgValue, mode),
+              color: getColorByMode(type.value, mode),
               borderColor: '#fff',
               borderWidth: 2,
             },
           })),
           emphasis: {
             itemStyle: {
-              shadowBlur: 15,
+              shadowBlur: 10,
               shadowOffsetX: 0,
-              shadowColor: 'rgba(0, 0, 0, 0.3)',
-              borderWidth: 3,
+              shadowColor: 'rgba(0,0,0,0.25)',
+              borderWidth: 2,
             },
             label: {
               show: true,
-              fontSize: 16,
+              fontSize: 13,
               fontWeight: 'bold',
             },
           },
@@ -258,19 +314,18 @@ export class TxnMethodBreakdownComponent
             position: 'outside',
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             formatter: (params: any) => {
-              // const percent = ((params.value / totalValue) * 100).toFixed(1);
-              return `{name|${params.name}}\n{value|$${(params.value / 1000).toFixed(0)}k}`;
+              return `{name|${params.name}}`;
             },
             rich: {
               name: {
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: 'bold',
                 color: '#333',
               },
               value: {
-                fontSize: 11,
+                fontSize: 10,
                 color: '#666',
-                padding: [3, 0, 0, 0],
+                padding: [2, 0, 0, 0],
               },
               percent: {
                 fontSize: 10,
@@ -280,8 +335,8 @@ export class TxnMethodBreakdownComponent
           },
           labelLine: {
             show: true,
-            length: 15,
-            length2: 10,
+            length: 10,
+            length2: 7,
             smooth: true,
           },
           animationType: 'scale',
@@ -299,7 +354,7 @@ export class TxnMethodBreakdownComponent
             text: mode === 'credits' ? 'Total Credits' : 'Total Debits',
             align: 'center',
             fill: '#999',
-            fontSize: 13,
+            fontSize: 11,
           },
         },
         {
@@ -307,17 +362,17 @@ export class TxnMethodBreakdownComponent
           right: '3%',
           top: '50%',
           style: {
-            text: `$${(totalValue / 1000).toFixed(0)}k`,
+            text: `${formatCurrencyLocal({ value: totalValue, currencyCode: this.account?.currency })}`,
             align: 'center',
             fill: mode === 'credits' ? '#52c41a' : '#f5222d',
-            fontSize: 22,
+            fontSize: 18,
             fontWeight: 'bold',
           },
         },
         {
           type: 'text',
           right: '3%',
-          top: '56%',
+          top: '57%',
           style: {
             text: `${chartData.reduce((sum, d) => sum + d.count, 0)} txns`,
             align: 'center',
@@ -331,8 +386,8 @@ export class TxnMethodBreakdownComponent
     this.myChart.setOption(option, { notMerge: true });
   }
 
-  private processMethodData(data: StrTransaction[]): MethodData[] {
-    const methodMap = new Map<
+  private processTypeData(data: StrTransaction[]): TypeData[] {
+    const typeMap = new Map<
       string,
       {
         credits: number;
@@ -347,18 +402,18 @@ export class TxnMethodBreakdownComponent
         wasTxnAttempted,
         flowOfFundsCreditAmount,
         flowOfFundsDebitAmount,
-        methodOfTxn,
         startingActions = [],
         completingActions = [],
       }) => {
         if (wasTxnAttempted) return;
 
         // Determine txn type
-        const txnTypeKey = getTxnType(
-          startingActions[0].typeOfFunds,
-          completingActions[0].detailsOfDispo,
-          methodOfTxn,
-        )!;
+        const txnTypeKey = getTxnType({
+          typeOfFunds: startingActions[0].typeOfFunds,
+          detailsOfDispo: completingActions[0].detailsOfDispo,
+          detailsOfDispoOther: completingActions[0].detailsOfDispoOther,
+          startingActionsLength: startingActions.length,
+        })!;
 
         const friendlyName = TRANSACTION_TYPE_FRIENDLY_NAME[txnTypeKey];
 
@@ -366,32 +421,30 @@ export class TxnMethodBreakdownComponent
         const creditAmount = flowOfFundsCreditAmount || 0;
         const debitAmount = flowOfFundsDebitAmount || 0;
 
-        if (!methodMap.has(friendlyName)) {
-          methodMap.set(friendlyName, {
-            credits: 0,
-            debits: 0,
-            creditCount: 0,
-            debitCount: 0,
-          });
-        }
-
-        const methodData = methodMap.get(friendlyName)!;
+        const typeData = typeMap.get(friendlyName) ?? {
+          credits: 0,
+          debits: 0,
+          creditCount: 0,
+          debitCount: 0,
+        };
 
         if (creditAmount > 0) {
-          methodData.credits += creditAmount;
-          methodData.creditCount += 1;
+          typeData.credits += creditAmount;
+          typeData.creditCount += 1;
         }
 
         if (debitAmount > 0) {
-          methodData.debits += debitAmount;
-          methodData.debitCount += 1;
+          typeData.debits += debitAmount;
+          typeData.debitCount += 1;
         }
+
+        typeMap.set(friendlyName, typeData);
       },
     );
 
     // Convert to array and calculate averages
-    const result: MethodData[] = [];
-    methodMap.forEach((data, name) => {
+    const result: TypeData[] = [];
+    typeMap.forEach((data, name) => {
       result.push({
         name: name,
         credits: data.credits,
@@ -409,7 +462,7 @@ export class TxnMethodBreakdownComponent
   }
 }
 
-interface MethodData {
+interface TypeData {
   name: string;
   credits: number;
   debits: number;
@@ -425,7 +478,5 @@ interface ChartData {
   name: string;
   value: number;
   count: number;
-  avgValue: number;
-  credits: number;
-  debits: number;
+  _avgValue: number;
 }

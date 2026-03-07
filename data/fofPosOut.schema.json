@@ -1,0 +1,211 @@
+{
+  "id": 719510,
+  "num_rows": 500,
+  "file_format": "json",
+  "name": "fofPosOut",
+  "array": true,
+  "columns": [
+    {
+      "name": "flowOfFundsAccountCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "CAD"
+      ],
+      "selectionStyle": "random",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsAmlId",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "posOut",
+      "column": "flowOfFundsAmlId",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsAmlTransactionId",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "posOut",
+      "column": "flowOfFundsAmlTransactionId",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsCasePartyKey",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "posOut",
+      "column": "_hiddenDate",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsConductorPartyKey",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "posOut",
+      "column": "_hiddenDate",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsCreditAmount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "posOut",
+      "column": "flowOfFundsCreditAmount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsCreditedAccount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "posOut",
+      "column": "flowOfFundsCreditedAccount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "flowOfFundsCreditedTransit",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "posOut",
+      "column": "flowOfFundsCreditedTransit",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": ""
+    },
+    {
+      "name": "flowOfFundsDebitAmount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "posOut",
+      "column": "flowOfFundsDebitAmount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsDebitedAccount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "posOut",
+      "column": "flowOfFundsDebitedAccount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsDebitedTransit",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "posOut",
+      "column": "flowOfFundsDebitedTransit",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsPostingDate",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "posOut",
+      "column": "flowOfFundsPostingDate",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsSource",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "posOut",
+      "column": "flowOfFundsSource",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowofFundsSourceTransactionId",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "posOut",
+      "column": "_hiddenDate",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsTransactionCurrency",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "posOut",
+      "column": "flowOfFundsTransactionCurrency",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsTransactionCurrencyAmount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "posOut",
+      "column": "flowOfFundsTransactionCurrencyAmount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsTransactionDate",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "posOut",
+      "column": "flowOfFundsTransactionDate",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsTransactionDesc",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "posOut",
+      "column": "flowOfFundsTransactionDesc",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsTransactionTime",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "posOut",
+      "column": "flowOfFundsTransactionTime",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "sourceId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "POS"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    }
+  ]
+}

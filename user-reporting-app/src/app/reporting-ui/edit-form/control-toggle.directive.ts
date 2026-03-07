@@ -15,6 +15,7 @@ import {
   FormGroupDirective,
   NgControl,
 } from '@angular/forms';
+import { MARKED_AS_CLEARED, SET_AS_EMPTY } from './mark-as-cleared.directive';
 import { startWith } from 'rxjs';
 import { MARKED_AS_CLEARED, SET_AS_EMPTY } from './mark-as-cleared.directive';
 
@@ -25,6 +26,7 @@ export class ControlToggleDirective implements OnInit {
   private formGroupDirective = inject(FormGroupDirective);
   private controlContainer = inject(ControlContainer);
   private ngControl = inject(NgControl, { optional: true });
+  private destroyRef = inject(DestroyRef);
 
   @Input({ required: true }) appToggleControl!: string;
   @Input() isBulkEdit = false;
@@ -46,12 +48,6 @@ export class ControlToggleDirective implements OnInit {
     return dependentControl!;
   }
 
-  @HostBinding('attr.readonly')
-  get readonly() {
-    return this.dependentControl.value === MARKED_AS_CLEARED ? '' : null;
-  }
-
-  private destroyRef = inject(DestroyRef);
   ngOnInit() {
     if (!this.toggleControl || !this.dependentControl) {
       throw new Error(
@@ -62,8 +58,8 @@ export class ControlToggleDirective implements OnInit {
     // Subscribe to value changes of the control to watch
     this.toggleControl.valueChanges
       .pipe(
-        takeUntilDestroyed(this.destroyRef),
         startWith(this.toggleControl.value),
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((toggleValue) => {
         const isDepControlAFormArray =
@@ -87,7 +83,8 @@ export class ControlToggleDirective implements OnInit {
           this.appToggleControlValue === String(toggleValue ?? '')
         ) {
           this.dependentControl.enable({ emitEvent: false });
-          this.dependentControl.setValue(SET_AS_EMPTY);
+          if (this.dependentControl.value === MARKED_AS_CLEARED)
+            this.dependentControl.setValue(SET_AS_EMPTY);
           return;
         }
 
@@ -104,7 +101,8 @@ export class ControlToggleDirective implements OnInit {
         // field that depends on checkbox toggle's value
         if (isDependentCtrlAFormControl && toggleHasValue) {
           this.dependentControl.enable({ emitEvent: false });
-          this.dependentControl.setValue(SET_AS_EMPTY);
+          if (this.dependentControl.value === MARKED_AS_CLEARED)
+            this.dependentControl.setValue(SET_AS_EMPTY);
           return;
         }
 

@@ -1,8 +1,6 @@
 @use '@angular/material' as mat;
-@use '../typography-scaling' as typo;
 
 .transaction-search {
-  @include mat.all-component-densities(-5);
   @include mat.table-overrides(
     (
       background-color: --mat-sys-surface-container-low,
@@ -10,16 +8,21 @@
   );
 
   .filter-card mat-card-content {
-    min-height: 300px;
-    max-height: 300px;
-    overflow-y: auto;
+    min-height: 250px;
+    max-height: 250px;
   }
 
   .system-info mat-card-content {
-    min-height: 700px;
-    max-height: 700px;
-    overflow-y: auto;
+    min-height: 600px;
+    max-height: 600px;
   }
+}
+
+// .search-aml-input {
+// }
+
+::ng-deep .search-aml-input div.mat-mdc-form-field-error-wrapper {
+  position: absolute;
 }
 
 ::ng-deep .filter-card .mat-mdc-card-header-text {
@@ -37,21 +40,9 @@
   display: inline-block;
 }
 
-.search-btn {
-  @include mat.button-density(0);
-}
-
-.transaction-search mat-toolbar {
-  @include mat.button-density(0);
-}
-
 mat-toolbar.card-toolbar {
   --mat-toolbar-standard-height: auto;
   background-color: unset;
-}
-
-mat-toolbar.card-toolbar .mdc-button {
-  @include mat.button-density(-5);
 }
 
 ::ng-deep .review-period-input .mat-mdc-form-field-error-wrapper {
@@ -87,4 +78,42 @@ mat-toolbar.card-toolbar .mdc-button {
 
 .updated-by-row {
   --mat-toolbar-standard-height: auto;
+}
+
+.overlay-pre {
+  // position: fixed;
+  // top: 20px;
+  // right: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  // z-index: 1000;
+  // max-width: 400px;
+  // max-height: 80vh;
+  // pointer-events: none;
+  // overflow: auto;
+  // scrollbar-width: none;
+}
+
+// .bulk-edit-form {
+//   // Override filled container color only on dirty form fields
+//   mat-form-field.ng-dirty {
+//     --mat-form-field-outlined-outline-color: orange;
+//     --mat-form-field-outlined-outline-width: 3px;
+//     --mat-form-field-outlined-hover-outline-color: orange;
+//   }
+// }
+
+// --bs-breakpoint-xs: 0;
+// --bs-breakpoint-sm: 576px;
+// --bs-breakpoint-md: 768px;
+// --bs-breakpoint-lg: 992px;
+// --bs-breakpoint-xl: 1200px;
+// --bs-breakpoint-xxl: 1400px;
+
+.container-xl {
+  @media (min-width: 992px) {
+    max-width: 1200px !important;
+  }
 }

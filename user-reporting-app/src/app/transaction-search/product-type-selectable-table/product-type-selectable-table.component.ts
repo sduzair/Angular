@@ -18,7 +18,7 @@ import { TransactionSearchService } from '../transaction-search.service';
     <table mat-table [dataSource]="dataSource">
       <!-- Selection Column -->
       <ng-container matColumnDef="select">
-        <th mat-header-cell *matHeaderCellDef>
+        <th class="text-center" mat-header-cell *matHeaderCellDef>
           <mat-checkbox
             [disabled]="disabled"
             (change)="$event ? toggleAllRows() : null"
@@ -26,7 +26,7 @@ import { TransactionSearchService } from '../transaction-search.service';
             [indeterminate]="selection.hasValue() && !isAllSelected()">
           </mat-checkbox>
         </th>
-        <td mat-cell *matCellDef="let row">
+        <td class="text-center" mat-cell *matCellDef="let row">
           <mat-checkbox
             [disabled]="isRowDisabled(row)"
             (click)="$event.stopPropagation()"

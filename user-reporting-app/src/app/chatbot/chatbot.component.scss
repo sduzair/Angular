@@ -1,7 +1,5 @@
 :host {
   display: block;
-  --chat-width: 480px;
-  width: var(--chat-width);
   height: 100%;
 }
 
@@ -17,10 +15,10 @@
 }
 
 .chat-messages {
-  flex-grow: 0;
+  position: relative;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   gap: 16px;
-  position: relative;
 }

@@ -1,3 +1,5 @@
+import { EntityType } from '../../aml/case-record.store';
+import { formatCurrencyLocal } from '../../reporting-ui/edit-form/common-validation';
 import {
   PartyAccount,
   PartyAddress,
@@ -9,13 +11,8 @@ import {
 import {
   NODE_ENUM,
   TRANSACTION_TYPE_FRIENDLY_NAME,
-} from '../account-methods.service';
-import {
-  formatCurrencyLocal,
-  getNodeName,
-  GraphNode,
-  TxnTypeAmount,
-} from './circular.component';
+} from '../account-transaction-totals.service';
+import { getNodeName, GraphNode, TxnTypeAmount } from './circular.component';
 
 /**
  * Copy node data to clipboard
@@ -52,29 +49,16 @@ export function extractNodeDisplayData(node: GraphNode): NodeDisplayData {
   }
 
   if (node.nodeType === 'subject') {
-    const {
-      partyIdentifier,
-      sourceSystem,
-      identifiers,
-      account,
-      partyName,
-      contact,
-      address,
-    } = node.partyInfo;
+    const { entityIdentifier } = node.entityInfo ?? {};
 
     const data: NodeDisplayData = {
       title: node.displayName,
       category: node.category as number,
       categoryName: getNodeName(node.category as number),
 
-      partyInfo: {
-        partyIdentifier,
-        sourceSystem,
-        identifiers,
-        account,
-        partyName,
-        contact,
-        address,
+      entityInfo: {
+        entityIdentifier: entityIdentifier!,
+        ...node.entityInfo,
       },
 
       currencyTotals: {
@@ -106,18 +90,18 @@ function aggregateCurrencyTotalsByTxnType({
 }): TxnTypeCurrencyTotals[] {
   const creditKeys = Object.keys(creditsByTxnType).map(Number);
   const debitKeys = Object.keys(debitsByTxnType).map(Number);
-  const allMethods = new Set([...creditKeys, ...debitKeys]);
+  const allTypes = new Set([...creditKeys, ...debitKeys]);
 
-  if (allMethods.size === 0) return [];
+  if (allTypes.size === 0) return [];
 
-  return Array.from(allMethods)
-    .map((method) => {
+  return Array.from(allTypes)
+    .map((type) => {
       // Group credits by currency
       const receivedMapByCurr = new Map<
         string,
         { amount: number; count: number }
       >();
-      (creditsByTxnType[method] ?? []).forEach((item) => {
+      (creditsByTxnType[type] ?? []).forEach((item) => {
         const existing = receivedMapByCurr.get(item.currency) ?? {
           amount: 0,
           count: 0,
@@ -132,7 +116,7 @@ function aggregateCurrencyTotalsByTxnType({
         string,
         { amount: number; count: number }
       >();
-      (debitsByTxnType[method] ?? []).forEach((item) => {
+      (debitsByTxnType[type] ?? []).forEach((item) => {
         const existing = sentMapByCurr.get(item.currency) ?? {
           amount: 0,
           count: 0,
@@ -155,19 +139,25 @@ function aggregateCurrencyTotalsByTxnType({
       return {
         txnType:
           TRANSACTION_TYPE_FRIENDLY_NAME[
-            method as keyof typeof TRANSACTION_TYPE_FRIENDLY_NAME
+            type as keyof typeof TRANSACTION_TYPE_FRIENDLY_NAME
           ] ?? 'Unknown',
         receivedByCurrency: Array.from(receivedMapByCurr.entries()).map(
           ([currency, data]) => ({
             currency,
-            amount: formatCurrencyLocal(data.amount),
+            amount: formatCurrencyLocal({
+              value: data.amount,
+              currencyCode: currency,
+            }),
             count: data.count,
           }),
         ),
         sentByCurrency: Array.from(sentMapByCurr.entries()).map(
           ([currency, data]) => ({
             currency,
-            amount: formatCurrencyLocal(data.amount),
+            amount: formatCurrencyLocal({
+              value: data.amount,
+              currencyCode: currency,
+            }),
             count: data.count,
           }),
         ),
@@ -223,14 +213,20 @@ function aggregateCurrencyTotals({
     receivedByCurrency: Array.from(receivedMap.entries())
       .map(([currency, data]) => ({
         currency,
-        amount: formatCurrencyLocal(data.amount),
+        amount: formatCurrencyLocal({
+          value: data.amount,
+          currencyCode: currency,
+        }),
         count: data.count,
       }))
       .sort((a, b) => b.count - a.count), // Sort by transaction count
     sentByCurrency: Array.from(sentMap.entries())
       .map(([currency, data]) => ({
         currency,
-        amount: formatCurrencyLocal(data.amount),
+        amount: formatCurrencyLocal({
+          value: data.amount,
+          currencyCode: currency,
+        }),
         count: data.count,
       }))
       .sort((a, b) => b.count - a.count),
@@ -241,137 +237,99 @@ function aggregateCurrencyTotals({
  * Format display data as HTML
  */
 export function formatNodeDataAsHtml(data: NodeDisplayData): string {
-  let html = `<strong>${data.title}</strong><br/>`;
-  html += `<span style="font-size: 13px;">Type: ${data.categoryName}</span><br/>`;
-  if (data.transit)
-    html += `<span style="font-size: 13px;">Transit: ${data.transit}</span><br/>`;
-  if (data.account)
-    html += `<span style="font-size: 13px;">Account: ${data.account}</span><br/>`;
+  let inner = `<strong>${data.title}</strong><br/>`;
+  inner += `<span>Type: ${data.categoryName}</span><br/>`;
 
-  // Party Info Section (subjects only)
-  if (data.partyInfo) {
-    const { account, identifiers, contact, address } = data.partyInfo;
-    // Party Name - title
+  if (data.transit) inner += `<span>Transit: ${data.transit}</span><br/>`;
+  if (data.account) inner += `<span>Account: ${data.account}</span><br/>`;
 
-    // Party Account
-    if (account) {
-      if (account.accountNumber) {
-        html += `<span style="font-size: 13px;">Acct #: ${account.accountNumber}`;
-        if (account.transitNumber)
-          html += ` (Transit: ${account.transitNumber})`;
-        if (account.currency) html += ` [${account.currency}]`;
-        html += `</span><br/>`;
-      }
-      if (account.fiNumber)
-        html += `<span style="font-size: 13px;">FI: ${account.fiNumber}</span><br/>`;
-      if (account.accountName)
-        html += `<span style="font-size: 13px;">Acct Name: ${account.accountName}</span><br/>`;
+  if (data.entityInfo) {
+    const {
+      accountNumber,
+      transitNumber,
+      currency,
+      fiNumber,
+      accountName,
+      partyKey,
+      certapayAccount,
+      cardNumber,
+      email,
+      phone,
+      mobile,
+      handleUsed,
+      rawAddress,
+      street,
+      city,
+      provinceState,
+      postalCode,
+      country,
+    } = data.entityInfo;
+
+    if (accountNumber) {
+      inner += `<span>Acct #: ${accountNumber}`;
+      if (transitNumber) inner += ` (Transit: ${transitNumber})`;
+      if (currency) inner += ` [${currency}]`;
+      inner += `</span><br/>`;
     }
+    if (fiNumber) inner += `<span>FI: ${fiNumber}</span><br/>`;
+    if (accountName) inner += `<span>Acct Name: ${accountName}</span><br/>`;
+    if (partyKey) inner += `<span>Entity Key: ${partyKey}</span><br/>`;
+    if (certapayAccount)
+      inner += `<span>Certapay: ${certapayAccount}</span><br/>`;
+    if (cardNumber) inner += `<span>Card: ${cardNumber}</span><br/>`;
+    if (email) inner += `<span>Email: ${email}</span><br/>`;
+    if (phone) inner += `<span>Phone: ${phone}</span><br/>`;
+    if (mobile) inner += `<span>Mobile: ${mobile}</span><br/>`;
+    if (handleUsed) inner += `<span>Handle: ${handleUsed}</span><br/>`;
 
-    // Party Identifiers
-    if (identifiers) {
-      if (identifiers.partyKey)
-        html += `<span style="font-size: 13px;">Party Key: ${identifiers.partyKey}</span><br/>`;
-      if (identifiers.certapayAccount)
-        html += `<span style="font-size: 13px;">Certapay: ${identifiers.certapayAccount}</span><br/>`;
-      // if (identifiers.msgTag50)
-      //   html += `<span style="font-size: 13px;">Tag 50: ${identifiers.msgTag50}</span><br/>`;
-      // if (identifiers.msgTag59)
-      //   html += `<span style="font-size: 13px;">Tag 59: ${identifiers.msgTag59}</span><br/>`;
-      if (identifiers.cardNumber)
-        html += `<span style="font-size: 13px;">Card: ${identifiers.cardNumber}</span><br/>`;
-    }
-
-    // Party Contact
-    if (contact) {
-      if (contact.email)
-        html += `<span style="font-size: 13px;">Email: ${contact.email}</span><br/>`;
-      if (contact.phone)
-        html += `<span style="font-size: 13px;">Phone: ${contact.phone}</span><br/>`;
-      if (contact.mobile)
-        html += `<span style="font-size: 13px;">Mobile: ${contact.mobile}</span><br/>`;
-      if (contact.handleUsed)
-        html += `<span style="font-size: 13px;">Handle: ${contact.handleUsed}</span><br/>`;
-    }
-
-    // Party Address
-    if (address) {
-      if (address.rawAddress) {
-        html += `<span style="font-size: 13px;">Address: ${address.rawAddress}</span><br/>`;
-      } else {
-        const addressParts = [
-          address.street,
-          address.city,
-          address.provinceState,
-          address.postalCode,
-          address.country,
-        ].filter(Boolean);
-        if (addressParts.length > 0)
-          html += `<span style="font-size: 13px;">Address: ${addressParts.join(', ')}</span><br/>`;
-      }
+    if (rawAddress) {
+      inner += `<span>Address: ${rawAddress}</span><br/>`;
+    } else {
+      const parts = [street, city, provinceState, postalCode, country].filter(
+        Boolean,
+      );
+      if (parts.length)
+        inner += `<span>Address: ${parts.join(', ')}</span><br/>`;
     }
   }
 
   if (data.currencyTotals) {
     const { receivedByCurrency, sentByCurrency } = data.currencyTotals;
-
-    html += `<hr style="margin: 4px 0"/>`;
-
-    if (receivedByCurrency.length > 0 || sentByCurrency.length > 0)
-      html += `<strong>Summary:</strong><br/>`;
-
-    // Display received currency totals
-    if (receivedByCurrency.length > 0) {
-      receivedByCurrency.forEach((currencyData) => {
-        html += `<span style="font-size: 13px; color: #52c41a;">`;
-        html += `  ← Received: ${currencyData.amount} ${currencyData.currency}`;
-        html += ` (${currencyData.count} tx)`;
-        html += `</span><br/>`;
-      });
-    }
-
-    // Display sent currency totals
-    if (sentByCurrency.length > 0) {
-      sentByCurrency.forEach((currencyData) => {
-        html += `<span style="font-size: 13px; color: #f5222d;">`;
-        html += `  → Sent: ${currencyData.amount} ${currencyData.currency}`;
-        html += ` (${currencyData.count} tx)`;
-        html += `</span><br/>`;
-      });
+    if (receivedByCurrency.length > 0 || sentByCurrency.length > 0) {
+      inner += `<hr style="margin:4px 0"/>`;
+      inner += `<strong>Summary</strong><br/>`;
+      receivedByCurrency.forEach(
+        ({ amount, count }) =>
+          (inner += `<span style="color:#52c41a">← Received: ${amount} (${count} tx)</span><br/>`),
+      );
+      sentByCurrency.forEach(
+        ({ amount, count }) =>
+          (inner += `<span style="color:#f5222d">→ Sent: ${amount} (${count} tx)</span><br/>`),
+      );
     }
   }
 
-  if (data.currencyTotalsByTxnType && data.currencyTotalsByTxnType.length > 0) {
-    html += `<hr style="margin: 6px 0; border-color: #ddd"/>`;
-    html += `<strong>Transaction Method Breakdown:</strong><br/>`;
-
-    data.currencyTotalsByTxnType.forEach((methodData) => {
-      html += `<div style="margin-top: 6px; padding-left: 8px; border-left: 2px solid #e8e8e8;">`;
-      html += `<strong style="font-size: 13px; color: #333;">${methodData.txnType}</strong><br/>`;
-
-      if (methodData.receivedByCurrency.length > 0) {
-        methodData.receivedByCurrency.forEach((currencyData) => {
-          html += `<span style="font-size: 13px; color: #52c41a;">`;
-          html += `  ← Received: ${currencyData.amount} ${currencyData.currency}`;
-          html += ` (${currencyData.count} tx)`;
-          html += `</span><br/>`;
-        });
-      }
-
-      if (methodData.sentByCurrency.length > 0) {
-        methodData.sentByCurrency.forEach((currencyData) => {
-          html += `<span style="font-size: 13px; color: #f5222d;">`;
-          html += `  → Sent: ${currencyData.amount} ${currencyData.currency}`;
-          html += ` (${currencyData.count} tx)`;
-          html += `</span><br/>`;
-        });
-      }
-
-      html += `</div>`;
-    });
+  if (data.currencyTotalsByTxnType?.length) {
+    inner += `<hr style="margin:4px 0; border-color:#ddd"/>`;
+    inner += `<strong>By Transaction Type</strong><br/>`;
+    data.currencyTotalsByTxnType.forEach(
+      ({ txnType, receivedByCurrency, sentByCurrency }) => {
+        inner += `<div style="margin-top:3px; padding-left:6px; border-left:2px solid #e8e8e8">`;
+        inner += `<span>${txnType}</span><br/>`;
+        receivedByCurrency.forEach(
+          ({ amount, count }) =>
+            (inner += `<span style="color:#52c41a">← Received: ${amount} (${count} tx)</span><br/>`),
+        );
+        sentByCurrency.forEach(
+          ({ amount, count }) =>
+            (inner += `<span style="color:#f5222d">→ Sent: ${amount} (${count} tx)</span><br/>`),
+        );
+        inner += `</div>`;
+      },
+    );
   }
 
-  return html;
+  return `<div style="font-size:11px; line-height:1.5">${inner}</div>`;
 }
 
 /**
@@ -385,57 +343,52 @@ function formatNodeDataAsText(data: NodeDisplayData | undefined): string {
   if (data.transit) text += `Transit: ${data.transit}\n`;
   if (data.account) text += `Account: ${data.account}\n`;
 
-  // Party Info Section (subjects only)
-  if (data.partyInfo) {
-    const { account, identifiers, contact, address } = data.partyInfo;
-    // Party Name - title
+  // Entity Info Section (subjects only)
+  if (data.entityInfo) {
+    // Entity Name - title
 
-    // Party Account
-    if (account) {
-      if (account.accountNumber) {
-        text += `Acct #: ${account.accountNumber}`;
-        if (account.transitNumber)
-          text += ` (Transit: ${account.transitNumber})`;
-        if (account.currency) text += ` [${account.currency}]`;
-        text += `\n`;
-      }
-      if (account.fiNumber) text += `FI: ${account.fiNumber}\n`;
-      if (account.accountName) text += `Acct Name: ${account.accountName}\n`;
+    // Entity Account
+    const { accountNumber, transitNumber, currency, fiNumber, accountName } =
+      data.entityInfo;
+    if (accountNumber) {
+      text += `Acct #: ${accountNumber}`;
+      if (transitNumber) text += ` (Transit: ${transitNumber})`;
+      if (currency) text += ` [${currency}]`;
+      text += `\n`;
     }
+    if (fiNumber) text += `FI: ${fiNumber}\n`;
+    if (accountName) text += `Acct Name: ${accountName}\n`;
 
-    // Party Identifiers
-    if (identifiers) {
-      if (identifiers.partyKey) text += `Party Key: ${identifiers.partyKey}\n`;
-      if (identifiers.certapayAccount)
-        text += `Certapay: ${identifiers.certapayAccount}\n`;
-      // if (identifiers.msgTag50) text += `Tag 50: ${identifiers.msgTag50}\n`;
-      // if (identifiers.msgTag59) text += `Tag 59: ${identifiers.msgTag59}\n`;
-      if (identifiers.cardNumber) text += `Card: ${identifiers.cardNumber}\n`;
-    }
+    // Entity Identifiers
+    const { partyKey, certapayAccount, cardNumber } = data.entityInfo;
+    if (partyKey) text += `Party Key: ${partyKey}\n`;
+    if (certapayAccount) text += `Certapay: ${certapayAccount}\n`;
+    // if (msgTag50) text += `Tag 50: ${msgTag50}\n`;
+    // if (msgTag59) text += `Tag 59: ${msgTag59}\n`;
+    if (cardNumber) text += `Card: ${cardNumber}\n`;
 
-    // Party Contact
-    if (contact) {
-      if (contact.email) text += `Email: ${contact.email}\n`;
-      if (contact.phone) text += `Phone: ${contact.phone}\n`;
-      if (contact.mobile) text += `Mobile: ${contact.mobile}\n`;
-      if (contact.handleUsed) text += `Handle: ${contact.handleUsed}\n`;
-    }
+    // Entity Contact
+    const { email, phone, mobile, handleUsed } = data.entityInfo;
+    if (email) text += `Email: ${email}\n`;
+    if (phone) text += `Phone: ${phone}\n`;
+    if (mobile) text += `Mobile: ${mobile}\n`;
+    if (handleUsed) text += `Handle: ${handleUsed}\n`;
 
-    // Party Address
-    if (address) {
-      if (address.rawAddress) {
-        text += `Address: ${address.rawAddress}\n`;
-      } else {
-        const addressParts = [
-          address.street,
-          address.city,
-          address.provinceState,
-          address.postalCode,
-          address.country,
-        ].filter(Boolean);
-        if (addressParts.length > 0) {
-          text += `Address: ${addressParts.join(', ')}\n`;
-        }
+    // Entity Address
+    const { rawAddress, street, city, provinceState, postalCode, country } =
+      data.entityInfo;
+    if (rawAddress) {
+      text += `Address: ${rawAddress}\n`;
+    } else {
+      const addressParts = [
+        street,
+        city,
+        provinceState,
+        postalCode,
+        country,
+      ].filter(Boolean);
+      if (addressParts.length > 0) {
+        text += `Address: ${addressParts.join(', ')}\n`;
       }
     }
   }
@@ -448,26 +401,26 @@ function formatNodeDataAsText(data: NodeDisplayData | undefined): string {
     }
 
     receivedByCurrency.forEach((currencyData) => {
-      text += `  ← Received: ${currencyData.amount} ${currencyData.currency} (${currencyData.count} tx)\n`;
+      text += `  ← Received: ${currencyData.amount} (${currencyData.count} tx)\n`;
     });
 
     sentByCurrency.forEach((currencyData) => {
-      text += `  → Sent: ${currencyData.amount} ${currencyData.currency} (${currencyData.count} tx)\n`;
+      text += `  → Sent: ${currencyData.amount} (${currencyData.count} tx)\n`;
     });
   }
 
   if (data.currencyTotalsByTxnType && data.currencyTotalsByTxnType.length > 0) {
-    text += `\nTransaction Method Breakdown:\n`;
+    text += `\nTransaction Type Breakdown:\n`;
 
-    data.currencyTotalsByTxnType.forEach((methodData) => {
-      text += `\n${methodData.txnType}:\n`;
+    data.currencyTotalsByTxnType.forEach((typeData) => {
+      text += `\n${typeData.txnType}:\n`;
 
-      methodData.receivedByCurrency.forEach((currencyData) => {
-        text += `  ← Received: ${currencyData.amount} ${currencyData.currency} (${currencyData.count} tx)\n`;
+      typeData.receivedByCurrency.forEach((currencyData) => {
+        text += `  ← Received: ${currencyData.amount} (${currencyData.count} tx)\n`;
       });
 
-      methodData.sentByCurrency.forEach((currencyData) => {
-        text += `  → Sent: ${currencyData.amount} ${currencyData.currency} (${currencyData.count} tx)\n`;
+      typeData.sentByCurrency.forEach((currencyData) => {
+        text += `  → Sent: ${currencyData.amount} (${currencyData.count} tx)\n`;
       });
     });
   }
@@ -483,16 +436,8 @@ export interface NodeDisplayData {
   categoryName: string;
   transit?: string | null;
   account?: string | null;
-  // Party info (subjects only)
-  partyInfo?: {
-    partyIdentifier?: string;
-    sourceSystem?: PartySourceSystem;
-    identifiers?: PartyIdentifiers;
-    account?: PartyAccount;
-    partyName?: PartyName;
-    contact?: PartyContact;
-    address?: PartyAddress;
-  };
+  // Entity info (when node is a entity)
+  entityInfo?: EntityType;
 
   currencyTotals?: {
     receivedByCurrency: { currency: string; amount: string; count: number }[];

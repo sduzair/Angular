@@ -1,4 +1,5 @@
 @use '@angular/material' as mat;
+@use '../../_typography-scaling.scss' as typography-scaling;
 
 mat-sidenav-container {
   @include mat.sidenav-overrides(
@@ -10,14 +11,8 @@ mat-sidenav-container {
   );
 }
 
-mat-sidenav {
-  width: 240px;
-}
-
 .app-nav {
-  // border-right: 1px solid var(--mat-sys-outline-variant);
-  /* Local density for buttons if desired */
-  @include mat.button-density(-1);
+  // @include typography-scaling.apply(0.9);
 
   @include mat.tree-overrides(
     (
@@ -28,8 +23,8 @@ mat-sidenav {
 
   @include mat.toolbar-overrides(
     (
-      container-background-color: var(--mat-sys-primary-fixed),
-      container-text-color: var(--mat-sys-on-primary-fixed),
+      container-background-color: var(--mat-sys-primary),
+      container-text-color: var(--mat-sys-on-primary),
       title-text-font: var(--mat-sys-headline-small-font),
       title-text-line-height: var(--mat-sys-headline-small-line-height),
       title-text-size: var(--mat-sys-headline-small-size),
@@ -38,9 +33,8 @@ mat-sidenav {
     )
   );
 
-  button[mat-icon-button] {
+  button[matIconButton] {
     color: var(--mat-sys-on-surface);
-    --mat-icon-button-state-layer-size: 24px;
   }
 }
 
@@ -66,4 +60,19 @@ mat-sidenav {
 
 mat-tree-node a {
   color: var(--mat-tree-node-text-color, var(--mat-sys-on-surface));
+}
+
+.logout-btn mat-icon {
+  font-size: 22px !important;
+  width: 22px !important;
+  height: 22px !important;
+  line-height: 22px !important;
+  --mat-icon-color: var(--mat-sys-on-primary);
+}
+
+mat-icon.node-icon {
+  color: var(
+    --mat-chip-with-icon-icon-color,
+    var(--mat-sys-on-surface-variant)
+  );
 }

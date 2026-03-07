@@ -13,6 +13,7 @@ public class Selection : HasExtraElements
     public string CaseRecordId { get; set; } = null!;
 
     public string FlowOfFundsAmlTransactionId { get; set; } = null!;
+    public bool IsClosed { get; set; }           // <-- denormalized from case record
 
     public int? ETag { get; set; }
     public List<ChangeLogEntry>? ChangeLogs { get; set; } = [];

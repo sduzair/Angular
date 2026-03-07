@@ -44,6 +44,8 @@ export const FORM_OPTIONS_DEV_OR_TEST_ONLY_FIXTURE = {
     'Cash Withdrawal (account based)': 'Cash Withdrawal (account based)',
     'Issued Cheque': 'Issued Cheque',
     'Outgoing email money transfer': 'Outgoing email money transfer',
+    'Purchase of / Payment for services': 'Purchase of / Payment for services',
+    'Purchase of / Payment for goods': 'Purchase of / Payment for goods',
     Other: 'Other',
   },
 } as const;

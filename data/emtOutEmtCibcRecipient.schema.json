@@ -51,10 +51,9 @@
     {
       "name": "contactEmail",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-
-      ],
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocalWithContactName",
+      "column": "contactEmail",
       "selectionStyle": "random",
       "distribution": null,
       "formula": ""
@@ -74,7 +73,7 @@
       "name": "_hiddenGivenName",
       "null_percentage": 0,
       "type": "Dataset Column",
-      "dataset": "conductorWithSubjectNotFocal",
+      "dataset": "conductorWithSubjectNotFocalWithContactName",
       "column": "givenName",
       "selectionStyle": "sequential",
       "distribution": null,
@@ -84,7 +83,7 @@
       "name": "_hiddenOtherName",
       "null_percentage": 0,
       "type": "Dataset Column",
-      "dataset": "conductorWithSubjectNotFocal",
+      "dataset": "conductorWithSubjectNotFocalWithContactName",
       "column": "otherOrInitial",
       "selectionStyle": "sequential",
       "distribution": null,
@@ -94,7 +93,7 @@
       "name": "_hiddenSurname",
       "null_percentage": 0,
       "type": "Dataset Column",
-      "dataset": "conductorWithSubjectNotFocal",
+      "dataset": "conductorWithSubjectNotFocalWithContactName",
       "column": "surname",
       "selectionStyle": "sequential",
       "distribution": null,
@@ -103,21 +102,16 @@
     {
       "name": "contactIdentifier",
       "null_percentage": 0,
-      "type": "Dataset Column",
-      "dataset": "conductorWithSubjectNotFocal",
-      "column": "contactEmail",
-      "selectionStyle": "sequential",
-      "distribution": null,
-      "formula": "email = concat(\n  lower(_hiddenSurname),                 # surname (first part before space)\n  lower(_hiddenGivenName),                # given name (second part after space)\n  hex(_hiddenSurname)[0,3],              # first 3 chars of surname's hex\n  \"@dummy.com\"\n)\n\nemail"
+      "type": "Blank",
+      "formula": ""
     },
     {
       "name": "contactMobile",
       "null_percentage": 0,
-      "type": "Custom List",
-      "values": [
-
-      ],
-      "selectionStyle": "random",
+      "type": "Dataset Column",
+      "dataset": "conductorWithSubjectNotFocalWithContactName",
+      "column": "mobile",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": null
     },
@@ -125,7 +119,7 @@
       "name": "contactName",
       "null_percentage": 0,
       "type": "Dataset Column",
-      "dataset": "conductorWithSubjectNotFocal",
+      "dataset": "conductorWithSubjectNotFocalWithContactName",
       "column": "contactName",
       "selectionStyle": "sequential",
       "distribution": null,
@@ -297,7 +291,7 @@
       "name": "_hiddenRecipientAccountNumberTransit",
       "null_percentage": 0,
       "type": "Dataset Column",
-      "dataset": "conductorWithSubjectNotFocal",
+      "dataset": "conductorWithSubjectNotFocalWithContactName",
       "column": "accountBranch",
       "selectionStyle": "sequential",
       "distribution": null,
@@ -307,7 +301,7 @@
       "name": "_hiddenRecipientAccountNumberAccount",
       "null_percentage": 0,
       "type": "Dataset Column",
-      "dataset": "conductorWithSubjectNotFocal",
+      "dataset": "conductorWithSubjectNotFocalWithContactName",
       "column": "accountNo",
       "selectionStyle": "sequential",
       "distribution": null,
@@ -328,7 +322,7 @@
       "name": "recipientCertapayAccount",
       "null_percentage": 0,
       "type": "Dataset Column",
-      "dataset": "conductorWithSubjectNotFocal",
+      "dataset": "conductorWithSubjectNotFocalWithContactName",
       "column": "certapayAccount",
       "selectionStyle": "sequential",
       "distribution": null,
@@ -338,7 +332,7 @@
       "name": "recipientEmail",
       "null_percentage": 0,
       "type": "Dataset Column",
-      "dataset": "conductorWithSubjectNotFocal",
+      "dataset": "conductorWithSubjectNotFocalWithContactName",
       "column": "contactEmail",
       "selectionStyle": "sequential",
       "distribution": null,
@@ -381,7 +375,7 @@
       "name": "recipientMobile",
       "null_percentage": 0,
       "type": "Dataset Column",
-      "dataset": "conductorWithSubjectNotFocal",
+      "dataset": "conductorWithSubjectNotFocalWithContactName",
       "column": "mobile",
       "selectionStyle": "sequential",
       "distribution": null,
@@ -595,6 +589,36 @@
       "values": [
         "EMT"
       ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsCreditedAccount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsCreditedAccount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsDebitedAccount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsDebitedAccount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsTransactionDate",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "outEMTCompleteWithRawSubjectCibcRecipientWithBackup",
+      "column": "flowOfFundsTransactionDate",
       "selectionStyle": "sequential",
       "distribution": null,
       "formula": null

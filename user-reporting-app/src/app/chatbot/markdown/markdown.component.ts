@@ -10,17 +10,24 @@ import {
 import { MarkdownComponent as NgxMarkdownComponent } from 'ngx-markdown';
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
 
 @Component({
   selector: 'app-markdown',
-  imports: [NgxMarkdownComponent, ClipboardModule, MatIconModule],
+  imports: [
+    NgxMarkdownComponent,
+    ClipboardModule,
+    MatIconModule,
+    MatButtonModule,
+  ],
   template: `
     <div class="markdown-container">
       <button
         type="button"
+        matIconButton
+        class="copy-btn"
         [cdkCopyToClipboard]="data()"
         (cdkCopyToClipboardCopied)="onCopied()"
-        class="copy-btn"
         [class.copied]="copied()"
         [attr.aria-label]="copied() ? 'Copied' : 'Copy to clipboard'">
         <mat-icon>{{ copied() ? 'check_circle' : 'content_copy' }}</mat-icon>

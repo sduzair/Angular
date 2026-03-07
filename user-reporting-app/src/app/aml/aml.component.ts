@@ -6,9 +6,10 @@ import {
   inject,
   OnInit,
 } from '@angular/core';
+import { toObservable } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
-import { MatChip } from '@angular/material/chips';
-import { MatIcon } from '@angular/material/icon';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatIcon, MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -21,8 +22,10 @@ import {
   RouterModule,
   RouterOutlet,
 } from '@angular/router';
+import { format, parse } from 'date-fns';
 import { filter, map, Observable, startWith } from 'rxjs';
 import { Breadcrumb } from '../app.routes';
+import { AuthService } from '../auth.service';
 import { ChatbotComponent } from '../chatbot/chatbot.component';
 import { NavTreeService } from '../nav-layout/nav-tree.service';
 import { CaseRecordStore, ReviewPeriod } from './case-record.store';
@@ -33,16 +36,16 @@ import { CaseRecordStore, ReviewPeriod } from './case-record.store';
     CommonModule,
     RouterOutlet,
     MatToolbarModule,
-    MatChip,
+    MatChipsModule,
     MatProgressSpinner,
-    MatIcon,
     RouterModule,
     MatSidenavModule,
     MatButtonModule,
+    MatIconModule,
     ChatbotComponent,
   ],
   template: `
-    <div class="container-fluid px-0 overflow-y-auto overflow-x-hidden h-100">
+    <div class="container-fluid px-0 h-100">
       <div class="row row-cols-1 mx-0 sticky-top">
         <mat-toolbar class="col">
           <mat-toolbar-row class="header-toolbar-row px-0">
@@ -76,21 +79,66 @@ import { CaseRecordStore, ReviewPeriod } from './case-record.store';
 
             <!-- Info chips -->
             <div class="info-chips-container">
-              <!-- Last Updated By -->
-              @if (lastUpdatedBy$ | async; as updatedBy) {
+              <!-- Last Updated By / Closed By -->
+              @if (isClosed$ | async) {
+                @if (closedBy$ | async; as closedBy) {
+                  <mat-chip color="accent" class="info-chip">
+                    <mat-icon matChipAvatar>lock_person</mat-icon>
+                    Closed by: {{ closedBy }}
+                  </mat-chip>
+                }
+              } @else {
+                @if (lastUpdatedBy$ | async; as updatedBy) {
+                  <mat-chip color="accent" class="info-chip">
+                    <mat-icon matChipAvatar>edit</mat-icon>
+                    By: {{ updatedBy }}
+                  </mat-chip>
+                }
+              }
+
+              <!-- Params Changes -->
+              @let searchParamsChanged =
+                (searchParamsChanged$ | async) ?? false;
+              <mat-icon
+                color="warn"
+                class="align-self-center"
+                [class.d-none]="!searchParamsChanged"
+                matTooltip="Search criteria has changed. Transaction selections may no longer reflect current search parameters."
+                matTooltipPosition="below"
+                aria-label="Search criteria changed warning">
+                warning_amber
+              </mat-icon>
+
+              <!-- Status -->
+              @if (amlCaseStatus$ | async; as status) {
                 <mat-chip color="accent" class="info-chip">
-                  <mat-icon>person</mat-icon>
-                  {{ updatedBy }}
+                  <mat-icon matChipAvatar>label_important_outline</mat-icon>
+                  {{ status }}
+                </mat-chip>
+              }
+
+              <!-- Role -->
+              @if (role$ | async; as role) {
+                <mat-chip color="accent" class="info-chip">
+                  <mat-icon matChipAvatar>shield</mat-icon>
+                  {{ role }}
+                </mat-chip>
+              }
+
+              <!-- Username -->
+              @if (username$ | async; as username) {
+                <mat-chip color="accent" class="info-chip">
+                  <mat-icon matChipAvatar>person</mat-icon>
+                  You: {{ username }}
                 </mat-chip>
               }
 
               <!-- Selections Count -->
               <mat-chip color="accent" class="info-chip">
-                <mat-icon>checklist</mat-icon>
+                <mat-icon matChipAvatar>checklist</mat-icon>
                 @if (counts$ | async; as counts) {
                   <span>
                     {{ counts.selectionCount }}
-
                     @if (counts.selectionCount !== counts.startingCount) {
                       <span class="opacity-75"
                         >({{ counts.startingCount }})</span
@@ -105,37 +153,48 @@ import { CaseRecordStore, ReviewPeriod } from './case-record.store';
               @if (reviewPeriods$ | async; as periods) {
                 @for (period of periods; track period.start) {
                   <mat-chip color="accent" class="info-chip">
-                    <mat-icon>date_range</mat-icon>
+                    <mat-icon matChipAvatar>date_range</mat-icon>
                     {{ formatReviewPeriod(period) }}
                   </mat-chip>
                 }
               }
             </div>
 
-            <mat-chip
-              color="accent"
-              selected="true"
-              class="last-updated-chip info-chip">
-              @if (savingStatus$ | async) {
-                <mat-progress-spinner
-                  diameter="20"
-                  mode="indeterminate"
-                  class="last-updated-chip-spinner"></mat-progress-spinner>
-              } @else {
-                <mat-icon class="last-updated-chip-spinner">update</mat-icon>
-              }
-              Last Updated:
-              {{ lastUpdated$ | async | date: 'short' }}
-            </mat-chip>
+            <!-- Last Updated / Closed At (mutually exclusive) -->
+            @if (isClosed$ | async) {
+              <mat-chip
+                color="accent"
+                selected="true"
+                class="last-updated-chip info-chip">
+                <mat-icon matChipAvatar class="last-updated-chip-spinner"
+                  >lock</mat-icon
+                >
+                Closed: {{ closedAt$ | async | date: 'short' }}
+              </mat-chip>
+            } @else {
+              <mat-chip
+                color="accent"
+                selected="true"
+                class="last-updated-chip info-chip">
+                @if (savingStatus$ | async) {
+                  <mat-progress-spinner
+                    diameter="20"
+                    mode="indeterminate"
+                    class="last-updated-chip-spinner">
+                  </mat-progress-spinner>
+                } @else {
+                  <mat-icon matChipAvatar class="last-updated-chip-spinner"
+                    >update</mat-icon
+                  >
+                }
+                Last Updated: {{ lastUpdated$ | async | date: 'short' }}
+              </mat-chip>
+            }
           </mat-toolbar-row>
         </mat-toolbar>
       </div>
       <mat-drawer-container hasBackdrop="false" appScrollPositionPreserve>
-        <mat-drawer
-          position="end"
-          #drawer
-          class="shadow-lg border my-5"
-          style="max-height: 80dvh;">
+        <mat-drawer position="end" #drawer class="border my-5 chatbot-drawer">
           <app-chatbot />
         </mat-drawer>
         <mat-drawer-content class="overflow-hidden">
@@ -148,11 +207,12 @@ import { CaseRecordStore, ReviewPeriod } from './case-record.store';
       </mat-drawer-container>
       <button
         type="button"
-        mat-fab
+        matFab
+        extended
         color="primary"
-        class="position-fixed end-0 bottom-0 me-4 mb-4 z-3"
+        class="position-fixed z-3 ai-btn px-3"
         (click)="drawer.toggle()">
-        <mat-icon>auto_awesome</mat-icon>
+        <mat-icon class="mx-0">auto_awesome</mat-icon>
       </button>
     </div>
   `,
@@ -162,9 +222,11 @@ import { CaseRecordStore, ReviewPeriod } from './case-record.store';
 export class AmlComponent implements OnInit {
   private caseRecordStore = inject(CaseRecordStore);
   private readonly _router = inject(Router);
+  private authService = inject(AuthService);
   lastUpdated$ = this.caseRecordStore.lastUpdated$;
 
   savingStatus$ = this.caseRecordStore.qIsSaving$;
+  protected searchParamsChanged$ = this.caseRecordStore.searchParamsChanged$;
 
   breadcrumbs$!: Observable<Breadcrumb[]>;
 
@@ -235,31 +297,46 @@ export class AmlComponent implements OnInit {
   }
 
   counts$ = this.caseRecordStore.selectionsComputed$.pipe(
-    map((selections) => ({
-      selectionCount: selections.length,
-      startingCount: selections.flatMap((sel) => sel.startingActions).length,
+    map(({ result: computedSelections }) => ({
+      selectionCount: computedSelections.length,
+      startingCount: computedSelections.flatMap((sel) => sel.startingActions)
+        .length,
     })),
   );
 
   lastUpdatedBy$ = this.caseRecordStore.state$.pipe(
     map((state) => state.lastUpdatedBy ?? state.createdBy),
   );
+  amlCaseStatus$ = this.caseRecordStore.status$;
 
   reviewPeriods$ = this.caseRecordStore.state$.pipe(
     map((state) => state.searchParams.reviewPeriodSelection),
   );
 
+  // Auth-derived chips
+  currentUser$ = toObservable(this.authService.currentUser);
+
+  username$ = this.currentUser$.pipe(map((user) => user?.username ?? null));
+
+  role$ = this.currentUser$.pipe(map((user) => user?.role ?? null));
+
+  isClosed$ = this.caseRecordStore.state$.pipe(map((state) => state.isClosed));
+
+  closedAt$ = this.caseRecordStore.state$.pipe(
+    map((state) => state.closedAt ?? null),
+  );
+
+  closedBy$ = this.caseRecordStore.state$.pipe(
+    map((state) => state.closedBy ?? null),
+  );
+
   formatReviewPeriod(period: ReviewPeriod): string {
-    const start = new Date(period.start).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-    const end = new Date(period.end).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    const parseDate = (dateStr: string) =>
+      parse(dateStr, 'yyyy/MM/dd', new Date());
+
+    const start = format(parseDate(period.start), 'MMM d, yyyy');
+    const end = format(parseDate(period.end), 'MMM d, yyyy');
+
     return `${start} - ${end}`;
   }
 }

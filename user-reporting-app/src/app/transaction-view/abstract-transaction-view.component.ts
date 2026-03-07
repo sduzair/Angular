@@ -3,11 +3,12 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import {
   combineLatestWith,
   debounceTime,
+  distinctUntilChanged,
   map,
   shareReplay,
   startWith,
   switchMap,
-  take,
+  withLatestFrom,
 } from 'rxjs';
 import { CaseRecordStore } from '../aml/case-record.store';
 import { TableSelectionType } from './transaction-view.component';
@@ -18,6 +19,7 @@ export abstract class AbstractTransactionViewComponent {
   readonly searchResponse$ = this._caseRecordStore.state$.pipe(
     take(1),
     map(({ searchResponse }) => searchResponse),
+    distinctUntilChanged(),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
@@ -96,6 +98,17 @@ export abstract class AbstractTransactionViewComponent {
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
+  searchPosSet$ = this.searchResponse$.pipe(
+    map((search) => {
+      return new Set(
+        search
+          .find((source) => source.sourceId === 'POS')
+          ?.sourceData.map((txn) => txn.flowOfFundsAmlTransactionId),
+      );
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
   selectionModel$ = this.selections$.pipe(
     map(
       (selections) =>
@@ -116,8 +129,49 @@ export abstract class AbstractTransactionViewComponent {
       ),
     ),
     debounceTime(200),
-    shareReplay({ bufferSize: 1, refCount: true }), // Share among multiple subscribers
+    shareReplay({ bufferSize: 1, refCount: true }),
   );
+
+  protected danglingSelections$ = this.selections$.pipe(
+    debounceTime(200),
+    withLatestFrom(
+      this.searchFlowOfFundsSet$,
+      this.searchAbmSet$,
+      this.searchOlbSet$,
+      this.searchEmtSet$,
+      this.searchWiresSet$,
+      this.searchOtcSet$,
+      this.searchPosSet$,
+    ),
+    map(
+      ([
+        transactionSelections,
+        fofSet,
+        abmSet,
+        olbSet,
+        emtSet,
+        wiresSet,
+        otcSet,
+        posSet,
+      ]) => {
+        const isDanglingSelection = (sel: {
+          flowOfFundsAmlTransactionId: string;
+        }) =>
+          !sel.flowOfFundsAmlTransactionId.startsWith('MTXN') &&
+          !fofSet.has(sel.flowOfFundsAmlTransactionId) &&
+          !abmSet.has(sel.flowOfFundsAmlTransactionId) &&
+          !olbSet.has(sel.flowOfFundsAmlTransactionId) &&
+          !emtSet.has(sel.flowOfFundsAmlTransactionId) &&
+          !wiresSet.has(sel.flowOfFundsAmlTransactionId) &&
+          !otcSet.has(sel.flowOfFundsAmlTransactionId) &&
+          !posSet.has(sel.flowOfFundsAmlTransactionId);
+
+        return transactionSelections.filter(isDanglingSelection);
+      },
+    ),
+  );
+
+  protected searchParamsChanged$ = this._caseRecordStore.searchParamsChanged$;
 
   fofSourceDataSelection$ = this._selectionsCurrent$.pipe(
     combineLatestWith(this.searchFlowOfFundsSet$),
@@ -180,6 +234,17 @@ export abstract class AbstractTransactionViewComponent {
   );
 
   otcSourceDataSelectionCount$ = this.otcSourceDataSelection$.pipe(
+    map((selection) => selection.length),
+  );
+
+  posSourceDataSelection$ = this._selectionsCurrent$.pipe(
+    combineLatestWith(this.searchPosSet$),
+    map(([selections, posSet]) =>
+      selections.filter((sel) => posSet.has(sel.flowOfFundsAmlTransactionId)),
+    ),
+  );
+
+  posSourceDataSelectionCount$ = this.posSourceDataSelection$.pipe(
     map((selection) => selection.length),
   );
 }

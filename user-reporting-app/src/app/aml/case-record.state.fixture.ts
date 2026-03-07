@@ -1,7 +1,9 @@
 import { TEST_USER_ADMIN } from '../auth.fixture';
-import { TRANSACTION_SEARCH_RES_DEV_ONLY } from '../transaction-search/transaction-search.data.fixture';
+/* MUST COMMENT IN PROD - INVALID DIR PATH - START */
+// import { TRANSACTION_SEARCH_RES_DEV_ONLY } from '../transaction-search/transaction-search.data.fixture';
+/* MUST COMMENT IN PROD - INVALID DIR PATH - END */
 import {
-  PARTIES_DEV_OR_TEST_ONLY_FIXTURE,
+  ENTITIES_DEV_OR_TEST_ONLY_FIXTURE,
   SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE,
 } from './case-record.selections.data.fixture';
 import { CaseRecordState } from './case-record.store';
@@ -11,7 +13,8 @@ export const CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE =
   '33a41dcc-ab8e-4a9b-89ea-c6a2fec46356';
 
 export const CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE: CaseRecordState = {
-  searchResponse: TRANSACTION_SEARCH_RES_DEV_ONLY,
+  // searchResponse: TRANSACTION_SEARCH_RES_DEV_ONLY,
+  searchResponse: [],
   caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
   amlId: String(AML_ID_DEV_OR_TEST_ONLY_FIXTURE),
   searchParams: {
@@ -33,9 +36,15 @@ export const CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE: CaseRecordState = {
       },
     ],
   },
+  searchParamsHash: '',
+  lastSearchedParamsHash: '',
   createdAt: new Date().toISOString(),
-  createdBy: TEST_USER_ADMIN.username,
+  createdBy: TEST_USER_ADMIN!.username,
+  lastUpdatedBy: null,
   status: 'Active',
+  isClosed: false,
+  closedAt: null,
+  closedBy: null,
   eTag: 0,
   lastUpdated: '1996-06-13',
   // selections: SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE.map((txn) => ({
@@ -45,7 +54,7 @@ export const CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE: CaseRecordState = {
   //   caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
   // })),
   selections: SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE,
-  parties: PARTIES_DEV_OR_TEST_ONLY_FIXTURE.map((party) => ({
+  entities: ENTITIES_DEV_OR_TEST_ONLY_FIXTURE.map((party) => ({
     ...party,
     caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
   })),
@@ -79,19 +88,19 @@ export const ACCOUNT_INFO_BY_AML_ID_DEV_OR_TEST_ONLY_FIXTURE = {
   ],
 };
 
-export const SUBJECT_INFO_BY_PARTY_KEY_DEV_OR_TEST_ONLY_FIXTURE = [
+export const ENTITY_INFO_BY_PARTY_KEY_DEV_OR_TEST_ONLY_FIXTURE = [
   {
     _hiddenPartyKey: '3415674561',
     _hiddenSurname: 'Carter',
     _hiddenGivenName: 'James',
-    _hiddenOtherOrInitial: 'L',
+    _hiddenOtherOrInitialName: 'L',
     _hiddenNameOfEntity: '',
   },
   {
     _hiddenPartyKey: '1846597320',
     _hiddenSurname: 'Nguyen',
     _hiddenGivenName: 'Laura',
-    _hiddenOtherOrInitial: 'M',
+    _hiddenOtherOrInitialName: 'M',
     _hiddenNameOfEntity: '',
   },
 ];

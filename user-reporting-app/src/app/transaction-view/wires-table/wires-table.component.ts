@@ -31,6 +31,7 @@ import { LocalHighlightsService } from '../local-highlights.service';
       [displayedColumns]="displayedColumns"
       [displayColumnHeaderMap]="displayColumnHeaderMap"
       [stickyColumns]="stickyColumns"
+      [columnWidthsMap]="columnWidthsMap"
       [selectFiltersValues]="selectFiltersValues"
       [dateFiltersValues]="dateFiltersValues"
       [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
@@ -41,8 +42,8 @@ import { LocalHighlightsService } from '../local-highlights.service';
       [highlightedRecords]="highlightedRecords"
       [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'"
       [filterFormHighlightSideEffect]="filterFormHighlightSideEffect"
-      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
-      [sortedBy]="'transactionDate'">
+      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples">
+      <!-- [sortedBy]="'transactionDate'"> -->
       <!-- Selection Model -->
       <ng-container
         matColumnDef="select"
@@ -56,7 +57,8 @@ import { LocalHighlightsService } from '../local-highlights.service';
               (change)="$event ? toggleAllRows() : null"
               [checked]="hasValue() && isAllSelected()"
               [indeterminate]="hasValue() && !isAllSelected()"
-              [class.invisible]="!hasValue()">
+              [class.invisible]="!hasValue()"
+              [disabled]="disabled">
             </mat-checkbox>
           </div>
         </th>
@@ -68,7 +70,8 @@ import { LocalHighlightsService } from '../local-highlights.service';
             <mat-checkbox
               (click)="baseTable.onCheckBoxClickMultiToggle($event, row, i)"
               (change)="$event ? baseTable.toggleRow(row) : null"
-              [checked]="masterSelection!.isSelected(row)">
+              [checked]="masterSelection!.isSelected(row)"
+              [disabled]="disabled">
             </mat-checkbox>
           </div>
         </td>
@@ -83,6 +86,9 @@ export class WiresTableComponent<
     [K in keyof TableSelectionType]: string;
   },
 > {
+  @Input({ required: true })
+  disabled: boolean | null = false;
+
   dataColumnsValues: (keyof WireSourceData)[] = [
     'postingDate',
     'transactionDate',
@@ -270,6 +276,13 @@ export class WiresTableComponent<
     >
   >;
 
+  columnWidthsMap: Partial<
+    Record<Extract<keyof WireSourceData, string> | 'select', string>
+  > = {
+    flowOfFundsAmlTransactionId: '300px',
+    uniqueReferenceNo: '300px',
+  };
+
   stickyColumns: ('select' | keyof WireSourceData)[] = [
     'select',
     'postingDate',
@@ -293,12 +306,12 @@ export class WiresTableComponent<
     'selfTransfer',
     'settledAmt',
     'sourceClientId',
-    'sourceTransaction1d',
+    // 'sourceTransaction1d',
     'swiftTag20SendersReference',
     'swiftTag52OrderingInstitution',
     'swiftTag57AccountWithInstitution',
     'transactionld',
-    'uniqueReferenceNo',
+    // 'uniqueReferenceNo',
     'wireRole',
     'amlld',
     'caseEcif',
@@ -310,7 +323,7 @@ export class WiresTableComponent<
     'processingDate',
   ];
 
-  dateFiltersValuesIgnore: (keyof WireSourceData)[] = [];
+  dateFiltersValuesIgnore: (keyof WireSourceData)[] = ['transactionTime'];
 
   displayedColumnsTime: (keyof WireSourceData)[] = ['transactionTime'];
 

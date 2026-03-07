@@ -2,7 +2,7 @@ import { HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
 import { catchError, forkJoin, map, Observable, of } from 'rxjs';
 import { ulid } from 'ulid';
 import { StrTransactionWithChangeLogs } from '../../aml/case-record.store';
-import { PartyGenType } from '../../transaction-view/transform-to-str-transaction/party-gen.service';
+import { EntityGenType } from '../../transaction-view/transform-to-str-transaction/entity-gen.service';
 import {
   EditFormComponent,
   InvalidFormOptionsErrorKeys,
@@ -28,9 +28,9 @@ export class ManualTransactionBuilder {
   constructor(
     private value: Record<ColumnHeaderLabels, string | null>,
     private formOptions: FormOptions,
-    private generateParty: (
-      party: Omit<PartyGenType, 'partyIdentifier'>,
-    ) => Observable<PartyGenType | null>,
+    private generateEntity: (
+      entity: Omit<EntityGenType, 'entityIdentifier'>,
+    ) => Observable<EntityGenType | null>,
   ) {}
 
   trimValues(): this {
@@ -217,10 +217,10 @@ export class ManualTransactionBuilder {
 
   build(): Observable<{
     selection: StrTransactionWithChangeLogs;
-    parties: PartyGenType[];
+    entities: EntityGenType[];
   }> {
     return forkJoin({
-      conductor: this.buildConductor(this.generateParty).pipe(
+      conductor: this.buildConductor(this.generateEntity).pipe(
         catchError((error: HttpErrorResponse) => {
           if (error.status === HttpStatusCode.NotFound) {
             this.transaction._hiddenValidation ??= [];
@@ -229,7 +229,7 @@ export class ManualTransactionBuilder {
           return of(null);
         }),
       ),
-      beneficiary: this.buildBeneficiary(this.generateParty).pipe(
+      beneficiary: this.buildBeneficiary(this.generateEntity).pipe(
         catchError((error: HttpErrorResponse) => {
           if (error.status === HttpStatusCode.NotFound) {
             this.transaction._hiddenValidation ??= [];
@@ -242,16 +242,16 @@ export class ManualTransactionBuilder {
       map(({ conductor, beneficiary }) => {
         // Update starting action with conductor
         const mapConductor = () => {
-          const { givenName, surname, otherOrInitial, nameOfEntity } =
-            conductor?.partyName ?? {};
-          const { partyKey } = conductor?.identifiers ?? {};
+          const { givenName, surname, otherOrInitialName, nameOfEntity } =
+            conductor ?? {};
+          const { partyKey } = conductor ?? {};
 
           return {
-            linkToSub: conductor?.partyIdentifier!,
-            _hiddenPartyKey: partyKey as string,
+            linkToSub: conductor?.entityIdentifier!,
+            _hiddenPartyKey: partyKey ?? null,
             _hiddenGivenName: givenName ?? null,
             _hiddenSurname: surname ?? null,
-            _hiddenOtherOrInitial: otherOrInitial ?? null,
+            _hiddenOtherOrInitialName: otherOrInitialName ?? null,
             _hiddenNameOfEntity: nameOfEntity ?? null,
             wasConductedOnBehalf: false,
             onBehalfOf: [],
@@ -268,15 +268,15 @@ export class ManualTransactionBuilder {
 
         // Update completing action with beneficiary
         const mapBeneficiary = () => {
-          const { givenName, surname, otherOrInitial, nameOfEntity } =
-            beneficiary?.partyName ?? {};
-          const { partyKey } = beneficiary?.identifiers ?? {};
+          const { givenName, surname, otherOrInitialName, nameOfEntity } =
+            beneficiary ?? {};
+          const { partyKey } = beneficiary ?? {};
           return {
-            linkToSub: beneficiary?.partyIdentifier!,
-            _hiddenPartyKey: partyKey as string,
+            linkToSub: beneficiary?.entityIdentifier!,
+            _hiddenPartyKey: partyKey ?? null,
             _hiddenGivenName: givenName ?? null,
             _hiddenSurname: surname ?? null,
-            _hiddenOtherOrInitial: otherOrInitial ?? null,
+            _hiddenOtherOrInitialName: otherOrInitialName ?? null,
             _hiddenNameOfEntity: nameOfEntity ?? null,
           };
         };
@@ -290,7 +290,7 @@ export class ManualTransactionBuilder {
 
         return {
           selection: this.transaction as StrTransactionWithChangeLogs,
-          parties: [conductor, beneficiary].filter((item) => !!item),
+          entities: [conductor, beneficiary].filter((item) => !!item),
         };
       }),
     );
@@ -367,10 +367,10 @@ export class ManualTransactionBuilder {
   }
 
   private buildConductor(
-    generateParty: (
-      party: Omit<PartyGenType, 'partyIdentifier'>,
-    ) => Observable<PartyGenType | null>,
-  ): Observable<PartyGenType | null> {
+    generateEntity: (
+      entity: Omit<EntityGenType, 'entityIdentifier'>,
+    ) => Observable<EntityGenType | null>,
+  ): Observable<EntityGenType | null> {
     if (
       !this.hasValue(this.value['Conductor Party Key']) &&
       !this.hasValue(this.value['Conductor Surname']) &&
@@ -380,24 +380,22 @@ export class ManualTransactionBuilder {
       return of(null);
     }
 
-    const party: Omit<PartyGenType, 'partyIdentifier'> = {
-      identifiers: { partyKey: this.value['Conductor Party Key']! },
-      partyName: {
-        surname: this.value['Conductor Surname'] || null,
-        givenName: this.value['Conductor Given Name'] || null,
-        otherOrInitial: this.value['Conductor Other Name'] || null,
-        nameOfEntity: this.value['Conductor Entity Name'] || null,
-      },
+    const entity: Omit<EntityGenType, 'entityIdentifier'> = {
+      partyKey: this.value['Conductor Party Key']!,
+      surname: this.value['Conductor Surname'] || null,
+      givenName: this.value['Conductor Given Name'] || null,
+      otherOrInitialName: this.value['Conductor Other Name'] || null,
+      nameOfEntity: this.value['Conductor Entity Name'] || null,
     };
 
-    return generateParty(party);
+    return generateEntity(entity);
   }
 
   private buildBeneficiary(
-    generateParty: (
-      party: Omit<PartyGenType, 'partyIdentifier'>,
-    ) => Observable<PartyGenType | null>,
-  ): Observable<PartyGenType | null> {
+    generateEntity: (
+      entity: Omit<EntityGenType, 'entityIdentifier'>,
+    ) => Observable<EntityGenType | null>,
+  ): Observable<EntityGenType | null> {
     if (
       !this.hasValue(this.value['Beneficiary Party Key']) &&
       !this.hasValue(this.value['Beneficiary Surname']) &&
@@ -407,16 +405,14 @@ export class ManualTransactionBuilder {
       return of(null);
     }
 
-    const party: Omit<PartyGenType, 'partyIdentifier'> = {
-      identifiers: { partyKey: this.value['Beneficiary Party Key']! },
-      partyName: {
-        surname: this.value['Beneficiary Surname'] || null,
-        givenName: this.value['Beneficiary Given Name'] || null,
-        otherOrInitial: this.value['Beneficiary Other Name'] || null,
-        nameOfEntity: this.value['Beneficiary Entity Name'] || null,
-      },
+    const entity: Omit<EntityGenType, 'entityIdentifier'> = {
+      partyKey: this.value['Beneficiary Party Key']!,
+      surname: this.value['Beneficiary Surname'] || null,
+      givenName: this.value['Beneficiary Given Name'] || null,
+      otherOrInitialName: this.value['Beneficiary Other Name'] || null,
+      nameOfEntity: this.value['Beneficiary Entity Name'] || null,
     };
 
-    return generateParty(party);
+    return generateEntity(entity);
   }
 }

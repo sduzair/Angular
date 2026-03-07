@@ -2,17 +2,20 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   ErrorHandler,
   inject,
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { MatBadgeModule } from '@angular/material/badge';
 import { MatButton } from '@angular/material/button';
 import { MatChip } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import {
   ActivatedRouteSnapshot,
   ResolveFn,
@@ -40,6 +43,7 @@ import {
   CaseRecordStore,
   StrTransactionWithChangeLogs,
 } from '../aml/case-record.store';
+import { AuthService } from '../auth.service';
 import { SnackbarQueueService } from '../snackbar-queue.service';
 import { RouteExtrasFromSearch } from '../transaction-search/transaction-search.component';
 import {
@@ -48,6 +52,7 @@ import {
   FlowOfFundsSourceData,
   OlbSourceData,
   OTCSourceData,
+  POSSourceData,
   TransactionSearchService,
   WireSourceData,
 } from '../transaction-search/transaction-search.service';
@@ -58,13 +63,15 @@ import { FofTableComponent } from './fof-table/fof-table.component';
 import { LocalHighlightsService } from './local-highlights.service';
 import { OlbTableComponent } from './olb-table/olb-table.component';
 import { OtcTableComponent } from './otc-table/otc-table.component';
+import { PosTableComponent } from './pos-table/pos-table.component';
 import { transformABMToStrTransaction } from './transform-to-str-transaction/abm-transform';
+import {
+  EntityGenService,
+  EntityGenType,
+} from './transform-to-str-transaction/entity-gen.service';
 import { transformOlbEmtToStrTransaction } from './transform-to-str-transaction/olb-emt-transform';
 import { transformOTCToStrTransaction } from './transform-to-str-transaction/otc-transform';
-import {
-  PartyGenService,
-  PartyGenType,
-} from './transform-to-str-transaction/party-gen.service';
+import { transformPOSToStrTransaction } from './transform-to-str-transaction/pos-transform';
 import { transformWireToStrTransaction } from './transform-to-str-transaction/wire-transform';
 import { WiresTableComponent } from './wires-table/wires-table.component';
 
@@ -84,22 +91,67 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
     WiresTableComponent,
     MatIconModule,
     OtcTableComponent,
+    PosTableComponent,
+    MatTooltipModule,
+    MatBadgeModule,
   ],
   template: `
     <div class="row row-cols-1 mx-0">
       <mat-toolbar class="col px-0">
         <mat-toolbar-row class="px-0 header-toolbar-row">
+          @let searchParamsChanged = (searchParamsChanged$ | async) ?? false;
+          <button
+            [class.d-none]="!searchParamsChanged"
+            style="cursor: default"
+            type="button"
+            color="warn"
+            mat-stroked-button
+            class="warning-indicator"
+            [matTooltip]="
+              'Search criteria has changed. Selections may no longer reflect current search parameters.'
+            "
+            matTooltipPosition="below"
+            tabindex="-1"
+            aria-live="polite"
+            aria-label="Search criteria changed warning">
+            <mat-icon class="text-danger">warning_amber</mat-icon>
+            Search Criteria Changed
+          </button>
+
+          <button type="button" color="primary" mat-flat-button>
+            {{ 'Export Data' }}
+          </button>
+
           <div class="flex-fill"></div>
+
+          @let danglingSelections = (danglingSelections$ | async) ?? [];
+          <button
+            type="button"
+            color="warn"
+            mat-stroked-button
+            [class.d-none]="danglingSelections.length === 0"
+            [disabled]="(isClosed$ | async) || !canMakeSelections()"
+            (click)="removeDanglingSelections(danglingSelections)"
+            [matBadge]="danglingSelections.length"
+            aria-label="Remove extra selections">
+            <mat-icon class="text-danger">playlist_remove</mat-icon>
+            Clear Dangling
+          </button>
+
           <button
             type="button"
             color="accent"
             mat-raised-button
-            [disabled]="(selectionControlHasChanges$ | async) === false"
+            [disabled]="
+              (selectionControlHasChanges$ | async) === false ||
+              (isClosed$ | async)
+            "
             (click)="resetSelections()"
             aria-label="Reset selections">
             <mat-icon>refresh</mat-icon>
             Reset
           </button>
+
           <button
             type="button"
             color="primary"
@@ -108,7 +160,9 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
               (selectionControlHasChanges$ | async) === false ||
               (saveProgress$ | async)?.status === 'transforming' ||
               (saveProgress$ | async)?.status === 'saving' ||
-              (qIsSaving$ | async)
+              (qIsSaving$ | async) ||
+              (isClosed$ | async) ||
+              !canMakeSelections()
             "
             (click)="onSave()">
             @let isSaving =
@@ -138,7 +192,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [fofSourceData]="(fofSourceData$ | async) || []"
             [selectionCount]="(fofSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
-            [highlightedRecords]="highlightedRecords" />
+            [highlightedRecords]="highlightedRecords"
+            [disabled]="(isClosed$ | async) || !canMakeSelections()" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -151,7 +206,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [abmSourceData]="(abmSourceData$ | async) || []"
             [selectionCount]="(abmSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
-            [highlightedRecords]="highlightedRecords" />
+            [highlightedRecords]="highlightedRecords"
+            [disabled]="(isClosed$ | async) || !canMakeSelections()" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -164,7 +220,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [olbSourceData]="(olbSourceData$ | async) || []"
             [selectionCount]="(olbSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
-            [highlightedRecords]="highlightedRecords" />
+            [highlightedRecords]="highlightedRecords"
+            [disabled]="(isClosed$ | async) || !canMakeSelections()" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -177,7 +234,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [emtSourceData]="(emtSourceData$ | async) || []"
             [selectionCount]="(emtSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
-            [highlightedRecords]="highlightedRecords" />
+            [highlightedRecords]="highlightedRecords"
+            [disabled]="(isClosed$ | async) || !canMakeSelections()" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -190,7 +248,8 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [wiresSourceData]="(wiresSourceData$ | async) || []"
             [selectionCount]="(wiresSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
-            [highlightedRecords]="highlightedRecords" />
+            [highlightedRecords]="highlightedRecords"
+            [disabled]="(isClosed$ | async) || !canMakeSelections()" />
         </mat-tab>
         <mat-tab>
           <ng-template mat-tab-label>
@@ -203,7 +262,22 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
             [otcSourceData]="(otcSourceData$ | async) || []"
             [selectionCount]="(otcSourceDataSelectionCount$ | async) ?? 0"
             [masterSelection]="selectionModel"
-            [highlightedRecords]="highlightedRecords" />
+            [highlightedRecords]="highlightedRecords"
+            [disabled]="(isClosed$ | async) || !canMakeSelections()" />
+        </mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            POS
+            <mat-chip class="ms-1" disableRipple>
+              {{ posSourceDataSelectionCount$ | async }}
+            </mat-chip>
+          </ng-template>
+          <app-pos-table
+            [posSourceData]="(posSourceData$ | async) || []"
+            [selectionCount]="(posSourceDataSelectionCount$ | async) ?? 0"
+            [masterSelection]="selectionModel"
+            [highlightedRecords]="highlightedRecords"
+            [disabled]="(isClosed$ | async) || !canMakeSelections()" />
         </mat-tab>
       </mat-tab-group>
     }
@@ -213,10 +287,16 @@ import { WiresTableComponent } from './wires-table/wires-table.component';
 })
 export class TransactionViewComponent extends AbstractTransactionViewComponent {
   private snackBar = inject(SnackbarQueueService);
-  protected qIsSaving$ = this._caseRecordStore.qIsSaving$;
-
-  highlightedRecords = signal<Map<string, string>>(new Map());
   private highlightsService = inject(LocalHighlightsService);
+  private errorHandler = inject(ErrorHandler);
+  private readonly authService = inject(AuthService);
+  protected qIsSaving$ = this._caseRecordStore.qIsSaving$;
+  protected isClosed$ = this._caseRecordStore.isClosed$;
+
+  protected readonly canMakeSelections = computed(
+    () => this.authService.isAdmin() || this.authService.isInvestigator(),
+  );
+  highlightedRecords = signal<Map<string, string>>(new Map());
 
   private highlights$ = this._caseRecordStore.state$.pipe(
     take(1),
@@ -310,6 +390,19 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     ),
   );
 
+  posSourceData$ = combineLatest([this.searchResponse$, this.highlights$]).pipe(
+    map(([search, higlightsMap]) =>
+      search
+        .find((res) => res.sourceId === 'POS')
+        ?.sourceData!.map((row) => ({
+          ...row,
+          _uiPropHighlightColor: higlightsMap.get(
+            row.flowOfFundsAmlTransactionId,
+          ),
+        })),
+    ),
+  );
+
   private selectionIdsLastSaved$ = this.selections$.pipe(
     map(
       (selections) =>
@@ -358,8 +451,25 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
 
   constructor() {
     super();
+
     // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe
     this.onSave$.pipe(takeUntilDestroyed()).subscribe();
+  }
+
+  removeDanglingSelections(
+    selections: {
+      flowOfFundsAmlTransactionId: string;
+    }[],
+  ) {
+    this._caseRecordStore
+      .removeSelections(
+        selections.map(
+          ({ flowOfFundsAmlTransactionId }) => flowOfFundsAmlTransactionId,
+        ),
+      )
+      .pipe(take(1))
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
+      .subscribe();
   }
 
   protected onSaveSubject = new Subject<void>();
@@ -414,7 +524,7 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
 
         const transformations: Observable<{
           selection: StrTransactionWithChangeLogs;
-          parties: PartyGenType[];
+          entities: EntityGenType[];
         } | null>[] = [];
 
         for (const {
@@ -464,6 +574,17 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
               (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
             );
           const otcFofTxn = searchResponse
+            .find((src) => src.sourceId === 'FlowOfFunds')
+            ?.sourceData.find(
+              (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
+            );
+
+          const posTxn = searchResponse
+            .find((src) => src.sourceId === 'POS')
+            ?.sourceData.find(
+              (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
+            );
+          const posFofTxn = searchResponse
             .find((src) => src.sourceId === 'FlowOfFunds')
             ?.sourceData.find(
               (txn) => txn.flowOfFundsAmlTransactionId === selectionId,
@@ -529,6 +650,20 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
               ),
             );
           }
+
+          if (posTxn && posFofTxn) {
+            transformations.push(
+              this.transformPOS(posTxn, posFofTxn, caseRecordId).pipe(
+                catchError((err) => {
+                  console.error(
+                    `Failed to transform POS transaction ${selectionId}:`,
+                    err,
+                  );
+                  return of(null);
+                }),
+              ),
+            );
+          }
         }
 
         // Handle empty transformations array (forkJoin emits EMPTY for empty arrays)
@@ -542,17 +677,21 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
                 item,
               ): item is {
                 selection: StrTransactionWithChangeLogs;
-                parties: PartyGenType[];
+                entities: EntityGenType[];
               } => item !== null,
             );
 
             if (results.length - transformations.length > 0) {
-              this.snackBar.open('Some transformations have failed', 'Close');
+              this.snackBar.open({
+                message: 'Some transformations have failed',
+                action: 'Close',
+              });
             }
 
             this.saveProgress$.next({
               ...this.saveProgress$.value,
-              completed: transformations.length,
+              completed:
+                this.saveProgress$.value.completed + transformations.length,
               status: 'saving',
             });
 
@@ -567,12 +706,13 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     // Save transformed transactions
     switchMap(({ transformations, removedSelectionIds }) => {
       return this._caseRecordStore
-        .addSelectionsAndParties(transformations)
+        .addSelectionsAndEntities(transformations)
         .pipe(
-          switchMap(({ count: addedSelectionsCount }) => {
+          switchMap(({ selectionCount: addedSelectionsCount }) => {
             this.saveProgress$.next({
               ...this.saveProgress$.value,
-              completed: transformations.length + addedSelectionsCount,
+              completed:
+                this.saveProgress$.value.completed + addedSelectionsCount,
               status: 'saving',
             });
             return this._caseRecordStore
@@ -582,8 +722,7 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
                   this.saveProgress$.next({
                     ...this.saveProgress$.value,
                     completed:
-                      transformations.length +
-                      addedSelectionsCount +
+                      this.saveProgress$.value.completed +
                       removedSelectionsCount,
                     status: 'complete',
                   });
@@ -595,7 +734,7 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
               ...this.saveProgress$.value,
               status: 'error',
             });
-
+            this.errorHandler.handleError(error);
             return EMPTY;
           }),
         );
@@ -604,7 +743,7 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
 
   // Transformation helper methods
   private searchService = inject(TransactionSearchService);
-  private partyGenService = inject(PartyGenService);
+  private entityGenService = inject(EntityGenService);
   private transformABM(
     abmTxn: AbmSourceData,
     fofTxn: FlowOfFundsSourceData,
@@ -613,8 +752,8 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     return transformABMToStrTransaction(
       abmTxn,
       fofTxn,
-      (party: Omit<PartyGenType, 'partyIdentifier'>) =>
-        this.partyGenService.generateParty(party),
+      (entity: Omit<EntityGenType, 'entityIdentifier'>) =>
+        this.entityGenService.generateEntity(entity),
       (account) => this.searchService.getAccountInfo(account),
       caseRecordId,
     );
@@ -630,8 +769,8 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
       olbTxn,
       fofTxn,
       emtTxn,
-      generateParty: (party: Omit<PartyGenType, 'partyIdentifier'>) =>
-        this.partyGenService.generateParty(party),
+      generateEntity: (entity: Omit<EntityGenType, 'entityIdentifier'>) =>
+        this.entityGenService.generateEntity(entity),
       getAccountInfo: (account) => this.searchService.getAccountInfo(account),
       caseRecordId,
     });
@@ -645,8 +784,8 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     return transformWireToStrTransaction({
       wireTxn,
       fofTxn,
-      generateParty: (party: Omit<PartyGenType, 'partyIdentifier'>) =>
-        this.partyGenService.generateParty(party),
+      generateEntity: (entity: Omit<EntityGenType, 'entityIdentifier'>) =>
+        this.entityGenService.generateEntity(entity),
       getAccountInfo: (account) => this.searchService.getAccountInfo(account),
       caseRecordId,
     });
@@ -660,14 +799,30 @@ export class TransactionViewComponent extends AbstractTransactionViewComponent {
     return transformOTCToStrTransaction({
       sourceTxn: otcTxn,
       fofTxn,
-      generateParty: (party: Omit<PartyGenType, 'partyIdentifier'>) =>
-        this.partyGenService.generateParty(party),
+      generateEntity: (entity: Omit<EntityGenType, 'entityIdentifier'>) =>
+        this.entityGenService.generateEntity(entity),
+      getAccountInfo: (account) => this.searchService.getAccountInfo(account),
+      caseRecordId,
+    });
+  }
+
+  private transformPOS(
+    posTxn: POSSourceData,
+    fofTxn: FlowOfFundsSourceData,
+    caseRecordId: string,
+  ) {
+    return transformPOSToStrTransaction({
+      posTxn,
+      fofTxn,
+      generateEntity: (entity: Omit<EntityGenType, 'entityIdentifier'>) =>
+        this.entityGenService.generateEntity(entity),
       getAccountInfo: (account) => this.searchService.getAccountInfo(account),
       caseRecordId,
     });
   }
 }
 
+// fix: search result reset
 export const searchResultResolver: ResolveFn<boolean> = (
   route: ActivatedRouteSnapshot,
   _state: RouterStateSnapshot,
@@ -693,7 +848,7 @@ export const searchResultResolver: ResolveFn<boolean> = (
 
   return forkJoin([
     caseRecordStore.fetchCaseRecordByAmlId(amlId),
-    caseRecordStore.fetchSelectionsAndParties(),
+    caseRecordStore.fetchSelectionsAndEntities(),
   ]).pipe(
     map(() => true),
     catchError((error) => {

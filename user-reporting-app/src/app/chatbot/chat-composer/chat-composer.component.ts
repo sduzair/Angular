@@ -13,7 +13,7 @@ import { MatIconModule } from '@angular/material/icon';
   selector: 'app-chat-composer',
   imports: [MatIconModule, MatButtonModule, TextFieldModule],
   template: `
-    <div class="composer-container d-flex align-items-center">
+    <div class="composer-container d-flex align-items-center rounded-5">
       <div class="textareaWrapper d-flex flex-grow-1">
         <textarea
           name="Message"
@@ -30,17 +30,17 @@ import { MatIconModule } from '@angular/material/icon';
       @if (isLoading()) {
         <button
           type="button"
-          mat-icon-button
+          matIconButton
           (click)="abortSearch.emit()"
-          class="send-button me-2"
+          class="send-button me-4"
           aria-label="Stop generating">
           <mat-icon>stop_circle</mat-icon>
         </button>
       } @else {
         <button
           type="button"
-          mat-icon-button
-          class="send-button me-2"
+          matIconButton
+          class="send-button me-4"
           aria-label="Send"
           (click)="onSendMessage(textarea)"
           aria-label="Send message">

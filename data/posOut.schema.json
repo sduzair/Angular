@@ -1,0 +1,1023 @@
+{
+  "name": "posOut",
+  "num_rows": 500,
+  "file_format": "json",
+  "array": true,
+  "columns": [
+    {
+      "name": "_hiddenDate",
+      "null_percentage": 0,
+      "type": "Datetime",
+      "min": "01/01/2025",
+      "max": "12/31/2025",
+      "format": "%Y-%m-%d",
+      "formula": null
+    },
+    {
+      "name": "_hiddenTime",
+      "null_percentage": 0,
+      "type": "Time",
+      "min": "6:00 AM",
+      "max": "11:59 PM",
+      "format": "%H:%M:%S",
+      "formula": null
+    },
+    {
+      "name": "_hiddenAccount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["5582195", "8692413", "5647218"],
+      "selectionStyle": "sequential",
+      "formula": ""
+    },
+    {
+      "name": "_hiddenTransit",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["84255", "31980", "87594"],
+      "selectionStyle": "sequential",
+      "formula": ""
+    },
+    {
+      "name": "_hiddenAmount",
+      "null_percentage": 0,
+      "type": "Number",
+      "min": 50,
+      "max": 5000,
+      "decimals": 0,
+      "formula": "this"
+    },
+    {
+      "name": "_hiddenCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["CAD"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "_hiddenCIF",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["3415674561"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "_hiddenCardNumber",
+      "null_percentage": 0,
+      "type": "Credit Card #",
+      "formula": "this"
+    },
+    {
+      "name": "_hiddenMerchantName",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "BETVICTOR",
+        "BET365",
+        "BET99",
+        "SPORTSBETCA",
+        "PINNACLE",
+        "BETWAY",
+        "BODOG",
+        "SPORTS INTERACTION",
+        "THESCORE BET",
+        "PROLINE PLUS",
+        "FANDUEL",
+        "DRAFTKINGS",
+        "POINTSBET",
+        "UNIBET",
+        "888CASINO",
+        "LEOVEGAS",
+        "BETMGM",
+        "CAESARS SPORTSBOOK",
+        "WILLIAM HILL",
+        "LADBROKES",
+        "CORAL",
+        "SKYBET",
+        "PADDY POWER",
+        "BETFAIR",
+        "BWIN",
+        "MARATHONBET",
+        "1XBET",
+        "22BET",
+        "BETCOIN",
+        "FORTUNEJACK",
+        "BOVADA",
+        "MYBOOKIE",
+        "BETONLINE",
+        "INTERTOPS",
+        "POKERSTARS CASINO",
+        "PARTY CASINO",
+        "SPIN CASINO",
+        "JACKPOT CITY",
+        "ROYAL VEGAS",
+        "RIZK CASINO",
+        "CASUMO",
+        "MR GREEN",
+        "BETHARD",
+        "VIDEOSLOTS",
+        "CHERRY CASINO",
+        "AMAZONCA",
+        "STARBUCKS",
+        "WALMART",
+        "TIM HORTONS",
+        "UBER EATS",
+        "SHOPIFY",
+        "COSTCO",
+        "LOBLAWS",
+        "CANADIAN TIRE"
+      ],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "_hiddenMerchantSIC",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["7995", "5999", "5812", "5411", "7372"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "_hiddenAreaCode",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "416",
+        "647",
+        "437",
+        "604",
+        "778",
+        "236",
+        "514",
+        "438",
+        "403",
+        "587",
+        "780",
+        "613",
+        "343",
+        "905",
+        "289"
+      ],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "_hiddenMerchantCity",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "concat(_hiddenAreaCode, random(2000000, 9999999))"
+    },
+    {
+      "name": "_hiddenSequence",
+      "null_percentage": 0,
+      "type": "Digit Sequence",
+      "format": "##########",
+      "formula": null
+    },
+    {
+      "name": "accountCurrencyAmount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenAmount"
+    },
+    {
+      "name": "accountCurrencyCD",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenCurrency"
+    },
+    {
+      "name": "accountNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenAccount"
+    },
+    {
+      "name": "acctHoldersAll",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["3415674561;1846597320"],
+      "selectionStyle": null,
+      "formula": ""
+    },
+    {
+      "name": "additionalDescription",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "authorization request",
+        "transaction completed",
+        "purchase approved"
+      ],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "amlId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["99999999"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "cardAcceptorTerminalId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "cardNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenCardNumber"
+    },
+    {
+      "name": "caseAcccountNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "caseEcif",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenCIF"
+    },
+    {
+      "name": "caseTransitNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenTransit"
+    },
+    {
+      "name": "cnpRefundIndicator",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["N"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "conductor",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenCIF"
+    },
+    {
+      "name": "crDrCode",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["D"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "creditorld",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "cryptolndicator",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["NON-CRYPTO"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "customer1AccountHolderCifId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenCIF"
+    },
+    {
+      "name": "customer1AccountStatus",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["OPEN"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "executionLocalDataTime",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "date(concat(_hiddenDate, ' ', _hiddenTime)).to_i * 1000"
+    },
+    {
+      "name": "flowOfFundsAccountCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenCurrency"
+    },
+    {
+      "name": "flowOfFundsAmlId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "amlId"
+    },
+    {
+      "name": "flowOfFundsAmlTransactionId",
+      "null_percentage": 0,
+      "type": "GUID",
+      "formula": "concat('POS-', this)"
+    },
+    {
+      "name": "flowOfFundsCaseEcif",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenCIF"
+    },
+    {
+      "name": "flowOfFundsConductorEcif",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenCIF"
+    },
+    {
+      "name": "flowOfFundsCreditAmount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "flowOfFundsCreditedAccount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "flowOfFundsCreditedTransit",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "flowOfFundsDebitAmount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenAmount"
+    },
+    {
+      "name": "flowOfFundsDebitedAccount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenAccount"
+    },
+    {
+      "name": "flowOfFundsDebitedTransit",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenTransit"
+    },
+    {
+      "name": "flowOfFundsPostingDate",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenDate"
+    },
+    {
+      "name": "flowOfFundsSource",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["POS"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsSourceId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenSequence"
+    },
+    {
+      "name": "flowOfFundsTransactionCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenCurrency"
+    },
+    {
+      "name": "flowOfFundsTransactionCurrencyAmount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenAmount"
+    },
+    {
+      "name": "flowOfFundsTransactionDate",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenDate"
+    },
+    {
+      "name": "_hiddenIsGambling",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "['BETVICTOR','BET365','BET99','SPORTSBETCA','PINNACLE','BETWAY','BODOG','SPORTS INTERACTION','THESCORE BET','PROLINE PLUS','FANDUEL','DRAFTKINGS','POINTSBET','UNIBET','888CASINO','LEOVEGAS','BETMGM','CAESARS SPORTSBOOK','WILLIAM HILL','LADBROKES','CORAL','SKYBET','PADDY POWER','BETFAIR','BWIN','MARATHONBET','1XBET','22BET','BETCOIN','FORTUNEJACK','BOVADA','MYBOOKIE','BETONLINE','INTERTOPS','POKERSTARS CASINO','PARTY CASINO','SPIN CASINO','JACKPOT CITY','ROYAL VEGAS','RIZK CASINO','CASUMO','MR GREEN','BETHARD','VIDEOSLOTS','CHERRY CASINO'].include?(_hiddenMerchantName)"
+    },
+    {
+      "name": "_hiddenIsService",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "['STARBUCKS','TIM HORTONS','UBER EATS'].include?(_hiddenMerchantName)"
+    },
+    {
+      "name": "flowOfFundsTransactionDesc",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "if _hiddenIsGambling then concat('Retail Purchase - Quasi-Cash @ ', _hiddenMerchantName, ', CA') else concat('Retail Purchase @ ', _hiddenMerchantName, ', CA') end"
+    },
+    {
+      "name": "flowOfFundsTransactionTime",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenTime"
+    },
+    {
+      "name": "fxTranExchangeRate",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "holdingBranchKey",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenTransit"
+    },
+    {
+      "name": "indicatorTags",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "lineOfBusiness",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["Non-OCT"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "merchantCity",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenMerchantCity"
+    },
+    {
+      "name": "merchantCountry",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["CA"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "merchantName",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenMerchantName"
+    },
+    {
+      "name": "merchantNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "merchantPostalCode",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "merchantProvince",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["61", "35", "59", "48"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "merchantSICCode",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenMerchantSIC"
+    },
+    {
+      "name": "merchantStreetAddress",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "msgTypeCode",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["0100", "0110", "0200", "0210"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "octBankCountry",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["UNKN"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "octBankIdentifier",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "octBankName",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "octIntermediaryBankAddress",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "octIntermediaryBankCity",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "octIntermediaryBankPostalCode",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "octIntermediaryBankProvince",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "octSenderAcountNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "octSenderCity",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "octSenderCountry",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "octSenderName",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "octSenderPostalCode",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "octSenderProvinceNane",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "octSenderStreetAddress",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "origCurrencyAmount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenAmount"
+    },
+    {
+      "name": "originCurrencyCD",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenCurrency"
+    },
+    {
+      "name": "postingDate",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenDate"
+    },
+    {
+      "name": "processingDate",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "(_hiddenDate + 1.day).strftime('%Y-%m-%d')"
+    },
+    {
+      "name": "puposeOfPayment",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "rowUpdateData",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "now().to_i * 1000"
+    },
+    {
+      "name": "rulesCadEquivalentAmt",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenAmount"
+    },
+    {
+      "name": "sequenceNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenSequence"
+    },
+    {
+      "name": "splittableColumnVaIue",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenCIF"
+    },
+    {
+      "name": "splittingDe1imiter",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [";"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "strCaAccount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "strCaAccountCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "strCaAccountHolderCifId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "strCaAccountStatus",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "strCaAmount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenAmount"
+    },
+    {
+      "name": "strCaBeneficiaryInd",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["Yes"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "strCaBranch",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "strCaCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenCurrency"
+    },
+    {
+      "name": "strCaDispositionType",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "if _hiddenIsGambling then 'Other' elsif _hiddenIsService then 'Purchase of / Payment for services' else 'Purchase of / Payment for goods' end"
+    },
+    {
+      "name": "strCaDispositionTypeOther",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "if _hiddenIsGambling then 'Purchase of / Payment for goods (Quasi Cash)' else '' end"
+    },
+    {
+      "name": "strCaFiNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "strCaInvolvedInCifId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "strCaInvolvedInInd",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["No"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "strCadEquivalentAmount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "strReportingEntity",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenTransit"
+    },
+    {
+      "name": "strSaAccount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenAccount"
+    },
+    {
+      "name": "strSaAccountCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenCurrency"
+    },
+    {
+      "name": "strSaAccountHoldersCifId",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenCIF"
+    },
+    {
+      "name": "strSaAccountStatus",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["Active"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "strSaAmount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenAmount"
+    },
+    {
+      "name": "strSaBranch",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenTransit"
+    },
+    {
+      "name": "strSaConductorInd",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["Yes"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "strSaCurrency",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenCurrency"
+    },
+    {
+      "name": "strSaDirection",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["Out"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "strSaFiNumber",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["010"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "strSaFundingSourceInd",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["No"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "strSaFundsType",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["Funds Withdrawal"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "strSaFundsTypeOther",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "strSaOboInd",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["No"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "strSaPostingDate",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "strSaPurposeOfTransaction",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "strTransactionStatus",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": ["No"],
+      "selectionStyle": "random",
+      "formula": null
+    },
+    {
+      "name": "terminalOwnerName",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenMerchantName"
+    },
+    {
+      "name": "thirdPartyCifld",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    },
+    {
+      "name": "transactionCurrencyAmount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenAmount"
+    },
+    {
+      "name": "transactionDate",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenDate"
+    },
+    {
+      "name": "transactionExecutionLocalTimestamp",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "concat(_hiddenDate, ' ', _hiddenTime, '-04:00')"
+    },
+    {
+      "name": "transactionld",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "flowOfFundsAmlTransactionId"
+    },
+    {
+      "name": "transactionMemoLine2",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "if _hiddenIsGambling then 'Retail Purchase - Quasi-Cash' elsif _hiddenIsService then ['Food Service Purchase', 'Restaurant Purchase', 'Delivery Service'].shuffle.first else ['Retail Purchase', 'Online Purchase', 'E-Commerce Purchase'].shuffle.first end"
+    },
+    {
+      "name": "transactionMemoLine3",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "if _hiddenIsGambling then ['Online', 'Mobile', 'Mobile App'].shuffle.first elsif _hiddenIsService then ['In-Store', 'Mobile App', 'Online Order'].shuffle.first else ['Online', 'In-Store', 'Mobile'].shuffle.first end"
+    },
+    {
+      "name": "transactionTime",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "formula": "_hiddenTime"
+    },
+    {
+      "name": "visaCredit",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [],
+      "selectionStyle": "random",
+      "formula": ""
+    }
+  ]
+}

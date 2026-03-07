@@ -1,0 +1,481 @@
+@use '@angular/material' as mat;
+
+@mixin apply() {
+  // replaces @include mat.typography-hierarchy(...)
+  h1 {
+    font-size: var(--mat-sys-headline-large-size);
+    line-height: var(--mat-sys-headline-large-line-height);
+    font-weight: var(--mat-sys-headline-large-weight, 400);
+    letter-spacing: var(--mat-sys-headline-large-tracking);
+  }
+
+  h2 {
+    font-size: var(--mat-sys-headline-medium-size);
+    line-height: var(--mat-sys-headline-medium-line-height);
+    font-weight: var(--mat-sys-headline-medium-weight, 400);
+    letter-spacing: var(--mat-sys-headline-medium-tracking);
+  }
+
+  h3 {
+    font-size: var(--mat-sys-headline-small-size);
+    line-height: var(--mat-sys-headline-small-line-height);
+    font-weight: var(--mat-sys-headline-small-weight, 400);
+    letter-spacing: var(--mat-sys-headline-small-tracking);
+  }
+
+  h4 {
+    font-size: var(--mat-sys-title-large-size);
+    line-height: var(--mat-sys-title-large-line-height);
+    font-weight: var(--mat-sys-title-large-weight, 500);
+    letter-spacing: var(--mat-sys-title-large-tracking);
+  }
+
+  h5 {
+    font-size: var(--mat-sys-title-medium-size);
+    line-height: var(--mat-sys-title-medium-line-height);
+    font-weight: var(--mat-sys-title-medium-weight, 500);
+    letter-spacing: var(--mat-sys-title-medium-tracking);
+  }
+
+  h6 {
+    font-size: var(--mat-sys-title-small-size);
+    line-height: var(--mat-sys-title-small-line-height);
+    font-weight: var(--mat-sys-title-small-weight, 500);
+    letter-spacing: var(--mat-sys-title-small-tracking);
+  }
+
+  @include mat.badge-overrides(
+    (
+      // Default containers: 16px
+      container-size: 12px,
+      container-padding: 0 4px,
+      container-offset: -8px 0,
+      container-overlap-offset: -5px,
+
+      large-size-container-size: 12px,
+      large-size-container-padding: 0 2px,
+      large-size-container-offset: -8px 0,
+      large-size-container-overlap-offset: -8px,
+
+      // Small dot: 6px
+      small-size-container-size: 4px,
+      small-size-container-offset: -3px 0,
+      small-size-container-overlap-offset: -3px
+    )
+  );
+
+  @include mat.button-overrides(
+    (
+      // ── Container heights (density floor: 28px) ──
+      filled-container-height: 28px,
+      outlined-container-height: 28px,
+      protected-container-height: 28px,
+      text-container-height: 28px,
+      tonal-container-height: 28px,
+
+      // ── Horizontal padding ──
+      filled-horizontal-padding: 14px,
+      outlined-horizontal-padding: 14px,
+      protected-horizontal-padding: 14px,
+      text-horizontal-padding: 8px,
+      text-with-icon-horizontal-padding: 10px,
+      tonal-horizontal-padding: 14px,
+
+      // ── Icon spacing & offset ──
+      filled-icon-spacing: 6px,
+      filled-icon-offset: -4px,
+      outlined-icon-spacing: 6px,
+      outlined-icon-offset: -4px,
+      protected-icon-spacing: 6px,
+      protected-icon-offset: -4px,
+      text-icon-spacing: 6px,
+      text-icon-offset: -2px,
+      tonal-icon-spacing: 6px,
+      tonal-icon-offset: -4px,
+
+      // ── Touch-target size (collapse to match container) ──
+      filled-touch-target-size: 28px,
+      outlined-touch-target-size: 28px,
+      protected-touch-target-size: 28px,
+      text-touch-target-size: 28px,
+      tonal-touch-target-size: 28px,
+
+      // ── Hide touch-target overlay element ──
+      filled-touch-target-display: none,
+      outlined-touch-target-display: none,
+      protected-touch-target-display: none,
+      text-touch-target-display: none,
+      tonal-touch-target-display: none
+    )
+  );
+
+  @include mat.fab-overrides(
+    (
+      // Height
+      extended-container-height: 40px,
+
+      // Touch-target: match container
+      touch-target-size: 40px,
+      small-touch-target-size: 40px,
+      touch-target-display: none
+    )
+  );
+
+  @include mat.icon-button-overrides(
+    (
+      // Icon: 24px
+      icon-size: 18px,
+
+      // State-layer (ripple area): density floor 24px
+      state-layer-size: 18px,
+
+      // Touch-target
+      touch-target-size: 18px,
+      touch-target-display: none
+    )
+  );
+
+  mat-icon.mat-icon {
+    font-size: 18px !important;
+    width: 18px !important;
+    height: 18px !important;
+    line-height: 18px !important;
+  }
+
+  // @include mat.button-toggle-overrides(
+  //   (
+  //     // ── Height: match button density floor ──
+  //     height: 28px,
+
+  //     // ── Shape: match button full-round shape ──
+  //     shape: 14px,
+
+  //     label-text-tracking: 0.1px
+  //       label-text-size: var(--mat-sys-label-large-size),
+  //     label-text-line-height: var(--mat-sys-label-large-line-height),
+  //     label-text-weight: var(--mat-sys-label-large-weight),
+  //     label-text-tracking: var(--mat-sys-label-large-tracking)
+  //   )
+  // );
+
+  .mat-button-toggle-group {
+    flex-grow: 0;
+  }
+
+  .mat-button-toggle-appearance-standard {
+    display: flex;
+    height: 28px;
+    .mat-button-toggle-label-content {
+      padding: 0 14px !important;
+
+      // Apply typography directly — bypasses font: inherit on the button element
+      font-size: var(--mat-sys-label-large-size) !important;
+      line-height: var(--mat-sys-label-large-line-height) !important;
+      font-weight: var(--mat-sys-label-large-weight) !important;
+      letter-spacing: var(--mat-sys-label-large-tracking) !important;
+    }
+  }
+
+  @include mat.checkbox-overrides(
+    (
+      // State-layer: density floor 28px
+      state-layer-size: 16px,
+
+      // Touch-target
+      touch-target-size: 16px,
+      touch-target-display: none
+    )
+  );
+
+  // Required: checkbox box size has no override token — must use CSS
+  .mat-mdc-checkbox {
+    .mdc-checkbox {
+      width: 16px !important;
+      height: 16px !important;
+      flex: 0 0 16px !important;
+
+      .mdc-checkbox__background {
+        width: 16px !important;
+        height: 16px !important;
+        top: 0 !important;
+        left: 0 !important;
+      }
+    }
+
+    // Re-center the state-layer ripple around the smaller box
+    .mat-mdc-checkbox-ripple,
+    .mdc-checkbox__ripple {
+      top: calc(50% - 14px);
+      left: calc(50% - 14px);
+      width: 28px;
+      height: 28px;
+    }
+  }
+
+  @include mat.chips-density(-2);
+  @include mat.chips-overrides(
+    (
+      // Container: density floor 24px
+      // container-height: 20px,
+      // Icon & avatar sizes scaled down proportionally
+      // with-icon-icon-size: 14px,
+      // with-avatar-avatar-size: 16px,
+      // with-avatar-avatar-shape-radius: 8px,
+      // Color: use on-primary for all text & icons
+      // label-text-color: var(--mat-sys-primary),
+      with-icon-icon-color: var(--mat-sys-primary),
+      with-icon-selected-icon-color: var(--mat-sys-primary),
+      with-trailing-icon-trailing-icon-color: var(--mat-sys-primary)
+    )
+  );
+
+  @include mat.dialog-overrides(
+    (
+      // Padding regions (default: 16–24px → 6–12px)
+      headline-padding: 4px 12px 8px,
+      content-padding: 8px 12px,
+      with-actions-content-padding: 8px 12px 0,
+      actions-padding: 6px 12px,
+
+      // Container dimensions
+      container-min-width: 200px,
+      container-max-width: 400px
+    )
+  );
+
+  @include mat.expansion-overrides(
+    (
+      // Density
+      header-collapsed-state-height: 48px,
+      header-expanded-state-height: 48px,
+
+      // Header typography
+      header-text-size: var(--mat-sys-title-small-size),
+      header-text-line-height: var(--mat-sys-title-small-line-height),
+      header-text-weight: var(--mat-sys-title-small-weight),
+      header-text-tracking: var(--mat-sys-title-small-tracking),
+      // Content typography
+      container-text-size: var(--mat-sys-body-medium-size),
+      container-text-line-height: var(--mat-sys-body-medium-line-height),
+      container-text-weight: var(--mat-sys-body-medium-weight),
+      container-text-tracking: var(--mat-sys-body-medium-tracking)
+    )
+  );
+  .mat-expansion-panel-header {
+    padding: 0 12px !important;
+  }
+  .mat-expansion-panel-body {
+    padding: 0 12px 8px !important;
+  }
+
+  @include mat.form-field-overrides(
+    (
+      // Container height & padding (density floor: 36px / 6px)
+      container-height: 28px,
+      container-vertical-padding: 3px,
+
+      // Hide floating label to reclaim vertical space
+      filled-label-display: none,
+      filled-with-label-container-padding-top: 3px,
+      filled-with-label-container-padding-bottom: 3px,
+
+      // Thinner indicators
+      filled-active-indicator-height: 1px,
+      filled-focus-active-indicator-height: 1px,
+      outlined-outline-width: 1px,
+      outlined-focus-outline-width: 1px
+    )
+  );
+  div.mat-mdc-form-field-icon-suffix {
+    display: flex;
+    gap: 0.4rem;
+    padding-right: 4px;
+  }
+
+  @include mat.list-overrides(
+    (
+      // Row heights (density floors: 24px / 48px / 56px)
+      list-item-one-line-container-height: 20px,
+      list-item-two-line-container-height: 36px,
+      list-item-three-line-container-height: 48px,
+
+      // Icon gutters (density floor: 4px)
+      list-item-leading-icon-start-space: 4px,
+      list-item-leading-icon-end-space: 4px,
+
+      // Icon & avatar sizes (color map tokens)
+      list-item-leading-icon-size: 16px,
+      list-item-trailing-icon-size: 16px,
+      list-item-leading-avatar-size: 24px
+    )
+  );
+
+  @include mat.menu-overrides(
+    (
+      item-icon-size: 14px,
+      item-spacing: 4px,
+      item-leading-spacing: 6px,
+      item-trailing-spacing: 6px,
+      item-with-icon-leading-spacing: 6px,
+      item-with-icon-trailing-spacing: 6px,
+      divider-top-spacing: 2px,
+      divider-bottom-spacing: 2px,
+    )
+  );
+
+  @include mat.paginator-density(-5);
+  // @include mat.paginator-overrides(
+  //   (
+  //     // Container & embedded form-field (floors: 40px / 36px / 6px)
+  //     container-size: 34px,
+  //     form-field-container-height: 28px,
+  //     form-field-container-vertical-padding: 4px,
+
+  //     // Select & touch-target
+  //     page-size-select-width: 64px,
+  //     page-size-select-touch-target-height: 34px,
+  //     touch-target-display: none
+  //   )
+  // );
+
+  @include mat.progress-bar-overrides(
+    (
+      track-height: 2px,
+      active-indicator-height: 2px,
+    )
+  );
+
+  @include mat.progress-spinner-overrides(
+    (
+      size: 20px,
+      active-indicator-width: 2px,
+    )
+  );
+
+  @include mat.radio-overrides(
+    (
+      // State-layer (density floor: 28px)
+      state-layer-size: 20px,
+
+      // Touch-target
+      touch-target-size: 20px,
+      touch-target-display: none
+    )
+  );
+
+  @include mat.slide-toggle-overrides(
+    (
+      // Track shell
+      track-width: 36px,
+      track-height: 22px,
+
+      // Unselected handle (spec: 16px in 52×32 track)
+      unselected-handle-size: 11px,
+      unselected-handle-horizontal-margin: 0 6px,
+      unselected-pressed-handle-horizontal-margin: 0 2px,
+      unselected-with-icon-handle-horizontal-margin: 0 3px,
+
+      // Selected handle (spec: 24px)
+      selected-handle-size: 16px,
+      selected-handle-horizontal-margin: 0 18px,
+      selected-pressed-handle-horizontal-margin: 0 16px,
+      selected-with-icon-handle-horizontal-margin: 0 18px,
+
+      // Pressed & with-icon handles
+      pressed-handle-size: 18px,
+      with-icon-handle-size: 16px,
+
+      // Icons inside handle
+      selected-icon-size: 12px,
+      unselected-icon-size: 12px,
+
+      // Ripple / state layer
+      state-layer-size: 26px,
+
+      // Touch-target
+      touch-target-size: 26px,
+      touch-target-display: none
+    )
+  );
+
+  @include mat.sidenav-overrides(
+    (
+      container-width: 200px,
+    )
+  );
+
+  @include mat.snack-bar-overrides(
+    (
+      // container-shape is the only structural token available
+      container-shape: 4px
+    )
+  );
+  div.mat-mdc-snackbar-surface {
+    padding-right: 0px;
+  }
+  div.mdc-snackbar__label {
+    padding: 10px 10px 10px 16px;
+  }
+
+  @include mat.stepper-overrides(
+    (
+      // Header height (density floor: 42px)
+      header-height: 32px,
+
+      // Tighten focus/hover state-layer corners
+      header-focus-state-layer-shape: 4px,
+      header-hover-state-layer-shape: 4px
+    )
+  );
+
+  @include mat.table-overrides(
+    (
+      // Row heights (density floors: 40px header / 36px footer / 36px row)
+      header-container-height: 34px,
+      footer-container-height: 28px,
+      row-item-container-height: 28px,
+
+      // Thinner row divider
+      row-item-outline-width: 1px
+    )
+  );
+
+  @include mat.tabs-overrides(
+    (
+      // Tab bar height (density floor: 32px)
+      container-height: 24px,
+
+      // Indicator & divider thickness
+      active-indicator-height: 2px,
+      divider-height: 1px
+    )
+  );
+
+  @include mat.timepicker-overrides(
+    (
+      // container-shape is the only structural token available
+      container-shape: 4px
+    )
+  );
+
+  @include mat.toolbar-density(-3);
+  // @include mat.toolbar-overrides(
+  //   (
+  //     // Standard toolbar (density floor: 52px)
+  //     standard-height: 36px,
+
+  //     // Mobile toolbar (density floor: 44px)
+  //     mobile-height: 32px
+  //   )
+  // );
+  .mat-mdc-tooltip-surface {
+    align-content: center;
+  }
+
+  @include mat.tree-overrides(
+    (
+      // Node min-height (density floor: 28px)
+      node-min-height: 20px
+    )
+  );
+}

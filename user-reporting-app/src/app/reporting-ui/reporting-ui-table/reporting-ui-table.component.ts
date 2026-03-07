@@ -3,6 +3,7 @@ import {
   AfterViewInit,
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   signal,
   TrackByFunction,
@@ -10,7 +11,7 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatBadgeModule } from '@angular/material/badge';
-import { MatButtonModule } from '@angular/material/button';
+import { MatButtonModule, MatIconButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -18,11 +19,12 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { ActivatedRoute, ResolveFn, Router } from '@angular/router';
-import { combineLatestWith, map, Observable, tap } from 'rxjs';
+import { combineLatestWith, filter, map, Observable, tap } from 'rxjs';
 import {
   CaseRecordStore,
   StrTransactionWithChangeLogs,
 } from '../../aml/case-record.store';
+import { AuthService } from '../../auth.service';
 import { BaseTableComponent } from '../../base-table/base-table.component';
 import {
   InvalidFormOptionsErrorKeys,
@@ -40,6 +42,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
     MatToolbarModule,
     MatIconModule,
     MatButtonModule,
+    MatIconButton,
     MatBadgeModule,
     MatDialogModule,
     MatChipsModule,
@@ -55,6 +58,7 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
       [displayedColumns]="displayedColumns"
       [displayColumnHeaderMap]="displayColumnHeaderMap"
       [stickyColumns]="stickyColumns"
+      [columnWidthsMap]="columnWidthsMap"
       [selectFiltersValues]="selectFiltersValues"
       [dateFiltersValues]="dateFiltersValues"
       [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
@@ -70,7 +74,8 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
         type="button"
         mat-raised-button
         ngProjectAs="table-toolbar-ele"
-        (click)="openManualUploadStepper()">
+        (click)="openManualUploadStepper()"
+        [disabled]="(isClosed$ | async) || !canMakeSelections()">
         <mat-icon>file_upload</mat-icon>
         Manual Upload
       </button>
@@ -91,7 +96,8 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
                 "
                 [indeterminate]="
                   baseTable.selection.hasValue() && !baseTable.isAllSelected()
-                ">
+                "
+                [disabled]="isClosed$ | async">
               </mat-checkbox>
             </div>
           }
@@ -105,7 +111,9 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
               (click)="baseTable.onCheckBoxClickMultiToggle($event, row, i)"
               (change)="$event ? baseTable.toggleRow(row) : null"
               [checked]="baseTable.selection.isSelected(row)"
-              [disabled]="isEditDisabled(row, qSavingEdits())">
+              [disabled]="
+                (isClosed$ | async) || isEditDisabled(row, qSavingEdits())
+              ">
             </mat-checkbox>
           </div>
         </td>
@@ -118,27 +126,36 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
           mat-header-cell
           *matHeaderCellDef
           [class.sticky-cell]="baseTable.isStickyColumn('actions')">
-          <div>
+          <div class="d-flex flex-nowrap gap-1">
             <button
               type="button"
-              [disabled]="isActionHeaderDisabled$ | async"
-              mat-icon-button
+              [disabled]="
+                (isClosed$ | async) || (isActionHeaderDisabled$ | async)
+              "
+              matIconButton
               (click)="navigateToBulkEdit()"
               [matBadge]="baseTable.selection.selected.length"
               [matBadgeHidden]="!baseTable.selection.hasValue()">
               <mat-icon>edit</mat-icon>
             </button>
-            <button type="button" mat-icon-button class="invisible">
+            <button
+              type="button"
+              matIconButton
+              [class.d-none]="!canPerformQA()">
               <mat-icon
                 class="text-primary"
-                [class.text-opacity-50]="isActionHeaderDisabled$ | async">
+                [class.text-opacity-50]="isActionHeaderDisabled$ | async"
+                [class.invisible]="true">
                 history
               </mat-icon>
             </button>
             <button
               type="button"
-              [disabled]="isActionHeaderDisabled$ | async"
-              mat-icon-button
+              [disabled]="
+                (isClosed$ | async) || (isActionHeaderDisabled$ | async)
+              "
+              [class.d-none]="!canMakeSelections()"
+              matIconButton
               (click)="resetSelectedTxns()"
               [matBadge]="baseTable.selection.selected.length"
               [matBadgeHidden]="!baseTable.selection.hasValue()">
@@ -150,8 +167,11 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
             </button>
             <button
               type="button"
-              [disabled]="isActionHeaderDisabled$ | async"
-              mat-icon-button
+              [disabled]="
+                (isClosed$ | async) || (isActionHeaderDisabled$ | async)
+              "
+              [class.d-none]="!canMakeSelections()"
+              matIconButton
               (click)="removeSelectedTxns()"
               [matBadge]="baseTable.selection.selected.length"
               [matBadgeHidden]="!baseTable.selection.hasValue()">
@@ -167,33 +187,45 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
           mat-cell
           *matCellDef="let row"
           [class.sticky-cell]="baseTable.isStickyColumn('actions')">
-          <div>
+          <div class="d-flex flex-nowrap gap-1">
             <button
               type="button"
-              mat-icon-button
+              matIconButton
               (click)="navigateToEditForm(row)"
-              [disabled]="isEditDisabled(row, qSavingEdits())">
+              [disabled]="
+                (isClosed$ | async) || isEditDisabled(row, qSavingEdits())
+              ">
               <mat-icon>edit</mat-icon>
             </button>
             <button
               type="button"
-              mat-icon-button
+              matIconButton
               (click)="navigateToAuditForm(row)"
-              [disabled]="isEditDisabled(row, qSavingEdits())">
+              [disabled]="
+                (false && (isClosed$ | async)) ||
+                isEditDisabled(row, qSavingEdits())
+              "
+              [class.d-none]="!canPerformQA()">
               <mat-icon class="text-primary">history</mat-icon>
             </button>
             <button
               type="button"
-              mat-icon-button
+              matIconButton
               (click)="resetTxn(row)"
-              [disabled]="isEditDisabled(row, qSavingEdits())">
+              [disabled]="
+                (isClosed$ | async) || isEditDisabled(row, qSavingEdits())
+              "
+              [class.d-none]="!canMakeSelections()">
               <mat-icon class="text-danger">restart_alt</mat-icon>
             </button>
             <button
               type="button"
-              mat-icon-button
+              matIconButton
               (click)="removeTxn(row)"
-              [disabled]="isEditDisabled(row, qSavingEdits())">
+              [disabled]="
+                (isClosed$ | async) || isEditDisabled(row, qSavingEdits())
+              "
+              [class.d-none]="!canMakeSelections()">
               <mat-icon class="text-danger">delete_outline</mat-icon>
             </button>
           </div>
@@ -208,13 +240,13 @@ import { CamelToTitlePipe } from './camel-to-title.pipe';
           *matHeaderCellDef
           mat-sort-header="_hiddenValidation"
           [class.sticky-cell]="baseTable.isStickyColumn('_hiddenValidation')">
-          <div></div>
+          <div>Validation Info</div>
         </th>
         <td
           mat-cell
           *matCellDef="let row"
           [class.sticky-cell]="baseTable.isStickyColumn('_hiddenValidation')">
-          <mat-chip-set>
+          <mat-chip-set class="validation-chips">
             @for (ch of row._hiddenValidation; track $index) {
               <mat-chip
                 [style.--mat-chip-elevated-container-color]="
@@ -239,9 +271,17 @@ export class ReportingUiTableComponent implements AfterViewInit {
   private dialog = inject(MatDialog);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private readonly authService = inject(AuthService);
+  protected isClosed$ = this.caseRecordStore.isClosed$;
+
+  protected readonly canMakeSelections = computed(
+    () => this.authService.isAdmin() || this.authService.isInvestigator(),
+  );
+
+  protected readonly canPerformQA = computed(() => this.authService.isAdmin());
 
   selectionsComputed$ = this.caseRecordStore.selectionsComputed$.pipe(
-    tap((txns) => {
+    tap(({ result: txns }) => {
       const initHighlightsMap = new Map(
         txns.map((txn) => [
           txn.flowOfFundsAmlTransactionId,
@@ -250,6 +290,8 @@ export class ReportingUiTableComponent implements AfterViewInit {
       );
       this.highlightedRecords.update(() => new Map(initHighlightsMap));
     }),
+    filter(({ suppress }) => !suppress),
+    map(({ result }) => result),
   );
 
   qSavingEdits = toSignal(this.caseRecordStore.qActiveSaveIds$, {
@@ -304,7 +346,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
     'startingActions.0.conductors.0._hiddenPartyKey',
     'startingActions.0.conductors.0._hiddenGivenName',
     'startingActions.0.conductors.0._hiddenSurname',
-    'startingActions.0.conductors.0._hiddenOtherOrInitial',
+    'startingActions.0.conductors.0._hiddenOtherOrInitialName',
     'startingActions.0.conductors.0._hiddenNameOfEntity',
 
     'completingActions.0.detailsOfDispo',
@@ -323,7 +365,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
     'completingActions.0.beneficiaries.0._hiddenPartyKey',
     'completingActions.0.beneficiaries.0._hiddenGivenName',
     'completingActions.0.beneficiaries.0._hiddenSurname',
-    'completingActions.0.beneficiaries.0._hiddenOtherOrInitial',
+    'completingActions.0.beneficiaries.0._hiddenOtherOrInitialName',
     'completingActions.0.beneficiaries.0._hiddenNameOfEntity',
     'flowOfFundsAmlId',
     'reportingEntityTxnRefNo',
@@ -378,7 +420,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
       'Conductor Given Name' as const,
     'startingActions.0.conductors.0._hiddenSurname':
       'Conductor Surname' as const,
-    'startingActions.0.conductors.0._hiddenOtherOrInitial':
+    'startingActions.0.conductors.0._hiddenOtherOrInitialName':
       'Conductor Other Name' as const,
     'startingActions.0.conductors.0._hiddenNameOfEntity':
       'Conductor Entity Name' as const,
@@ -406,7 +448,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
       'Beneficiary Given Name' as const,
     'completingActions.0.beneficiaries.0._hiddenSurname':
       'Beneficiary Surname' as const,
-    'completingActions.0.beneficiaries.0._hiddenOtherOrInitial':
+    'completingActions.0.beneficiaries.0._hiddenOtherOrInitialName':
       'Beneficiary Other Name' as const,
     'completingActions.0.beneficiaries.0._hiddenNameOfEntity':
       'Beneficiary Entity Name' as const,
@@ -420,6 +462,13 @@ export class ReportingUiTableComponent implements AfterViewInit {
   } satisfies Partial<
     Record<'fullTextFilterKey' | StrTransactionDataColumnKey, unknown>
   >;
+
+  columnWidthsMap: Partial<
+    Record<Extract<StrTransactionDataColumnKey, string> | 'select', string>
+  > = {
+    reportingEntityTxnRefNo: '300px',
+    flowOfFundsTransactionDesc: '400px',
+  };
 
   stickyColumns: (StrTransactionDataColumnKey | 'actions' | 'select')[] = [
     'actions',
@@ -448,7 +497,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
     'startingActions.0.conductors.0._hiddenPartyKey',
     'startingActions.0.conductors.0._hiddenGivenName',
     'startingActions.0.conductors.0._hiddenSurname',
-    'startingActions.0.conductors.0._hiddenOtherOrInitial',
+    'startingActions.0.conductors.0._hiddenOtherOrInitialName',
     'startingActions.0.conductors.0._hiddenNameOfEntity',
 
     'completingActions.0.detailsOfDispo',
@@ -465,7 +514,7 @@ export class ReportingUiTableComponent implements AfterViewInit {
     'completingActions.0.beneficiaries.0._hiddenPartyKey',
     'completingActions.0.beneficiaries.0._hiddenGivenName',
     'completingActions.0.beneficiaries.0._hiddenSurname',
-    'completingActions.0.beneficiaries.0._hiddenOtherOrInitial',
+    'completingActions.0.beneficiaries.0._hiddenOtherOrInitialName',
     'completingActions.0.beneficiaries.0._hiddenNameOfEntity',
     'flowOfFundsSource',
     'flowOfFundsAmlId',
@@ -510,26 +559,8 @@ export class ReportingUiTableComponent implements AfterViewInit {
   }
 
   static getColorForValidationChip(error: _hiddenValidationType): string {
-    const colors: Record<_hiddenValidationType, string> = {
-      conductorMissing: '#dc3545',
-      bankInfoMissing: '#ba005c',
-      edited: '#0d6efd',
-      invalidMethodOfTxn: '#0d6efd',
-      invalidTypeOfFunds: '#0d6efd',
-      invalidAccountType: '#0d6efd',
-      invalidAmountCurrency: '#dc3545',
-      invalidAccountCurrency: '#dc3545',
-      invalidAccountStatus: '#dc3545',
-      invalidDirectionOfSA: '#dc3545',
-      invalidDetailsOfDisposition: '#0d6efd',
-      invalidDate: '#dc3545',
-      invalidTime: '#dc3545',
-      invalidPartyKey: '#dc3545',
-      invalidFiu: '#dc3545',
-      missingCheque: '#0d6efd',
-    };
     if (!error) return '#007bff'; // fallback color
-    return colors[error];
+    return validationColors[error];
   }
 
   static getFontColorForValidationChip(error: _hiddenValidationType): string {
@@ -640,8 +671,35 @@ export class ReportingUiTableComponent implements AfterViewInit {
 export const selectionsComputedResolver: ResolveFn<
   Observable<StrTransactionWithChangeLogs[]>
 > = async () => {
-  return inject(CaseRecordStore).selectionsComputed$;
+  return inject(CaseRecordStore).selectionsComputed$.pipe(
+    map(({ result }) => result),
+  );
 };
+
+const validationColors: Record<_hiddenValidationType, string> = {
+  conductorMissing: '#dc3545',
+  bankInfoMissing: '#ba005c',
+  edited: '#0d6efd',
+  invalidMethodOfTxn: '#0d6efd',
+  invalidTypeOfFunds: '#0d6efd',
+  invalidAccountType: '#0d6efd',
+  invalidAmountCurrency: '#dc3545',
+  invalidAccountCurrency: '#dc3545',
+  invalidAccountStatus: '#dc3545',
+  invalidDirectionOfSA: '#dc3545',
+  invalidDetailsOfDisposition: '#0d6efd',
+  invalidDate: '#dc3545',
+  invalidTime: '#dc3545',
+  invalidPartyKey: '#dc3545',
+  invalidFiu: '#dc3545',
+  missingCheque: '#0d6efd',
+  missingBasicInfo: '#dc3545',
+  beneficiaryMissing: '#dc3545',
+};
+
+export const VALIDATION_KEYS = Object.keys(validationColors).filter(
+  (k) => k !== 'edited',
+) as _hiddenValidationType[];
 
 export type _hiddenValidationType =
   | 'edited'
@@ -650,6 +708,8 @@ export type _hiddenValidationType =
   | 'invalidPartyKey'
   | 'invalidFiu'
   | 'missingCheque'
+  | 'missingBasicInfo'
+  | 'beneficiaryMissing'
   | InvalidFormOptionsErrorKeys
   | InvalidTxnDateTimeErrorKeys;
 
@@ -728,7 +788,7 @@ export interface AccountHolder {
   _hiddenPartyKey: string | null;
   _hiddenSurname: string | null;
   _hiddenGivenName: string | null;
-  _hiddenOtherOrInitial: string | null;
+  _hiddenOtherOrInitialName: string | null;
   _hiddenNameOfEntity: string | null;
 }
 
@@ -738,7 +798,7 @@ export type Conductor = {
   _hiddenPartyKey: string | null;
   _hiddenSurname: string | null;
   _hiddenGivenName: string | null;
-  _hiddenOtherOrInitial: string | null;
+  _hiddenOtherOrInitialName: string | null;
   _hiddenNameOfEntity: string | null;
   wasConductedOnBehalf: boolean | null;
   onBehalfOf?: OnBehalfOf[] | null;
@@ -760,7 +820,7 @@ export interface SourceOfFunds {
   _hiddenPartyKey: string | null;
   _hiddenSurname: string | null;
   _hiddenGivenName: string | null;
-  _hiddenOtherOrInitial: string | null;
+  _hiddenOtherOrInitialName: string | null;
   _hiddenNameOfEntity: string | null;
   accountNumber: string | null;
   identifyingNumber: string | null;
@@ -772,7 +832,7 @@ export interface OnBehalfOf {
   _hiddenPartyKey: string | null;
   _hiddenSurname: string | null;
   _hiddenGivenName: string | null;
-  _hiddenOtherOrInitial: string | null;
+  _hiddenOtherOrInitialName: string | null;
   _hiddenNameOfEntity: string | null;
 }
 
@@ -807,7 +867,7 @@ export interface InvolvedIn {
   _hiddenPartyKey: string | null;
   _hiddenSurname: string | null;
   _hiddenGivenName: string | null;
-  _hiddenOtherOrInitial: string | null;
+  _hiddenOtherOrInitialName: string | null;
   _hiddenNameOfEntity: string | null;
   accountNumber: string | null;
   identifyingNumber: string | null;
@@ -819,7 +879,7 @@ export interface Beneficiary {
   _hiddenPartyKey: string | null;
   _hiddenSurname: string | null;
   _hiddenGivenName: string | null;
-  _hiddenOtherOrInitial: string | null;
+  _hiddenOtherOrInitialName: string | null;
   _hiddenNameOfEntity: string | null;
 }
 

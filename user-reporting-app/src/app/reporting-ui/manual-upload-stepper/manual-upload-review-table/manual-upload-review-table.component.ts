@@ -34,6 +34,7 @@ import {
       [displayedColumns]="displayedColumns"
       [displayColumnHeaderMap]="displayColumnHeaderMap"
       [stickyColumns]="stickyColumns"
+      [columnWidthsMap]="columnWidthsMap"
       [selectFiltersValues]="selectFiltersValues"
       [dateFiltersValues]="dateFiltersValues"
       [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
@@ -121,7 +122,7 @@ export class ManualUploadReviewTableComponent {
     'startingActions.0.conductors.0._hiddenPartyKey',
     'startingActions.0.conductors.0._hiddenGivenName',
     'startingActions.0.conductors.0._hiddenSurname',
-    'startingActions.0.conductors.0._hiddenOtherOrInitial',
+    'startingActions.0.conductors.0._hiddenOtherOrInitialName',
     'startingActions.0.conductors.0._hiddenNameOfEntity',
 
     'completingActions.0.detailsOfDispo',
@@ -142,7 +143,7 @@ export class ManualUploadReviewTableComponent {
     'completingActions.0.beneficiaries.0._hiddenPartyKey',
     'completingActions.0.beneficiaries.0._hiddenGivenName',
     'completingActions.0.beneficiaries.0._hiddenSurname',
-    'completingActions.0.beneficiaries.0._hiddenOtherOrInitial',
+    'completingActions.0.beneficiaries.0._hiddenOtherOrInitialName',
     'completingActions.0.beneficiaries.0._hiddenNameOfEntity',
     '_hiddenAmlId',
     'reportingEntityTxnRefNo',
@@ -156,6 +157,13 @@ export class ManualUploadReviewTableComponent {
   displayColumnHeaderMap: Partial<
     Record<'fullTextFilterKey' | StrTransactionDataColumnKey, string>
   > = ReportingUiTableComponent.displayColumnHeaderMap;
+
+  columnWidthsMap: Partial<
+    Record<Extract<StrTransactionDataColumnKey, string> | 'select', string>
+  > = {
+    reportingEntityTxnRefNo: '300px',
+    flowOfFundsTransactionDesc: '400px',
+  };
 
   stickyColumns: (StrTransactionDataColumnKey | 'actions' | 'select')[] = [
     // "actions",

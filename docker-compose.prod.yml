@@ -6,8 +6,8 @@ services:
       dockerfile: Dockerfile.prod
     ports:
       - "5110:5110"
-    depends_on:
-      - mongodb
+    # depends_on:
+    #   - mongodb
     environment:
       - MongoDB__ConnectionString=${MONGO_CONNECTION_STRING}
       - MongoDB__DatabaseName=${MONGO_DATABASE}
@@ -15,28 +15,28 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - CLIENT_PEM_BASE64=${CLIENT_PEM_BASE64}
 
-  mongodb:
-    container_name: mongodb
-    build:
-      context: .
-      dockerfile: Dockerfile.mongo
-    restart: always
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
-      MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
-    ports:
-      - "27017:27017"
-    volumes:
-      - ./data:/docker-entrypoint-initdb.d:ro
-      - mongo-data:/data/db
-      - ./certs/mongodb.pem:/etc/ssl/mongodb.pem:ro
-      - ./certs/ca.pem:/etc/ssl/ca.pem:ro
-    command: >
-      mongod
-        --bind_ip_all
-        --tlsMode requireTLS
-        --tlsCertificateKeyFile /etc/ssl/mongodb.pem
-        --tlsCAFile /etc/ssl/ca.pem
+  # mongodb:
+  #   container_name: mongodb
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.mongo
+  #   restart: always
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+  #     MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+  #     MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
+  #   ports:
+  #     - "27017:27017"
+  #   volumes:
+  #     - ./data:/docker-entrypoint-initdb.d:ro
+  #     - mongo-data:/data/db
+  #     - ./certs/server.pem:/etc/ssl/server.pem:ro
+  #     - ./certs/ca.pem:/etc/ssl/ca.pem:ro
+  #   command: >
+  #     mongod
+  #       --bind_ip_all
+  #       --tlsMode requireTLS
+  #       --tlsCertificateKeyFile /etc/ssl/server.pem
+  #       --tlsCAFile /etc/ssl/ca.pem
 volumes:
   mongo-data:

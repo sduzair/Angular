@@ -68,6 +68,8 @@ export interface FormOptions {
     'Cash Withdrawal (account based)': string;
     'Issued Cheque': string;
     'Outgoing email money transfer': string;
+    'Purchase of / Payment for services': string;
+    'Purchase of / Payment for goods': string;
     Other: string;
   };
 }
@@ -92,7 +94,9 @@ export type FORM_OPTIONS_DETAILS_OF_DISPOSITION =
   | 'Deposit to account'
   | 'Cash Withdrawal (account based)'
   | 'Issued Cheque'
-  | 'Outgoing email money transfer';
+  | 'Outgoing email money transfer'
+  | 'Purchase of / Payment for services'
+  | 'Purchase of / Payment for goods';
 
 export type FORM_OPTIONS_METHOD_OF_TXN =
   | 'ABM'

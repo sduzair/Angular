@@ -120,6 +120,32 @@
       "formula": "generate(\"First Name\") + \" \" + generate(\"Last Name\")"
     },
     {
+      "name": "caTransit",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "84255",
+        "31980",
+        "87594"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "this.to_s"
+    },
+    {
+      "name": "caAccount",
+      "null_percentage": 0,
+      "type": "Custom List",
+      "values": [
+        "5582195",
+        "8692413",
+        "5647218"
+      ],
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": "this.to_s"
+    },
+    {
       "name": "startingActions",
       "null_percentage": 0,
       "type": "JSON Array",
@@ -804,7 +830,7 @@
       ],
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "this.to_s"
+      "formula": "caTransit"
     },
     {
       "name": "completingActions.account",
@@ -817,7 +843,7 @@
       ],
       "selectionStyle": "sequential",
       "distribution": null,
-      "formula": "this.to_s"
+      "formula": "caAccount"
     },
     {
       "name": "completingActions.accountType",

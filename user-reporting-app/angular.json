@@ -75,7 +75,8 @@
             "scripts": [],
             "stylePreprocessorOptions": {
               "includePaths": ["node_modules"]
-            }
+            },
+            "allowedCommonJsDependencies": ["canonicalize"]
           },
           "configurations": {
             "production": {

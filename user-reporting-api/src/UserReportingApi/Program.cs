@@ -1,7 +1,12 @@
+using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Logging;
+using Microsoft.IdentityModel.Tokens;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using UserReportingApi;
 using UserReportingApi.DTOs;
 using UserReportingApi.DTOs.Json;
 using UserReportingApi.Entities;
@@ -16,6 +21,36 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 
 var camelCaseConvention = new MongoDB.Bson.Serialization.Conventions.ConventionPack { new MongoDB.Bson.Serialization.Conventions.CamelCaseElementNameConvention() };
 MongoDB.Bson.Serialization.Conventions.ConventionRegistry.Register("CamelCase", camelCaseConvention, type => true);
+
+// JWT Authentication
+var jwtKey = builder.Configuration["Jwt:Key"]
+    ?? throw new InvalidOperationException("Jwt:Key is missing from configuration");
+// var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("Jwt:Key is missing from configuration");
+// var jwtAudience = builder.Configuration["Jwt:Audience"] ?? throw new InvalidOperationException("Jwt:Key is missing from configuration");
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            IssuerSigningKey = new SymmetricSecurityKey(Convert.FromBase64String(jwtKey)),
+            RoleClaimType = ClaimTypes.Role,   // maps "role" claim → IsInRole()
+            // ValidIssuer = jwtIssuer,
+            // ValidAudience = jwtAudience,
+            ValidateIssuerSigningKey = true,
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateLifetime = false,
+        };
+    });
+
+// Authorization Policies
+// Roles are additive upward: analyst -> inv -> admin
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("AdminPolicy", p => p.RequireRole("admin"))
+    .AddPolicy("InvPolicy", p => p.RequireRole("admin", "inv"))
+    .AddPolicy("AnalystPolicy", p => p.RequireRole("admin", "inv", "analyst"));
 
 // Register IMongoClient as a singleton
 builder.Services.AddSingleton<IMongoClient>(sp =>
@@ -65,8 +100,8 @@ builder.Services.AddSingleton<IMongoDatabase>(sp =>
     var client = sp.GetRequiredService<IMongoClient>();
     var config = sp.GetRequiredService<IConfiguration>();
     var logger = sp.GetRequiredService<ILogger<Program>>();
-
     var databaseName = config["MongoDB:DatabaseName"];
+
     logger.LogInformation("Using database: {DatabaseName}", databaseName);
 
     try
@@ -92,15 +127,24 @@ builder.Services.AddCors(options =>
     });
 });
 
+if (builder.Environment.IsDevelopment())
+{
+    IdentityModelEventSource.ShowPII = true;
+    IdentityModelEventSource.LogCompleteSecurityArtifact = true;
+}
 
 var app = builder.Build();
 
+// Middleware Order
 app.UseRouting();
 
 if (app.Environment.IsDevelopment())
 {
     app.UseCors("AllowAll");
 }
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 if (app.Environment.IsProduction())
 {
@@ -130,24 +174,34 @@ api.MapPost("/transaction/search", async (
         ("EMT", "emt"),
         ("Wire", "wire"),
         ("OTC", "otc"),
+        ("POS", "pos"),
     };
 
-    foreach (var (sourceId, collectionName) in sources)
+    // If sourceSystemsSelection is populated, skip sources not in the list
+    var activeSources = searchRequest.SourceSystemsSelection is { Count: > 0 }
+        ? sources.Where(s => searchRequest.SourceSystemsSelection
+            .Contains(s.sourceId, StringComparer.OrdinalIgnoreCase))
+        : sources;
+
+    foreach (var (sourceId, collectionName) in activeSources)
     {
         if (!isFirstSource) await writer.WriteAsync(",");
         else isFirstSource = false;
 
         var collection = db.GetCollection<BsonDocument>(collectionName);
 
-        // var limit = 10;
         var limit = 0;
-        string[] nolimit = { "flowOfFunds" };
-        if (nolimit.Contains(collectionName))
-            limit = 0;
+        // var limit = 10;
+        // string[] nolimit = { "flowOfFunds" };
+        // if (nolimit.Contains(collectionName))
+        //     limit = 0;
+
+        // Build criteria-based filter for this source
+        var filter = TransactionFilterBuilder.BuildFilter(searchRequest, collectionName);
 
         // Create cursor and automatically dispose with 'using'
         using var cursor = await collection
-            .Find(FilterDefinition<BsonDocument>.Empty).Limit(limit)
+            .Find(filter).Limit(limit)
             .ToCursorAsync(cancellationToken);
 
         string status = "completed";
@@ -195,12 +249,12 @@ api.MapPost("/transaction/search", async (
         await writer.FlushAsync(cancellationToken);
 
         // Random delay between 500ms and 1500ms
-        int delayMs = new Random().Next(500, 1501);
-        await Task.Delay(delayMs, cancellationToken);
+        // int delayMs = new Random().Next(500, 1501);
+        // await Task.Delay(delayMs, cancellationToken);
     }
 
     await writer.WriteAsync("]");
-});
+}).RequireAuthorization("AnalystPolicy"); ;
 
 api.MapGet("/aml/{amlId}/partyaccountinfo", async (
     string amlId,
@@ -215,7 +269,7 @@ api.MapGet("/aml/{amlId}/partyaccountinfo", async (
         return Results.NotFound(new { message = $"Party account info not found for AML ID: {amlId}" });
 
     return Results.Ok(partyAccountInfo);
-});
+}).RequireAuthorization("AnalystPolicy"); ;
 
 api.MapGet("/aml/partyinfo/{partyKey}", async (
     string partyKey,
@@ -230,7 +284,7 @@ api.MapGet("/aml/partyinfo/{partyKey}", async (
         return Results.NotFound(new { message = $"Party info not found for Party key: {partyKey}" });
 
     return Results.Ok(partyInfo);
-});
+}).RequireAuthorization("AnalystPolicy"); ;
 
 api.MapGet("/aml/accountinfo/{account}", async (
     string account,
@@ -245,7 +299,7 @@ api.MapGet("/aml/accountinfo/{account}", async (
         return Results.NotFound(new { message = $"Account info not found for Account no: {account}" });
 
     return Results.Ok(accountInfo);
-});
+}).RequireAuthorization("AnalystPolicy"); ;
 
 api.MapGet("/aml/formoptions", async (
     IMongoDatabase database,
@@ -259,7 +313,7 @@ api.MapGet("/aml/formoptions", async (
         return Results.NotFound(new { message = $"Form options not found" });
 
     return Results.Ok(formOptions);
-});
+}).RequireAuthorization("AnalystPolicy"); ;
 
 api.MapGet("/aml/{amlId}/caserecord", async (
     string amlId,
@@ -273,10 +327,10 @@ api.MapGet("/aml/{amlId}/caserecord", async (
     if (caseRecord == null)
         return Results.NotFound(new { message = $"Case record not found for AML ID: {amlId}" });
 
-    context.Response.Headers["ETag"] = $"\"{caseRecord.ETag}\"";
+    context.Response.Headers.ETag = $"\"{caseRecord.ETag}\"";
 
     return Results.Ok(caseRecord);
-});
+}).RequireAuthorization("AnalystPolicy"); ;
 
 api.MapPost("/caserecord/{caseRecordId}/update", async (
     string caseRecordId,
@@ -287,64 +341,164 @@ api.MapPost("/caserecord/{caseRecordId}/update", async (
     var caseRecords = database.GetCollection<CaseRecord>("caseRecord");
 
     // Build filter with ETag check for optimistic concurrency
-    var filter = Builders<CaseRecord>.Filter.And(
-        Builders<CaseRecord>.Filter.Eq(x => x.CaseRecordId, caseRecordId),
-        Builders<CaseRecord>.Filter.Eq(x => x.ETag, request.ETag)
-    );
+    var filter = CaseRecordGuard.ActiveWithETag(caseRecordId, request.ETag);
 
     var currentUser = context.User.Identity?.Name ?? "System";
     var update = Builders<CaseRecord>.Update
         .Set(x => x.SearchParams, request.SearchParams)
+        .Set(x => x.SearchParamsHash, SearchParamsHasher.Compute(request.SearchParams))
         .Set(x => x.LastUpdated, DateTime.UtcNow)
         .Set(x => x.LastUpdatedBy, currentUser)
         .Inc(x => x.ETag, 1);
 
-    var options = new FindOneAndUpdateOptions<CaseRecord>
+    var updatedRecord = await caseRecords.FindOneAndUpdateAsync(filter, update, new FindOneAndUpdateOptions<CaseRecord>
     {
         ReturnDocument = ReturnDocument.After
-    };
-
-    var updatedRecord = await caseRecords.FindOneAndUpdateAsync(filter, update, options);
+    });
 
     if (updatedRecord == null)
     {
-        // Check if case record exists or if it's an ETag mismatch
-        var currentRecord = await caseRecords
-            .Find(Builders<CaseRecord>.Filter.Eq(x => x.CaseRecordId, caseRecordId))
-            .FirstOrDefaultAsync();
-
-        if (currentRecord == null)
-            return Results.NotFound(new { message = $"Case record not found: {caseRecordId}" });
-
-        return Results.Conflict(new
-        {
-            message = "Resource has been modified by another user",
-            currentETag = currentRecord.ETag,
-            requestedETag = request.ETag,
-            currentState = currentRecord
-        });
+        return await CaseRecordGuard.ResolveFailureAsync(caseRecords, caseRecordId, request.ETag);
     }
 
-    context.Response.Headers["ETag"] = $"\"{updatedRecord.ETag}\"";
-
+    context.Response.Headers.ETag = $"\"{updatedRecord.ETag}\"";
     return Results.Ok(updatedRecord);
-});
+}).RequireAuthorization("InvPolicy"); ;
+
+api.MapPost("/caserecord/{caseRecordId}/close", async (
+    string caseRecordId,
+    CloseCaseRecordRequest request,
+    IMongoClient mongoClient,
+    IMongoDatabase database,
+    HttpContext context,
+    CancellationToken cancellationToken) =>
+{
+    var caseRecords = database.GetCollection<CaseRecord>("caseRecord");
+    var selections = database.GetCollection<Selection>("selections");
+
+    using var session = await mongoClient.StartSessionAsync(cancellationToken: cancellationToken);
+
+    var currentUser = context.User.Identity?.Name ?? "System";
+
+    var result = await session.WithTransactionAsync(async (s, ct) =>
+    {
+        // 1. Close the case record — ETag + active guard
+        var caseFilter = CaseRecordGuard.ActiveWithETag(caseRecordId, request.ETag);
+
+        var caseUpdate = Builders<CaseRecord>.Update
+            .Set(x => x.IsClosed, true)
+            .Set(x => x.Status, "Closed")
+            .Set(x => x.ClosedAt, DateTime.UtcNow)
+            .Set(x => x.ClosedBy, currentUser)
+            .Set(x => x.LastUpdated, DateTime.UtcNow)
+            .Set(x => x.LastUpdatedBy, currentUser)
+            .Inc(x => x.ETag, 1);
+
+        var updatedCase = await caseRecords.FindOneAndUpdateAsync(
+            s, caseFilter, caseUpdate,
+            new FindOneAndUpdateOptions<CaseRecord> { ReturnDocument = ReturnDocument.After },
+            ct);
+
+        if (updatedCase == null)
+            return null;
+
+        // 2. Propagate IsClosed = true to all selections for this case
+        var selectionFilter = Builders<Selection>.Filter.Eq(
+            x => x.CaseRecordId, caseRecordId);
+
+        var selectionUpdate = Builders<Selection>.Update
+            .Set(x => x.IsClosed, true);
+
+        await selections.UpdateManyAsync(s, selectionFilter, selectionUpdate, cancellationToken: ct);
+
+        return updatedCase;
+
+    }, cancellationToken: cancellationToken);
+
+    if (result == null)
+        return await CaseRecordGuard.ResolveFailureAsync(caseRecords, caseRecordId, request.ETag);
+
+    context.Response.Headers.ETag = $"\"{result.ETag}\"";
+    return Results.Ok(result);
+}).RequireAuthorization("InvPolicy"); ;
+
+api.MapPost("/caserecord/{caseRecordId}/activate", async (
+    string caseRecordId,
+    ActivateCaseRecordRequest request,
+    IMongoClient mongoClient,
+    IMongoDatabase database,
+    HttpContext context,
+    CancellationToken cancellationToken) =>
+{
+    var caseRecords = database.GetCollection<CaseRecord>("caseRecord");
+    var selections = database.GetCollection<Selection>("selections");
+
+    using var session = await mongoClient.StartSessionAsync(cancellationToken: cancellationToken);
+
+    var currentUser = context.User.Identity?.Name ?? "System";
+
+    var result = await session.WithTransactionAsync(async (s, ct) =>
+    {
+        // 1. Activate the case record — ETag + closed guard (inverse of active)
+        var caseFilter = Builders<CaseRecord>.Filter.And(
+            Builders<CaseRecord>.Filter.Eq(x => x.CaseRecordId, caseRecordId),
+            Builders<CaseRecord>.Filter.Eq(x => x.ETag, request.ETag),
+            Builders<CaseRecord>.Filter.Eq(x => x.IsClosed, true)
+        );
+
+        var caseUpdate = Builders<CaseRecord>.Update
+            .Set(x => x.IsClosed, false)
+            .Set(x => x.Status, "Active")
+            .Unset(x => x.ClosedAt)
+            .Unset(x => x.ClosedBy)
+            .Set(x => x.LastUpdated, DateTime.UtcNow)
+            .Set(x => x.LastUpdatedBy, currentUser)
+            .Inc(x => x.ETag, 1);
+
+        var updatedCase = await caseRecords.FindOneAndUpdateAsync(
+            s, caseFilter, caseUpdate,
+            new FindOneAndUpdateOptions<CaseRecord> { ReturnDocument = ReturnDocument.After },
+            ct);
+
+        if (updatedCase == null)
+            return null;
+
+        // 2. Propagate IsClosed = false to all selections for this case
+        var selectionFilter = Builders<Selection>.Filter.Eq(
+            x => x.CaseRecordId, caseRecordId);
+
+        var selectionUpdate = Builders<Selection>.Update
+            .Set(x => x.IsClosed, false);
+
+        await selections.UpdateManyAsync(s, selectionFilter, selectionUpdate, cancellationToken: ct);
+
+        return updatedCase;
+
+    }, cancellationToken: cancellationToken);
+
+    if (result == null)
+        return await CaseRecordGuard.ResolveFailureAsync(caseRecords, caseRecordId, request.ETag);
+
+    context.Response.Headers.ETag = $"\"{result.ETag}\"";
+    return Results.Ok(result);
+}).RequireAuthorization("InvPolicy"); ;
+
 
 api.MapGet("/caserecord/{caseRecordId}/selections", async (
     string caseRecordId,
     IMongoDatabase database) =>
 {
     var selections = database.GetCollection<Selection>("selections");
-    var parties = database.GetCollection<Party>("parties");
+    var entities = database.GetCollection<Entity>("entity");
 
     var selectionFilter = Builders<Selection>.Filter.Eq(x => x.CaseRecordId, caseRecordId);
-    var partyFilter = Builders<Party>.Filter.Eq(x => x.CaseRecordId, caseRecordId);
+    var entityFilter = Builders<Entity>.Filter.Eq(x => x.CaseRecordId, caseRecordId);
 
     var selectionList = await selections.Find(selectionFilter).ToListAsync();
-    var partyList = await parties.Find(partyFilter).ToListAsync();
+    var entityList = await entities.Find(entityFilter).ToListAsync();
 
-    return Results.Ok(new FetchSelectionsResponse(selectionList, partyList));
-});
+    return Results.Ok(new FetchSelectionsResponse(selectionList, entityList));
+}).RequireAuthorization("AnalystPolicy"); ;
 
 api.MapPost("/caserecord/{caseRecordId}/selections/add", async (
     string caseRecordId,
@@ -354,96 +508,72 @@ api.MapPost("/caserecord/{caseRecordId}/selections/add", async (
 {
     var caseRecords = database.GetCollection<CaseRecord>("caseRecord");
     var selections = database.GetCollection<Selection>("selections");
-    var parties = database.GetCollection<Party>("parties");
+    var entities = database.GetCollection<Entity>("entity");
 
     using var session = await mongoClient.StartSessionAsync(cancellationToken: cancellationToken);
 
     var result = await session.WithTransactionAsync(
         async (s, ct) =>
             {
-                // Verify case record ETag within transaction
-                var caseFilter = Builders<CaseRecord>.Filter.And(
-                    Builders<CaseRecord>.Filter.Eq(x => x.CaseRecordId, caseRecordId),
-                    Builders<CaseRecord>.Filter.Eq(x => x.ETag, request.CaseETag)
-                );
+                var caseFilter = CaseRecordGuard.ActiveWithETag(caseRecordId, request.CaseETag);
 
                 var caseRecord = await caseRecords.Find(s, caseFilter)
                     .FirstOrDefaultAsync(cancellationToken: ct);
 
                 if (caseRecord == null)
-                {
                     return null;
-                }
 
                 var selectionsToInsert = request.Selections.Select(sel =>
                 {
                     sel.CaseRecordId = caseRecordId;
+                    sel.IsClosed = false;
                     sel.ETag = 0;
                     sel.ChangeLogs = [];
                     return sel;
                 }).ToList();
 
                 if (selectionsToInsert.Count > 0)
-                {
                     await selections.InsertManyAsync(s, selectionsToInsert, cancellationToken: ct);
-                }
 
 
-                var partiesToInsert = request.Parties.Select(p =>
+                var entitiesToInsert = request.Entities.Select(p =>
                 {
                     p.CaseRecordId = caseRecordId;
                     return p;
                 }).ToList();
 
-                if (partiesToInsert.Count > 0)
-                {
-                    await parties.InsertManyAsync(s, partiesToInsert, cancellationToken: ct);
-                }
+                if (entitiesToInsert.Count > 0)
+                    await entities.InsertManyAsync(s, entitiesToInsert, cancellationToken: ct);
 
                 var currentUser = context.User.Identity?.Name ?? "System";
 
                 // Update case record ETag within transaction
-                var update = Builders<CaseRecord>.Update
+                var caseUpdate = Builders<CaseRecord>.Update
                     .Inc(x => x.ETag, 1)
                     .Set(x => x.LastUpdatedBy, currentUser)
                     .Set(x => x.LastUpdated, DateTime.UtcNow);
 
-                var options = new FindOneAndUpdateOptions<CaseRecord>
-                {
-                    ReturnDocument = ReturnDocument.After
-                };
-
                 var updatedCase = await caseRecords.FindOneAndUpdateAsync(
-                    s, caseFilter, update, options, cancellationToken: ct);
+                    s, caseFilter, caseUpdate, new FindOneAndUpdateOptions<CaseRecord>
+                    {
+                        ReturnDocument = ReturnDocument.After
+                    }, cancellationToken: ct);
 
                 return new AddSelectionsResponse(
                     CaseETag: updatedCase.ETag,
                     SelectionCount: selectionsToInsert.Count,
-                    PartyCount: partiesToInsert.Count,
+                    EntityCount: entitiesToInsert.Count,
                     LastUpdated: updatedCase.LastUpdated!.Value
                 );
             }, cancellationToken: cancellationToken);
 
-    // Handle validation failures outside transaction
     if (result == null)
-    {
-        var existingCase = await caseRecords
-            .Find(Builders<CaseRecord>.Filter.Eq(x => x.CaseRecordId, caseRecordId))
-            .FirstOrDefaultAsync(cancellationToken: cancellationToken);
-
-        if (existingCase == null)
-            return Results.NotFound(new { message = $"Case record not found: {caseRecordId}" });
-
-        return Results.Conflict(new
-        {
-            message = "Case record has been modified by another user",
-            currentETag = existingCase.ETag,
-            requestedETag = request.CaseETag
-        });
-    }
+        return await CaseRecordGuard.ResolveFailureAsync(caseRecords, caseRecordId, request.CaseETag);
 
     return Results.Ok(result);
-});
+    // prevents edit form entity addition
+    // }).RequireAuthorization("InvPolicy"); ;
+}).RequireAuthorization("AnalystPolicy"); ;
 
 api.MapPost("/caserecord/{caseRecordId}/selections/remove", async (
     string caseRecordId,
@@ -459,22 +589,14 @@ api.MapPost("/caserecord/{caseRecordId}/selections/remove", async (
     var result = await session.WithTransactionAsync(
         async (s, ct) =>
         {
-            // Verify case record ETag
-            var caseFilter = Builders<CaseRecord>.Filter.And(
-                Builders<CaseRecord>.Filter.Eq(x => x.CaseRecordId, caseRecordId),
-                Builders<CaseRecord>.Filter.Eq(x => x.ETag, request.CaseETag)
-            );
+            var caseFilter = CaseRecordGuard.ActiveWithETag(caseRecordId, request.CaseETag);
 
             var caseRecord = await caseRecords.Find(s, caseFilter)
                 .FirstOrDefaultAsync(cancellationToken: ct);
 
             if (caseRecord == null)
-            {
-                // Return null to signal validation failure
                 return null;
-            }
 
-            // Remove selections within transaction
             var filter = Builders<Selection>.Filter.And(
                 Builders<Selection>.Filter.Eq(x => x.CaseRecordId, caseRecordId),
                 Builders<Selection>.Filter.In(x => x.FlowOfFundsAmlTransactionId, request.SelectionIds)
@@ -484,19 +606,16 @@ api.MapPost("/caserecord/{caseRecordId}/selections/remove", async (
 
             var currentUser = context.User.Identity?.Name ?? "System";
 
-            // Update case record ETag within transaction
-            var update = Builders<CaseRecord>.Update
+            var caseUpdate = Builders<CaseRecord>.Update
                 .Inc(x => x.ETag, 1)
                 .Set(x => x.LastUpdatedBy, currentUser)
                 .Set(x => x.LastUpdated, DateTime.UtcNow);
 
-            var options = new FindOneAndUpdateOptions<CaseRecord>
-            {
-                ReturnDocument = ReturnDocument.After
-            };
-
             var updatedCase = await caseRecords.FindOneAndUpdateAsync(
-                s, caseFilter, update, options, cancellationToken: ct);
+                s, caseFilter, caseUpdate, new FindOneAndUpdateOptions<CaseRecord>
+                {
+                    ReturnDocument = ReturnDocument.After
+                }, cancellationToken: ct);
 
             return new RemoveSelectionsResponse(
                 CaseETag: updatedCase.ETag,
@@ -506,28 +625,11 @@ api.MapPost("/caserecord/{caseRecordId}/selections/remove", async (
         },
         cancellationToken: cancellationToken);
 
-    // Handle validation failures outside transaction
     if (result == null)
-    {
-        var existingCase = await caseRecords
-            .Find(Builders<CaseRecord>.Filter.Eq(x => x.CaseRecordId, caseRecordId))
-            .FirstOrDefaultAsync(cancellationToken: cancellationToken);
-
-        if (existingCase == null)
-            return Results.NotFound(new { message = $"Case record not found: {caseRecordId}" });
-
-        return Results.Conflict(new
-        {
-            message = "Case record has been modified by another user",
-            currentETag = existingCase.ETag,
-            requestedETag = request.CaseETag
-        });
-    }
+        return await CaseRecordGuard.ResolveFailureAsync(caseRecords, caseRecordId, request.CaseETag);
 
     return Results.Ok(result);
-
-
-});
+}).RequireAuthorization("InvPolicy"); ;
 
 api.MapPost("/caserecord/{caseRecordId}/selections/save", async (
     string caseRecordId,
@@ -537,12 +639,12 @@ api.MapPost("/caserecord/{caseRecordId}/selections/save", async (
 {
     var selections = database.GetCollection<Selection>("selections");
     int requested = request.PendingChanges.Count;
-
     var currentUser = context.User.Identity?.Name ?? "System";
 
     // Build bulk write operations
     var bulkOps = request.PendingChanges.Select(pendingChange =>
     {
+        // IsClosed = false is the denormalized guard — no case record lookup needed
         var filter = Builders<Selection>.Filter.And(
            Builders<Selection>.Filter.Eq(
                x => x.FlowOfFundsAmlTransactionId,
@@ -550,10 +652,11 @@ api.MapPost("/caserecord/{caseRecordId}/selections/save", async (
            Builders<Selection>.Filter.Eq(
                x => x.CaseRecordId,
                caseRecordId),
-           Builders<Selection>.Filter.Eq(x => x.ETag, pendingChange.ETag)
+           Builders<Selection>.Filter.Eq(x => x.ETag, pendingChange.ETag),
+           Builders<Selection>.Filter.Eq(x => x.IsClosed, false)
        );
 
-        // Add metadata each change log
+        // Add update metadata to each change log
         var enrichedChangeLogs = pendingChange.ChangeLogs.Select(changeLog =>
         {
             changeLog.UpdatedAt = DateTime.UtcNow;
@@ -575,7 +678,6 @@ api.MapPost("/caserecord/{caseRecordId}/selections/save", async (
     // Execute all updates in a single batch
     var options = new BulkWriteOptions { IsOrdered = false };
     var result = await selections.BulkWriteAsync(bulkOps, options);
-
     int succeeded = (int)result.ModifiedCount;
 
     // Return conflict if not all updates succeeded
@@ -598,7 +700,7 @@ api.MapPost("/caserecord/{caseRecordId}/selections/save", async (
         UpdatedBy: currentUser,
         UpdatedAt: DateTime.UtcNow
     ));
-});
+}).RequireAuthorization("AnalystPolicy"); ;
 
 api.MapPost("/caserecord/{caseRecordId}/selections/reset", async (
     string caseRecordId,
@@ -611,12 +713,14 @@ api.MapPost("/caserecord/{caseRecordId}/selections/reset", async (
     // Build bulk write operations
     var bulkOps = request.PendingResets.Select(pendingReset =>
     {
+        // IsClosed = false is the denormalized guard — no case record lookup needed
         var filter = Builders<Selection>.Filter.And(
             Builders<Selection>.Filter.Eq(x => x.CaseRecordId, caseRecordId),
             Builders<Selection>.Filter.Eq(
                 x => x.FlowOfFundsAmlTransactionId,
                 pendingReset.FlowOfFundsAmlTransactionId),
-            Builders<Selection>.Filter.Eq(x => x.ETag, pendingReset.ETag)
+            Builders<Selection>.Filter.Eq(x => x.ETag, pendingReset.ETag),
+            Builders<Selection>.Filter.Eq(x => x.IsClosed, false)
         );
 
         var update = Builders<Selection>.Update.Combine(
@@ -630,7 +734,6 @@ api.MapPost("/caserecord/{caseRecordId}/selections/reset", async (
     // Execute all updates in a single batch
     var options = new BulkWriteOptions { IsOrdered = false };
     var result = await selections.BulkWriteAsync(bulkOps, options);
-
     int succeeded = (int)result.ModifiedCount;
 
     // Return conflict if not all resets succeeded
@@ -649,16 +752,17 @@ api.MapPost("/caserecord/{caseRecordId}/selections/reset", async (
         requested,
         succeeded
     ));
-});
+}).RequireAuthorization("InvPolicy"); ;
+
 
 // Handle unmatched API routes with 404
 app.Map("api/{**slug}", (string slug, HttpContext context) =>
 {
     context.Response.StatusCode = StatusCodes.Status404NotFound;
     return Task.CompletedTask;
-});
+}).AllowAnonymous();
 
-app.MapFallbackToFile("index.html");
+app.MapFallbackToFile("index.html").AllowAnonymous();
 
 app.Run();
 

@@ -1,5 +1,0 @@
-@use '@angular/material' as mat;
-
-.direction-toggle {
-  @include mat.button-toggle-density(-5);
-}

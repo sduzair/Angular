@@ -1,4 +1,3 @@
-import { formatCurrency } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -22,6 +21,7 @@ import {
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
+import { EntityType } from '../../aml/case-record.store';
 import {
   FORM_OPTIONS_DETAILS_OF_DISPOSITION,
   FORM_OPTIONS_TYPE_OF_FUNDS,
@@ -35,7 +35,7 @@ import {
   getTxnType,
   NODE_ENUM,
   TRANSACTION_TYPE_ENUM,
-} from '../account-methods.service';
+} from '../account-transaction-totals.service';
 import {
   extractNodeDisplayData,
   formatNodeDataAsHtml,
@@ -64,7 +64,8 @@ type ECOption = echarts.ComposeOption<
   imports: [],
   template: `
     <div
-      class="h-900 w-100 position-relative border rounded shadow-sm overflow-hidden">
+      style="height: 700px;"
+      class="w-100 position-relative border rounded shadow-sm overflow-hidden">
       <div #chartContainer class="w-100 h-100"></div>
     </div>
   `,
@@ -74,7 +75,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
   private snackbarQ = inject(SnackbarQueueService);
   @ViewChild('chartContainer', { static: true }) chartContainer!: ElementRef;
 
-  @Input({ required: true }) transactions: StrTransaction[] = [];
+  @Input({ required: true }) transactions!: StrTransaction[];
 
   @Input({ required: true })
   partyKeysSelection: string[] = [];
@@ -83,7 +84,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
   accountNumbersSelection: AccountNumberData[] = [];
 
   @Input({ required: true })
-  parties: PartyGenType[] = [];
+  entities: EntityType[] = [];
 
   private myChart: echarts.ECharts | undefined;
   private resizeObserver: ResizeObserver | undefined;
@@ -137,8 +138,12 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
         const copyText = getNodeDataTextToCopy(params.data as GraphNode);
         navigator.clipboard.writeText(copyText).then(
           () => {
-            this.snackbarQ.open('Copied to clipboard!', 'OK', {
-              duration: 1000,
+            this.snackbarQ.open({
+              message: 'Copied to clipboard!',
+              action: 'OK',
+              config: {
+                duration: 1000,
+              },
             });
           },
           (err) => {
@@ -165,7 +170,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
         linksMap,
         focalSubjects,
         focalAccounts,
-        parties: this.parties,
+        entities: this.entities,
       });
     });
 
@@ -175,7 +180,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
         linksMap,
         nodesMap,
         focalSubjects,
-        parties: this.parties,
+        entities: this.entities,
       });
     });
 
@@ -183,14 +188,23 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
 
     const option: ECOption = {
       title: {
-        text: 'Circular Flow of Funds Analysis',
+        text: 'Funds Flow Network Graph',
         subtext:
-          'Interactive relationship mapping between subjects and accounts',
+          'Interactive directional funds flow with account ownership/relationships',
         left: 'left',
-        top: 10,
+        top: 6,
+        textStyle: {
+          fontSize: 14,
+          fontWeight: 600,
+        },
+        subtextStyle: {
+          fontSize: 11,
+        },
       },
       tooltip: {
         trigger: 'item',
+        padding: [6, 10],
+        textStyle: { fontSize: 12 },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         formatter: (params: any) => {
           if (params.dataType === 'node') {
@@ -221,36 +235,41 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
           orient: 'vertical',
           left: 'left',
           top: 'middle',
-          itemGap: 12,
-          itemWidth: 25,
-          itemHeight: 14,
+          itemGap: 10,
+          itemWidth: 22,
+          itemHeight: 12,
+          textStyle: { fontSize: 10 },
+          formatter: (name: string) => {
+            const categoryIndex = NODES.findIndex((c) => c.name === name);
+            const count = nodes.filter(
+              (node) => node.category === categoryIndex,
+            ).length;
+            return `${name} (${count})`;
+          },
+
           // selectors for show/hide all
           selector: [
             { type: 'all', title: 'Select All' },
             { type: 'inverse', title: 'Invert' },
           ],
           selectorPosition: 'start',
-          selectorItemGap: 8,
-          selectorButtonGap: 15,
           selected: {
             [NODES[NODE_ENUM.Account].name]: false,
             [NODES[NODE_ENUM.FocalAccount].name]: false,
           },
 
-          // Style the selector buttons
           selectorLabel: {
             show: true,
             color: '#333',
-            fontSize: 12,
+            fontSize: 10,
             fontWeight: 500,
-            borderRadius: 4,
-            padding: [4, 8, 4, 8], // [top, right, bottom, left]
+            borderRadius: 3,
+            padding: [2, 5],
             backgroundColor: '#f0f0f0',
             borderColor: '#d0d0d0',
             borderWidth: 1,
           },
 
-          // Hover state
           emphasis: {
             selectorLabel: {
               color: '#fff',
@@ -272,6 +291,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
           label: {
             show: true,
             position: 'right',
+            fontSize: 11,
             formatter: (({ data }) => {
               const node = data as GraphNode;
 
@@ -284,7 +304,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
 
               return node.name;
             }) as LabelFormatter,
-            distance: 4,
+            distance: 3,
           },
           edgeSymbolSize: 15,
           lineStyle: {
@@ -294,7 +314,7 @@ export class CircularComponent implements OnInit, OnChanges, OnDestroy {
           emphasis: {
             focus: 'adjacency',
             lineStyle: {
-              width: 10,
+              width: 8,
             },
           },
           scaleLimit: {
@@ -319,14 +339,14 @@ export function buildNodesAndAccountHolderLinks({
   linksMap,
   focalSubjects,
   focalAccounts,
-  parties,
+  entities,
 }: {
   transaction: StrTransaction;
   nodesMap: Map<string | null, GraphNode>;
   linksMap: Map<string, Link>;
   focalSubjects: Set<string>;
   focalAccounts: Set<string>;
-  parties: PartyGenType[];
+  entities: EntityType[];
 }) {
   // SA account and subjects, nodes and links
   for (const {
@@ -358,7 +378,7 @@ export function buildNodesAndAccountHolderLinks({
       if (!nodesMap.has(linkToSub)) {
         const { nodeCategory: category, displayName } =
           getSubjectDisplayNameAndCategory(
-            parties.find((p) => p.partyIdentifier === linkToSub),
+            entities.find((p) => p.entityIdentifier === linkToSub),
             focalSubjects,
           );
 
@@ -369,7 +389,7 @@ export function buildNodesAndAccountHolderLinks({
           displayName,
           creditsByTxnType: {},
           debitsByTxnType: {},
-          partyInfo: parties.find((p) => p.partyIdentifier === linkToSub)!,
+          entityInfo: entities.find((p) => p.entityIdentifier === linkToSub)!,
         });
       }
     }
@@ -427,7 +447,7 @@ export function buildNodesAndAccountHolderLinks({
       if (!nodesMap.has(linkToSub)) {
         const { nodeCategory: category, displayName } =
           getSubjectDisplayNameAndCategory(
-            parties.find((p) => p.partyIdentifier === linkToSub),
+            entities.find((p) => p.entityIdentifier === linkToSub),
             focalSubjects,
           );
 
@@ -438,7 +458,7 @@ export function buildNodesAndAccountHolderLinks({
           displayName,
           creditsByTxnType: {},
           debitsByTxnType: {},
-          partyInfo: parties.find((p) => p.partyIdentifier === linkToSub)!,
+          entityInfo: entities.find((p) => p.entityIdentifier === linkToSub)!,
         });
       }
     }
@@ -473,13 +493,13 @@ export function buildTransactionLinks({
   transaction,
   nodesMap,
   linksMap,
-  parties,
+  entities,
   focalSubjects,
 }: {
   transaction: StrTransaction;
   nodesMap: Map<string, GraphNode>;
   linksMap: Map<string, Link>;
-  parties: PartyGenType[];
+  entities: EntityType[];
   focalSubjects: Set<string>;
 }) {
   const { methodOfTxn, wasTxnAttempted } = transaction;
@@ -489,20 +509,22 @@ export function buildTransactionLinks({
   for (const {
     directionOfSA,
     conductors = [],
-    typeOfFunds: saTypeOfFunds,
+    typeOfFunds,
     amount: saAmount,
     currency: saAmountCurr,
   } of transaction.startingActions) {
+    console.assert(conductors.length === 1);
     for (const { linkToSub: condId } of conductors) {
       for (const {
         beneficiaries = [],
-        detailsOfDispo: caDetailsOfDispo,
+        detailsOfDispo,
+        detailsOfDispoOther,
       } of transaction.completingActions) {
-        const txnTypeKey = getTxnType(
-          saTypeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS,
-          caDetailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION,
-          methodOfTxn,
-        );
+        const txnTypeKey = getTxnType({
+          typeOfFunds: typeOfFunds as FORM_OPTIONS_TYPE_OF_FUNDS,
+          detailsOfDispo: detailsOfDispo as FORM_OPTIONS_DETAILS_OF_DISPOSITION,
+          detailsOfDispoOther,
+        });
 
         const isConductorABeneficiary = (conductorId: string) =>
           beneficiaries.some(({ linkToSub: benId }) => benId === conductorId);
@@ -511,7 +533,7 @@ export function buildTransactionLinks({
           if (!nodesMap.has(condId)) {
             const { nodeCategory: category, displayName } =
               getSubjectDisplayNameAndCategory(
-                parties.find((p) => p.partyIdentifier === condId),
+                entities.find((p) => p.entityIdentifier === condId),
                 focalSubjects,
               );
 
@@ -522,7 +544,7 @@ export function buildTransactionLinks({
               displayName,
               creditsByTxnType: {},
               debitsByTxnType: {},
-              partyInfo: parties.find((p) => p.partyIdentifier === condId)!,
+              entityInfo: entities.find((p) => p.entityIdentifier === condId)!,
             });
           }
 
@@ -551,7 +573,7 @@ export function buildTransactionLinks({
           if (!nodesMap.has(benId)) {
             const { nodeCategory: category, displayName } =
               getSubjectDisplayNameAndCategory(
-                parties.find((p) => p.partyIdentifier === benId),
+                entities.find((p) => p.entityIdentifier === benId),
                 focalSubjects,
               );
 
@@ -562,7 +584,7 @@ export function buildTransactionLinks({
               displayName,
               creditsByTxnType: {},
               debitsByTxnType: {},
-              partyInfo: parties.find((p) => p.partyIdentifier === benId)!,
+              entityInfo: entities.find((p) => p.entityIdentifier === benId)!,
             });
           }
 
@@ -761,7 +783,9 @@ function normalize(
 
     // HIGH amount -> THICK line
     const lineWidth =
-      link.linkType === 'accountHolder' ? 1 : 1 + normalized * 7;
+      link.linkType === 'accountHolder'
+        ? 1
+        : LINK_MIN_SIZE + normalized * LINK_MAX_SIZE;
 
     const curveness =
       link.linkType === 'In' || link.linkType === 'Out' ? 0.1 : 0;
@@ -783,16 +807,19 @@ function normalize(
 
 const COLOR_FOCAL_PERSON = '#d32f2f';
 const COLOR_FOCAL_ENTITY = '#00e676';
+const COLOR_CIBC_RED = '#B00B1C'; // CIBC official brand color
+
 const NODES = [
-  { name: 'CIBC Person', itemStyle: { color: '#1e88e5' } }, // 0 - Modern blue
-  { name: 'CIBC Entity', itemStyle: { color: '#43a047' } }, // 1 - Forest green
+  { name: 'CIBC Person', itemStyle: { color: COLOR_CIBC_RED } }, // 0 - CIBC official red
+  { name: 'CIBC Entity', itemStyle: { color: '#8B0616' } }, // 1 - Darker CIBC red variant
   { name: 'Account', itemStyle: { color: '#ffa726' } }, // 2 - Warm orange
-  { name: 'External Person', itemStyle: { color: '#ab47bc' } }, // 3 - Purple
+  { name: 'External Person', itemStyle: { color: '#9575cd' } }, // 3 - Medium purple
   { name: 'External Entity', itemStyle: { color: '#26a69a' } }, // 4 - Teal
-  { name: 'Unknown', itemStyle: { color: '#78909c' } }, // 5 - Blue gray
+  { name: 'Unknown', itemStyle: { color: '#90a4ae' } }, // 5 - Blue gray
   { name: 'Focal Person', itemStyle: { color: COLOR_FOCAL_PERSON } }, // 6 - Deep red
   { name: 'Focal Entity', itemStyle: { color: COLOR_FOCAL_ENTITY } }, // 7 - Bright neon green
-  { name: 'Focal Account', itemStyle: { color: '#ff2f65' } }, // 8 - Deep amber
+  { name: 'Focal Account', itemStyle: { color: '#ff6f00' } }, // 8 - Deep orange/amber
+  { name: 'Merchant', itemStyle: { color: '#4527a0' } }, // 9 - Indigo purple
 ];
 
 export function getNodeName(num: number) {
@@ -837,7 +864,7 @@ export type GraphNode = GraphNodeItemOption &
         displayName: string;
         creditsByTxnType: TxnTypeAmount;
         debitsByTxnType: TxnTypeAmount;
-        partyInfo: PartyGenType;
+        entityInfo: EntityType | null;
       }
   );
 
@@ -855,16 +882,15 @@ type GraphNodeItemOption = Extract<
   { name?: string }
 >;
 
-type DIRECTION_OF_SA = 'In' | 'Out';
+export type DIRECTION_OF_SA = 'In' | 'Out';
 
-const SYMBOL_MIN_SIZE = 20;
-const SYMBOL_MAX_SIZE = 30;
-const SYMBOL_ACCOUNT_SIZE = 20;
+const SYMBOL_MIN_SIZE = 14;
+const SYMBOL_MAX_SIZE = 22;
+const SYMBOL_ACCOUNT_SIZE = 14;
 const LINK_OPACITY = 0.8;
 
-export function formatCurrencyLocal(val: number) {
-  return formatCurrency(val, 'en-US', '$', 'USD', '1.2-2');
-}
+const LINK_MIN_SIZE = 1;
+const LINK_MAX_SIZE = 4;
 
 type LabelFormatter = Exclude<
   NonNullable<NonNullable<GraphSeriesOption['label']>['formatter']>,

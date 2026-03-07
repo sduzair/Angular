@@ -3,24 +3,26 @@ import {
   Component,
   effect,
   ElementRef,
+  inject,
   viewChild,
 } from '@angular/core';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { exposeComponent, uiChatResource } from '@hashbrownai/angular';
 import { s } from '@hashbrownai/core';
 import { KnownModelIds } from '@hashbrownai/core/src/utils/llm';
+import { AccountTransactionTotalsService } from '../analytics/account-transaction-totals.service';
 import { ChatComposerComponent } from './chat-composer/chat-composer.component';
 import { ChatLayoutComponent } from './chat-layout/chat-layout.component';
 import { ChatMessagesComponent } from './chat-messages/chat-messages.component';
 import { ChatPrompts } from './chat-prompts/chat-prompts.component';
 import { MarkdownComponent } from './markdown/markdown.component';
 import {
-  getAccountMethods,
-  getAccountSelection,
+  checkDataIntegrity,
+  getAccountTransactionTotals,
   getPartyKeysByAccount,
   getReviewPeriod,
-  getSubjectInfoByParyKey,
 } from './tools/tools';
+import { tap } from 'rxjs';
 
 @Component({
   selector: 'app-chatbot',
@@ -39,17 +41,18 @@ import {
         </div>
       }
       <app-chat-layout>
-        <div class="chat-messages" #contentDiv>
+        <div class="chat-messages overflow-y-scroll" #contentDiv>
           <app-chat-messages
             [messages]="chat.value()"
             (retry)="retryMessages()" />
-          @if (chat.value().length === 0) {
-            <app-chat-prompts (selectPrompt)="sendMessage($event)" />
-          }
+          <app-chat-prompts (selectPrompt)="sendMessage($event)" />
         </div>
-        <app-chat-composer
+        <!-- <app-chat-composer
           [isLoading]="chat.isLoading()"
           (sendMessage)="sendMessage($event)"
+          (abortSearch)="abortRequest()"></app-chat-composer> -->
+        <app-chat-composer
+          [isLoading]="chat.isLoading()"
           (abortSearch)="abortRequest()"></app-chat-composer>
       </app-chat-layout>
     </div>
@@ -80,94 +83,128 @@ export class ChatbotComponent {
 
 You are an AML narrative-writing assistant. Your task is to write a **Transaction Activity** narrative for the currently selected focal account(s) and review period selection in the UI.
 
-# Tools you must use
+# Output structure (must follow exactly)
 
-- Call 'getReviewPeriod()' to obtain the selected review period range(s), <review period ranges>.
-- Call 'getAccountSelection()' to obtain the selected accounts.
-- For each 'account' returned by 'getAccountSelection()', call 'getPartyKeysByAccount({ accountNo: account })' to determine ownership (single vs joint).
-- For account holder name(s) for the ownership descriptor, call 'getSubjectInfoByParyKey({ _hiddenPartyKey })' for each party key returned.
-- Call 'getAccountMethods()' to obtain method summaries per account for credits/debits.
+> **Bullet Template Conventions**:
+> - **[if <cond> | <then>]** is a conditional content directive — if \`<cond>\` is true: replace the directive with \`<then>\` (omit square brackets); if false: omit entirely, including surrounding whitespace
+>   - e.g. \`hello [if x > 0 | world].\` → \`hello world.\` or \`hello.\`
 
-# Output requirements (must follow exactly)
 
-Write the heading '#### Transaction Activity', then for **each** focal account returned by 'getAccountMethods()' produce **one paragraph** and empy line.
+1. Write the heading '#### Transaction Activity'.
 
-Each paragraph must follow this structure (fill in all placeholders):
+**Then, for each unique account in the results from '${getAccountTransactionTotals.name}()':**
 
-> A review of <ownership descriptor> account **#<accountNo>** / <account currency> was conducted for the period(s) from **<review period ranges>**, and the following concerning activity was noted:
+2. Write one paragraph with this structure:
 
-Then include two sections, in this order, with bullets followed by a horizontal rule:
+**ACCOUNT NARRATIVE OPENER template**:
+
+> A review of <ownership descriptor> account **#<accountNo>** / <account currency> was conducted for the period(s) **<review period ranges>**, and the following concerning activity was noted:
+
+**ACCOUNT NARRATIVE OPENER placeholder definitions**:
+
+- **<ownership descriptor>**: Call '${getPartyKeysByAccount.name}()' with <accountNo> to get party key count:
+  - If 1 party key: ownership descriptor is "single ownership"
+  - If 2+ party keys: ownership descriptor is "joint ownership"
+- **<review period ranges>**: Format each range as "YYYY/MM/DD to YYYY/MM/DD"; if multiple ranges, join with ", and"
+
+3. Include CREDITS and DEBITS sections containing a bullet point for each transaction type
 
 ##### CREDITS
 
-- For each transaction method listed under the credits 'methodMap', write **one** bullet that explains how funds were received.
-- Each bullet must include (use 'Not found' if any field is missing):
-  - Method name (friendly label, e.g., “Online Banking”, “Email Transfer (EMT)”).
-  - Total credited amount aggregated for that method during the period, formatted as currency with commas and dollar sign (e.g., “$1,234.56”, “$10,000.00”).
-  - Number of credited transactions captured in that method summary.
-  - Transaction date coverage for that method:
-    - If there is only one date, show that date.
-    - If there are multiple dates, show the earliest and latest date as a range (e.g., “from 2025-01-05 to 2025-03-22”).
-    - If there are no dates, write 'Date range: Not found' (do not invent dates).
-  - A subject list **comma-separated** field listing the unique people/entities involved for that method, pulled from conductors and account holders associated with those credited transactions.
-    - If no subjects exist for that method entry, write 'Subjects: None identified'.
-- Suggested bullet format:
-  - '**<Method name>**: Total credits of **<amount>** <account currency> across <count> transaction(s) **<date phrase>** from following subjects: <subject list>.'
+Process the entry where "totalsType === 'credits'" for this account.
+
+For each transaction type in the 'totalsList' array, write **one** transaction totals bullet.
+
+**TRANSACTION TOTALS BULLET template**:
+
+- <transaction_type>: Total credits of <amount(s)> across <count> <date_phrase> [if subjects.length > 0 | from <sub_types_phrase>: <subject_list>].
+
+**TRANSACTION TOTALS BULLET placeholder definitions**:
+
+- **<transaction_type>**: Use the friendly label from the data (e.g., "Online Banking", "Email Transfer (EMT)")
+- **<credit_or_debit>**:
+  - If this section is CREDITS output: "credits"
+  - Else if this section is DEBITS output: "debits"
+- **<amount(s)>**: Format as "$1,234.56 CAD" or "$10,000.00 USD". If multiple currencies, list all (e.g., "$1,234.56 CAD and $500.00 USD")
+- **<count>**: "1 transaction" (singular) or "5 transactions" (plural)
+- **<date_phrase>**:
+  - If the transaction type is **Cheque**:
+    - Single date: "on 2024/01/15"
+    - Multiple dates: list **every** date individually, comma-separated
+      - Example: "on 2024/01/05, 2024/01/10, 2024/03/22"
+  - All other transaction types:
+    - Single date: "on 2024/01/15"
+    - Multiple dates: "from 2024/01/05 to 2024/03/22"
+- **<sub_types_phrase>**:
+  - If Subject types are merchants only output: "the following merchant(s)"
+  - Else output: "the following subject(s)"
+- **<subject_list>**: Comma-separated list formatted based on subType:
+  - **Merchant**: "<displayName>" only
+    - Example: "Tim Hortons"
+  - **PersonSubject**: "<displayName>, <subTypeLabel>, <subjectPhrase>"
+    - Example: "Jane Doe, an individual, a customer of TD Bank with account #98765"
+  - **EntitySubject**: "<displayName>, <subTypeLabel>, <subjectPhrase>"
+    - Example: "ACME Corp, a business/entity, located in Toronto, ON"
+  - **Other subTypes**: "<displayName>, <subTypeLabel>, <subjectPhrase>"
 
 ##### DEBITS
 
-- For each transaction method listed under the debits 'methodMap', write **one** bullet that explains how funds left the account.
-- Each bullet must include (use 'Not found' if any field is missing):
-  - Method name (friendly label).
-  - Total debited amount aggregated for that method during the period, formatted as currency with commas and dollar sign (e.g., “$1,234.56”, “$10,000.00”).
-  - Number of debited transactions captured in that method summary.
-  - Transaction date coverage for that method:
-    - If there is only one date, show that date.
-    - If there are multiple dates, show the earliest and latest date as a range.
-    - If there are no dates, write 'Date range: Not found' (do not invent dates).
-  - A subject list **comma-separated** field listing the unique people/entities involved for that method, pulled from beneficiaries and account holders associated with those debited transactions.
-    - If no subjects exist for that method entry, write 'Subjects: None identified'.
-- Suggested bullet format:
-  - '**<Method name>**: Total debits of **<amount>** <account currency> across <count> transaction(s) **<date phrase>** to following subjects: <subject list>.'
-  
+Process the entry where "totalsType === 'debits'" for this account.
+
+For each transaction type in the 'totalsList' array, write **one** transaction totals bullet.
+
+**TRANSACTION TOTALS BULLET template**:
+
+- <transaction_type>: Total debits of <amount(s)> across <count> <date_phrase> [if subjects.length > 0 | to <sub_types_phrase>: <subject_list>].
+
+> These placeholder definitions: <transaction_type>, <amount(s)>, <count>, <date_phrase>, <sub_types_phrase>, <subject_list> follow the same rules as defined under CREDITS above.
+
+4. Add a horizontal rule and an empty line before processing the next account.
+
 ---
 
-# How to interpret getAccountMethods() data
+# Data structure reference
 
-The tool returns an array of:
-'AccountMethods { account: string; transit: string; currency: string; type: 'credits' | 'debits'; methodMap: Partial<Record<MethodKey, MethodVal>> }'
+The '${getAccountTransactionTotals.name}()' tool returns:
 
-For each 'methodMap' entry:
-- Use 'MethodVal.type' as the friendly method name.
-- Use 'MethodVal.amount' as the summed amount and 'MethodVal.count' as the number of transactions.
-- 'MethodVal.dates' is an array of formatted date strings and is already sorted:
-  - If 'dates.length === 1', use that date.
-  - If 'dates.length >= 2', use 'dates[0]' and 'dates[dates.length - 1]' as the range.
-  - If 'dates.length === 0', output 'Date range: Not found'.
-
-# Subjects to include per bullet
-
-Each method entry provides 'MethodVal.subjects: MethodSubject[]'.
-
-For each method bullet, format the subject list from 'MethodVal.subjects' as follows:
-
-- If subject is focal ('category' is 'FocalPersonSubject' or 'FocalEntitySubject'):
-  '<name>'
-- If subject is non-focal (all other categories):
-  '<name> <subjectPhrase>'
-
-Rules:
-- For non-focal subjects, if 'fiu' or 'account' is missing, write 'Not found' for that field.
+Array<{
+  account: string
+  transit: string
+  currency: string
+  totalsType: 'credits' | 'debits'
+  totalsList: Array<{
+    txnTypeKey: string
+    transactionType: string // Use this for display
+    amountsList: Array<{ currency: string, amount: number }>
+    count: number
+    dates: string[] // Already sorted
+    subjects: Array<{
+      displayName: string
+      subType: string // PersonSubject, EntitySubject, Merchant, others
+      subTypeLabel: string
+      subjectRelation: string
+      subjectPhrase: string
+    }>
+  }>
+}>
 
 # Presentation rules
 
-- If any placeholder value cannot be derived from tool data, write 'Not found' in-place (do not omit the placeholder and do not guess).
-- Do not mention internal field names like 'methodMap', 'MethodVal', 'METHOD_ENUM', or tool names in the final narrative.
+- Write 'Not found' for any missing placeholder values (do not omit or guess)
+- Never mention technical terms like 'txnTypeKey', 'totalsList array', 'amountLists array' or tool names
+- **Only invoke tools where explicitly instructed within the placeholder definitions in '# Output structure'.**
+- If the totalsList array is empty for credits/debits:
+  - Still include the section header (##### CREDITS or ##### DEBITS)
+  - Use this bullet format instead: "No <credit_or_debit> transactions were identified during the review period."
+- **Never output literal \`[\` or \`]\` characters** — square brackets in templates are processing directives only, not punctuation
+- Use professional AML reporting tone: factual, concise, formal
 
-# Now do the task
+# Execute the task
 
-1) Call the required tools.
-2) Produce the narrative exactly in the required structure.
+1) **Call '${checkDataIntegrity.name}()' first**
+   - If returns false: Under suitable header of size #### display a failed integrity check message to the user and STOP. Do not proceed to step 2.
+   - If returns true: Continue to step 2
+2) Follow '# Output structure' to produce the narrative.
 `,
     components: [
       exposeComponent(MarkdownComponent, {
@@ -178,16 +215,21 @@ Rules:
       }),
     ],
     tools: [
-      getAccountSelection,
+      checkDataIntegrity,
       getReviewPeriod,
       getPartyKeysByAccount,
-      getSubjectInfoByParyKey,
-      getAccountMethods,
+      getAccountTransactionTotals,
     ],
   });
 
+  // private totalsService = inject(AccountTransactionTotalsService);
   sendMessage(message: string): void {
     this.chat.sendMessage({ role: 'user', content: message });
+    // this.totalsService
+    //   .getAccountTransactionTotals$()
+    //   .pipe(tap((val) => console.log(val)))
+    //   // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
+    //   .subscribe();
   }
 
   retryMessages() {

@@ -567,7 +567,7 @@
       "type": "Dataset Column",
       "dataset": "inEMTCompleteWithRawSubjectCibcSenderWithBackup",
       "column": "flowOfFundsAmlTransactionId",
-      "selectionStyle": null,
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": null
     },
@@ -579,6 +579,36 @@
         "EMT"
       ],
       "selectionStyle": null,
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsCreditedAccount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "inEMTCompleteWithRawSubjectCibcSenderWithBackup",
+      "column": "flowOfFundsCreditedAccount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsDebitedAccount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "inEMTCompleteWithRawSubjectCibcSenderWithBackup",
+      "column": "flowOfFundsDebitedAccount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsTransactionDate",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "inEMTCompleteWithRawSubjectCibcSenderWithBackup",
+      "column": "flowOfFundsTransactionDate",
+      "selectionStyle": "sequential",
       "distribution": null,
       "formula": null
     }

@@ -7,12 +7,18 @@
 mat-toolbar-row.header-toolbar-row {
   gap: 0.5em;
   justify-content: space-between;
-  @include mat.button-density(5);
 }
 
-::ng-deep .tab-group div.base-table-container {
-  min-height: 70dvh;
+::ng-deep .tab-group .cdk-virtual-scroll-viewport.base-table-container {
   height: 70dvh;
+}
+
+mat-tab-group.tab-group mat-chip {
+  @include mat.chips-overrides(
+    (
+      container-height: 16px,
+    )
+  );
 }
 
 .header-toolbar-row {

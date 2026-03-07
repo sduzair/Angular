@@ -11,6 +11,7 @@ import {
   Router,
   provideRouter,
   withComponentInputBinding,
+  withExperimentalAutoCleanupInjectors,
   withNavigationErrorHandler,
   withRouterConfig,
 } from '@angular/router';
@@ -33,6 +34,7 @@ import { enCA } from 'date-fns/locale';
 import { AppErrorHandlerService } from './app-error-handler.service';
 import { routes } from './app.routes';
 import { CachedRouteReuseStrategy } from './route-cache/preserve-route-reuse-strategy';
+import { authInterceptor } from './auth.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -51,10 +53,11 @@ export const appConfig: ApplicationConfig = {
           inject(Router).parseUrl('/transactionsearch'),
         );
       }),
+      withExperimentalAutoCleanupInjectors(),
       // withDebugTracing(), // for debugging router
     ),
     { provide: RouteReuseStrategy, useClass: CachedRouteReuseStrategy },
-    provideHttpClient(withInterceptors([])),
+    provideHttpClient(withInterceptors([authInterceptor])),
     provideDateFnsAdapter(MAT_DATE_FNS_FORMATS),
     { provide: MAT_DATE_LOCALE, useValue: enCA },
     { provide: ErrorHandler, useClass: AppErrorHandlerService },

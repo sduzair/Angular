@@ -25,6 +25,7 @@ mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofOut
 mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofWireIn.json                 --jsonArray
 mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofCbfeMixedDeposit.json       --jsonArray
 mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofCashUSDDeposit.json       --jsonArray
+mongoimport --uri "$URI" --db "$DB" --collection flowOfFunds --file /seed/fofPosOut.json       --jsonArray
 
 mongoimport --uri "$URI" --db "$DB" --collection abm --file /seed/abmCashDeposit.json     --jsonArray
 mongoimport --uri "$URI" --db "$DB" --collection abm --file /seed/abmCashWithdrawal.json  --jsonArray
@@ -44,9 +45,16 @@ mongoimport --uri "$URI" --db "$DB" --collection wire --file /seed/wireIn.json -
 
 mongoimport --uri "$URI" --db "$DB" --collection otc --file /seed/cbfeMixedDeposit.json --jsonArray
 
+mongoimport --uri "$URI" --db "$DB" --collection pos --file /seed/posOut.json --jsonArray
 
-echo "Restoring parties collection..."
-mongorestore --uri="$URI" --nsInclude="$DB.parties" /seed/dump/
+# create dump
+
+# docker exec mongodb mongodump --uri="mongodb://mongodb:27017/?replicaSet=rs0" --db=amldb --out=/dump
+
+# docker cp mongodb:/dump/amldb ./data/dump
+
+echo "Restoring entity collection..."
+mongorestore --uri="$URI" --nsInclude="$DB.*" /seed/dump/
 
 # todo: composite index for selections
 

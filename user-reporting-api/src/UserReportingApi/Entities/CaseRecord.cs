@@ -10,34 +10,31 @@ public class CaseRecord
     public ObjectId Id { get; set; }
 
     public string CaseRecordId { get; set; } = null!;
-
     public string AmlId { get; set; } = null!;
-
     public SearchParams SearchParams { get; set; } = null!;
-
+    public string SearchParamsHash { get; set; } = null!;
     public DateTime CreatedAt { get; set; }
-
     public string CreatedBy { get; set; } = null!;
-    public string? LastUpdatedBy { get; set; } = null!;
-
+    public string? LastUpdatedBy { get; set; }
     public string Status { get; set; } = null!;
-
+    public bool IsClosed { get; set; }
+    public DateTime? ClosedAt { get; set; }
+    public string? ClosedBy { get; set; }
     public int ETag { get; set; }
-
     public DateTime? LastUpdated { get; set; }
 }
 
 public class SearchParams
 {
-    public List<string> PartyKeysSelection { get; set; } = null!;
+    public List<string> PartyKeysSelection { get; set; } = [];
 
-    public List<AccountNumber> AccountNumbersSelection { get; set; } = null!;
+    public List<AccountNumber> AccountNumbersSelection { get; set; } = [];
 
-    public List<string> SourceSystemsSelection { get; set; } = null!;
+    public List<string> SourceSystemsSelection { get; set; } = [];
 
-    public List<string> ProductTypesSelection { get; set; } = null!;
+    public List<string> ProductTypesSelection { get; set; } = [];
 
-    public List<ReviewPeriod> ReviewPeriodSelection { get; set; } = null!;
+    public List<ReviewPeriod> ReviewPeriodSelection { get; set; } = [];
 }
 
 public class AccountNumber

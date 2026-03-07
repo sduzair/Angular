@@ -3,23 +3,21 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  EventEmitter,
   inject,
   Input,
-  Output,
   TrackByFunction,
   ViewChild,
   WritableSignal,
 } from '@angular/core';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
+import { map, take } from 'rxjs';
+import { CaseRecordStore } from '../../aml/case-record.store';
 import { IFilterForm } from '../../base-table/abstract-base-table';
 import { BaseTableComponent } from '../../base-table/base-table.component';
 import { OlbSourceData } from '../../transaction-search/transaction-search.service';
-import { TableSelectionType } from '../transaction-view.component';
-import { map, take } from 'rxjs';
-import { CaseRecordStore } from '../../aml/case-record.store';
 import { LocalHighlightsService } from '../local-highlights.service';
+import { TableSelectionType } from '../transaction-view.component';
 
 @Component({
   selector: 'app-olb-table',
@@ -33,6 +31,7 @@ import { LocalHighlightsService } from '../local-highlights.service';
       [displayedColumns]="displayedColumns"
       [displayColumnHeaderMap]="displayColumnHeaderMap"
       [stickyColumns]="stickyColumns"
+      [columnWidthsMap]="columnWidthsMap"
       [selectFiltersValues]="selectFiltersValues"
       [dateFiltersValues]="dateFiltersValues"
       [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
@@ -43,8 +42,8 @@ import { LocalHighlightsService } from '../local-highlights.service';
       [highlightedRecords]="highlightedRecords"
       [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'"
       [filterFormHighlightSideEffect]="filterFormHighlightSideEffect"
-      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
-      [sortedBy]="'transactionDate'">
+      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples">
+      <!-- [sortedBy]="'transactionDate'"> -->
       <!-- Selection Model -->
       <ng-container
         matColumnDef="select"
@@ -58,7 +57,8 @@ import { LocalHighlightsService } from '../local-highlights.service';
               (change)="$event ? toggleAllRows() : null"
               [checked]="hasValue() && isAllSelected()"
               [indeterminate]="hasValue() && !isAllSelected()"
-              [class.invisible]="!hasValue()">
+              [class.invisible]="!hasValue()"
+              [disabled]="disabled">
             </mat-checkbox>
           </div>
         </th>
@@ -70,7 +70,8 @@ import { LocalHighlightsService } from '../local-highlights.service';
             <mat-checkbox
               (click)="baseTable.onCheckBoxClickMultiToggle($event, row, i)"
               (change)="$event ? baseTable.toggleRow(row) : null"
-              [checked]="masterSelection!.isSelected(row)">
+              [checked]="masterSelection!.isSelected(row)"
+              [disabled]="disabled">
             </mat-checkbox>
           </div>
         </td>
@@ -84,6 +85,9 @@ export class OlbTableComponent<
     [K in keyof TableSelectionType]: string;
   },
 > {
+  @Input({ required: true })
+  disabled: boolean | null = false;
+
   dataColumnsValues: (keyof OlbSourceData)[] = [
     'postingDate',
     'transactionDate',
@@ -336,6 +340,12 @@ export class OlbTableComponent<
     _uiPropHighlightColor: 'Highlight',
   };
 
+  columnWidthsMap: Partial<
+    Record<Extract<keyof OlbSourceData, string> | 'select', string>
+  > = {
+    flowOfFundsAmlTransactionId: '300px',
+  };
+
   stickyColumns: ('select' | keyof OlbSourceData)[] = [
     'select',
     'postingDate',
@@ -348,8 +358,6 @@ export class OlbTableComponent<
     'transactionCurrency',
     'transactionDescription',
     'userDeviceType',
-    'userSessionDateTime',
-    'userSessionDateTimeStr',
     'additionalDescription',
     'amlld',
     'cardNumber',
@@ -360,7 +368,7 @@ export class OlbTableComponent<
     'debitAmount',
     'debitedAccount',
     'debitedTransit',
-    'sourceTransactionId',
+    // 'sourceTransactionId',
   ];
 
   dateFiltersValues: (keyof OlbSourceData)[] = [

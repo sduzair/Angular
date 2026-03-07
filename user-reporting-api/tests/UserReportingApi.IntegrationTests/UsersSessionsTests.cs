@@ -39,17 +39,17 @@ public class UsersSessionsTests
 
     public async Task InitializeAsync()
     {
-        // Create composite unique index on parties collection
-        var parties = _testDb.GetCollection<Party>("parties");
+        // Create composite unique index on entity collection
+        var entities = _testDb.GetCollection<Entity>("entity");
 
-        var indexKeys = Builders<Party>.IndexKeys
-            .Ascending(p => p.PartyIdentifier)
+        var indexKeys = Builders<Entity>.IndexKeys
+            .Ascending(p => p.EntityIdentifier)
             .Ascending(p => p.CaseRecordId);
 
         var indexOptions = new CreateIndexOptions { Unique = true };
-        var indexModel = new CreateIndexModel<Party>(indexKeys, indexOptions);
+        var indexModel = new CreateIndexModel<Entity>(indexKeys, indexOptions);
 
-        await parties.Indexes.CreateOneAsync(indexModel);
+        await entities.Indexes.CreateOneAsync(indexModel);
     }
 
     public Task DisposeAsync()
@@ -58,7 +58,9 @@ public class UsersSessionsTests
         return Task.CompletedTask;
     }
 
+    // -------------------------------------------------------------------------
     #region Transaction Search Tests
+    // -------------------------------------------------------------------------
 
     [Fact]
     public async Task TransactionSearch_WithMultipleSources_ReturnsStreamedResults()
@@ -75,7 +77,7 @@ public class UsersSessionsTests
             new BsonDocument { ["source"] = "ABM", ["txnId"] = "abm-1" }
         ]);
 
-        // Act
+        // Act — empty SourceSystemsSelection means all sources
         var response = await _client.PostAsJsonAsync("/api/transaction/search", new TransactionSearchRequest(
             PartyKeysSelection: [],
             AccountNumbersSelection: [],
@@ -91,7 +93,6 @@ public class UsersSessionsTests
         var sources = JsonSerializer.Deserialize<List<TransactionSourceResponse>>(content, JsonSerializerOptions.Web);
 
         sources.Should().NotBeNull();
-        sources.Should().HaveCount(6); // FlowOfFunds, ABM, OLB, EMT, Wire, OTC
 
         var fofSource = sources!.First(s => s.SourceId == "FlowOfFunds");
         fofSource.Status.Should().Be("completed");
@@ -124,9 +125,77 @@ public class UsersSessionsTests
         sources!.All(s => s.Status == "completed").Should().BeTrue();
     }
 
+    /// <summary>
+    /// When SourceSystemsSelection is populated, only the requested sources are streamed.
+    /// </summary>
+    [Fact]
+    public async Task TransactionSearch_WithSourceSystemsSelection_FiltersToSelectedSources()
+    {
+        // Arrange
+        await _testDb.GetCollection<BsonDocument>("flowOfFunds").InsertManyAsync(
+        [
+            new BsonDocument { ["flowOfFundsSource"] = "FOF", ["amount"] = 500 }
+        ]);
+
+        await _testDb.GetCollection<BsonDocument>("abm").InsertManyAsync(
+        [
+            new BsonDocument { ["source"] = "ABM", ["txnId"] = "abm-filtered" }
+        ]);
+
+        // Act — request only FlowOfFunds
+        var response = await _client.PostAsJsonAsync("/api/transaction/search", new TransactionSearchRequest(
+            PartyKeysSelection: [],
+            AccountNumbersSelection: [],
+            ProductTypesSelection: [],
+            ReviewPeriodSelection: [],
+            SourceSystemsSelection: ["FlowOfFunds"]));
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var content = await response.Content.ReadAsStringAsync();
+        var sources = JsonSerializer.Deserialize<List<TransactionSourceResponse>>(content, JsonSerializerOptions.Web);
+
+        sources.Should().NotBeNull();
+        sources.Should().HaveCount(1, "only the requested source should be streamed");
+        sources![0].SourceId.Should().Be("FlowOfFunds");
+    }
+
+    /// <summary>
+    /// SourceSystemsSelection matching is case-insensitive.
+    /// </summary>
+    [Fact]
+    public async Task TransactionSearch_SourceSystemsSelection_IsCaseInsensitive()
+    {
+        // Arrange
+        await _testDb.GetCollection<BsonDocument>("abm").InsertManyAsync(
+        [
+            new BsonDocument { ["source"] = "ABM", ["txnId"] = "abm-ci" }
+        ]);
+
+        // Act — use lowercase "abm" to match source id "ABM"
+        var response = await _client.PostAsJsonAsync("/api/transaction/search", new TransactionSearchRequest(
+            PartyKeysSelection: [],
+            AccountNumbersSelection: [],
+            ProductTypesSelection: [],
+            ReviewPeriodSelection: [],
+            SourceSystemsSelection: ["abm"]));
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var content = await response.Content.ReadAsStringAsync();
+        var sources = JsonSerializer.Deserialize<List<TransactionSourceResponse>>(content, JsonSerializerOptions.Web);
+
+        sources.Should().HaveCount(1);
+        sources![0].SourceId.Should().Be("ABM");
+    }
+
     #endregion
 
+    // -------------------------------------------------------------------------
     #region Fetch Case Record Tests
+    // -------------------------------------------------------------------------
 
     [Fact]
     public async Task FetchCaseRecord_ExistingAmlId_ReturnsCaseRecordWithETag()
@@ -136,13 +205,11 @@ public class UsersSessionsTests
         {
             CaseRecordId = Guid.NewGuid().ToString(),
             AmlId = "99999999",
-            SearchParams = new SearchParams
-            {
-                PartyKeysSelection = ["123", "456"]
-            },
+            SearchParams = new SearchParams { PartyKeysSelection = ["123", "456"] },
             CreatedAt = DateTime.UtcNow,
             CreatedBy = "TestUser",
             Status = "Active",
+            IsClosed = false,   // explicit for clarity
             ETag = 5,
             LastUpdated = DateTime.UtcNow
         };
@@ -179,7 +246,9 @@ public class UsersSessionsTests
 
     #endregion
 
+    // -------------------------------------------------------------------------
     #region Update Case Record Tests
+    // -------------------------------------------------------------------------
 
     [Fact]
     public async Task UpdateCaseRecord_ValidETag_UpdatesAndIncrementsVersion()
@@ -193,20 +262,20 @@ public class UsersSessionsTests
             CreatedAt = DateTime.UtcNow,
             CreatedBy = "User1",
             Status = "Active",
+            IsClosed = false,
             ETag = 0,
             LastUpdated = null
         };
 
         await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
 
-        var updateRequest = new UpdateCaseRecordRequest
-        (
-           new SearchParams { PartyKeysSelection = ["new"] },
-           ETag: 0
-        );
+        var updateRequest = new UpdateCaseRecordRequest(
+            new SearchParams { PartyKeysSelection = ["new"] },
+            ETag: 0);
 
         // Act
-        var response = await _client.PostAsJsonAsync($"/api/caserecord/{caseRecord.CaseRecordId}/update", updateRequest);
+        var response = await _client.PostAsJsonAsync(
+            $"/api/caserecord/{caseRecord.CaseRecordId}/update", updateRequest);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -218,6 +287,9 @@ public class UsersSessionsTests
         result.SearchParams.PartyKeysSelection.Should().ContainSingle().Which.Should().Be("new");
         result.LastUpdated.Should().NotBeNull();
         result.LastUpdated.Should().BeCloseTo(DateTime.UtcNow, TestConstants.DateTimeTolerance);
+
+        // SearchParamsHash must be populated after update
+        result.SearchParamsHash.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
@@ -232,17 +304,18 @@ public class UsersSessionsTests
             CreatedAt = DateTime.UtcNow,
             CreatedBy = "User1",
             Status = "Active",
+            IsClosed = false,
             ETag = 5,
             LastUpdated = DateTime.UtcNow
         };
 
         await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
 
-        var OUTDATED_ETAG = 3;
-        var updateRequest = new UpdateCaseRecordRequest(SearchParams: new SearchParams(), ETag: OUTDATED_ETAG);
+        var updateRequest = new UpdateCaseRecordRequest(SearchParams: new SearchParams(), ETag: 3);
 
         // Act
-        var response = await _client.PostAsJsonAsync($"/api/caserecord/{caseRecord.CaseRecordId}/update", updateRequest);
+        var response = await _client.PostAsJsonAsync(
+            $"/api/caserecord/{caseRecord.CaseRecordId}/update", updateRequest);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
@@ -252,49 +325,306 @@ public class UsersSessionsTests
         ((JsonElement)error["currentETag"]).GetInt32().Should().Be(5);
     }
 
+    /// <summary>
+    /// CaseRecordGuard.ActiveWithETag now includes IsClosed == false.
+    /// A closed case record must return a distinct "closed" conflict message.
+    /// </summary>
+    [Fact]
+    public async Task UpdateCaseRecord_ClosedRecord_ReturnsConflict_WithClosedMessage()
+    {
+        // Arrange
+        var caseRecord = new CaseRecord
+        {
+            CaseRecordId = Guid.NewGuid().ToString(),
+            AmlId = "44444444",
+            SearchParams = new SearchParams(),
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "User1",
+            Status = "Closed",
+            IsClosed = true,
+            ClosedAt = DateTime.UtcNow,
+            ClosedBy = "User1",
+            ETag = 2,
+            LastUpdated = DateTime.UtcNow
+        };
+
+        await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
+
+        var updateRequest = new UpdateCaseRecordRequest(SearchParams: new SearchParams(), ETag: 2);
+
+        // Act
+        var response = await _client.PostAsJsonAsync(
+            $"/api/caserecord/{caseRecord.CaseRecordId}/update", updateRequest);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        var error = await response.Content.ReadFromJsonAsync<Dictionary<string, object>>(TestOptions);
+        error!["message"].ToString().Should().Contain("closed");
+        error.Should().ContainKey("closedAt");
+        error.Should().ContainKey("closedBy");
+    }
+
     #endregion
 
-    #region Selections and Parties Tests
+    // -------------------------------------------------------------------------
+    #region Close / Activate Case Record Tests
+    // -------------------------------------------------------------------------
 
     [Fact]
-    public async Task FetchSelections_ReturnsAllSelectionsAndPartiesForCaseRecord()
+    public async Task CloseCaseRecord_ValidETag_ClosesRecordAndPropagatesIsClosedToSelections()
+    {
+        // Arrange
+        var caseRecordId = Guid.NewGuid().ToString();
+        var caseRecord = new CaseRecord
+        {
+            CaseRecordId = caseRecordId,
+            AmlId = "CLOSE-001",
+            SearchParams = new SearchParams(),
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "User1",
+            Status = "Active",
+            IsClosed = false,
+            ETag = 1,
+            LastUpdated = DateTime.UtcNow
+        };
+
+        await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
+
+        var selections = new[]
+        {
+            new Selection { CaseRecordId = caseRecordId, FlowOfFundsAmlTransactionId = "txn-close-1", IsClosed = false, ETag = 0 },
+            new Selection { CaseRecordId = caseRecordId, FlowOfFundsAmlTransactionId = "txn-close-2", IsClosed = false, ETag = 0 }
+        };
+        await _testDb.GetCollection<Selection>("selections").InsertManyAsync(selections);
+
+        var request = new CloseCaseRecordRequest(ETag: 1);
+
+        // Act
+        var response = await _client.PostAsJsonAsync(
+            $"/api/caserecord/{caseRecordId}/close", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Headers.ETag!.Tag.Should().Be("\"2\"");
+
+        var result = await response.Content.ReadFromJsonAsync<CaseRecord>(TestOptions);
+        result.Should().NotBeNull();
+        result!.IsClosed.Should().BeTrue();
+        result.Status.Should().Be("Closed");
+        result.ETag.Should().Be(2);
+        result.ClosedAt.Should().NotBeNull();
+        result.ClosedBy.Should().NotBeNullOrEmpty();
+
+        // Verify all selections are propagated as closed
+        var dbSelections = await _testDb.GetCollection<Selection>("selections")
+            .Find(s => s.CaseRecordId == caseRecordId)
+            .ToListAsync();
+
+        dbSelections.Should().HaveCount(2);
+        dbSelections.All(s => s.IsClosed).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CloseCaseRecord_ETagMismatch_ReturnsConflict()
+    {
+        // Arrange
+        var caseRecord = new CaseRecord
+        {
+            CaseRecordId = Guid.NewGuid().ToString(),
+            AmlId = "CLOSE-002",
+            SearchParams = new SearchParams(),
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "User1",
+            Status = "Active",
+            IsClosed = false,
+            ETag = 3,
+            LastUpdated = DateTime.UtcNow
+        };
+
+        await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
+
+        var request = new CloseCaseRecordRequest(ETag: 1); // wrong ETag
+
+        // Act
+        var response = await _client.PostAsJsonAsync(
+            $"/api/caserecord/{caseRecord.CaseRecordId}/close", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        var error = await response.Content.ReadFromJsonAsync<Dictionary<string, object>>(TestOptions);
+        error!["message"].ToString().Should().Contain("modified");
+        ((JsonElement)error["currentETag"]).GetInt32().Should().Be(3);
+    }
+
+    [Fact]
+    public async Task CloseCaseRecord_AlreadyClosed_ReturnsConflict_WithClosedMessage()
+    {
+        // Arrange — record is already closed
+        var caseRecord = new CaseRecord
+        {
+            CaseRecordId = Guid.NewGuid().ToString(),
+            AmlId = "CLOSE-003",
+            SearchParams = new SearchParams(),
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "User1",
+            Status = "Closed",
+            IsClosed = true,
+            ClosedAt = DateTime.UtcNow,
+            ClosedBy = "User1",
+            ETag = 2,
+            LastUpdated = DateTime.UtcNow
+        };
+
+        await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
+
+        var request = new CloseCaseRecordRequest(ETag: 2);
+
+        // Act
+        var response = await _client.PostAsJsonAsync(
+            $"/api/caserecord/{caseRecord.CaseRecordId}/close", request);
+
+        // Assert — ActiveWithETag requires IsClosed==false, so filter misses; ResolveFailureAsync
+        //          detects IsClosed==true and returns the "closed" conflict variant
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        var error = await response.Content.ReadFromJsonAsync<Dictionary<string, object>>(TestOptions);
+        error!["message"].ToString().Should().Contain("closed");
+        error.Should().ContainKey("closedAt");
+        error.Should().ContainKey("closedBy");
+    }
+
+    [Fact]
+    public async Task ActivateCaseRecord_ValidETag_ActivatesRecordAndPropagatesIsClosedToSelections()
+    {
+        // Arrange
+        var caseRecordId = Guid.NewGuid().ToString();
+        var caseRecord = new CaseRecord
+        {
+            CaseRecordId = caseRecordId,
+            AmlId = "ACTIVATE-001",
+            SearchParams = new SearchParams(),
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "User1",
+            Status = "Closed",
+            IsClosed = true,
+            ClosedAt = DateTime.UtcNow,
+            ClosedBy = "User1",
+            ETag = 2,
+            LastUpdated = DateTime.UtcNow
+        };
+
+        await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
+
+        var selections = new[]
+        {
+            new Selection { CaseRecordId = caseRecordId, FlowOfFundsAmlTransactionId = "txn-act-1", IsClosed = true, ETag = 0 },
+            new Selection { CaseRecordId = caseRecordId, FlowOfFundsAmlTransactionId = "txn-act-2", IsClosed = true, ETag = 0 }
+        };
+        await _testDb.GetCollection<Selection>("selections").InsertManyAsync(selections);
+
+        var request = new ActivateCaseRecordRequest(ETag: 2);
+
+        // Act
+        var response = await _client.PostAsJsonAsync(
+            $"/api/caserecord/{caseRecordId}/activate", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Headers.ETag!.Tag.Should().Be("\"3\"");
+
+        var result = await response.Content.ReadFromJsonAsync<CaseRecord>(TestOptions);
+        result.Should().NotBeNull();
+        result!.IsClosed.Should().BeFalse();
+        result.Status.Should().Be("Active");
+        result.ETag.Should().Be(3);
+        result.ClosedAt.Should().BeNull();
+        result.ClosedBy.Should().BeNull();
+
+        // Verify all selections are propagated as active
+        var dbSelections = await _testDb.GetCollection<Selection>("selections")
+            .Find(s => s.CaseRecordId == caseRecordId)
+            .ToListAsync();
+
+        dbSelections.Should().HaveCount(2);
+        dbSelections.All(s => !s.IsClosed).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ActivateCaseRecord_ETagMismatch_ReturnsConflict()
+    {
+        // Arrange
+        var caseRecord = new CaseRecord
+        {
+            CaseRecordId = Guid.NewGuid().ToString(),
+            AmlId = "ACTIVATE-002",
+            SearchParams = new SearchParams(),
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "User1",
+            Status = "Closed",
+            IsClosed = true,
+            ClosedAt = DateTime.UtcNow,
+            ClosedBy = "User1",
+            ETag = 4,
+            LastUpdated = DateTime.UtcNow
+        };
+
+        await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
+
+        var request = new ActivateCaseRecordRequest(ETag: 1); // wrong ETag
+
+        // Act
+        var response = await _client.PostAsJsonAsync(
+            $"/api/caserecord/{caseRecord.CaseRecordId}/activate", request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        var error = await response.Content.ReadFromJsonAsync<Dictionary<string, object>>(TestOptions);
+        // IsClosed==true, so ResolveFailureAsync returns the "closed" variant
+        error!["message"].ToString().Should().Contain("closed");
+    }
+
+    #endregion
+
+    // -------------------------------------------------------------------------
+    #region Selections and Entities Tests
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task FetchSelections_ReturnsAllSelectionsAndEntitiesForCaseRecord()
     {
         // Arrange
         var caseRecordId = Guid.NewGuid().ToString();
         var selections = new[]
         {
-        new Selection
-        {
-            CaseRecordId = caseRecordId,
-            FlowOfFundsAmlTransactionId = "txn-1",
-            ETag = 0,
-            ExtraElements = new Dictionary<string, object?> { ["amount"] = 100 }
-        },
-        new Selection
-        {
-            CaseRecordId = caseRecordId,
-            FlowOfFundsAmlTransactionId = "txn-2",
-            ETag = 2,
-            ExtraElements = new Dictionary<string, object?> { ["amount"] = 200 }
-        }
-    };
+            new Selection
+            {
+                CaseRecordId = caseRecordId,
+                FlowOfFundsAmlTransactionId = "txn-1",
+                IsClosed = false,
+                ETag = 0,
+                ExtraElements = new Dictionary<string, object?> { ["amount"] = 100 }
+            },
+            new Selection
+            {
+                CaseRecordId = caseRecordId,
+                FlowOfFundsAmlTransactionId = "txn-2",
+                IsClosed = false,
+                ETag = 2,
+                ExtraElements = new Dictionary<string, object?> { ["amount"] = 200 }
+            }
+        };
 
-        var parties = new[]
+        var entities = new[]
         {
-        new Party
-        {
-            CaseRecordId = caseRecordId,
-            PartyIdentifier = "PARTY-001"
-        },
-        new Party
-        {
-            CaseRecordId = caseRecordId,
-            PartyIdentifier = "PARTY-002"
-        }
-    };
+            new Entity { CaseRecordId = caseRecordId, EntityIdentifier = "ENTITY-001" },
+            new Entity { CaseRecordId = caseRecordId, EntityIdentifier = "ENTITY-002" }
+        };
 
         await _testDb.GetCollection<Selection>("selections").InsertManyAsync(selections);
-        await _testDb.GetCollection<Party>("parties").InsertManyAsync(parties);
+        await _testDb.GetCollection<Entity>("entity").InsertManyAsync(entities);
 
         // Act
         var response = await _client.GetAsync($"/api/caserecord/{caseRecordId}/selections");
@@ -305,49 +635,40 @@ public class UsersSessionsTests
         var result = await response.Content.ReadFromJsonAsync<FetchSelectionsResponse>(TestOptions);
         result.Should().NotBeNull();
 
-        // Verify Selections
-        result!.Selections.Should().HaveCount(2);
-        result.Selections.Select(s => s.FlowOfFundsAmlTransactionId)
+        result!.SelectionList.Should().HaveCount(2);
+        result.SelectionList.Select(s => s.FlowOfFundsAmlTransactionId)
             .Should().BeEquivalentTo("txn-1", "txn-2");
 
-        var s1 = result.Selections.Single(s => s.FlowOfFundsAmlTransactionId == "txn-1");
-        var s2 = result.Selections.Single(s => s.FlowOfFundsAmlTransactionId == "txn-2");
-
-        s1.ExtraElements.Should().NotBeNull();
-        s1.ExtraElements!.Should().ContainKey("amount");
+        var s1 = result.SelectionList.Single(s => s.FlowOfFundsAmlTransactionId == "txn-1");
+        s1.ExtraElements.Should().ContainKey("amount");
         s1.ExtraElements!["amount"]!.Should().Be(100);
 
-        s2.ExtraElements.Should().NotBeNull();
-        s2.ExtraElements!.Should().ContainKey("amount");
+        var s2 = result.SelectionList.Single(s => s.FlowOfFundsAmlTransactionId == "txn-2");
         s2.ExtraElements!["amount"]!.Should().Be(200);
 
-        // Verify Parties
-        result.Parties.Should().HaveCount(2);
-        result.Parties.Select(p => p.PartyIdentifier)
-            .Should().BeEquivalentTo("PARTY-001", "PARTY-002");
-        result.Parties.All(p => p.CaseRecordId == caseRecordId).Should().BeTrue();
+        result.EntityList.Should().HaveCount(2);
+        result.EntityList.Select(p => p.EntityIdentifier)
+            .Should().BeEquivalentTo("ENTITY-001", "ENTITY-002");
+        result.EntityList.All(p => p.CaseRecordId == caseRecordId).Should().BeTrue();
     }
 
     [Fact]
     public async Task FetchSelections_EmptyCaseRecord_ReturnsEmptyLists()
     {
-        // Arrange
         var caseRecordId = Guid.NewGuid().ToString();
 
-        // Act
         var response = await _client.GetAsync($"/api/caserecord/{caseRecordId}/selections");
 
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var result = await response.Content.ReadFromJsonAsync<FetchSelectionsResponse>(TestOptions);
         result.Should().NotBeNull();
-        result!.Selections.Should().BeEmpty();
-        result.Parties.Should().BeEmpty();
+        result!.SelectionList.Should().BeEmpty();
+        result.EntityList.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task AddSelections_ValidCaseETag_InsertsSelectionsAndPartiesAndIncrementsETag()
+    public async Task AddSelections_ValidCaseETag_InsertsSelectionsAndEntitiesAndIncrementsETag()
     {
         // Arrange
         var caseRecord = new CaseRecord
@@ -358,37 +679,31 @@ public class UsersSessionsTests
             CreatedAt = DateTime.UtcNow,
             CreatedBy = "User1",
             Status = "Active",
+            IsClosed = false,
             ETag = 2
         };
 
         await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
 
-        var request = new AddSelectionsRequest
-        (
+        var request = new AddSelectionsRequest(
             CaseETag: 2,
             Selections:
             [
                 new Selection
-            {
-                FlowOfFundsAmlTransactionId = "new-txn-1",
-                ExtraElements = new Dictionary<string, object?> { ["data"] = "value1" }
-            },
-            new Selection
-            {
-                FlowOfFundsAmlTransactionId = "new-txn-2",
-                ExtraElements = new Dictionary<string, object?> { ["data"] = "value2" }
-            }
+                {
+                    FlowOfFundsAmlTransactionId = "new-txn-1",
+                    ExtraElements = new Dictionary<string, object?> { ["data"] = "value1" }
+                },
+                new Selection
+                {
+                    FlowOfFundsAmlTransactionId = "new-txn-2",
+                    ExtraElements = new Dictionary<string, object?> { ["data"] = "value2" }
+                }
             ],
-            Parties:
+            Entities:
             [
-                new Party
-            {
-                PartyIdentifier = "PARTY-NEW-001"
-            },
-            new Party
-            {
-                PartyIdentifier = "PARTY-NEW-002"
-            }
+                new Entity { EntityIdentifier = "ENTITY-NEW-001" },
+                new Entity { EntityIdentifier = "ENTITY-NEW-002" }
             ]
         );
 
@@ -403,10 +718,10 @@ public class UsersSessionsTests
         result.Should().NotBeNull();
         result!.CaseETag.Should().Be(3);
         result.SelectionCount.Should().Be(2);
-        result.PartyCount.Should().Be(2);
+        result.EntityCount.Should().Be(2);
         result.LastUpdated.Should().BeCloseTo(DateTime.UtcNow, TestConstants.DateTimeTolerance);
 
-        // Verify Selections in DB
+        // Verify selections in DB — including the denormalized IsClosed = false stamp
         var dbSelections = await _testDb.GetCollection<Selection>("selections")
             .Find(s => s.CaseRecordId == caseRecord.CaseRecordId)
             .ToListAsync();
@@ -414,16 +729,16 @@ public class UsersSessionsTests
         dbSelections.Should().HaveCount(2);
         dbSelections.All(s => s.ETag == 0).Should().BeTrue();
         dbSelections.All(s => s.CaseRecordId == caseRecord.CaseRecordId).Should().BeTrue();
+        dbSelections.All(s => !s.IsClosed).Should().BeTrue("IsClosed must be stamped false on insert");
 
-        // Verify Parties in DB
-        var dbParties = await _testDb.GetCollection<Party>("parties")
+        // Verify entities in DB
+        var dbEntities = await _testDb.GetCollection<Entity>("entity")
             .Find(p => p.CaseRecordId == caseRecord.CaseRecordId)
             .ToListAsync();
 
-        dbParties.Should().HaveCount(2);
-        dbParties.Select(p => p.PartyIdentifier)
-            .Should().BeEquivalentTo("PARTY-NEW-001", "PARTY-NEW-002");
-        dbParties.All(p => p.CaseRecordId == caseRecord.CaseRecordId).Should().BeTrue();
+        dbEntities.Should().HaveCount(2);
+        dbEntities.Select(p => p.EntityIdentifier)
+            .Should().BeEquivalentTo("ENTITY-NEW-001", "ENTITY-NEW-002");
     }
 
     [Fact]
@@ -438,16 +753,16 @@ public class UsersSessionsTests
             CreatedAt = DateTime.UtcNow,
             CreatedBy = "User1",
             Status = "Active",
+            IsClosed = false,
             ETag = 5
         };
 
         await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
 
-        var request = new AddSelectionsRequest
-        (
-            CaseETag: 3, // Wrong ETag
+        var request = new AddSelectionsRequest(
+            CaseETag: 3, // wrong ETag
             Selections: [new Selection { FlowOfFundsAmlTransactionId = "txn-1" }],
-            Parties: [new Party { PartyIdentifier = "PARTY-001" }]
+            Entities: [new Entity { EntityIdentifier = "ENTITY-001" }]
         );
 
         // Act
@@ -461,6 +776,45 @@ public class UsersSessionsTests
         error!["message"].ToString().Should().Contain("modified");
     }
 
+    /// <summary>
+    /// AddSelections on a closed case must return the "closed" conflict variant.
+    /// </summary>
+    [Fact]
+    public async Task AddSelections_ClosedCase_ReturnsConflict_WithClosedMessage()
+    {
+        // Arrange
+        var caseRecord = new CaseRecord
+        {
+            CaseRecordId = Guid.NewGuid().ToString(),
+            AmlId = "CLOSED-ADD",
+            SearchParams = new SearchParams(),
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "User1",
+            Status = "Closed",
+            IsClosed = true,
+            ClosedAt = DateTime.UtcNow,
+            ClosedBy = "User1",
+            ETag = 2
+        };
+
+        await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
+
+        var request = new AddSelectionsRequest(
+            CaseETag: 2,
+            Selections: [new Selection { FlowOfFundsAmlTransactionId = "txn-1" }],
+            Entities: []
+        );
+
+        // Act
+        var response = await _client.PostAsJsonAsync(
+            $"/api/caserecord/{caseRecord.CaseRecordId}/selections/add", request, TestOptions);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        var error = await response.Content.ReadFromJsonAsync<Dictionary<string, object>>(TestOptions);
+        error!["message"].ToString().Should().Contain("closed");
+    }
 
     [Fact]
     public async Task RemoveSelections_DeletesSelectionsAndIncrementsETag()
@@ -475,6 +829,7 @@ public class UsersSessionsTests
             CreatedAt = DateTime.UtcNow,
             CreatedBy = "User1",
             Status = "Active",
+            IsClosed = false,
             ETag = 1
         };
 
@@ -482,27 +837,13 @@ public class UsersSessionsTests
 
         var selections = new[]
         {
-            new Selection
-            {
-                CaseRecordId = caseRecordId,
-                FlowOfFundsAmlTransactionId = "txn-to-delete",
-                ETag = 0
-            },
-            new Selection
-            {
-                CaseRecordId = caseRecordId,
-                FlowOfFundsAmlTransactionId = "txn-to-keep",
-                ETag = 0
-            }
+            new Selection { CaseRecordId = caseRecordId, FlowOfFundsAmlTransactionId = "txn-to-delete", IsClosed = false, ETag = 0 },
+            new Selection { CaseRecordId = caseRecordId, FlowOfFundsAmlTransactionId = "txn-to-keep",   IsClosed = false, ETag = 0 }
         };
 
         await _testDb.GetCollection<Selection>("selections").InsertManyAsync(selections);
 
-        var request = new RemoveSelectionsRequest
-        (
-            CaseETag: 1,
-            SelectionIds: ["txn-to-delete"]
-        );
+        var request = new RemoveSelectionsRequest(CaseETag: 1, SelectionIds: ["txn-to-delete"]);
 
         // Act
         var response = await _client.PostAsJsonAsync(
@@ -536,34 +877,21 @@ public class UsersSessionsTests
             CreatedAt = DateTime.UtcNow,
             CreatedBy = "User1",
             Status = "Active",
+            IsClosed = false,
             ETag = 2
         };
 
         await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
 
-        var selections = new[] {
-            new Selection
-            {
-                CaseRecordId = caseRecordId,
-                FlowOfFundsAmlTransactionId = "txn-to-delete",
-                ETag = 0
-            },
-            new Selection
-            {
-                CaseRecordId = caseRecordId,
-                FlowOfFundsAmlTransactionId = "txn-to-keep",
-                ETag = 0
-            }
+        var selections = new[]
+        {
+            new Selection { CaseRecordId = caseRecordId, FlowOfFundsAmlTransactionId = "txn-to-delete", IsClosed = false, ETag = 0 },
+            new Selection { CaseRecordId = caseRecordId, FlowOfFundsAmlTransactionId = "txn-to-keep",   IsClosed = false, ETag = 0 }
         };
 
         await _testDb.GetCollection<Selection>("selections").InsertManyAsync(selections);
 
-        var request = new RemoveSelectionsRequest
-        (
-            CaseETag: 1, // Wrong ETag
-            SelectionIds: ["txn-to-delete"]
-        );
-
+        var request = new RemoveSelectionsRequest(CaseETag: 1, SelectionIds: ["txn-to-delete"]);
 
         // Act
         var response = await _client.PostAsJsonAsync(
@@ -577,7 +905,7 @@ public class UsersSessionsTests
     }
 
     [Fact]
-    public async Task AddSelections_DuplicatePartyIdentifier_ReturnsErrorAndRollsBackTransaction()
+    public async Task AddSelections_DuplicateEntityIdentifier_ReturnsErrorAndRollsBackTransaction()
     {
         // Arrange
         var caseRecord = new CaseRecord
@@ -588,37 +916,32 @@ public class UsersSessionsTests
             CreatedAt = DateTime.UtcNow,
             CreatedBy = "User1",
             Status = "Active",
+            IsClosed = false,
             ETag = 0
         };
 
         await _testDb.GetCollection<CaseRecord>("caseRecord").InsertOneAsync(caseRecord);
 
-        // Insert existing party
-        var existingParty = new Party
+        var existingEntity = new Entity
         {
             CaseRecordId = caseRecord.CaseRecordId,
-            PartyIdentifier = "DUPLICATE-PARTY-001"
+            EntityIdentifier = "DUPLICATE-ENTITY-001"
         };
-        await _testDb.GetCollection<Party>("parties").InsertOneAsync(existingParty);
+        await _testDb.GetCollection<Entity>("entity").InsertOneAsync(existingEntity);
 
-        // Try to add the same party again along with a selection
-        var request = new AddSelectionsRequest
-        (
+        var request = new AddSelectionsRequest(
             CaseETag: 0,
             Selections:
             [
                 new Selection
-            {
-                FlowOfFundsAmlTransactionId = "txn-should-rollback",
-                ExtraElements = new Dictionary<string, object?> { ["data"] = "test" }
-            }
+                {
+                    FlowOfFundsAmlTransactionId = "txn-should-rollback",
+                    ExtraElements = new Dictionary<string, object?> { ["data"] = "test" }
+                }
             ],
-            Parties:
+            Entities:
             [
-                new Party
-            {
-                PartyIdentifier = "DUPLICATE-PARTY-001" // Duplicate!
-            }
+                new Entity { EntityIdentifier = "DUPLICATE-ENTITY-001" } // duplicate!
             ]
         );
 
@@ -629,20 +952,17 @@ public class UsersSessionsTests
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
 
-        // Verify transaction rolled back - no selections should be added
         var dbSelections = await _testDb.GetCollection<Selection>("selections")
             .Find(s => s.CaseRecordId == caseRecord.CaseRecordId)
             .ToListAsync();
         dbSelections.Should().BeEmpty("transaction should have rolled back");
 
-        // Verify only the original party exists (no duplicate inserted)
-        var dbParties = await _testDb.GetCollection<Party>("parties")
+        var dbEntities = await _testDb.GetCollection<Entity>("entity")
             .Find(p => p.CaseRecordId == caseRecord.CaseRecordId)
             .ToListAsync();
-        dbParties.Should().ContainSingle("only the original party should exist");
-        dbParties[0].Id.Should().Be(existingParty.Id);
+        dbEntities.Should().ContainSingle("only the original entity should exist");
+        dbEntities[0].Id.Should().Be(existingEntity.Id);
 
-        // Verify case record ETag was NOT incremented due to rollback
         var dbCaseRecord = await _testDb.GetCollection<CaseRecord>("caseRecord")
             .Find(c => c.CaseRecordId == caseRecord.CaseRecordId)
             .FirstOrDefaultAsync();
@@ -650,7 +970,7 @@ public class UsersSessionsTests
     }
 
     [Fact]
-    public async Task AddSelections_DuplicatePartyInDifferentCase_Succeeds()
+    public async Task AddSelections_DuplicateEntityInDifferentCase_Succeeds()
     {
         // Arrange
         var caseRecord1 = new CaseRecord
@@ -661,6 +981,7 @@ public class UsersSessionsTests
             CreatedAt = DateTime.UtcNow,
             CreatedBy = "User1",
             Status = "Active",
+            IsClosed = false,
             ETag = 0
         };
 
@@ -672,30 +993,25 @@ public class UsersSessionsTests
             CreatedAt = DateTime.UtcNow,
             CreatedBy = "User1",
             Status = "Active",
+            IsClosed = false,
             ETag = 0
         };
 
         await _testDb.GetCollection<CaseRecord>("caseRecord").InsertManyAsync([caseRecord1, caseRecord2]);
 
-        // Insert party in first case
-        var party1 = new Party
+        var entity1 = new Entity
         {
             CaseRecordId = caseRecord1.CaseRecordId,
-            PartyIdentifier = "SHARED-PARTY-001"
+            EntityIdentifier = "SHARED-ENTITY-001"
         };
-        await _testDb.GetCollection<Party>("parties").InsertOneAsync(party1);
+        await _testDb.GetCollection<Entity>("entity").InsertOneAsync(entity1);
 
-        // Try to add the same party identifier to a DIFFERENT case record (should succeed)
-        var request = new AddSelectionsRequest
-        (
+        var request = new AddSelectionsRequest(
             CaseETag: 0,
             Selections: [],
-            Parties:
+            Entities:
             [
-                new Party
-            {
-                PartyIdentifier = "SHARED-PARTY-001" // Same identifier, different case
-            }
+                new Entity { EntityIdentifier = "SHARED-ENTITY-001" } // same identifier, different case
             ]
         );
 
@@ -705,24 +1021,25 @@ public class UsersSessionsTests
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK,
-            "same PartyIdentifier should be allowed in different case records");
+            "same EntityIdentifier should be allowed in different case records");
 
         var result = await response.Content.ReadFromJsonAsync<AddSelectionsResponse>(TestOptions);
-        result!.PartyCount.Should().Be(1);
+        result!.EntityCount.Should().Be(1);
 
-        // Verify both parties exist in database
-        var allParties = await _testDb.GetCollection<Party>("parties")
-            .Find(p => p.PartyIdentifier == "SHARED-PARTY-001")
+        var allEntities = await _testDb.GetCollection<Entity>("entity")
+            .Find(p => p.EntityIdentifier == "SHARED-ENTITY-001")
             .ToListAsync();
 
-        allParties.Should().HaveCount(2, "same party identifier should exist in two different cases");
-        allParties.Select(p => p.CaseRecordId).Should().BeEquivalentTo(
-            [caseRecord1.CaseRecordId, caseRecord2.CaseRecordId]);
+        allEntities.Should().HaveCount(2, "same entity identifier should exist in two different cases");
+        allEntities.Select(p => p.CaseRecordId)
+            .Should().BeEquivalentTo([caseRecord1.CaseRecordId, caseRecord2.CaseRecordId]);
     }
 
     #endregion
 
+    // -------------------------------------------------------------------------
     #region Save Changes Tests
+    // -------------------------------------------------------------------------
 
     [Fact]
     public async Task SaveChanges_ValidETags_AppendsChangeLogsAndIncrementsETags()
@@ -735,6 +1052,7 @@ public class UsersSessionsTests
             {
                 CaseRecordId = caseRecordId,
                 FlowOfFundsAmlTransactionId = "txn-1",
+                IsClosed = false,
                 ETag = 0,
                 ChangeLogs = []
             }
@@ -742,15 +1060,13 @@ public class UsersSessionsTests
 
         await _testDb.GetCollection<Selection>("selections").InsertManyAsync(selections);
 
-        var request = new SaveChangesRequest
-        (
+        var request = new SaveChangesRequest(
             PendingChanges:
             [
-                new PendingChange
-                (
+                new PendingChange(
                     FlowOfFundsAmlTransactionId: "txn-1",
                     ETag: 0,
-                    ChangeLogs: [new ChangeLogEntry {ExtraElements = new Dictionary<string, object?>{["op"]= "remove", ["property"] = "amount" }}]
+                    ChangeLogs: [new ChangeLogEntry { ExtraElements = new Dictionary<string, object?> { ["op"] = "remove", ["property"] = "amount" } }]
                 )
             ]
         );
@@ -774,7 +1090,7 @@ public class UsersSessionsTests
         updatedSelection.ChangeLogs.Should().HaveCount(1);
         updatedSelection.ChangeLogs![0].UpdatedAt.Should()
             .BeCloseTo(DateTime.UtcNow, TestConstants.DateTimeTolerance);
-        updatedSelection.ChangeLogs[0].UpdatedBy.Should().Be("System");
+        updatedSelection.ChangeLogs[0].UpdatedBy.Should().Be("TestUser");
         updatedSelection.ChangeLogs[0].ETag.Should().Be(1);
     }
 
@@ -785,37 +1101,24 @@ public class UsersSessionsTests
         var caseRecordId = Guid.NewGuid().ToString();
         var selections = new[]
         {
-            new Selection
-            {
-                CaseRecordId = caseRecordId,
-                FlowOfFundsAmlTransactionId = "txn-1",
-                ETag = 0
-            },
-            new Selection
-            {
-                CaseRecordId = caseRecordId,
-                FlowOfFundsAmlTransactionId = "txn-2",
-                    ETag = 5 // Different from what client expects
-            }
+            new Selection { CaseRecordId = caseRecordId, FlowOfFundsAmlTransactionId = "txn-1", IsClosed = false, ETag = 0 },
+            new Selection { CaseRecordId = caseRecordId, FlowOfFundsAmlTransactionId = "txn-2", IsClosed = false, ETag = 5 }
         };
 
         await _testDb.GetCollection<Selection>("selections").InsertManyAsync(selections);
 
-        var request = new SaveChangesRequest
-        (
+        var request = new SaveChangesRequest(
             PendingChanges:
             [
-                new PendingChange
-                (
+                new PendingChange(
                     FlowOfFundsAmlTransactionId: "txn-1",
-                    ETag:  0,
-                    ChangeLogs: [new ChangeLogEntry{ExtraElements = new Dictionary<string, object?> {["field"] = "test"}}]
+                    ETag: 0,
+                    ChangeLogs: [new ChangeLogEntry { ExtraElements = new Dictionary<string, object?> { ["field"] = "test" } }]
                 ),
-                new PendingChange
-                (
+                new PendingChange(
                     FlowOfFundsAmlTransactionId: "txn-2",
-                    ETag: 3, // Wrong ETag
-                    ChangeLogs: [new ChangeLogEntry{ExtraElements = new Dictionary<string, object?> {["field"] = "test"}}]
+                    ETag: 3, // wrong ETag
+                    ChangeLogs: [new ChangeLogEntry { ExtraElements = new Dictionary<string, object?> { ["field"] = "test" } }]
                 )
             ]
         );
@@ -833,9 +1136,62 @@ public class UsersSessionsTests
         result.Message.Should().Contain("1 of 2");
     }
 
+    /// <summary>
+    /// The IsClosed == false guard on selections/save means closed selections are skipped.
+    /// </summary>
+    [Fact]
+    public async Task SaveChanges_ClosedSelection_IsNotUpdated()
+    {
+        // Arrange — one open, one closed with matching ETags
+        var caseRecordId = Guid.NewGuid().ToString();
+        var selections = new[]
+        {
+            new Selection { CaseRecordId = caseRecordId, FlowOfFundsAmlTransactionId = "txn-open",   IsClosed = false, ETag = 0 },
+            new Selection { CaseRecordId = caseRecordId, FlowOfFundsAmlTransactionId = "txn-closed", IsClosed = true,  ETag = 0 }
+        };
+
+        await _testDb.GetCollection<Selection>("selections").InsertManyAsync(selections);
+
+        var request = new SaveChangesRequest(
+            PendingChanges:
+            [
+                new PendingChange(
+                    FlowOfFundsAmlTransactionId: "txn-open",
+                    ETag: 0,
+                    ChangeLogs: [new ChangeLogEntry { ExtraElements = new Dictionary<string, object?> { ["op"] = "update" } }]
+                ),
+                new PendingChange(
+                    FlowOfFundsAmlTransactionId: "txn-closed",
+                    ETag: 0, // correct ETag, but selection is closed
+                    ChangeLogs: [new ChangeLogEntry { ExtraElements = new Dictionary<string, object?> { ["op"] = "update" } }]
+                )
+            ]
+        );
+
+        // Act
+        var response = await _client.PostAsJsonAsync(
+            $"/api/caserecord/{caseRecordId}/selections/save", request);
+
+        // Assert — partial: only the open selection matched
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        var result = await response.Content.ReadFromJsonAsync<SaveChangesResponse>(TestOptions);
+        result!.Succeeded.Should().Be(1);
+        result.Requested.Should().Be(2);
+
+        var closedSelection = await _testDb.GetCollection<Selection>("selections")
+            .Find(s => s.FlowOfFundsAmlTransactionId == "txn-closed")
+            .FirstOrDefaultAsync();
+
+        closedSelection.ETag.Should().Be(0, "closed selection must not be modified");
+        closedSelection.ChangeLogs.Should().BeNullOrEmpty();
+    }
+
     #endregion
 
+    // -------------------------------------------------------------------------
     #region Reset Selections Tests
+    // -------------------------------------------------------------------------
 
     [Fact]
     public async Task ResetSelections_ValidETags_ResetsToZeroAndClearsChangeLogs()
@@ -848,30 +1204,21 @@ public class UsersSessionsTests
             {
                 CaseRecordId = caseRecordId,
                 FlowOfFundsAmlTransactionId = "txn-1",
+                IsClosed = false,
                 ETag = 3,
                 ChangeLogs =
                 [
-                    new ChangeLogEntry
-                    {
-                        UpdatedAt = DateTime.UtcNow,
-                        UpdatedBy = "User1",
-                        ETag = 2
-                    }
+                    new ChangeLogEntry { UpdatedAt = DateTime.UtcNow, UpdatedBy = "User1", ETag = 2 }
                 ]
             }
         };
 
         await _testDb.GetCollection<Selection>("selections").InsertManyAsync(selections);
 
-        var request = new ResetSelectionsRequest
-        (
+        var request = new ResetSelectionsRequest(
             PendingResets:
             [
-                new PendingReset
-                (
-                    FlowOfFundsAmlTransactionId: "txn-1",
-                    ETag: 3
-                )
+                new PendingReset(FlowOfFundsAmlTransactionId: "txn-1", ETag: 3)
             ]
         );
 
@@ -901,28 +1248,17 @@ public class UsersSessionsTests
         var caseRecordId = Guid.NewGuid().ToString();
         var selections = new[]
         {
-            new Selection
-            {
-                CaseRecordId = caseRecordId,
-                FlowOfFundsAmlTransactionId = "txn-1",
-                ETag = 2
-            },
-            new Selection
-            {
-                CaseRecordId = caseRecordId,
-                FlowOfFundsAmlTransactionId = "txn-2",
-                ETag = 5
-            }
+            new Selection { CaseRecordId = caseRecordId, FlowOfFundsAmlTransactionId = "txn-1", IsClosed = false, ETag = 2 },
+            new Selection { CaseRecordId = caseRecordId, FlowOfFundsAmlTransactionId = "txn-2", IsClosed = false, ETag = 5 }
         };
 
         await _testDb.GetCollection<Selection>("selections").InsertManyAsync(selections);
 
-        var request = new ResetSelectionsRequest
-        (
+        var request = new ResetSelectionsRequest(
             PendingResets:
             [
-                new PendingReset ( FlowOfFundsAmlTransactionId: "txn-1", ETag: 2 ),
-                new PendingReset ( FlowOfFundsAmlTransactionId: "txn-2", ETag: 3 ) // Wrong
+                new PendingReset(FlowOfFundsAmlTransactionId: "txn-1", ETag: 2),
+                new PendingReset(FlowOfFundsAmlTransactionId: "txn-2", ETag: 3) // wrong
             ]
         );
 
@@ -941,12 +1277,62 @@ public class UsersSessionsTests
             .Find(s => s.FlowOfFundsAmlTransactionId == "txn-2")
             .FirstOrDefaultAsync();
 
-        txn2.ETag.Should().Be(5); // Unchanged due to ETag mismatch
+        txn2.ETag.Should().Be(5, "unchanged due to ETag mismatch");
+    }
+
+    /// <summary>
+    /// The IsClosed == false guard on selections/reset means closed selections are skipped.
+    /// </summary>
+    [Fact]
+    public async Task ResetSelections_ClosedSelection_IsNotReset()
+    {
+        // Arrange
+        var caseRecordId = Guid.NewGuid().ToString();
+        var selections = new[]
+        {
+            new Selection
+            {
+                CaseRecordId = caseRecordId,
+                FlowOfFundsAmlTransactionId = "txn-closed-reset",
+                IsClosed = true,
+                ETag = 4,
+                ChangeLogs = [new ChangeLogEntry { UpdatedAt = DateTime.UtcNow, UpdatedBy = "User1", ETag = 3 }]
+            }
+        };
+
+        await _testDb.GetCollection<Selection>("selections").InsertManyAsync(selections);
+
+        var request = new ResetSelectionsRequest(
+            PendingResets:
+            [
+                new PendingReset(FlowOfFundsAmlTransactionId: "txn-closed-reset", ETag: 4)
+            ]
+        );
+
+        // Act
+        var response = await _client.PostAsJsonAsync(
+            $"/api/caserecord/{caseRecordId}/selections/reset", request);
+
+        // Assert — IsClosed guard blocks the update → 0 succeeded → Conflict
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        var result = await response.Content.ReadFromJsonAsync<ResetSelectionsResponse>(TestOptions);
+        result!.Succeeded.Should().Be(0);
+        result.Requested.Should().Be(1);
+
+        var closedSelection = await _testDb.GetCollection<Selection>("selections")
+            .Find(s => s.FlowOfFundsAmlTransactionId == "txn-closed-reset")
+            .FirstOrDefaultAsync();
+
+        closedSelection.ETag.Should().Be(4, "closed selection must not be reset");
+        closedSelection.ChangeLogs.Should().HaveCount(1, "change logs must not be cleared");
     }
 
     #endregion
 
-    #region Account Info
+    // -------------------------------------------------------------------------
+    #region Account Info Tests
+    // -------------------------------------------------------------------------
 
     [Fact]
     public async Task GetAccountInfo_ExistingAccount_ReturnsOk_WithAccountInfo()
@@ -964,15 +1350,10 @@ public class UsersSessionsTests
             AccountClose = "2026-12-31",
             AccountStatus = "Active",
             AccountCurrency = "CAD",
-            AccountHolders =
-            [
-                new AccountHolder { PartyKey = "PARTY001" }
-            ]
+            AccountHolders = [new AccountHolder { PartyKey = "PARTY001" }]
         };
 
-        await _testDb
-            .GetCollection<AccountInfo>("accountInfo")
-            .InsertOneAsync(doc);
+        await _testDb.GetCollection<AccountInfo>("accountInfo").InsertOneAsync(doc);
 
         // Act
         var response = await _client.GetAsync($"/api/aml/accountinfo/{doc.Account}");
@@ -992,13 +1373,10 @@ public class UsersSessionsTests
     [Fact]
     public async Task GetAccountInfo_InvalidAccount_ReturnsNotFound_WithMessage()
     {
-        // Arrange
         var invalidAccount = "DOES_NOT_EXIST";
 
-        // Act
         var response = await _client.GetAsync($"/api/aml/accountinfo/{invalidAccount}");
 
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         response.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
 
@@ -1009,17 +1387,22 @@ public class UsersSessionsTests
 
     #endregion
 
+    // -------------------------------------------------------------------------
+    #region Helpers
+    // -------------------------------------------------------------------------
+
     private static JsonSerializerOptions CreateTestOptions()
     {
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
         JsonConfiguration.ConfigureJsonOptions(options);
         return options;
     }
+
+    #endregion
 }
 
 public class TestConstants
 {
-    // Adjust this value as needed for test debugging
     public static readonly TimeSpan DateTimeTolerance =
 #if DEBUG
         TimeSpan.FromSeconds(600);

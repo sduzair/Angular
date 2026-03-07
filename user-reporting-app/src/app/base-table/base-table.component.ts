@@ -1,6 +1,8 @@
+import { ScrollingModule } from '@angular/cdk/scrolling';
 import { CommonModule, DatePipe } from '@angular/common';
 import {
   AfterContentInit,
+  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   ContentChildren,
@@ -80,6 +82,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
     ClickOutsideTableDirective,
     ScrollPositionPreserveDirective,
     CamelToTitlePipe,
+    ScrollingModule,
   ],
   template: `
     @if (showToolbar) {
@@ -87,7 +90,10 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
         <mat-toolbar-row class="px-0 header-toolbar-row">
           <!-- Active Filter Chips -->
           <mat-chip-set aria-label="Active filters" class="filter-chips">
-            @for (filter of filterFormActiveFilters$ | async; track filter) {
+            @for (
+              filter of filterFormActiveFilters$ | async;
+              track filter.sanitizedKey
+            ) {
               <mat-chip
                 removable="true"
                 highlighted="true"
@@ -151,7 +157,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
           [formGroup]="filterFormFormGroup"
           class="h-100 d-flex flex-column container px-0">
           <mat-toolbar class="flex-shrink-0 row row-cols-1 filter-form-toolbar">
-            <mat-toolbar-row class="col">
+            <mat-toolbar-row class="col my-2">
               <button
                 mat-stroked-button
                 color="primary"
@@ -167,19 +173,20 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                 Reset
               </button>
               <mat-button-toggle-group
+                [hideSingleSelectionIndicator]="true"
                 [formControl]="filterFormConjunctionControl">
                 <mat-button-toggle value="AND">AND</mat-button-toggle>
                 <mat-button-toggle value="OR">OR</mat-button-toggle>
               </mat-button-toggle-group>
               <div class="flex-fill"></div>
-              <button type="button" mat-icon-button (click)="drawer.toggle()">
+              <button type="button" matIconButton (click)="drawer.toggle()">
                 <mat-icon>close</mat-icon>
               </button>
             </mat-toolbar-row>
           </mat-toolbar>
           <mat-divider></mat-divider>
           <div
-            class="flex-grow-1 overflow-auto row row-cols-1 mx-0 pt-3 scroll-position-preserve">
+            class="flex-grow-1 overflow-auto row row-cols-1 mx-0 mt-3 scroll-position-preserve">
             @for (filterKey of filterFormFilterKeys; track filterKey) {
               <!-- Full Text Filter -->
               @if (this.filterFormFullTextFilterKey === filterKey) {
@@ -194,7 +201,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                   <button
                     type="button"
                     matSuffix
-                    mat-icon-button
+                    matIconButton
                     (click)="
                       this.filterFormGetFormControl(filterKey).reset(null)
                     ">
@@ -218,7 +225,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                   <button
                     type="button"
                     matSuffix
-                    mat-icon-button
+                    matIconButton
                     (click)="
                       this.filterFormGetFormControl(filterKey).reset(null)
                     ">
@@ -246,7 +253,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                   <button
                     type="button"
                     matSuffix
-                    mat-icon-button
+                    matIconButton
                     (click)="
                       this.filterFormGetFormControl(filterKey).reset(null)
                     ">
@@ -260,7 +267,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                   <mat-label>{{
                     this.displayedColumnsTransform(filterKey)
                   }}</mat-label>
-                  <mat-chip-grid #chipGrid>
+                  <mat-chip-grid class="select-filter-chip-grid" #chipGrid>
                     @for (
                       option of this.selectFiltersOptionsSelected[filterKey]
                         | async;
@@ -344,7 +351,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                   <button
                     type="button"
                     matSuffix
-                    mat-icon-button
+                    matIconButton
                     (click)="
                       $event.stopPropagation();
                       this.filterFormGetFormControl(filterKey).reset(null);
@@ -357,7 +364,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
               @if (filterKey === this.filterFormHighlightSelectFilterKey) {
                 <div class="col mb-3">
                   <mat-button-toggle-group
-                    class="px-0 w-100 justify-content-center"
+                    class="select-color-box px-0 w-100 justify-content-center"
                     [formControlName]="this.filterFormHighlightSelectFilterKey">
                     @for (
                       option of Object.entries(filterFormHighlightMap);
@@ -383,8 +390,11 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
       </mat-drawer>
 
       <mat-drawer-content>
-        <div
-          class="col px-0 overflow-auto scroll-position-preserve base-table-container"
+        <cdk-virtual-scroll-viewport
+          class="col px-0 base-table-container"
+          [itemSize]="ROW_HEIGHT"
+          [maxBufferPx]="BUFFER_PAGES"
+          [minBufferPx]="BUFFER_PAGES_THRESHOLD"
           (appClickOutsideTable)="filterFormHighlightSelectedColor = undefined">
           <table
             mat-table
@@ -403,7 +413,9 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                   mat-header-cell
                   *matHeaderCellDef
                   [mat-sort-header]="column"
-                  [class.sticky-cell]="isStickyColumn(column)">
+                  [class.sticky-cell]="isStickyColumn(column)"
+                  [style.width]="getColumnWidth(column)"
+                  [style.max-width]="getColumnWidth(column)">
                   <div>
                     {{ this.displayedColumnsTransform(column) }}
                   </div>
@@ -411,7 +423,10 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                 <td
                   mat-cell
                   *matCellDef="let row"
-                  [class.sticky-cell]="isStickyColumn(column)">
+                  [class.sticky-cell]="isStickyColumn(column)"
+                  tabindex="-1"
+                  [style.width]="getColumnWidth(column)"
+                  [style.max-width]="getColumnWidth(column)">
                   <div>
                     @if (this.displayedColumnsTime.includes(column)) {
                       {{
@@ -458,7 +473,7 @@ import { ClickOutsideTableDirective } from './click-outside-table.directive';
                   : 'default'
               "></tr>
           </table>
-        </div>
+        </cdk-virtual-scroll-viewport>
       </mat-drawer-content>
     </mat-drawer-container>
 
@@ -489,7 +504,7 @@ export class BaseTableComponent<
     THighlightKey,
     TSelection
   >
-  implements OnInit, ISelectionMasterToggle, AfterContentInit
+  implements OnInit, ISelectionMasterToggle, AfterContentInit, AfterViewInit
 {
   @Input({ required: true })
   override dataColumnsValues!: TDataColumn[];
@@ -513,6 +528,9 @@ export class BaseTableComponent<
 
   @Input({ required: true })
   override stickyColumns!: TDisplayColumn[];
+
+  @Input({ required: true })
+  override columnWidthsMap: Partial<Record<TDataColumn, string>> = {};
 
   @Input({ required: true })
   override selectFiltersValues!: TDataColumn[];
@@ -543,6 +561,10 @@ export class BaseTableComponent<
   @Input()
   showToolbar = true;
 
+  protected PAGE_ROWS = 24;
+  protected ROW_HEIGHT = 28;
+  protected BUFFER_PAGES = 6 * 2 * this.PAGE_ROWS * this.ROW_HEIGHT;
+  protected BUFFER_PAGES_THRESHOLD = 2 * this.PAGE_ROWS * this.ROW_HEIGHT;
   ngAfterContentInit(): void {
     this.columnDefs.forEach((colDef) => this.table.addColumnDef(colDef));
   }

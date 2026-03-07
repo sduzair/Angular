@@ -3,11 +3,8 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  EventEmitter,
   inject,
   Input,
-  Output,
-  signal,
   TrackByFunction,
   ViewChild,
   WritableSignal,
@@ -34,6 +31,7 @@ import { TableSelectionType } from '../transaction-view.component';
       [displayedColumns]="displayedColumns"
       [displayColumnHeaderMap]="displayColumnHeaderMap"
       [stickyColumns]="stickyColumns"
+      [columnWidthsMap]="columnWidthsMap"
       [selectFiltersValues]="selectFiltersValues"
       [dateFiltersValues]="dateFiltersValues"
       [dateFiltersValuesIgnore]="dateFiltersValuesIgnore"
@@ -44,8 +42,8 @@ import { TableSelectionType } from '../transaction-view.component';
       [highlightedRecords]="highlightedRecords"
       [filterFormHighlightSelectFilterKey]="'_uiPropHighlightColor'"
       [filterFormHighlightSideEffect]="filterFormHighlightSideEffect"
-      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples"
-      [sortedBy]="'transactionDate'">
+      [sortingAccessorDateTimeTuples]="sortingAccessorDateTimeTuples">
+      <!-- [sortedBy]="'transactionDate'"> -->
       <!-- Selection Model -->
       <ng-container
         matColumnDef="select"
@@ -59,7 +57,8 @@ import { TableSelectionType } from '../transaction-view.component';
               (change)="$event ? toggleAllRows() : null"
               [checked]="hasValue() && isAllSelected()"
               [indeterminate]="hasValue() && !isAllSelected()"
-              [class.invisible]="!hasValue()">
+              [class.invisible]="!hasValue()"
+              [disabled]="disabled">
             </mat-checkbox>
           </div>
         </th>
@@ -71,7 +70,8 @@ import { TableSelectionType } from '../transaction-view.component';
             <mat-checkbox
               (click)="baseTable.onCheckBoxClickMultiToggle($event, row, i)"
               (change)="$event ? baseTable.toggleRow(row) : null"
-              [checked]="masterSelection!.isSelected(row)">
+              [checked]="masterSelection!.isSelected(row)"
+              [disabled]="disabled">
             </mat-checkbox>
           </div>
         </td>
@@ -85,6 +85,9 @@ export class OtcTableComponent<
     [K in keyof TableSelectionType]: string;
   },
 > {
+  @Input({ required: true })
+  disabled: boolean | null = false;
+
   dataColumnsValues: (keyof OTCSourceData)[] = [
     'postingDate',
     'transactionDate',
@@ -95,7 +98,6 @@ export class OtcTableComponent<
     'acctHoldersAll',
     'actualCurrencyCD',
     'branchTransit',
-    'cardNumber',
     'caseAccountNumber',
     'caseTransitNumber',
     'cdtAcctShortName',
@@ -157,10 +159,11 @@ export class OtcTableComponent<
     'strSaFundsType',
     'strSaOboInd',
     'strTransactionStatus',
-    'transactionCurrency',
     'transactionCurrencyAmount',
+    'transactionCurrency',
     'transactionDescription',
     'transactionExecutionLocalTimestamp',
+    'cardNumber',
     'amlId',
     'transactionId',
     'sequenceNumberDescr',
@@ -237,6 +240,9 @@ export class OtcTableComponent<
     'splittingDelimiter',
     'systemJournalId',
     'tellerId',
+    'transactionExecutionLocalTimestamp',
+    'transactionCurrencyAmount',
+    'transactionCurrency',
   ];
 
   displayedColumns = ['select' as const];
@@ -317,6 +323,12 @@ export class OtcTableComponent<
     >
   >;
 
+  columnWidthsMap: Partial<
+    Record<Extract<keyof OTCSourceData, string> | 'select', string>
+  > = {
+    flowOfFundsAmlTransactionId: '300px',
+  };
+
   stickyColumns: ('select' | keyof OTCSourceData)[] = [
     'select',
     'postingDate',
@@ -346,13 +358,13 @@ export class OtcTableComponent<
     'dbtAcctShortName',
     'debitedAccount',
     'debitedTransit',
-    'flowOfFundsAmlTransactionId',
+    // 'flowOfFundsAmlTransactionId',
     'flowOfFundsSource',
-    'flowOfFundsSourceTransactionId',
+    // 'flowOfFundsSourceTransactionId',
     'flowOfFundsTransactionCurrency',
     'origCurrencyCD',
-    'sequenceNumberDescr',
-    'sourceTransactionId',
+    // 'sequenceNumberDescr',
+    // 'sourceTransactionId',
     'strCaDispositionType',
     'strReportingEntity',
     'strSaDirection',
@@ -360,6 +372,8 @@ export class OtcTableComponent<
     'strTransactionStatus',
     'transactionCurrency',
     'transactionId',
+    'creditAmount',
+    'debitAmount',
   ];
 
   dateFiltersValues: (keyof OTCSourceData)[] = [
@@ -370,7 +384,10 @@ export class OtcTableComponent<
     'flowOfFundsTransactionDate',
   ];
 
-  dateFiltersValuesIgnore: (keyof OTCSourceData)[] = [];
+  dateFiltersValuesIgnore: (keyof OTCSourceData)[] = [
+    'transactionTime',
+    'flowOfFundsTransactionTime',
+  ];
 
   displayedColumnsTime: (keyof OTCSourceData)[] = [
     'transactionTime',

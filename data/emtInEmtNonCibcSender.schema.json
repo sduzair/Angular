@@ -546,6 +546,36 @@
       "selectionStyle": "sequential",
       "distribution": null,
       "formula": null
+    },
+    {
+      "name": "flowOfFundsCreditedAccount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "inEMTCompleteWithRawSubjectNonCibcSenderWithBackup",
+      "column": "flowOfFundsCreditedAccount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsDebitedAccount",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "inEMTCompleteWithRawSubjectNonCibcSenderWithBackup",
+      "column": "flowOfFundsDebitedAccount",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
+    },
+    {
+      "name": "flowOfFundsTransactionDate",
+      "null_percentage": 0,
+      "type": "Dataset Column",
+      "dataset": "inEMTCompleteWithRawSubjectNonCibcSenderWithBackup",
+      "column": "flowOfFundsTransactionDate",
+      "selectionStyle": "sequential",
+      "distribution": null,
+      "formula": null
     }
   ]
 }

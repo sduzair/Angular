@@ -73,10 +73,11 @@ export class ScrollPositionPreserveDirective implements OnInit, OnDestroy {
   private saveScrollPositions(scrollableEles: HTMLElement[]): void {
     const positions: Record<string, [number, number]> = {};
 
-    scrollableEles.forEach((element, index) => {
-      console.assert(element.isConnected);
-      positions[index] = [element.scrollTop, element.scrollLeft];
-    });
+    scrollableEles
+      .filter((ele) => ele.isConnected)
+      .forEach((element, index) => {
+        positions[index] = [element.scrollTop, element.scrollLeft];
+      });
 
     if (Object.keys(positions).length > 0) {
       this.scrollService.saveScrollPositions(this.routeKey, positions);

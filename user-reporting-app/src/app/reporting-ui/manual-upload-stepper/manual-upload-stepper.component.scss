@@ -1,9 +1,5 @@
 @use '@angular/material' as mat;
 
-mat-dialog-content {
-  @include mat.button-density(5);
-}
-
 .drop-zone {
   border: 2px dashed var(--mat-sys-primary);
   border-radius: 8px;
@@ -23,9 +19,10 @@ mat-dialog-content {
 }
 
 .upload-icon {
-  font-size: 64px;
-  width: 64px;
-  height: 64px;
+  font-size: 64px !important;
+  width: 64px !important;
+  height: 64px !important;
+  line-height: 64px !important;
   color: var(--mat-sys-primary);
 }
 
@@ -49,9 +46,10 @@ mat-dialog-content {
 }
 
 .success-icon {
-  font-size: 80px;
-  width: 80px;
-  height: 80px;
+  font-size: 80px !important;
+  width: 80px !important;
+  height: 80px !important;
+  line-height: 80px !important;
   color: var(--bs-success);
   margin-bottom: 16px;
 }

@@ -1,16 +1,17 @@
 import { ArrayDataSource } from '@angular/cdk/collections';
 import { CommonModule } from '@angular/common';
 import {
+  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
-  ViewChild,
+  DestroyRef,
   inject,
   TrackByFunction,
-  AfterViewInit,
-  DestroyRef,
+  ViewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { MatButtonModule } from '@angular/material/button';
+import { MatButtonModule, MatIconButton } from '@angular/material/button';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -26,7 +27,13 @@ import {
   RouterLinkActive,
   RouterOutlet,
 } from '@angular/router';
-import { filter } from 'rxjs';
+import { filter, take } from 'rxjs';
+import { AmlCaseTeardownService } from '../aml/aml-case-teardown.service';
+import {
+  AmlCloseConfirmDialogComponent,
+  ConfirmDialogData,
+} from '../aml/aml-close-confirm-dialog.component';
+import { AuthService } from '../auth.service';
 import { NavTreeService } from './nav-tree.service';
 
 @Component({
@@ -41,18 +48,29 @@ import { NavTreeService } from './nav-tree.service';
     MatTreeModule,
     MatIconModule,
     MatButtonModule,
+    MatIconButton,
     MatTreeNodePadding,
+    MatDialogModule,
   ],
   template: `
-    <mat-sidenav-container class="d-flex flex-column h-100 overflow-hidden">
+    <mat-sidenav-container class="d-flex flex-column h-100">
       <mat-sidenav
         mode="side"
         opened
         disableClose
         fixedInViewport
         class="app-nav border-end shadow-sm">
-        <mat-toolbar class="px-3 mb-2 border-bottom">
+        <mat-toolbar class="px-3 mb-2 border-bottom justify-content-between">
           <span>Poacher UI</span>
+          <button
+            class="logout-btn"
+            type="button"
+            matIconButton
+            (click)="onLogout()"
+            matTooltip="Logout"
+            aria-label="Logout">
+            <mat-icon>logout</mat-icon>
+          </button>
         </mat-toolbar>
 
         <mat-tree
@@ -69,7 +87,7 @@ import { NavTreeService } from './nav-tree.service';
               class="d-flex align-items-center w-100 p-1 rounded app-hover-bg">
               <button
                 type="button"
-                mat-icon-button
+                matIconButton
                 matTreeNodeToggle
                 [attr.aria-label]="'Toggle ' + node.name">
                 <mat-icon>
@@ -77,13 +95,24 @@ import { NavTreeService } from './nav-tree.service';
                 </mat-icon>
               </button>
 
-              <mat-icon class="me-2">
+              <mat-icon class="node-icon me-2">
                 {{ node.matIcon }}
               </mat-icon>
 
               <span class="fw-medium user-select-none">
                 {{ node.name }}
               </span>
+
+              @if (isAmlNode(node)) {
+                <button
+                  type="button"
+                  matIconButton
+                  class="ms-auto"
+                  [attr.aria-label]="'Close ' + node.name"
+                  (click)="onRemoveAmlCase($event, node)">
+                  <mat-icon>highlight_remove</mat-icon>
+                </button>
+              }
             </div>
           </mat-tree-node>
 
@@ -96,7 +125,7 @@ import { NavTreeService } from './nav-tree.service';
               routerLinkActive="app-hover-bg-active"
               class="d-flex align-items-center w-100 p-1 rounded app-hover-bg text-decoration-none transition-base"
               style="cursor: pointer;">
-              <mat-icon class="me-2">
+              <mat-icon class="node-icon me-2">
                 {{ node.matIcon }}
               </mat-icon>
 
@@ -106,7 +135,7 @@ import { NavTreeService } from './nav-tree.service';
         </mat-tree>
       </mat-sidenav>
 
-      <mat-sidenav-content class="overflow-hidden">
+      <mat-sidenav-content class="overflow-y-scroll">
         <router-outlet></router-outlet>
       </mat-sidenav-content>
     </mat-sidenav-container>
@@ -120,6 +149,9 @@ export class NavLayoutComponent implements AfterViewInit {
   private readonly navTreeService = inject(NavTreeService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly amlCaseTeardownService = inject(AmlCaseTeardownService);
+  private readonly dialog = inject(MatDialog);
+  private readonly authService = inject(AuthService);
 
   dataSource!: ArrayDataSource<NavNode>;
 
@@ -127,6 +159,8 @@ export class NavLayoutComponent implements AfterViewInit {
   hasChild = (_: number, node: NavNode) => !!node.children?.length;
   trackById: TrackByFunction<NavNode> = (_index: number, item: NavNode) =>
     item.id;
+
+  isAmlNode = (node: NavNode): boolean => node.id.startsWith('AML-');
 
   constructor() {
     // Subscribe to tree data changes
@@ -136,6 +170,36 @@ export class NavLayoutComponent implements AfterViewInit {
       .subscribe((data) => {
         this.dataSource = new ArrayDataSource<NavNode>(data);
       });
+  }
+
+  onRemoveAmlCase(event: MouseEvent, node: NavNode): void {
+    event.stopPropagation();
+
+    const amlId = node.id.replace('AML-', '');
+
+    const dialogRef = this.dialog.open(AmlCloseConfirmDialogComponent, {
+      width: '400px',
+      data: {
+        title: 'Remove AML Case',
+        message: `Unsaved changes to AML-${amlId} will be lost. Continue?`,
+        confirmLabel: 'Remove',
+        cancelLabel: 'Cancel',
+      } satisfies ConfirmDialogData,
+    });
+
+    dialogRef
+      .afterClosed()
+      .pipe(take(1))
+      // eslint-disable-next-line rxjs-angular-x/prefer-async-pipe, rxjs-angular-x/prefer-takeuntil
+      .subscribe((confirmed: boolean) => {
+        if (!confirmed) return;
+        this.amlCaseTeardownService.remove(amlId);
+      });
+  }
+
+  onLogout(): void {
+    this.authService.logout();
+    this.router.navigate(['/login']);
   }
 
   ngAfterViewInit() {

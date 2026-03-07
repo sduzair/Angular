@@ -1,8 +1,3 @@
-.mat-column-actions > div {
-  display: flex;
-  flex-wrap: nowrap;
-}
-
 .mat-mdc-table-sticky button {
   cursor: pointer;
 }
@@ -10,4 +5,8 @@
 .mat-column-_hiddenValidation mat-chip-set {
   max-width: 300px;
   width: max-content;
+}
+
+::ng-deep .validation-chips .mat-mdc-standard-chip {
+  --mat-chip-container-height: 18px;
 }

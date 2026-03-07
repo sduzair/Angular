@@ -3,24 +3,20 @@
 mat-toolbar-row.header-toolbar-row {
   gap: 0.5em;
   justify-content: space-between;
-  @include mat.button-density(5);
 }
 
 // Needed for projected content (col definitions)
 :host ::ng-deep {
   /* Excel-like Table Styling */
   .base-table-container {
-    min-height: 80dvh;
     height: 80dvh;
-    // border: 1px solid var(--mat-sys-outline-variant);
   }
 
   mat-drawer-content table {
-    width: 100%;
+    // width: 100%;
+    table-layout: auto; // overrides 'fixed' used conventionally with virtual scrolling
     border-collapse: separate;
     border-spacing: 0px;
-
-    @include mat.table-density(-5);
   }
 
   .mat-mdc-header-cell {
@@ -42,20 +38,21 @@ mat-toolbar-row.header-toolbar-row {
     border-bottom: 1px solid var(--mat-sys-outline-variant);
   }
 
-  .mat-mdc-header-cell,
-  .mat-mdc-cell {
-    max-width: 300px;
-  }
-
   .mat-mdc-cell {
     white-space: nowrap;
-    overflow-x: scroll;
+    overflow-x: auto;
     scrollbar-width: none;
-    text-overflow: unset;
+    text-overflow: ellipsis;
+    min-width: 0;
   }
 
-  .mat-column-flowOfFundsTransactionDesc {
-    max-width: 400px;
+  /* Subtle focus styling for table cells */
+
+  .mat-mdc-cell:focus,
+  .mat-mdc-cell:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: -2px;
+    position: relative;
   }
 
   .mat-mdc-header-row {
@@ -65,7 +62,7 @@ mat-toolbar-row.header-toolbar-row {
   .mat-mdc-row {
     transform: translateZ(0); /* Triggers GPU layer creation */
     will-change: transform; /* Hint for future changes */
-    transition: background-color 0.3s;
+    transition: background-color 0.2s;
   }
 
   .mat-mdc-row:hover .mat-mdc-cell {
@@ -87,7 +84,6 @@ mat-drawer.form-drawer {
 }
 
 mat-drawer-container {
-  @include mat.form-field-density(-5);
   @include mat.chips-overrides(
     (
       container-height: 20px,
@@ -102,7 +98,7 @@ mat-drawer-container {
 
   @include mat.sidenav-overrides(
     (
-      container-width: 380px,
+      container-width: 320px,
     )
   );
 }
@@ -111,17 +107,11 @@ mat-drawer-container {
   margin: 2px 0 2px 8px;
 }
 
-/* Filter chips styling */
-.filter-chips {
-  @include mat.chips-density(0);
-}
-
 .filter-chips mat-chip {
   max-width: unset;
 }
 
 mat-chip-set.mat-mdc-chip-set.mdc-evolution-chip-set.filter-chips {
-  @include mat.chips-density(-1);
   @include mat.chips-overrides(
     (
       container-shape-radius: 24px,
@@ -152,21 +142,32 @@ mat-chip-set.mat-mdc-chip-set.mdc-evolution-chip-set.filter-chips {
   pointer-events: unset;
 }
 
+::ng-deep .select-option .mdc-form-field.mat-internal-form-field {
+  gap: 0.5rem;
+}
+
 ::ng-deep
   .select-option.mat-mdc-option.mdc-list-item--disabled
   .mdc-list-item__primary-text {
   opacity: unset;
 }
 
-.filter-form-toolbar {
-  @include mat.button-density(5);
-  & {
-    --mat-toolbar-standard-height: 48px;
-  }
+mat-chip-grid.select-filter-chip-grid {
+  @include mat.chips-overrides(
+    (
+      // Container: density floor 24px → 20px
+      container-height: 20px,
+      with-icon-icon-size: 14px,
+      with-avatar-avatar-size: 16px,
+      with-avatar-avatar-shape-radius: 8px
+    )
+  );
 }
 
-.filter-form-toolbar mat-button-toggle-group {
-  flex: 1 0 auto;
+.filter-form-toolbar {
+  & {
+    --mat-toolbar-standard-height: 35px;
+  }
 }
 
 .filter-form-toolbar mat-toolbar-row {
@@ -175,11 +176,15 @@ mat-chip-set.mat-mdc-chip-set.mdc-evolution-chip-set.filter-chips {
 
 .color-box {
   display: inline-block;
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   vertical-align: middle;
   border: 1px solid #ccc;
   border-radius: 2px;
+}
+
+::ng-deep .select-color-box .mat-button-toggle-label-content {
+  padding: 0 8px !important;
 }
 
 ::ng-deep
@@ -195,10 +200,6 @@ mat-chip-set.mat-mdc-chip-set.mdc-evolution-chip-set.filter-chips {
   padding-left: 0px;
 }
 
-.form-drawer mat-button-toggle {
-  @include mat.button-toggle-density(-3);
-}
-
 mat-icon.highlight-radio-cancel.material-icons {
   height: 20px;
   width: 20px;
@@ -211,8 +212,8 @@ mat-button-toggle.highlight-radio {
 
 .color-box-in-chip {
   display: inline-block;
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   vertical-align: middle;
   border: 1px solid #ccc;
   border-radius: 2px;
@@ -220,18 +221,21 @@ mat-button-toggle.highlight-radio {
 
 .color-pallette {
   flex: 0 0 auto;
-  @include mat.chips-overrides(
-    (
-      container-shape-radius: 50%,
-      container-height: 32px,
-      elevated-selected-container-color: var(--mat-sys-surface),
-      outline-color: var(--mat-sys-on-surface),
-      flat-selected-outline-width: 3px,
-    )
-  );
+
+  ::ng-deep .mat-mdc-chip.mat-mdc-standard-chip {
+    @include mat.chips-overrides(
+      (
+        container-shape-radius: 50%,
+        container-height: 26px,
+        elevated-selected-container-color: var(--mat-sys-surface),
+        outline-color: var(--mat-sys-on-surface),
+        flat-selected-outline-width: 3px,
+      )
+    );
+  }
 
   mat-chip {
-    width: 32px;
+    width: 26px;
   }
 
   // ::ng-deep mat-chip.mat-mdc-chip-highlighted {
@@ -261,6 +265,13 @@ mat-button-toggle.highlight-radio {
 
   ::ng-deep .mdc-evolution-chip-set__chips {
     flex-flow: row;
+  }
+
+  mat-icon.mat-icon {
+    font-size: 24px !important;
+    width: 24px !important;
+    height: 24px !important;
+    line-height: 24px !important;
   }
 }
 

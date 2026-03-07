@@ -36,6 +36,8 @@ export class LoginComponent implements OnInit {
       { username: string; role: UserRole }
     >(RoleDialogComponent, {
       disableClose: true,
+      width: '780px',
+      maxWidth: '95vw',
     });
 
     dialogRef

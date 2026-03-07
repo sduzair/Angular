@@ -1,15 +1,17 @@
 import { inject } from '@angular/core';
 import { createTool } from '@hashbrownai/angular';
 import { s } from '@hashbrownai/core';
-import { firstValueFrom, map } from 'rxjs';
+import { delay, firstValueFrom, map } from 'rxjs';
 import { CaseRecordStore } from '../../aml/case-record.store';
-import { AccountMethodsService } from '../../analytics/account-methods.service';
+import { AccountTransactionTotalsService } from '../../analytics/account-transaction-totals.service';
 import { TransactionSearchService } from '../../transaction-search/transaction-search.service';
+import { hasDataIntegrity } from '../../reporting-ui/edit-form/common-validation';
 
 export const getReviewPeriod = createTool({
   name: 'getReviewPeriod',
   description:
     'Returns the currently selected review period range(s) (start/end date pairs) used to scope the transaction activity being reviewed.',
+  schema: s.object('No parameters required.', {}),
   handler: () => {
     return firstValueFrom(
       inject(CaseRecordStore).state$.pipe(
@@ -22,25 +24,10 @@ export const getReviewPeriod = createTool({
   },
 });
 
-export const getAccountSelection = createTool({
-  name: 'getAccountSelection',
-  description: 'Returns the selected account(s)',
-  handler: () => {
-    return firstValueFrom(
-      inject(CaseRecordStore).state$.pipe(
-        map(
-          ({ searchParams: { accountNumbersSelection } }) =>
-            accountNumbersSelection,
-        ),
-      ),
-    );
-  },
-});
-
 export const getPartyKeysByAccount = createTool({
   name: 'getPartyKeysByAccount',
   description:
-    'Given an account number, returns the party key(s) for the account holder(s) so ownership can be determined (e.g., single vs joint).',
+    'Use ONLY to determine account ownership. Given an account number, returns the list of party keys for the account holder(s). ',
   schema: s.object('Account number input', {
     accountNo: s.string('The account number of the account'),
   }),
@@ -57,27 +44,30 @@ export const getPartyKeysByAccount = createTool({
   },
 });
 
-export const getSubjectInfoByParyKey = createTool({
-  name: 'getSubjectInfoByParyKey',
+export const getAccountTransactionTotals = createTool({
+  name: 'getAccountTransactionTotals',
   description:
-    'Given a party key, returns subject details (at minimum the subject name) for use in narratives and labeling involved parties.',
-  schema: s.object('Party key input', {
-    _hiddenPartyKey: s.string('The party key number of the subject'),
-  }),
-  handler: ({ _hiddenPartyKey }) => {
+    'Returns aggregated transaction totals by account and direction (credits/debits), summarized by transaction type with amounts, counts, date coverage, and involved subjects.',
+  schema: s.object('No parameters required.', {}),
+  handler: () => {
+    // Converts Maps to arrays of objects for serialization
     return firstValueFrom(
-      inject(TransactionSearchService).getPartyInfo(_hiddenPartyKey),
+      inject(AccountTransactionTotalsService).getAccountTransactionTotals$(),
     );
   },
 });
 
-export const getAccountMethods = createTool({
-  name: 'getAccountMethods',
+export const checkDataIntegrity = createTool({
+  name: 'checkDataIntegrity',
   description:
-    'Returns aggregated transaction activity by account and direction (credits/debits), summarized by method with totals, counts, date coverage, and involved subjects.',
+    'Checks if any of the currently selected transactions are missing required data',
+  schema: s.object('No parameters required.', {}),
   handler: () => {
     return firstValueFrom(
-      inject(AccountMethodsService).getAllAccountTransactionActivity$(),
+      inject(CaseRecordStore).selectionsComputed$.pipe(
+        delay(2000),
+        map(({ result: selections }) => selections.every(hasDataIntegrity)),
+      ),
     );
   },
 });

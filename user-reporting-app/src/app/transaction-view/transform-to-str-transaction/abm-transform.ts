@@ -6,6 +6,7 @@ import {
 } from '../../reporting-ui/edit-form/form-options.service';
 import {
   AccountHolder,
+  Beneficiary,
   CompletingAction,
   Conductor,
   StartingAction,
@@ -15,7 +16,7 @@ import {
   FlowOfFundsSourceData,
   GetAccountInfoRes,
 } from '../../transaction-search/transaction-search.service';
-import { PartyGenType } from './party-gen.service';
+import { EntityGenType } from './entity-gen.service';
 
 /**
  * Transform source transaction into StrTransactionWithChangeLogs format
@@ -23,9 +24,9 @@ import { PartyGenType } from './party-gen.service';
 export function transformABMToStrTransaction(
   sourceTxn: AbmSourceData,
   fofTxn: FlowOfFundsSourceData,
-  generateParty: (
-    party: Omit<PartyGenType, 'partyIdentifier'>,
-  ) => Observable<PartyGenType | null>,
+  generateEntity: (
+    entity: Omit<EntityGenType, 'entityIdentifier'>,
+  ) => Observable<EntityGenType | null>,
   getAccountInfo: (account: string) => Observable<GetAccountInfoRes>,
   caseRecordId: string,
 ) {
@@ -82,25 +83,30 @@ export function transformABMToStrTransaction(
         );
       }
 
-      // Fetch all party info in parallel
-      const partyInfoObservables: Record<
+      // Fetch all entity info in parallel
+      const entityInfoObservables: Record<
         string,
-        Observable<PartyGenType | null>
+        Observable<EntityGenType | null>
       > = {};
       Array.from(partyKeysToFetch).forEach((partyKey) => {
-        partyInfoObservables[partyKey] = generateParty({
-          identifiers: { partyKey },
+        entityInfoObservables[partyKey] = generateEntity({
+          partyKey,
         });
       });
 
       return forkJoin({
-        partiesInfo:
-          Object.keys(partyInfoObservables).length > 0
-            ? forkJoin(partyInfoObservables)
-            : of({} as Record<string, PartyGenType | null>),
-      }).pipe(map(({ partiesInfo }) => ({ partiesInfo, accountsInfo })));
+        entitiesInfo:
+          Object.keys(entityInfoObservables).length > 0
+            ? forkJoin(entityInfoObservables)
+            : of({} as Record<string, EntityGenType | null>),
+      }).pipe(
+        map(({ entitiesInfo }) => ({
+          entitiesInfo,
+          accountsInfo,
+        })),
+      );
     }),
-    map(({ partiesInfo, accountsInfo }) => {
+    map(({ entitiesInfo, accountsInfo }) => {
       // Build starting actions
       const startingActions: StartingAction[] = [];
 
@@ -111,15 +117,13 @@ export function transformABMToStrTransaction(
           ?.split(/[;:]/)
           .reduce((acc, partyKey) => {
             acc.push({
-              linkToSub: partiesInfo[partyKey]?.partyIdentifier!,
-              _hiddenPartyKey: partiesInfo[partyKey]?.identifiers?.partyKey!,
-              _hiddenGivenName:
-                partiesInfo[partyKey]?.partyName?.givenName ?? null,
-              _hiddenSurname: partiesInfo[partyKey]?.partyName?.surname ?? null,
-              _hiddenOtherOrInitial:
-                partiesInfo[partyKey]?.partyName?.otherOrInitial ?? null,
-              _hiddenNameOfEntity:
-                partiesInfo[partyKey]?.partyName?.nameOfEntity ?? null,
+              linkToSub: entitiesInfo[partyKey]?.entityIdentifier!,
+              _hiddenPartyKey: entitiesInfo[partyKey]?.partyKey!,
+              _hiddenGivenName: entitiesInfo[partyKey]?.givenName ?? null,
+              _hiddenSurname: entitiesInfo[partyKey]?.surname ?? null,
+              _hiddenOtherOrInitialName:
+                entitiesInfo[partyKey]?.otherOrInitialName ?? null,
+              _hiddenNameOfEntity: entitiesInfo[partyKey]?.nameOfEntity ?? null,
             });
             return acc;
           }, [] as AccountHolder[]) ?? [];
@@ -127,22 +131,22 @@ export function transformABMToStrTransaction(
       const conductors: Conductor[] = [];
       conductors.push({
         linkToSub:
-          partiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
-            ?.partyIdentifier!,
+          entitiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
+            ?.entityIdentifier!,
         _hiddenPartyKey:
-          partiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
-            ?.identifiers?.partyKey!,
+          entitiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
+            ?.partyKey!,
         _hiddenGivenName:
-          partiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]?.partyName
+          entitiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
             ?.givenName!,
         _hiddenSurname:
-          partiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]?.partyName
+          entitiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
             ?.surname!,
-        _hiddenOtherOrInitial:
-          partiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]?.partyName
-            ?.otherOrInitial!,
+        _hiddenOtherOrInitialName:
+          entitiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
+            ?.otherOrInitialName!,
         _hiddenNameOfEntity:
-          partiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]?.partyName
+          entitiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
             ?.nameOfEntity!,
         wasConductedOnBehalf: false,
         onBehalfOf: [],
@@ -175,7 +179,7 @@ export function transformABMToStrTransaction(
         hasAccountHolders: saAccountHolders.length > 0,
         accountHolders: saAccountHolders,
         wasSofInfoObtained: false,
-        sourceOfFunds: undefined,
+        sourceOfFunds: [],
         wasCondInfoObtained: conductors.length > 0,
         conductors: conductors,
       });
@@ -190,18 +194,38 @@ export function transformABMToStrTransaction(
           ?.split(/[;:]/)
           .reduce((acc, partyKey) => {
             acc.push({
-              linkToSub: partiesInfo[partyKey]?.partyIdentifier!,
-              _hiddenPartyKey: partiesInfo[partyKey]?.identifiers?.partyKey!,
-              _hiddenGivenName:
-                partiesInfo[partyKey]?.partyName?.givenName ?? null,
-              _hiddenSurname: partiesInfo[partyKey]?.partyName?.surname ?? null,
-              _hiddenOtherOrInitial:
-                partiesInfo[partyKey]?.partyName?.otherOrInitial ?? null,
-              _hiddenNameOfEntity:
-                partiesInfo[partyKey]?.partyName?.nameOfEntity ?? null,
+              linkToSub: entitiesInfo[partyKey]?.entityIdentifier!,
+              _hiddenPartyKey: entitiesInfo[partyKey]?.partyKey!,
+              _hiddenGivenName: entitiesInfo[partyKey]?.givenName ?? null,
+              _hiddenSurname: entitiesInfo[partyKey]?.surname ?? null,
+              _hiddenOtherOrInitialName:
+                entitiesInfo[partyKey]?.otherOrInitialName ?? null,
+              _hiddenNameOfEntity: entitiesInfo[partyKey]?.nameOfEntity ?? null,
             });
             return acc;
           }, [] as AccountHolder[]) ?? [];
+
+      const beneficiaries: Beneficiary[] = [];
+      beneficiaries.push({
+        linkToSub:
+          entitiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
+            ?.entityIdentifier!,
+        _hiddenPartyKey:
+          entitiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
+            ?.partyKey!,
+        _hiddenGivenName:
+          entitiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
+            ?.givenName!,
+        _hiddenSurname:
+          entitiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
+            ?.surname!,
+        _hiddenOtherOrInitialName:
+          entitiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
+            ?.otherOrInitialName!,
+        _hiddenNameOfEntity:
+          entitiesInfo[String(sourceTxn.flowOfFundsConductorPartyKey)]
+            ?.nameOfEntity!,
+      });
 
       completingActions.push({
         detailsOfDispo: sourceTxn.strCaDispositionType,
@@ -227,8 +251,8 @@ export function transformABMToStrTransaction(
         beneficiaries:
           (sourceTxn.strCaDispositionType as FORM_OPTIONS_DETAILS_OF_DISPOSITION) ===
           'Cash Withdrawal (account based)'
-            ? conductors
-            : caAccountHolders,
+            ? beneficiaries
+            : structuredClone(caAccountHolders),
       });
 
       const { flowOfFundsTransactionDesc } = fofTxn;
@@ -286,7 +310,7 @@ export function transformABMToStrTransaction(
 
       return {
         selection: transformed,
-        parties: Object.values(partiesInfo) as PartyGenType[],
+        entities: Object.values(entitiesInfo) as EntityGenType[],
       };
     }),
   );
