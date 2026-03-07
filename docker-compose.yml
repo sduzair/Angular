@@ -14,8 +14,9 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:5110
-      - MongoDB__ConnectionString=mongodb://mongodb:27017/?replicaSet=rs0&directConnection=true
+      - MongoDB__ConnectionString=mongodb://mongodb:27017/?directConnection=true
       - MongoDB__DatabaseName=amldb
+      - Jwt__Key=9Mr3HS29byXp6fS3C9FYEdTScfJMHZdCbMlMabFpvfY=
 
   mongodb:
     container_name: mongodb

@@ -1,5 +1,7 @@
 import { TEST_USER_ADMIN } from '../auth.fixture';
-import { TRANSACTION_SEARCH_RES_DEV_ONLY } from '../transaction-search/transaction-search.data.fixture';
+/* MUST COMMENT IN PROD - INVALID DIR PATH - START */
+// import { TRANSACTION_SEARCH_RES_DEV_ONLY } from '../transaction-search/transaction-search.data.fixture';
+/* MUST COMMENT IN PROD - INVALID DIR PATH - END */
 import {
   ENTITIES_DEV_OR_TEST_ONLY_FIXTURE,
   SELECTIONS_DEV_OR_TEST_ONLY_FIXTURE,
@@ -11,7 +13,8 @@ export const CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE =
   '33a41dcc-ab8e-4a9b-89ea-c6a2fec46356';
 
 export const CASE_RECORD_STATE_DEV_OR_TEST_ONLY_FIXTURE: CaseRecordState = {
-  searchResponse: TRANSACTION_SEARCH_RES_DEV_ONLY,
+  // searchResponse: TRANSACTION_SEARCH_RES_DEV_ONLY,
+  searchResponse: [],
   caseRecordId: CASE_RECORD_ID_DEV_OR_TEST_ONLY_FIXTURE,
   amlId: String(AML_ID_DEV_OR_TEST_ONLY_FIXTURE),
   searchParams: {

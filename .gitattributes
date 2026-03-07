@@ -1,5 +1,10 @@
 *.sh text eol=lf
-*.pem text eol=lf
 
 data/*.json filter=lfs diff=lfs merge=lfs -text
 data/*schema.json !filter=lfs !diff=lfs !merge=lfs
+
+certs/** eol=lf
+*.pem eol=lf
+*.key eol=lf
+*.crt eol=lf
+*.csr eol=lf
