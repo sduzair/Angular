@@ -149,7 +149,7 @@ export class CaseRecordStore {
   readonly searchParamsChanged$ = this._state$.pipe(
     map(
       ({ searchParamsHash, lastSearchedParamsHash }) =>
-        searchParamsHash === lastSearchedParamsHash,
+        searchParamsHash !== lastSearchedParamsHash,
     ),
     distinctUntilChanged(),
   );
@@ -698,6 +698,13 @@ export class CaseRecordStore {
     });
   }
 
+  setLastSearchedParamsHash(lastSearchedParamsHash: string | null) {
+    this._state$.next({
+      ...this._state$.value,
+      lastSearchedParamsHash,
+    });
+  }
+
   setCaseRecordId(caseRecordId: string) {
     this._state$.next({
       ...this._state$.value,
@@ -796,7 +803,7 @@ export class CaseRecordStore {
   // --- API PROXIES ---
   fetchCaseRecordByAmlId(amlId: string) {
     return this.caseRecordService.fetchCaseRecordByAmlId(amlId).pipe(
-      tap(({ searchParams, ...rest }) => {
+      tap(({ searchParams, searchParamsHash, ...rest }) => {
         const {
           reviewPeriodSelection,
           partyKeysSelection,
@@ -804,6 +811,7 @@ export class CaseRecordStore {
           sourceSystemsSelection,
           productTypesSelection,
         } = searchParams ?? {};
+
         this._state$.next({
           ...this._state$.value,
           searchParams: {
@@ -813,11 +821,10 @@ export class CaseRecordStore {
             reviewPeriodSelection: reviewPeriodSelection ?? [],
             sourceSystemsSelection: sourceSystemsSelection ?? [],
           },
+          searchParamsHash,
           ...rest,
         });
       }),
-      // access case record state from state
-      map(() => true),
     );
   }
 

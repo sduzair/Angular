@@ -847,7 +847,13 @@ export const searchResultResolver: ResolveFn<boolean> = (
   const amlId = route.paramMap.get('amlId')!;
 
   return forkJoin([
-    caseRecordStore.fetchCaseRecordByAmlId(amlId),
+    caseRecordStore
+      .fetchCaseRecordByAmlId(amlId)
+      .pipe(
+        tap((res) =>
+          caseRecordStore.setLastSearchedParamsHash(res.searchParamsHash),
+        ),
+      ),
     caseRecordStore.fetchSelectionsAndEntities(),
   ]).pipe(
     map(() => true),

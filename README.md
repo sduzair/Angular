@@ -150,7 +150,6 @@ dotnet user-jwts list
 MONGO_ROOT_USERNAME=sandbox.tuank.mongodb.net
 MONGO_DATABASE=amldb
 MONGO_CONNECTION_STRING=mongodb+srv://${MONGO_ROOT_USERNAME}/${MONGO_DATABASE}?authSource=%24external&authMechanism=MONGODB-X509
-CLIENT_PEM_BASE64=asdf=
 ASPNETCORE_ENVIRONMENT=Production
 CLIENT_PEM_BASE64="********"
 Jwt__Key="*******************************************="
