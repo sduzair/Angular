@@ -18,6 +18,7 @@ I built the project across **Angular, TypeScript, RxJS, .NET, and MongoDB**, wit
     - [4. Explain every change — Audit and Version History](#4-explain-every-change--audit-and-version-history)
     - [5. Understand the activity — Analytics](#5-understand-the-activity--analytics)
   - [Angular engineering practices](#angular-engineering-practices)
+  - [Advanced Javascript - Event Loop Async Scheduling](#advanced-javascript---event-loop-async-scheduling)
   - [Collaboration without silent overwrites](#collaboration-without-silent-overwrites)
   - [Security and full-stack design](#security-and-full-stack-design)
   - [Technology stack](#technology-stack)
@@ -123,6 +124,24 @@ An additional narrative-assistant interface uses Hashbrown and a streaming chat 
 | Navigation continuity        | Nested routes, resolvers, route caching, and scroll restoration preserve context; case closure includes route-cache eviction and navigation cleanup.                                        |
 
 Additional state safeguards include cloning nested form data to prevent cross-transaction mutations, normalizing empty values during change detection, cached filter-option computation, shared replay caching for reference data, and IndexedDB persistence for local highlights.
+
+## Advanced Javascript - Event Loop Async Scheduling
+
+Form interactions can trigger multiple synchronous emissions as related form values and reactive state are updated. Processing every intermediate emission can cause unnecessary recalculations when only the latest state is relevant.
+
+debounceTime(0) creates an asynchronous boundary in the reactive pipeline. Synchronous emissions produced during the current call stack are coalesced, and only the latest pending value is emitted during later scheduled event-loop work.
+
+```js
+filteredSelectionsByAccountAndPeriod$ = combineLatest([
+  this.filteredSelectionsByAccount$,
+  this.filterForm.valueChanges,
+]).pipe(
+  debounceTime(0),
+  map(...)
+);
+```
+
+[Source](https://github.com/sduzair/Angular/blob/24048995f8c3e4f66f5c07c042af7aa932b06b54/user-reporting-app/src/app/analytics/analytics.component.ts#L369)
 
 ## Collaboration without silent overwrites
 
