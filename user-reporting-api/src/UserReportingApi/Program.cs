@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using IHttpResponseBodyFeature = Microsoft.AspNetCore.Http.Features.IHttpResponseBodyFeature;
 using Microsoft.IdentityModel.Logging;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Bson;
@@ -17,6 +18,20 @@ builder.Configuration.AddEnvironmentVariables();
 // Serialization config
 builder.Services.ConfigureHttpJsonOptions(o =>
     JsonConfiguration.ConfigureJsonOptions(o.SerializerOptions));
+
+builder.Services.AddHttpClient("HashbrownProxy", (services, client) =>
+{
+    var baseAddress = services.GetRequiredService<IConfiguration>()["HashbrownProxy:BaseAddress"];
+    if (!Uri.TryCreate(baseAddress, UriKind.Absolute, out var proxyUri)
+        || (proxyUri.Scheme != Uri.UriSchemeHttp && proxyUri.Scheme != Uri.UriSchemeHttps))
+    {
+        throw new InvalidOperationException(
+            "HashbrownProxy:BaseAddress must be an absolute HTTP or HTTPS URL. Set HashbrownProxy__BaseAddress in the environment.");
+    }
+
+    client.BaseAddress = proxyUri;
+    client.Timeout = TimeSpan.FromMinutes(5);
+});
 
 
 var camelCaseConvention = new MongoDB.Bson.Serialization.Conventions.ConventionPack { new MongoDB.Bson.Serialization.Conventions.CamelCaseElementNameConvention() };
@@ -152,6 +167,73 @@ if (app.Environment.IsProduction())
 }
 
 var api = app.MapGroup("/api");
+
+api.MapPost("/chat", async (
+    HttpContext context,
+    IHttpClientFactory httpClientFactory,
+    ILogger<Program> logger,
+    CancellationToken cancellationToken) =>
+{
+    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+    timeout.CancelAfter(TimeSpan.FromMinutes(5));
+    var proxyToken = timeout.Token;
+
+    using var request = new HttpRequestMessage(HttpMethod.Post, "/api/chat" + context.Request.QueryString)
+    {
+        Content = new StreamContent(context.Request.Body)
+    };
+    if (context.Request.ContentType is { } contentType)
+        request.Content.Headers.TryAddWithoutValidation("Content-Type", contentType);
+    if (context.Request.Headers.Accept.Count > 0)
+        request.Headers.TryAddWithoutValidation("Accept", context.Request.Headers.Accept.ToArray());
+
+    using var client = httpClientFactory.CreateClient("HashbrownProxy");
+
+    try
+    {
+        using var upstream = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, proxyToken);
+        context.Response.StatusCode = (int)upstream.StatusCode;
+        context.Response.ContentType = upstream.Content.Headers.ContentType?.ToString();
+        context.Response.Headers.CacheControl = "no-store";
+        context.Response.Headers["X-Accel-Buffering"] = "no";
+        context.Features.Get<IHttpResponseBodyFeature>()?.DisableBuffering();
+
+        await using var stream = await upstream.Content.ReadAsStreamAsync(proxyToken);
+        var buffer = new byte[8192];
+        int bytesRead;
+        while ((bytesRead = await stream.ReadAsync(buffer, proxyToken)) > 0)
+        {
+            await context.Response.Body.WriteAsync(buffer.AsMemory(0, bytesRead), proxyToken);
+            await context.Response.Body.FlushAsync(proxyToken);
+        }
+    }
+    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+    {
+        context.Abort();
+    }
+    catch (OperationCanceledException)
+    {
+        logger.LogWarning("Hashbrown proxy request timed out");
+        if (context.Response.HasStarted)
+            context.Abort();
+        else
+        {
+            context.Response.Clear();
+            context.Response.StatusCode = StatusCodes.Status504GatewayTimeout;
+        }
+    }
+    catch (Exception ex) when (ex is HttpRequestException or IOException)
+    {
+        logger.LogWarning(ex, "Hashbrown proxy request failed");
+        if (context.Response.HasStarted)
+            context.Abort();
+        else
+        {
+            context.Response.Clear();
+            context.Response.StatusCode = StatusCodes.Status502BadGateway;
+        }
+    }
+}).RequireAuthorization("AnalystPolicy");
 
 api.MapPost("/transaction/search", async (
     TransactionSearchRequest searchRequest,

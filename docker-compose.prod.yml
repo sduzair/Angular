@@ -14,6 +14,7 @@ services:
       - MongoDB__CLIENT_CERT_PATH=/etc/ssl/client.pem
       - ASPNETCORE_ENVIRONMENT=Production
       - CLIENT_PEM_BASE64=${CLIENT_PEM_BASE64}
+      - HashbrownProxy__BaseAddress=${HashbrownProxy__BaseAddress}
 
   # mongodb:
   #   container_name: mongodb

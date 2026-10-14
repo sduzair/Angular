@@ -1,3 +1,4 @@
+import { inject } from '@angular/core';
 import type { Routes } from '@angular/router';
 import { provideHashbrown } from '@hashbrownai/angular';
 import { provideMarkdown } from 'ngx-markdown';
@@ -8,7 +9,11 @@ import {
   DEFAULT_CASE_RECORD_STATE,
 } from './aml/case-record.store';
 import { AccountTransactionTotalsService } from './analytics/account-transaction-totals.service';
-import { hasRoleGuard, isAuthenticatedGuard } from './auth.service';
+import {
+  AuthService,
+  hasRoleGuard,
+  isAuthenticatedGuard,
+} from './auth.service';
 import { LoginComponent } from './login/login.component';
 import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
 import {
@@ -70,8 +75,14 @@ export const routes: Routes = [
             baseUrl: '/api/chat',
             middleware: [
               (req) => {
-                console.info('[Hashbrown Request]', req);
-                return req;
+                const token = inject(AuthService).accessToken();
+                if (!token) {
+                  return req;
+                }
+
+                const headers = new Headers(req.headers);
+                headers.set('Authorization', `Bearer ${token}`);
+                return { ...req, headers };
               },
             ],
           }),

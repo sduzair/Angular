@@ -156,6 +156,7 @@ Jwt__Key="*******************************************="
 MongoDB__CLIENT_CERT_PATH=/etc/ssl/client.pem
 MongoDB__ConnectionString="mongodb+srv://sandbox.tuank.mongodb.net/amldb?authSource=%24external&authMechanism=MONGODB-X509"
 MongoDB__DatabaseName=amldb
+HashbrownProxy__BaseAddress=https://hashbrown-proxy.onrender.com
 ```
 
 - Pass client PEM certificate as a base64-encoded environment variable (CLIENT_PEM_BASE64)

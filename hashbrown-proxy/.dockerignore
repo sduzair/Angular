@@ -1,0 +1,9 @@
+node_modules
+.pnpm-store
+.git
+.vscode
+.env
+.env.*
+*.log
+coverage
+README*
