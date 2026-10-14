@@ -9,6 +9,10 @@ import { HashbrownOpenAI } from "@hashbrownai/openai";
 
 export var app = express();
 
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 app.use(logger("dev"));
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
