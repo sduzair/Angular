@@ -15,8 +15,9 @@ I built the project across **Angular, TypeScript, RxJS, .NET, and MongoDB**, wit
     - [1. Define the investigation — Transaction Search](#1-define-the-investigation--transaction-search)
     - [2. Find relevant activity — Transaction View](#2-find-relevant-activity--transaction-view)
     - [3. Prepare report data — Reporting UI](#3-prepare-report-data--reporting-ui)
-    - [4. Explain every change — Audit and Version History](#4-explain-every-change--audit-and-version-history)
-    - [5. Understand the activity — Analytics](#5-understand-the-activity--analytics)
+    - [4. Turn transaction data into narratives — AI Chatbot](#4-turn-transaction-data-into-narratives--ai-chatbot)
+    - [5. Explain every change — Audit and Version History](#5-explain-every-change--audit-and-version-history)
+    - [6. Understand the activity — Analytics](#6-understand-the-activity--analytics)
   - [Angular engineering practices](#angular-engineering-practices)
   - [Advanced Javascript - Event Loop Async Scheduling](#advanced-javascript---event-loop-async-scheduling)
   - [Collaboration without silent overwrites](#collaboration-without-silent-overwrites)
@@ -83,7 +84,19 @@ Turn selected transactions into structured STR data. Review individual records, 
 - Per-transaction saving state provides focused feedback during updates.
 - Closed cases disable editing actions, backed by API-side closed-case guards.
 
-### 4. Explain every change — Audit and Version History
+### 4. Turn transaction data into narratives — AI Chatbot
+
+![AI chatbot alongside the Reporting UI, showing completed tool calls and a structured transaction-activity summary](docs/screenshots/ai-chatbot.png)
+
+An embedded AI assistant helps users summarize transaction activity without leaving the reporting workspace. The chat panel keeps the transaction table in view while presenting account-level narratives organized into credits and debits, with amounts, currencies, dates, and relevant parties.
+
+- **Natural-language interaction:** ask questions or use the “Summarize all transaction activity” shortcut to begin a review.
+- **Application tool calling:** retrieve case context through tools such as `checkDataIntegrity`, `getReviewPeriod`, and `getAccountTransactionTotals` before composing a summary.
+- **Visible tool execution:** completion chips show which application tools ran, making the assistant's data-retrieval steps visible to the user.
+- **Streaming responses:** Hashbrown and a streaming chat endpoint support incremental narrative generation in the Angular interface.
+- **Readable output:** Markdown formatting, structured headings, and a copy action make generated narratives easy to review and reuse.
+
+### 5. Explain every change — Audit and Version History
 
 ![Audit view with version selection, update metadata, and field-level change indicators](docs/screenshots/audit-history.png)
 
@@ -93,7 +106,7 @@ The change-log system tracks nested fields and array operations, including addit
 
 The project evolved from versioned session storage into **persistent case records and transaction selections**. Versioned change tracking remains central to the workflow, supporting traceability without requiring users to coordinate edits manually.
 
-### 5. Understand the activity — Analytics
+### 6. Understand the activity — Analytics
 
 ![Analytics dashboard with a funds-flow network, monthly volume chart, and transaction-type breakdown](docs/screenshots/analytics.png)
 
@@ -105,8 +118,6 @@ Interactive ECharts visualizations connect individual transactions to the broade
 - **Review indicators:** flow-through, funds-movement velocity, and per-currency structuring ratios, with threshold context in tooltips.
 
 These indicators support investigation and interpretation; they are not automated determinations of suspicious activity.
-
-An additional narrative-assistant interface uses Hashbrown and a streaming chat endpoint, with application tools for transaction context and basic-information checks.
 
 ## Angular engineering practices
 
